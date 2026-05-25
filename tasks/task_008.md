@@ -6,7 +6,7 @@
 
 **Dependencies:** 6
 
-**Priority:** medium
+**Priority:** high
 
 **Description:** 사용자가 특정 성분을 제외하고 대체품을 검색할 수 있는 기능을 개발합니다.
 

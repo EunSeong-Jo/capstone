@@ -8,7 +8,7 @@
 
 **Priority:** high
 
-**Description:** FastAPI를 사용하여 백엔드 API를 개발합니다.
+**Description:** FastAPI로 백엔드 API를 개발합니다. PRD 6.2의 Domain Adapter 패턴(BaseAdapter → CosmeticsAdapter)으로 설계하여 영양제·패션 등 도메인 확장 시 재사용 가능한 구조를 만듭니다. 제품 검색, 이미지 분석, 성분 유사도, 가성비 비교 API 및 pg_trgm 퍼지 검색을 구현합니다.
 
 **Details:**
 
