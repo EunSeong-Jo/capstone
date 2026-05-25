@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: #3D8F6F;
+    --primary-light: #EAF5EF;
+    --primary-dark: #2D6F53;
+    --accent: #FF5C7A;
+    --surface: #F8F9FA;
+    --border: #E5E7EB;
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-surface text-gray-900 font-sans;
+    max-width: 430px;
+    margin: 0 auto;
+    min-height: 100dvh;
+  }
+}
