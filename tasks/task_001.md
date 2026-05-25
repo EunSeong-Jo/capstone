@@ -2,7 +2,7 @@
 
 **Title:** 프로젝트 환경 설정
 
-**Status:** pending
+**Status:** in-progress
 
 **Dependencies:** None
 
@@ -74,3 +74,14 @@ Docker Compose로 전체 스택을 구동하고 서비스 간 통신을 테스�
 **Details:**
 
 docker-compose up 명령으로 모든 서비스를 기동하고, 각 서비스의 로그를 확인하여 오류가 없는지 검증합니다. FastAPI에서 PostgreSQL과 Redis에 정상적으로 연결되는지 테스트합니다.
+
+### 1.6. Sentry 에러 추적 및 structlog 구조화 로깅 설정 (P0)
+
+**Status:** pending  
+**Dependencies:** None  
+
+P0 로컬 개발 환경에서 Sentry SDK 초기화, DSN 환경변수 설정, structlog를 이용한 JSON 포맷 구조화 로깅 설정. 회원가입 퍼널·QnA 완주율·추천 클릭률 이벤트 로깅 구조 정의.
+
+**Details:**
+
+PRD 5.4 P0 요구사항: Sentry(에러 추적) + structlog(구조화 로깅, 로컬 파일). P1 단계에서 Task 9의 Prometheus+Grafana와 별개로 P0에서 먼저 적용 필요.
