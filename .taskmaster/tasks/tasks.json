@@ -9,7 +9,7 @@
         "testStrategy": "Docker Compose로 모든 서비스가 정상적으로 기동되는지 확인합니다. 각 서비스의 로그를 확인하여 오류가 없는지 점검합니다.",
         "priority": "high",
         "dependencies": [],
-        "status": "done",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -82,14 +82,14 @@
             "id": 6,
             "title": "Sentry 에러 추적 및 structlog 구조화 로깅 설정 (P0)",
             "description": "P0 로컬 개발 환경에서 Sentry SDK 초기화, DSN 환경변수 설정, structlog를 이용한 JSON 포맷 구조화 로깅 설정. 회원가입 퍼널·QnA 완주율·추천 클릭률 이벤트 로깅 구조 정의.",
-            "status": "done",
+            "status": "in-progress",
             "dependencies": [],
             "details": "PRD 5.4 P0 요구사항: Sentry(에러 추적) + structlog(구조화 로깅, 로컬 파일). P1 단계에서 Task 9의 Prometheus+Grafana와 별개로 P0에서 먼저 적용 필요.",
             "parentId": "undefined",
-            "updatedAt": "2026-05-26T05:55:53.447Z"
+            "updatedAt": "2026-05-26T07:13:59.026Z"
           }
         ],
-        "updatedAt": "2026-05-26T05:55:53.447Z",
+        "updatedAt": "2026-05-26T07:13:59.026Z",
         "group": "인프라"
       },
       {
@@ -1500,9 +1500,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-26T05:55:53.448Z",
+      "lastModified": "2026-05-26T07:13:59.027Z",
       "taskCount": 15,
-      "completedCount": 1,
+      "completedCount": 0,
       "tags": [
         "master"
       ]
