@@ -86,7 +86,7 @@ capstone/
 | 프로토타입 | 8개 화면 HTML 프로토타입 (온보딩·QnA·메인·상세·검색·마이페이지 등) |
 | 개발 가이드라인 | 디자인 토큰, 화면별 구현 체크리스트, API/DB 요약 |
 | Task Master 설정 | 15개 태스크 / 103개 서브태스크 / 의존성 검증 완료 |
-| **Task 1: 환경 설정** | Docker Compose 4-서비스 구성, FastAPI 기본 앱, React 스캐폴딩, Sentry+structlog |
+| **Task 1: 환경 설정** ✅ | Docker Compose (PostgreSQL·Redis·FastAPI·React), FastAPI 기본 앱, React+Vite+Tailwind 스캐폴딩, structlog 로깅, Sentry P0 모니터링 | 실제 `docker compose up` 검증 완료 |
 
 ### 🚧 진행 예정 (P0 — 7월 완성 목표)
 
