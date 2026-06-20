@@ -57,6 +57,21 @@ capstone/
 │   └── Dockerfile
 ├── frontend/                 # React 프론트엔드
 │   ├── src/
+│   │   ├── pages/            # 라우팅 단위 페이지
+│   │   │   ├── Home/         # 메인 화면 (피부타입 맞춤 추천)
+│   │   │   ├── Onboarding/   # 회원가입 온보딩
+│   │   │   ├── QnA/          # 피부타입 진단 문답
+│   │   │   ├── Search/       # 텍스트·이미지 검색
+│   │   │   ├── Detail/       # 제품 상세 + 대체품 TOP 3
+│   │   │   ├── Result/       # 검색 결과
+│   │   │   ├── Mypage/       # 마이페이지
+│   │   │   └── Popup/        # 신규 가입 유도 팝업
+│   │   ├── components/
+│   │   │   ├── layout/       # Header, BottomNav, PageWrapper
+│   │   │   ├── product/      # ProductCard
+│   │   │   ├── skin/         # SkinTypeBadge
+│   │   │   └── ui/           # Button, Badge, Chip
+│   │   ├── types/            # TypeScript 타입 정의
 │   │   ├── App.tsx
 │   │   ├── main.tsx
 │   │   └── index.css         # Tailwind + 디자인 토큰
@@ -86,7 +101,8 @@ capstone/
 | 프로토타입 | 8개 화면 HTML 프로토타입 (온보딩·QnA·메인·상세·검색·마이페이지 등) |
 | 개발 가이드라인 | 디자인 토큰, 화면별 구현 체크리스트, API/DB 요약 |
 | Task Master 설정 | 15개 태스크 / 103개 서브태스크 / 의존성 검증 완료 |
-| **Task 1: 환경 설정** 🚧 | Docker Compose (PostgreSQL·Redis·FastAPI·React), FastAPI 기본 앱, React+Vite+Tailwind 스캐폴딩, structlog 로깅 ✅ / Sentry DSN 미설정 ❌ | `docker compose up` 검증 완료, Sentry 연동 미완 |
+| **Task 1.1~1.5: 환경 설정** ✅ | Docker Compose (PostgreSQL·Redis·FastAPI·React), FastAPI 기본 앱, React+Vite+Tailwind 스캐폴딩, 볼륨·스크립트 설정, 전체 스택 검증 완료 |
+| **Task 1.6: 로깅 설정** 🚧 | Sentry 에러 추적 + structlog 구조화 로깅 설정 (진행중, Sentry DSN 미설정) |
 
 ### 🚧 진행 예정 (P0 — 7월 완성 목표)
 
