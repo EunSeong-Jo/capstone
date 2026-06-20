@@ -15,6 +15,30 @@ const TABS = [
     ),
   },
   {
+    to: '/category',
+    label: '카테고리',
+    icon: (active: boolean) => (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="3" width="8" height="8" rx="1.5"
+          stroke={active ? 'var(--primary)' : 'var(--gray50)'}
+          fill={active ? 'var(--primary-light)' : 'none'}
+          strokeWidth="1.8" />
+        <rect x="13" y="3" width="8" height="8" rx="1.5"
+          stroke={active ? 'var(--primary)' : 'var(--gray50)'}
+          fill={active ? 'var(--primary-light)' : 'none'}
+          strokeWidth="1.8" />
+        <rect x="3" y="13" width="8" height="8" rx="1.5"
+          stroke={active ? 'var(--primary)' : 'var(--gray50)'}
+          fill={active ? 'var(--primary-light)' : 'none'}
+          strokeWidth="1.8" />
+        <rect x="13" y="13" width="8" height="8" rx="1.5"
+          stroke={active ? 'var(--primary)' : 'var(--gray50)'}
+          fill={active ? 'var(--primary-light)' : 'none'}
+          strokeWidth="1.8" />
+      </svg>
+    ),
+  },
+  {
     to: '/search',
     label: '검색',
     icon: (active: boolean) => (
@@ -25,6 +49,20 @@ const TABS = [
         <path d="M16.5 16.5L21 21"
           stroke={active ? 'var(--primary)' : 'var(--gray50)'}
           strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    to: '/history',
+    label: '히스토리',
+    icon: (active: boolean) => (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="9"
+          stroke={active ? 'var(--primary)' : 'var(--gray50)'}
+          strokeWidth="1.8" />
+        <path d="M12 7v5l3 3"
+          stroke={active ? 'var(--primary)' : 'var(--gray50)'}
+          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
@@ -61,7 +99,7 @@ export function BottomNav() {
               <>
                 {icon(isActive)}
                 <span
-                  className="text-xs font-medium"
+                  className="text-[10px] font-medium"
                   style={{ color: isActive ? 'var(--primary)' : 'var(--gray50)' }}
                 >
                   {label}

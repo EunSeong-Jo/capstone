@@ -1,21 +1,29 @@
+import { useState } from 'react';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { BottomNav } from '../../components/layout/BottomNav';
 import { SkinTypeBadge } from '../../components/skin/SkinTypeBadge';
 import { ProductCard } from '../../components/product/ProductCard';
 import { useNavigate } from 'react-router-dom';
 
+type SortBy = 'recommended' | 'price';
+
 // TODO: Task 14 완료 후 실제 API 연동
 const MOCK_PRODUCTS = [
-  { id: 1, name: '수분 밸런싱 토너 200ml', brand: '이니스프리', category: '토너', price: 28000, originalPrice: 35000, discountRate: 20, rating: 4.5, reviewCount: 1203, isBest: true },
-  { id: 2, name: '세라마이드 수분 크림 60ml', brand: '닥터자르트', category: '크림', price: 42000, rating: 4.7, reviewCount: 892, isNew: true },
-  { id: 3, name: '히알루론산 에센스 50ml', brand: '코스알엑스', category: '에센스', price: 18000, originalPrice: 22000, discountRate: 18, rating: 4.3, reviewCount: 2341 },
-  { id: 4, name: '순한 거품 클렌저 150ml', brand: '아벤느', category: '클렌저', price: 15000, rating: 4.4, reviewCount: 567 },
+  { id: 1, name: '수분 밸런싱 토너 200ml', brand: '이니스프리', category: '토너', imageUrl: 'https://picsum.photos/seed/prod1/200/200', price: 28000, originalPrice: 35000, discountRate: 20, rating: 4.5, reviewCount: 1203, isBest: true },
+  { id: 2, name: '세라마이드 수분 크림 60ml', brand: '닥터자르트', category: '크림', imageUrl: 'https://picsum.photos/seed/prod2/200/200', price: 42000, rating: 4.7, reviewCount: 892, isNew: true },
+  { id: 3, name: '히알루론산 에센스 50ml', brand: '코스알엑스', category: '에센스', imageUrl: 'https://picsum.photos/seed/prod3/200/200', price: 18000, originalPrice: 22000, discountRate: 18, rating: 4.3, reviewCount: 2341 },
+  { id: 4, name: '순한 거품 클렌저 150ml', brand: '아벤느', category: '클렌저', imageUrl: 'https://picsum.photos/seed/prod4/200/200', price: 15000, rating: 4.4, reviewCount: 567 },
 ];
 
 const CATEGORIES = ['전체', '스킨/토너', '에센스', '크림', '세럼', '선크림', '클렌저'];
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const [sortBy, setSortBy] = useState<SortBy>('recommended');
+
+  const sortedProducts = [...MOCK_PRODUCTS].sort((a, b) =>
+    sortBy === 'price' ? a.price - b.price : 0
+  );
 
   return (
     <PageWrapper hasBottomNav>
@@ -83,10 +91,40 @@ export default function HomePage() {
       <section className="px-4 mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold text-gray-100">내 타입 인기 제품</h2>
-          <button className="text-xs text-gray-70">전체보기</button>
+          <div className="flex items-center gap-2">
+            {/* 정렬 옵션 */}
+            <div className="flex rounded-full overflow-hidden border border-gray-20">
+              {(['recommended', 'price'] as SortBy[]).map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => setSortBy(opt)}
+                  className="px-3 py-1 text-xs font-medium transition-colors"
+                  style={{
+                    background: sortBy === opt ? 'var(--primary)' : 'white',
+                    color: sortBy === opt ? 'white' : 'var(--gray70)',
+                  }}
+                >
+                  {opt === 'recommended' ? '추천순' : '가격순'}
+                </button>
+              ))}
+            </div>
+            {/* 장바구니 버튼 */}
+            <button
+              className="flex items-center gap-1 text-xs text-gray-70 active:scale-95 transition-transform"
+              onClick={() => {}}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"
+                  stroke="var(--gray70)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M3 6h18M16 10a4 4 0 01-8 0"
+                  stroke="var(--gray70)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              장바구니
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {MOCK_PRODUCTS.map((p, i) => (
+          {sortedProducts.map((p, i) => (
             <ProductCard key={p.id} product={p} index={i} />
           ))}
         </div>
