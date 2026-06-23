@@ -28,6 +28,28 @@ export default {
           70: '#6B7280',
           100: '#111827',
         },
+        // Digital Atelier — 홈 화면 전용 토큰 (전역 토큰과 분리)
+        atelier: {
+          primary: {
+            DEFAULT: '#5F7D81',
+            light: '#EAF0F0',
+            dark: '#47625F',
+          },
+          secondary: {
+            DEFAULT: '#D1C7BD',
+            light: '#F0EBE5',
+          },
+          neutral: '#F5F5F3',
+          text: {
+            DEFAULT: '#424242',
+            sub: '#7A7A78',
+          },
+          gold: '#C8A96A',
+          silver: '#A8AAAD',
+          bronze: '#C08552',
+          star: '#E0A94B',
+          sale: '#C96A6A',
+        },
       },
       borderRadius: {
         sm: '4px',
@@ -61,6 +83,12 @@ export default {
         sm: '0 1px 4px rgba(0,0,0,.06)',
         md: '0 2px 12px rgba(0,0,0,.10)',
         lg: '0 4px 24px rgba(0,0,0,.14)',
+        // Digital Atelier — 부드러운 확산광(Soft Diffuse Light)
+        soft: '0 2px 8px rgba(95,125,129,.06), 0 8px 24px rgba(66,66,66,.04)',
+        'soft-lg': '0 4px 16px rgba(95,125,129,.08), 0 16px 40px rgba(66,66,66,.06)',
+      },
+      backdropBlur: {
+        glass: '12px',
       },
       fontFamily: {
         sans: [
@@ -71,6 +99,9 @@ export default {
           'system-ui',
           'sans-serif',
         ],
+        // Digital Atelier — 매거진 타이포 (한글은 Pretendard 폴백)
+        headline: ['Plus Jakarta Sans', 'Pretendard', '-apple-system', 'system-ui', 'sans-serif'],
+        body: ['Manrope', 'Pretendard', '-apple-system', 'system-ui', 'sans-serif'],
       },
     },
   },

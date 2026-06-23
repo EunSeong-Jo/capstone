@@ -44,3 +44,27 @@ export interface User {
   nickname?: string;
   skinType?: SkinType;
 }
+
+// ===== 홈 화면 (Digital Atelier) =====
+
+export type WeatherCondition = 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'windy';
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
+
+export interface WeatherInfo {
+  condition: WeatherCondition;
+  conditionLabel: string; // "Sunny"
+  temperature: number; // 25
+  season: Season;
+  seasonLabel: string; // "초여름"
+  humidity?: number;
+}
+
+/** 홈 인기 카테고리 아이콘 가로스크롤용 (기존 string[] CATEGORIES와 별개) */
+export interface HomeCategory {
+  id: string;
+  label: string; // "스킨케어"
+  iconKey: string; // 아이콘/이모지 매핑 키
+}
+
+/** 피부타입 + 날씨 조합 → 오늘의 맞춤 케어 메시지 */
+export type SkinCareTipMap = Record<SkinType, Partial<Record<WeatherCondition, string>>>;

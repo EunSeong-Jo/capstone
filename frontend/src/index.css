@@ -140,3 +140,21 @@
     background: var(--warning);
   }
 }
+
+@layer utilities {
+  /* 글래스모피즘 (Capacitor WKWebView 대응: -webkit- 프리픽스 포함) */
+  .glass {
+    background: rgba(255, 255, 255, 0.65);
+    -webkit-backdrop-filter: saturate(150%) blur(12px);
+    backdrop-filter: saturate(150%) blur(12px);
+  }
+
+  /* 가로 스크롤 영역 스크롤바 숨김 */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
