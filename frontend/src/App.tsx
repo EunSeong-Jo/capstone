@@ -7,7 +7,9 @@ const QnAPage        = lazy(() => import('./pages/QnA'));
 const ResultPage     = lazy(() => import('./pages/Result'));
 const PopupPage      = lazy(() => import('./pages/Popup'));
 const HomePage       = lazy(() => import('./pages/Home'));
+const ClosetPage     = lazy(() => import('./pages/Closet'));
 const DetailPage     = lazy(() => import('./pages/Detail'));
+const AlternativesPage = lazy(() => import('./pages/Alternatives'));
 const SearchPage     = lazy(() => import('./pages/Search'));
 const MypagePage     = lazy(() => import('./pages/Mypage'));
 const CategoryPage   = lazy(() => import('./pages/Category'));
@@ -32,7 +34,9 @@ export default function App() {
           <Route path="/result"     element={<ResultPage />} />
           <Route path="/popup"      element={<PopupPage />} />
           <Route path="/home"       element={<HomePage />} />
+          <Route path="/closet"     element={<ClosetPage />} />
           <Route path="/detail/:id" element={<DetailPage />} />
+          <Route path="/alternatives" element={<AlternativesPage />} />
           <Route path="/search"     element={<SearchPage />} />
           <Route path="/mypage"     element={<MypagePage />} />
           <Route path="/category"   element={<CategoryPage />} />

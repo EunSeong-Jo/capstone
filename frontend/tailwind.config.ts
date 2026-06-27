@@ -50,6 +50,15 @@ export default {
           star: '#E0A94B',
           sale: '#C96A6A',
         },
+        // 올리브영 클론 — 홈 전용 토큰 (무채색 + 레드 포인트)
+        oy: {
+          black: '#17171C', // 로고·활성칩·탭바 active·순위뱃지
+          red: '#F8174A', // 할인율·세일·N/오특 뱃지·장바구니 카운트
+          text: '#1A1A1A', // 기본 텍스트
+          sub: '#9A9A9A', // 보조 텍스트
+          line: '#EEEEEE', // 섹션 구분선·카드 보더
+          chip: '#F4F4F4', // 태그칩 배경·비활성칩
+        },
       },
       borderRadius: {
         sm: '4px',
@@ -89,6 +98,15 @@ export default {
       },
       backdropBlur: {
         glass: '12px',
+      },
+      keyframes: {
+        slideDown: {
+          '0%': { transform: 'translate(-50%, -100%)', opacity: '0' },
+          '100%': { transform: 'translate(-50%, 0)', opacity: '1' },
+        },
+      },
+      animation: {
+        'slide-down': 'slideDown .28s ease-out',
       },
       fontFamily: {
         sans: [
