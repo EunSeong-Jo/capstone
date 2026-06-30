@@ -3,7 +3,8 @@ import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Chip } from '../../components/ui/Chip';
 import { Button } from '../../components/ui/Button';
-import { Badge } from '../../components/ui/Badge';
+import { AlternativeCard } from '../../components/alternatives/AlternativeCard';
+import { MOCK_ALTERNATIVES } from '../../mocks/alternatives';
 
 // TODO: Task 6 완료 후 실제 API 연동
 const MOCK_PRODUCT = {
@@ -24,16 +25,13 @@ const MOCK_INGREDIENTS = {
   warn: [],
 };
 
-const MOCK_ALTERNATIVES = [
-  { id: 2, name: '수분 토너 EX', brand: '코스알엑스', price: 18000, similarity: 92 },
-  { id: 3, name: '딥 하이드레이션 토너', brand: '닥터자르트', price: 32000, similarity: 78 },
-  { id: 4, name: '수분 광채 토너', brand: '헤라', price: 45000, similarity: 65 },
-];
-
 export default function DetailPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   void id; // TODO: id로 API 호출
+
+  // 현재 제품 기준 대체품 (목업: seed = MOCK_PRODUCT.id)
+  const alternatives = MOCK_ALTERNATIVES[MOCK_PRODUCT.id] ?? [];
 
   return (
     <PageWrapper>
@@ -111,27 +109,19 @@ export default function DetailPage() {
           </div>
 
           <div className="flex flex-col gap-3">
-            {MOCK_ALTERNATIVES.map(alt => (
-              <div
-                key={alt.id}
-                className="flex items-center gap-3 p-3 rounded-xl bg-gray-5 border border-gray-20 active:scale-[.98] transition-transform cursor-pointer"
-                onClick={() => navigate(`/detail/${alt.id}`)}
-              >
-                <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-sky-50 to-blue-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl opacity-40">🧴</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-70">{alt.brand}</p>
-                  <p className="text-sm font-semibold text-gray-100 truncate">{alt.name}</p>
-                  <p className="text-sm font-bold text-gray-100 mt-0.5">{alt.price.toLocaleString()}원</p>
-                </div>
-                <Badge
-                  type={alt.similarity >= 80 ? 'sim-high' : 'sim-mid'}
-                  label={`${alt.similarity}%`}
-                />
-              </div>
+            {alternatives.slice(0, 3).map(alt => (
+              <AlternativeCard key={alt.id} alt={alt} />
             ))}
           </div>
+
+          {alternatives.length > 0 && (
+            <button
+              onClick={() => navigate(`/alternatives?seed=${MOCK_PRODUCT.id}&from=detail`)}
+              className="w-full mt-3 h-11 rounded-xl border border-gray-20 text-sm font-bold text-gray-100 active:scale-[.98] transition-transform"
+            >
+              전체 대체품 보기
+            </button>
+          )}
         </section>
       </div>
     </PageWrapper>
