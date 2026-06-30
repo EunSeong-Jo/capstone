@@ -28,6 +28,37 @@ export default {
           70: '#6B7280',
           100: '#111827',
         },
+        // Digital Atelier — 홈 화면 전용 토큰 (전역 토큰과 분리)
+        atelier: {
+          primary: {
+            DEFAULT: '#5F7D81',
+            light: '#EAF0F0',
+            dark: '#47625F',
+          },
+          secondary: {
+            DEFAULT: '#D1C7BD',
+            light: '#F0EBE5',
+          },
+          neutral: '#F5F5F3',
+          text: {
+            DEFAULT: '#424242',
+            sub: '#7A7A78',
+          },
+          gold: '#C8A96A',
+          silver: '#A8AAAD',
+          bronze: '#C08552',
+          star: '#E0A94B',
+          sale: '#C96A6A',
+        },
+        // 올리브영 클론 — 홈 전용 토큰 (무채색 + 레드 포인트)
+        oy: {
+          black: '#17171C', // 로고·활성칩·탭바 active·순위뱃지
+          red: '#F8174A', // 할인율·세일·N/오특 뱃지·장바구니 카운트
+          text: '#1A1A1A', // 기본 텍스트
+          sub: '#9A9A9A', // 보조 텍스트
+          line: '#EEEEEE', // 섹션 구분선·카드 보더
+          chip: '#F4F4F4', // 태그칩 배경·비활성칩
+        },
       },
       borderRadius: {
         sm: '4px',
@@ -61,6 +92,21 @@ export default {
         sm: '0 1px 4px rgba(0,0,0,.06)',
         md: '0 2px 12px rgba(0,0,0,.10)',
         lg: '0 4px 24px rgba(0,0,0,.14)',
+        // Digital Atelier — 부드러운 확산광(Soft Diffuse Light)
+        soft: '0 2px 8px rgba(95,125,129,.06), 0 8px 24px rgba(66,66,66,.04)',
+        'soft-lg': '0 4px 16px rgba(95,125,129,.08), 0 16px 40px rgba(66,66,66,.06)',
+      },
+      backdropBlur: {
+        glass: '12px',
+      },
+      keyframes: {
+        slideDown: {
+          '0%': { transform: 'translate(-50%, -100%)', opacity: '0' },
+          '100%': { transform: 'translate(-50%, 0)', opacity: '1' },
+        },
+      },
+      animation: {
+        'slide-down': 'slideDown .28s ease-out',
       },
       fontFamily: {
         sans: [
@@ -71,6 +117,9 @@ export default {
           'system-ui',
           'sans-serif',
         ],
+        // Digital Atelier — 매거진 타이포 (한글은 Pretendard 폴백)
+        headline: ['Plus Jakarta Sans', 'Pretendard', '-apple-system', 'system-ui', 'sans-serif'],
+        body: ['Manrope', 'Pretendard', '-apple-system', 'system-ui', 'sans-serif'],
       },
     },
   },
