@@ -6,9 +6,11 @@ const QnAPage        = lazy(() => import('./pages/QnA'));
 const ResultPage     = lazy(() => import('./pages/Result'));
 const PopupPage      = lazy(() => import('./pages/Popup'));
 const HomePage       = lazy(() => import('./pages/Home'));
-const DetailPage     = lazy(() => import('./pages/Detail'));
+const DetailPage     = lazy(() => import('./pages/ProductDetail'));
 const SearchPage     = lazy(() => import('./pages/Search'));
 const MypagePage     = lazy(() => import('./pages/Mypage'));
+const CategoryMainPage = lazy(() => import('./pages/Category/CategoryMainPage'));
+const CategoryPage = lazy(() => import('./pages/Category/CategoryPage'));
 
 function LoadingScreen() {
   return (
@@ -32,6 +34,8 @@ export default function App() {
           <Route path="/detail/:id" element={<DetailPage />} />
           <Route path="/search"   element={<SearchPage />} />
           <Route path="/mypage"   element={<MypagePage />} />
+          <Route path="/category" element={<CategoryMainPage />} />
+          <Route path="/category/skincare" element={<CategoryPage />} />
           <Route path="*"         element={<Navigate to="/onboarding" replace />} />
         </Routes>
       </Suspense>
