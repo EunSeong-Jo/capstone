@@ -6,7 +6,7 @@ import { ProductCard } from '../../components/category/ProductCard';
 import { DragScrollRow } from '../../components/common/DragScrollRow';
 import { AnalysisPopup } from './AnalysisPopup';
 import placeholderImage from '../../assets/placeholderImage';
-import skinMatchCharacter from '../../assets/skin-match-character.png';
+import skinMatchCharacter from '../../assets/skin-type-injeolmi.png';
 import type { CategoryProduct } from '../../components/category/types';
 
 // TODO: 실제 API 연동 전까지 목데이터
