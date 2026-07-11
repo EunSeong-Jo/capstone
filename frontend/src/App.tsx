@@ -8,11 +8,12 @@ const ResultPage     = lazy(() => import('./pages/Result'));
 const PopupPage      = lazy(() => import('./pages/Popup'));
 const HomePage       = lazy(() => import('./pages/Home'));
 const ClosetPage     = lazy(() => import('./pages/Closet'));
-const DetailPage     = lazy(() => import('./pages/Detail'));
+const DetailPage     = lazy(() => import('./pages/ProductDetail'));
 const AlternativesPage = lazy(() => import('./pages/Alternatives'));
 const SearchPage     = lazy(() => import('./pages/Search'));
 const MypagePage     = lazy(() => import('./pages/Mypage'));
-const CategoryPage   = lazy(() => import('./pages/Category'));
+const CategoryMainPage = lazy(() => import('./pages/Category/CategoryMainPage'));
+const CategoryPage   = lazy(() => import('./pages/Category/CategoryPage'));
 const HistoryPage    = lazy(() => import('./pages/History'));
 
 function LoadingScreen() {
@@ -39,7 +40,8 @@ export default function App() {
           <Route path="/alternatives" element={<AlternativesPage />} />
           <Route path="/search"     element={<SearchPage />} />
           <Route path="/mypage"     element={<MypagePage />} />
-          <Route path="/category"   element={<CategoryPage />} />
+          <Route path="/category"   element={<CategoryMainPage />} />
+          <Route path="/category/skincare" element={<CategoryPage />} />
           <Route path="/history"    element={<HistoryPage />} />
           <Route path="*"           element={<Navigate to="/onboarding" replace />} />
         </Routes>

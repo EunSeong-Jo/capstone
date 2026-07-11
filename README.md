@@ -64,15 +64,19 @@ capstone/
 │   │   │   ├── Onboarding/   # 회원가입 온보딩
 │   │   │   ├── QnA/          # 피부타입 진단 문답
 │   │   │   ├── Search/       # 텍스트·이미지 검색
-│   │   │   ├── Detail/       # 제품 상세 + 대체품 TOP 3
+│   │   │   ├── Category/     # 카테고리 메인 + 리스트(BEST/전체)
+│   │   │   ├── ProductDetail/ # 제품 상세 (상품정보 / 리뷰·성분 탭 + AI 분석 팝업)
 │   │   │   ├── Result/       # 검색 결과
 │   │   │   ├── Mypage/       # 마이페이지
 │   │   │   └── Popup/        # 신규 가입 유도 팝업
 │   │   ├── components/
 │   │   │   ├── layout/       # Header, BottomNav, PageWrapper
-│   │   │   ├── product/      # ProductCard
+│   │   │   ├── product/      # ProductCard (Home용)
+│   │   │   ├── category/     # 카테고리·상품상세 공용 UI (Icon, PriceTag, ActionIcons, ProductCard 등)
+│   │   │   ├── common/       # 범용 유틸 컴포넌트 (DragScrollRow 등)
 │   │   │   ├── skin/         # SkinTypeBadge
 │   │   │   └── ui/           # Button, Badge, Chip
+│   │   ├── assets/           # 정적 에셋 (플레이스홀더 이미지 등)
 │   │   ├── types/            # TypeScript 타입 정의
 │   │   ├── App.tsx
 │   │   ├── main.tsx
