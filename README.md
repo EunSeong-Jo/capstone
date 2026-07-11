@@ -42,6 +42,8 @@ docker compose up --build
 | 백엔드 API | http://localhost:8000/health |
 | Swagger 문서 | http://localhost:8000/api/docs |
 
+> 🎨 **프론트엔드만 단독 개발**(Docker 없이 `npm run dev`)하거나 팀 공통 개발 기준(버전 통일·컨벤션·협업 규칙)이 필요하면 → **[frontend/README.md](frontend/README.md)** 참고
+
 ---
 
 ## 프로젝트 구조

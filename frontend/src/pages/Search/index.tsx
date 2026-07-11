@@ -1,7 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { BottomNav } from '../../components/layout/BottomNav';
 import { ProductCard } from '../../components/product/ProductCard';
+import { SEED_PRODUCTS } from '../../mocks/alternatives';
+
+// 내 화장대(등록·분석한 제품) — 대체품 찾기 기준제품
+const MY_SHELF = Object.values(SEED_PRODUCTS);
 
 const RECENT_SEARCHES = ['히알루론산 토너', '세라마이드 크림', '이니스프리'];
 const TRENDING = ['선크림', '비타민C 세럼', '클렌징폼', '에센스', '앰플'];
@@ -13,6 +18,7 @@ const MOCK_RESULTS = [
 ];
 
 export default function SearchPage() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
 
@@ -55,6 +61,37 @@ export default function SearchPage() {
               <p className="text-sm font-medium text-primary">사진으로 제품 찾기</p>
               <p className="text-xs text-gray-70 mt-0.5">제품 라벨을 촬영하면 AI가 분석해요</p>
             </div>
+
+            {/* 내 화장대에서 고르기 → 대체품 찾기 */}
+            {MY_SHELF.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-bold text-gray-100 mb-1">내 화장대에서 고르기</h3>
+                <p className="text-xs text-gray-70 mb-2">등록한 제품의 대체품을 찾아보세요</p>
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4">
+                  {MY_SHELF.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => navigate(`/alternatives?seed=${p.id}&from=search`)}
+                      className="shrink-0 flex items-center gap-2 p-2 pr-3 rounded-xl border border-gray-20 bg-white active:scale-95 transition-transform"
+                    >
+                      <span className="w-10 h-10 rounded-lg overflow-hidden bg-gray-10 flex items-center justify-center shrink-0">
+                        {p.imageUrl ? (
+                          <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-lg opacity-40">🧴</span>
+                        )}
+                      </span>
+                      <span className="text-left">
+                        <span className="block text-[11px] text-gray-70">{p.brand}</span>
+                        <span className="block text-xs font-semibold text-gray-100 truncate max-w-[110px]">
+                          {p.name}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* 최근 검색어 */}
             {RECENT_SEARCHES.length > 0 && (
