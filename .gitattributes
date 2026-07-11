@@ -1,0 +1,31 @@
+# Auto detect text files and normalize line endings to LF in the repo
+* text=auto eol=lf
+
+# Explicit text types
+*.md text
+*.txt text
+*.json text
+*.yml text
+*.yaml text
+*.py text
+*.ts text
+*.tsx text
+*.js text
+*.jsx text
+*.css text
+*.html text
+*.sh text
+*.env.example text
+
+# Binary files should not be touched
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.zip binary
+*.pdf binary
