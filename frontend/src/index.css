@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Brand */
+    --primary: #3D8F6F;
+    --primary-light: #EAF5EF;
+    --primary-dark: #2B6B52;
+    --accent: #FF5C7A;
+    --accent-light: #FFF0F3;
+
+    /* Semantic */
+    --warning: #FF9500;
+    --star: #FFB800;
+    --badge: #FF3B30;
+
+    /* Gray scale */
+    --gray00: #FFFFFF;
+    --gray05: #F7F8FA;
+    --gray10: #F2F3F5;
+    --gray20: #E8EAED;
+    --gray50: #9CA3AF;
+    --gray70: #6B7280;
+    --gray100: #111827;
+
+    /* Aliases */
+    --surface: var(--gray05);
+    --border: var(--gray20);
+    --text: var(--gray100);
+    --text-sub: var(--gray70);
+
+    /* Typography */
+    --t-xs: 11px;
+    --t-sm: 12px;
+    --t-base: 14px;
+    --t-md: 15px;
+    --t-lg: 16px;
+    --t-xl: 18px;
+    --t-2xl: 20px;
+    --t-3xl: 24px;
+    --t-4xl: 28px;
+
+    /* Spacing */
+    --sp1: 4px;
+    --sp2: 8px;
+    --sp3: 12px;
+    --sp4: 16px;
+    --sp5: 20px;
+    --sp6: 24px;
+    --sp8: 32px;
+
+    /* Border radius */
+    --r-sm: 4px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-xl: 16px;
+    --r-2xl: 20px;
+    --r-full: 9999px;
+
+    /* Shadow */
+    --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.10);
+    --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.14);
+
+    /* Safe area (Capacitor / iOS) */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    overscroll-behavior: none;
+  }
+
+  body {
+    @apply bg-surface text-gray-100 font-sans;
+    max-width: 430px;
+    margin: 0 auto;
+    min-height: 100dvh;
+    padding-top: var(--safe-top);
+  }
+}
+
+@layer components {
+  /* 버튼 */
+  .btn-primary {
+    @apply flex items-center justify-center w-full h-[52px] rounded-xl bg-white text-primary font-semibold text-lg;
+    @apply active:scale-[.97] transition-transform;
+  }
+
+  .btn-next {
+    @apply flex items-center justify-center w-full h-[52px] rounded-xl bg-primary text-white font-semibold text-lg;
+    @apply active:scale-[.97] transition-transform;
+    @apply disabled:opacity-50;
+  }
+
+  .btn-ghost {
+    @apply flex items-center justify-center w-full h-11 rounded-xl border font-medium text-base;
+    border-color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.85);
+    @apply active:scale-[.97] transition-transform;
+  }
+
+  /* 성분 칩 */
+  .igr-chip {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border;
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+  }
+
+  .igr-chip.neutral {
+    border-color: var(--gray20);
+    color: var(--text-sub);
+    background: var(--gray10);
+  }
+
+  .igr-chip.warn {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  /* 유사도 뱃지 */
+  .sim-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold text-white;
+  }
+
+  .sim-badge.sim-high {
+    background: var(--primary);
+  }
+
+  .sim-badge.sim-mid {
+    background: var(--warning);
+  }
+}
