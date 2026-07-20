@@ -23,6 +23,8 @@
 # 환경 변수
 # ───────────────────────────────
 .env
+.env.example
+".env copy.example"
 .env.local
 .env.*.local
 
@@ -31,6 +33,7 @@
 # ───────────────────────────────
 node_modules/
 frontend/node_modules/
+frontend_flash_demo/node_modules/
 
 # ───────────────────────────────
 # 로그

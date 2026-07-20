@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     # 로그
     LOG_LEVEL: str = "INFO"
 
+    # LLM (챗봇)
+    LLM_PROVIDER: str = "openai"          # "openai" | "claude"
+    LLM_MODEL: str = "gpt-4o-mini"        # Claude 전환 시: "claude-sonnet-4-20250514"
+    OPENAI_API_KEY: str = ""              # OpenAI API 키
+    ANTHROPIC_API_KEY: str = ""           # Claude 전환 시 사용
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 
