@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Product } from '../../types';
+import { useLikedProducts } from '../../context/LikedProductsContext';
 
 const CARD_BG = [
   'from-green-50 to-emerald-100',
@@ -17,6 +18,8 @@ interface ProductCardProps {
 
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const navigate = useNavigate();
+  const { isLiked, toggleLike } = useLikedProducts();
+  const liked = isLiked(product.id);
   const bg = CARD_BG[index % CARD_BG.length];
 
   return (
@@ -47,10 +50,10 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         {/* 찜 버튼 */}
         <button
           className="absolute bottom-2 right-2 w-8 h-8 rounded-lg bg-white/80 flex items-center justify-center shadow-sm active:scale-90 transition-transform"
-          onClick={(e) => { e.stopPropagation(); }}
+          onClick={(e) => { e.stopPropagation(); toggleLike(product); }}
           aria-label="찜하기"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill={liked ? 'var(--accent)' : 'none'}>
             <path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.24 3 11.91 3.81 13 5.08C14.09 3.81 15.76 3 17.5 3C20.58 3 23 5.42 23 8.5C23 14.5 12 21 12 21Z"
               stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

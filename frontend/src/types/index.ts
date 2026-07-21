@@ -34,6 +34,8 @@ export interface Product {
   isBest?: boolean;
   /** 올리브영식 태그칩 (예: '오늘드림', 'BEST', '쿠폰', '증정', '오특') */
   tags?: string[];
+  /** 누적 구매 횟수 (자주 구매 목록에서 사용) */
+  purchaseCount?: number;
 }
 
 // ===== 성분 =====

@@ -172,3 +172,57 @@ frontend/
 - [`docs/frontend-component-guide.md`](../docs/frontend-component-guide.md) — 컴포넌트 카탈로그·디자인 토큰 상세
 - [`docs/dev_guidelines.md`](../docs/dev_guidelines.md) — 화면별 구현 체크리스트·역할 분담
 - [`docs/PRD_대체뭐야_v1.8.md`](../docs/PRD_대체뭐야_v1.8.md) — 제품 요구사항
+- [`ANALYSIS.md`](./ANALYSIS.md) — 팀원 제출물 병합 분석(무엇을 병합했고 원본과 실제 구현이 어떻게 달랐는지)
+
+---
+
+## 10. 팀원 화면 제출 규칙 ⭐ (2026-07 병합 작업에서 정리)
+
+`category_yb`, `history_misong`, `dg_mypage`, 그리고 최근본/좋아요/자주구매 4건 — 총 6건의 병합
+작업에서 **같은 문제가 반복적으로 발생**했습니다. 무엇을 병합했고 원본과 실제 구현이 어떻게
+달랐는지는 [`ANALYSIS.md`](./ANALYSIS.md)에 정리되어 있습니다. 다음 화면을 만들 때는 아래 규칙을
+지켜주세요.
+
+0. **PR 올리기 전에 `npm run check-submission -- <내 작업 폴더 경로>`를 실행하세요.** 아래
+   1~4번 규칙 중 자동으로 점검 가능한 항목을 스크립트(`scripts/check-submission.mjs`)로 만들어
+   뒀습니다. 이번에 병합한 6건에서 실제로 걸렸던 문제들이라 대부분 걸러집니다. 경고가 떠도 빌드를
+   막지는 않으니 셀프 체크 용도로 PR 전에 한 번 돌려보고 반영해주세요.
+1. **새 Vite 프로젝트로 스캐폴딩하지 마세요.** `npm create vite`로 만든 독립 프로젝트(자체
+   `package.json`/`vite.config`/lockfile)는 루트 `frontend`의 `npm run dev`/`build`로 실행되지 않고,
+   병합 시 전체 재작성이 필요합니다. 대신 `frontend/src/pages/<기능>/`에 기존 `PageWrapper` /
+   `Header` / `BottomNav` / `components/product/ProductCard` / `types`의 `Product`를 사용해 만들고
+   `frontend/`를 대상으로 PR을 올려주세요.
+2. **콘텐츠(상품명·가격 등)를 JSX에 하드코딩하지 마세요.** `frontend/src/mocks/*.ts`에 `Product`
+   타입으로 분리해 (기존 `mocks/home.ts`, `mocks/alternatives.ts` 패턴 참고).
+3. **absolute-pixel 레이아웃을 만들지 마세요.** Figma/Anima export는 `top-[890px]` 같은 고정 좌표를
+   쓰는데, 이러면 `max-w-[430px]` 모바일 프레임 안에서 반응형으로 동작하지 않습니다. Tailwind
+   flex/grid + 기존 spacing/radius 토큰(`--sp*`, `--r-*`)을 사용하세요.
+4. **Figma/Anima export의 `package.json`·lockfile은 그대로 설치하지 마세요.** 대부분 오래된
+   버전(예: React 18.0.0, Vite 4, Tailwind v4 등)이거나 MUI/Radix 같은 외부 UI 라이브러리를
+   포함하고 있어 프로젝트 전체와 충돌합니다. **JSX/TSX 로직만 참고 자료**로 삼으세요.
+5. **원본 export 폴더를 PR에 그대로 남기지 마세요.** 병합 후에는 삭제하거나, 디자인 근거로 남기고
+   싶으면 `ANALYSIS.md`에 레이아웃/카피/색상을 요약하고 대표 스크린샷 1~2장만
+   `frontend/example/`에 보관하세요 (`frontend/example/oliveyoung/` 참고). 이번 6건도 병합 후
+   원본 폴더(`code/*_React`, `dg-mypage-design-main/`, `frontend/category_UI_yb/`, `design_jw/`
+   등)와 관련 없는 옛 병합 잔재(`frontend/category-standalone/`, `capstone-frontend/`,
+   `my-workspace/`)를 전부 정리했습니다.
+6. **로컬 상태 저장 컨벤션**: 백엔드 연동 전까지 사용자별 상태(찜, 최근 본 제품 등)는
+   `localStorage`로 관리합니다. 화면 하나만 보는 상태는 `frontend/src/hooks/`에 훅으로
+   (`useRecentlyViewed` 참고, 키 네이밍 `dcmy:<기능>:v1`), 여러 화면이 같은 상태를 공유해야 하면
+   `frontend/src/context/`에 Context로 만드세요 (`LikedProductsContext` 참고). 화면마다 따로
+   `localStorage.getItem`을 호출하지 마세요.
+7. **알려진 중복 — 후속 정리 필요** (이번 병합에서 건드리지 않음):
+   - `components/product/ProductCard` (`Product` 타입, Home/Search/History에서 사용) vs
+     `components/category/ProductCard` (`CategoryProduct` 타입, Category/ProductDetail에서 사용) —
+     같은 개념의 두 컴포넌트/타입이 공존합니다.
+   - `components/category/Icon.tsx`는 이름과 달리 `ProductDetail`, `Mypage` 서브페이지 등
+     `category/` 밖에서도 널리 쓰이고 있어 `components/common/Icon.tsx`로 옮기는 게 맞습니다.
+   - `ProductDetail`의 "비슷한 상품"/"함께 본 상품" 찜 상태는 `LikedProductsContext`와 별개의
+     로컬 상태(`CategoryProduct.isFavorite`)라 전역 찜 목록에 반영되지 않습니다.
+   - `frontend/src/pages/Category/index.tsx`는 어디에도 라우팅되지 않는 죽은 파일입니다(실사용은
+     `CategoryMainPage.tsx`/`CategoryPage.tsx`).
+   - 카테고리 사이드바 탭(`건강식품`/`헬스`)과 "COMING SOON" 배너는 디자인엔 있지만 구현하지
+     않기로 확정했습니다 (`ANALYSIS.md` 5절 참고).
+8. **`/mypage/chat-support`(`ChatSupportPage.tsx`)는 임시 챗봇 UI입니다.** 팀원 `동균`의
+   `dg-mypage-design-main` 원본을 그대로 이식한 캔드(정형) 응답 챗봇으로, 실제 AI 연동이 아닙니다.
+   루트 `CLAUDE.md` Task 7(Claude API 연동 실제 AI 챗봇)이 완료되면 이 화면을 교체해야 합니다.

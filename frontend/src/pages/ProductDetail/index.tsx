@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { TopNavBar } from '../../components/category/TopNavBar';
 import { Icon } from '../../components/category/Icon';
@@ -8,6 +8,8 @@ import { AnalysisPopup } from './AnalysisPopup';
 import placeholderImage from '../../assets/placeholderImage';
 import skinMatchCharacter from '../../assets/skin-type-injeolmi.png';
 import type { CategoryProduct } from '../../components/category/types';
+import { useRecentlyViewed } from '../../hooks/useRecentlyViewed';
+import { useLikedProducts } from '../../context/LikedProductsContext';
 
 // TODO: 실제 API 연동 전까지 목데이터
 const MOCK_PRODUCT = {
@@ -152,10 +154,34 @@ const REVIEWS = [
 
 export default function ProductDetailPage() {
   const { id } = useParams();
-  void id; // TODO: id로 상품 API 호출
+
+  // TODO(Task 6): product-by-id API가 생기면 로컬 목데이터 대신 실제 조회로 교체
+  const detailProduct = useMemo(
+    () => ({
+      id: Number(id) || 0,
+      name: MOCK_PRODUCT.title,
+      brand: MOCK_PRODUCT.brand,
+      category: '',
+      imageUrl: placeholderImage,
+      price: MOCK_PRODUCT.price,
+      originalPrice: MOCK_PRODUCT.originalPrice,
+      discountRate: MOCK_PRODUCT.discountPercent,
+      rating: MOCK_PRODUCT.rating,
+      reviewCount: MOCK_PRODUCT.reviewCount,
+    }),
+    [id],
+  );
+
+  const { addRecentlyViewed } = useRecentlyViewed();
+  const { isLiked, toggleLike } = useLikedProducts();
+  const isFavorite = isLiked(detailProduct.id);
+
+  useEffect(() => {
+    addRecentlyViewed(detailProduct);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailProduct.id]);
 
   const [tab, setTab] = useState<'info' | 'review'>('info');
-  const [isFavorite, setIsFavorite] = useState(false);
   const [similarProducts, setSimilarProducts] = useState(SIMILAR_PRODUCTS);
   const [othersAlsoViewed, setOthersAlsoViewed] = useState(OTHERS_ALSO_VIEWED);
   const [descExpanded, setDescExpanded] = useState(false);
@@ -200,7 +226,7 @@ export default function ProductDetailPage() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setIsFavorite((v) => !v)}
+            onClick={() => toggleLike(detailProduct)}
             className={`active:scale-90 transition-transform ${isFavorite ? 'text-accent' : 'text-gray-70'}`}
             aria-label="찜하기"
           >
