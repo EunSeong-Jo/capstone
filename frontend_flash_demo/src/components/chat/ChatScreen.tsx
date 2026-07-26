@@ -18,7 +18,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 const WELCOME: Message = {
   role: 'assistant',
   content:
-    '안녕하세요! 저는 Swappy 화장품 챗봇이에요 🌿\n' +
+    '안녕하세요! 저는 Swappy 화장품 챗봇이에요.\n' +
     '성분, 효능, 가격 비교, 대체품 추천까지 뭐든 물어보세요!',
 }
 
@@ -55,7 +55,7 @@ export default function ChatScreen({ skinTypeId, onClose }: ChatScreenProps) {
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: '죄송해요, 잠시 오류가 발생했어요. 다시 시도해 주세요 🙏' },
+        { role: 'assistant', content: '죄송해요, 잠시 오류가 발생했어요. 다시 시도해 주세요.' },
       ])
     } finally {
       setLoading(false)
