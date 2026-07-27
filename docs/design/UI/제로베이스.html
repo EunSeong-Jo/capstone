@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+body{margin:0;background:#E7EAEE;font-family:'Pretendard Variable',Pretendard,-apple-system,'Noto Sans KR',sans-serif;}
+a{color:#3D8F6F;text-decoration:none;} a:hover{color:#2B6B52;}
+.phone-scroll::-webkit-scrollbar,.hscroll::-webkit-scrollbar{display:none;}
+</style>
+</helmet>
+<section style="padding:56px 64px 72px 64px;display:flex;flex-direction:column;gap:28px;min-width:1900px;">
+  <header style="display:flex;flex-direction:column;gap:10px;max-width:900px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:999px;background:#17171C;color:#FFFFFF;font-size:12px;font-weight:700;">TURN 3</span>
+      <span style="font-size:13px;font-weight:600;color:#6B7280;">남은 플로우 — 온보딩 · 주문 완료 · 좋아요</span>
+    </div>
+    <h1 style="margin:0;font-size:30px;font-weight:800;color:#17171C;letter-spacing:-0.5px;">가입부터 재구매까지, 전체 여정 완성</h1>
+    <p style="margin:0;font-size:14px;line-height:1.7;color:#4B5563;">릴리즈 빌드에서 비어 있던 앞뒤 여정: 로그인(<a href="#7a">7a</a>) → 피부타입 진단 QnA(<a href="#7b">7b</a>) → 진단 결과·캐릭터 부여(<a href="#7c">7c</a>)의 온보딩 3단계, 결제 후 주문 완료(<a href="#7d">7d</a>), 헤더 하트에서 진입하는 좋아요 목록(<a href="#7e">7e</a>).</p>
+  </header>
+  <div style="display:flex;gap:56px;align-items:flex-start;flex-wrap:wrap;">
+    <div id="7a" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#17171C;font-size:12px;font-weight:800;color:#FFFFFF;">7a</span><span style="font-size:13px;font-weight:700;color:#17171C;">로그인 — 소셜 3종 + 둘러보기</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 32px;">
+            <div style="width:96px;height:96px;border-radius:50%;background:#FFFFFF;box-shadow:0 8px 32px rgba(43,107,82,.14);display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="assets/mascot/base_face_neutral.png" alt="마스코트" style="width:82%;height:82%;object-fit:contain;"></div>
+            <p style="margin:20px 0 0 0;font-size:26px;font-weight:900;font-style:italic;letter-spacing:-0.8px;color:#17171C;">대체뭐야</p>
+            <p style="margin:8px 0 0 0;font-size:14px;line-height:1.6;color:#6B7280;text-align:center;">성분으로 찾는 내 화장품의 대체품,<br>피부타입 맞춤 추천까지</p>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:14px;">
+              <span style="display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:#EAF5EF;font-size:11px;font-weight:700;color:#2B6B52;">성분 유사도 매칭</span>
+              <span style="display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:#EAF5EF;font-size:11px;font-weight:700;color:#2B6B52;">8가지 피부타입</span>
+            </div>
+          </div>
+          <div style="padding:0 24px 48px 24px;display:flex;flex-direction:column;gap:10px;">
+            <span style="display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:14px;background:#FEE500;font-size:14px;font-weight:800;color:#191919;"><svg width="18" height="18" viewBox="0 0 24 24" fill="#191919"><path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.7 6.7-.2.7-.7 2.6-.8 3-.1.5.2.5.4.4.2-.1 2.6-1.8 3.7-2.5.7.1 1.3.2 2 .2 5.5 0 10-3.6 10-8S17.5 3 12 3z"></path></svg>카카오로 시작하기</span>
+            <span style="display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:14px;background:#03C75A;font-size:14px;font-weight:800;color:#FFFFFF;"><svg width="15" height="15" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M4 4h5.5l5 7.5V4H20v16h-5.5l-5-7.5V20H4V4z"></path></svg>네이버로 시작하기</span>
+            <span style="display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:14px;background:#17171C;font-size:14px;font-weight:800;color:#FFFFFF;"><svg width="17" height="17" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M16.5 12.8c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-0.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3.1 2.4 1.2-.1 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8-.1 0-2.6-1-2.7-3.9zM14.2 5.6c.7-.8 1.1-1.9 1-3.1-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.9-1.4z"></path></svg>Apple로 시작하기</span>
+            <span style="display:flex;align-items:center;justify-content:center;height:44px;font-size:13px;font-weight:600;color:#8A8F98;">로그인 없이 둘러보기</span>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div id="7b" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#17171C;font-size:12px;font-weight:800;color:#FFFFFF;">7b</span><span style="font-size:13px;font-weight:700;color:#17171C;">피부타입 진단 — QnA (5/8)</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="#17171C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span style="font-size:13px;font-weight:700;color:#8A8F98;">5 / 8</span>
+              <span style="font-size:13px;font-weight:600;color:#C3C8CE;">건너뛰기</span>
+            </div>
+            <div style="height:6px;border-radius:999px;background:#E5E8E0;overflow:hidden;"><div style="height:100%;width:62.5%;border-radius:999px;background:#3D8F6F;"></div></div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:28px 24px 24px 24px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                <span style="width:44px;height:44px;border-radius:50%;background:#FFFFFF;box-shadow:0 2px 10px rgba(43,107,82,.1);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="assets/mascot/base_face_neutral.png" alt="" style="width:82%;height:82%;object-fit:contain;"></span>
+                <span style="font-size:12px;font-weight:700;color:#3D8F6F;">Q5. 수분 밸런스</span>
+              </div>
+              <h2 style="margin:0;font-size:22px;font-weight:800;color:#17171C;line-height:1.4;letter-spacing:-0.4px;">세안 후 아무것도 바르지 않으면<br>피부가 어떤가요?</h2>
+              <div style="display:flex;flex-direction:column;gap:10px;margin-top:24px;">
+                <div style="border-radius:16px;background:#FFFFFF;border:1px solid #ECEEE8;padding:16px;"><p style="margin:0;font-size:14px;font-weight:600;color:#374151;">심하게 당기고 각질이 일어나요</p></div>
+                <div style="border-radius:16px;background:#EAF5EF;border:1.5px solid #3D8F6F;padding:16px;box-shadow:0 4px 14px rgba(61,143,111,.12);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <p style="margin:0;font-size:14px;font-weight:800;color:#2B6B52;">약간 당기지만 금방 괜찮아져요</p>
+                    <span style="width:22px;height:22px;border-radius:50%;background:#3D8F6F;display:inline-flex;align-items:center;justify-content:center;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                  </div>
+                </div>
+                <div style="border-radius:16px;background:#FFFFFF;border:1px solid #ECEEE8;padding:16px;"><p style="margin:0;font-size:14px;font-weight:600;color:#374151;">별로 신경 쓰이지 않아요</p></div>
+                <div style="border-radius:16px;background:#FFFFFF;border:1px solid #ECEEE8;padding:16px;"><p style="margin:0;font-size:14px;font-weight:600;color:#374151;">오히려 번들거려요</p></div>
+              </div>
+            </div>
+          </div>
+          <div style="padding:12px 24px 44px 24px;display:flex;gap:10px;">
+            <span style="flex:1;display:flex;align-items:center;justify-content:center;height:50px;border-radius:14px;border:1px solid #E1E4DD;font-size:14px;font-weight:700;color:#6B7280;">이전</span>
+            <span style="flex:2;display:flex;align-items:center;justify-content:center;height:50px;border-radius:14px;background:#2B6B52;font-size:14px;font-weight:800;color:#FFFFFF;">다음</span>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div id="7c" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#17171C;font-size:12px;font-weight:800;color:#FFFFFF;">7c</span><span style="font-size:13px;font-weight:700;color:#17171C;">진단 결과 — 캐릭터 부여 + 케어 요약</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#2B6B52;">
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:80px 24px 24px 24px;text-align:center;">
+              <span style="display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.16);font-size:11px;font-weight:800;color:#FFFFFF;">진단 완료 · 8문항 분석</span>
+              <h2 style="margin:14px 0 0 0;font-size:15px;font-weight:600;color:rgba(255,255,255,.75);">대체러님의 피부타입은</h2>
+              <p style="margin:4px 0 0 0;font-size:28px;font-weight:900;color:#FFFFFF;letter-spacing:-0.5px;">수분팡팡 옹달샘 💧</p>
+              <div style="position:relative;width:170px;height:170px;border-radius:50%;background:#FFFFFF;box-shadow:0 12px 44px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;overflow:hidden;margin:22px auto 0 auto;"><img src="assets/mascot/base_face_neutral.png" alt="옹달샘 캐릭터" style="width:80%;height:80%;object-fit:contain;"></div>
+              <p style="margin:18px 0 0 0;font-size:13px;line-height:1.65;color:rgba(255,255,255,.85);">수분과 유분의 밸런스가 좋은 편이에요.<br>지금의 균형을 지키는 순한 보습 케어가 핵심!</p>
+              <div style="border-radius:20px;background:rgba(255,255,255,.1);padding:16px;margin-top:22px;text-align:left;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px;">
+                  <span style="width:6px;height:6px;border-radius:50%;background:#7FD4B2;"></span>
+                  <span style="flex:1;font-size:12px;font-weight:600;color:rgba(255,255,255,.9);">수분 보유력</span>
+                  <div style="width:110px;height:5px;border-radius:999px;background:rgba(255,255,255,.18);overflow:hidden;"><div style="height:100%;width:78%;border-radius:999px;background:#7FD4B2;"></div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px;">
+                  <span style="width:6px;height:6px;border-radius:50%;background:#7FD4B2;"></span>
+                  <span style="flex:1;font-size:12px;font-weight:600;color:rgba(255,255,255,.9);">유분 조절</span>
+                  <div style="width:110px;height:5px;border-radius:999px;background:rgba(255,255,255,.18);overflow:hidden;"><div style="height:100%;width:64%;border-radius:999px;background:#7FD4B2;"></div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="width:6px;height:6px;border-radius:50%;background:#FFD79A;"></span>
+                  <span style="flex:1;font-size:12px;font-weight:600;color:rgba(255,255,255,.9);">외부 자극 민감도</span>
+                  <div style="width:110px;height:5px;border-radius:999px;background:rgba(255,255,255,.18);overflow:hidden;"><div style="height:100%;width:42%;border-radius:999px;background:#FFD79A;"></div></div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:14px;">
+                <span style="display:inline-flex;align-items:center;height:26px;padding:0 11px;border-radius:999px;background:rgba(255,255,255,.14);font-size:11px;font-weight:700;color:#FFFFFF;">추천 · 히알루론산</span>
+                <span style="display:inline-flex;align-items:center;height:26px;padding:0 11px;border-radius:999px;background:rgba(255,255,255,.14);font-size:11px;font-weight:700;color:#FFFFFF;">추천 · 판테놀</span>
+                <span style="display:inline-flex;align-items:center;height:26px;padding:0 11px;border-radius:999px;background:rgba(255,255,255,.14);font-size:11px;font-weight:700;color:#FFD79A;">주의 · 고농도 AHA</span>
+              </div>
+            </div>
+          </div>
+          <div style="padding:12px 24px 44px 24px;display:flex;flex-direction:column;gap:10px;">
+            <span style="display:flex;align-items:center;justify-content:center;height:52px;border-radius:14px;background:#FFFFFF;font-size:15px;font-weight:800;color:#2B6B52;">옹달샘 맞춤 홈으로 시작하기</span>
+            <span style="display:flex;align-items:center;justify-content:center;height:40px;font-size:13px;font-weight:600;color:rgba(255,255,255,.65);">내 화장대부터 등록할게요</span>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div id="7d" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#17171C;font-size:12px;font-weight:800;color:#FFFFFF;">7d</span><span style="font-size:13px;font-weight:700;color:#17171C;">주문 완료 — EXP 획득 + 화장대 자동 등록</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:flex-end;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="#17171C" stroke-width="2" stroke-linecap="round"></path></svg>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:16px 24px 24px 24px;text-align:center;">
+              <div style="position:relative;width:88px;height:88px;margin:0 auto;">
+                <div style="width:88px;height:88px;border-radius:50%;background:#EAF5EF;display:flex;align-items:center;justify-content:center;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#2B6B52" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+                <span style="position:absolute;top:-6px;right:-14px;display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;background:#17171C;font-size:11px;font-weight:800;color:#FFFFFF;">+50 EXP</span>
+              </div>
+              <h2 style="margin:18px 0 0 0;font-size:21px;font-weight:800;color:#17171C;letter-spacing:-0.3px;">주문이 완료됐어요!</h2>
+              <p style="margin:6px 0 0 0;font-size:13px;color:#8A8F98;">주문번호 2607-18-002841 · 7/20(월) 도착 예정</p>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px 16px;margin-top:20px;text-align:left;">
+                <div style="display:flex;align-items:center;gap:11px;padding-bottom:10px;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:44px;height:44px;border-radius:10px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/alt102/88/88" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:12px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">코스알엑스 히알루론산 수분 토너 EX</span><span style="display:block;font-size:11px;color:#8A8F98;margin-top:1px;">18,000원 · 1개</span></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:11px;padding-top:10px;">
+                  <span style="width:44px;height:44px;border-radius:10px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/alt108/88/88" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:12px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">일리윤 세라마이드 아토 농축 크림</span><span style="display:block;font-size:11px;color:#8A8F98;margin-top:1px;">17,500원 · 1개</span></span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;border-radius:14px;background:#EAF5EF;padding:12px 14px;margin-top:12px;text-align:left;">
+                <span style="width:32px;height:32px;border-radius:50%;background:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="assets/mascot/base_face_neutral.png" alt="" style="width:82%;height:82%;object-fit:contain;"></span>
+                <p style="margin:0;flex:1;font-size:12px;line-height:1.5;color:#2B6B52;">두 제품을 <b>화장대에 자동 등록</b>했어요. 도착 후 2주 뒤에 교체 후기를 물어볼게요!</p>
+              </div>
+              <div style="border-radius:14px;background:#FFFFFF;border:1px solid #ECEEE8;padding:12px 16px;margin-top:12px;display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:12px;font-weight:600;color:#6B7280;">이번 교체로 절약한 금액</span>
+                <span style="font-size:15px;font-weight:900;color:#2B6B52;">17,900원</span>
+              </div>
+            </div>
+          </div>
+          <div style="padding:12px 24px 44px 24px;display:flex;gap:10px;">
+            <span style="flex:1;display:flex;align-items:center;justify-content:center;height:50px;border-radius:14px;border:1px solid #E1E4DD;font-size:14px;font-weight:700;color:#374151;">주문 상세</span>
+            <span style="flex:1;display:flex;align-items:center;justify-content:center;height:50px;border-radius:14px;background:#2B6B52;font-size:14px;font-weight:800;color:#FFFFFF;">홈으로</span>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div id="7e" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#17171C;font-size:12px;font-weight:800;color:#FFFFFF;">7e</span><span style="font-size:13px;font-weight:700;color:#17171C;">좋아요 — 재입고·가격변동 추적 목록</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="#17171C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span style="font-size:16px;font-weight:800;color:#17171C;">좋아요 <span style="color:#3D8F6F;">3</span></span>
+              <span style="position:relative;display:inline-flex;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+            </div>
+            <div class="hscroll" style="display:flex;align-items:center;gap:8px;overflow-x:auto;margin:0 -20px;padding:4px 20px 12px 20px;">
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 13px;border-radius:999px;background:#17171C;font-size:12px;font-weight:800;color:#FFFFFF;">전체 3</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 13px;border-radius:999px;background:#FFFFFF;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#4B5563;">가격 내림 1</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 13px;border-radius:999px;background:#FFFFFF;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#4B5563;">재입고 1</span>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:4px 20px 28px 20px;">
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:2px 16px;">
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:54px;height:54px;border-radius:14px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/seed5/108/108" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">바이오더마</span><span style="display:block;font-size:13px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">하이드라비오 토너 250ml</span><span style="display:flex;align-items:center;gap:4px;margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#FF5C7A;"></span><span style="font-size:11px;font-weight:700;color:#FF5C7A;">3,000원 내림 → 26,500원</span></span></span>
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:999px;background:#EAF5EF;flex-shrink:0;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#2B6B52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#2B6B52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:54px;height:54px;border-radius:14px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/seed8/108/108" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">라로슈포제</span><span style="display:block;font-size:13px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">시카플라스트 밤 B5+ 40ml</span><span style="display:flex;align-items:center;gap:4px;margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#3D8F6F;"></span><span style="font-size:11px;font-weight:700;color:#2B6B52;">재입고 완료 · 34,850원</span></span></span>
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:999px;background:#EAF5EF;flex-shrink:0;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#2B6B52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#2B6B52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 0;">
+                  <span style="width:54px;height:54px;border-radius:14px;overflow:hidden;background:#F4F4F4;flex-shrink:0;position:relative;"><img src="https://picsum.photos/seed/p9/108/108" alt="" style="width:100%;height:100%;object-fit:cover;filter:grayscale(1);opacity:.7;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">웰라쥬</span><span style="display:block;font-size:13px;font-weight:600;color:#8A8F98;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">리얼 히알루로닉 블루 100 앰플</span><span style="display:flex;align-items:center;gap:4px;margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#C3C8CE;"></span><span style="font-size:11px;font-weight:700;color:#8A8F98;">일시 품절 · 재입고 알림 설정됨</span></span></span>
+                  <span style="display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;border:1px solid #DCE8E1;font-size:11px;font-weight:800;color:#2B6B52;flex-shrink:0;">유사품 보기</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;border-radius:14px;background:#EAF5EF;padding:11px 14px;margin-top:12px;">
+                <span style="width:30px;height:30px;border-radius:50%;background:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="assets/mascot/base_face_neutral.png" alt="" style="width:82%;height:82%;object-fit:contain;"></span>
+                <p style="margin:0;flex:1;font-size:12px;line-height:1.45;color:#2B6B52;">좋아요한 제품의 <b>가격 변동·재입고</b>를 제가 지켜보고 있어요!</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+  </div>
+</section>
+
+<section style="padding:56px 64px 72px 64px;display:flex;flex-direction:column;gap:28px;min-width:1900px;">
+  <header style="display:flex;flex-direction:column;gap:10px;max-width:900px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:12px;font-weight:700;">TURN 2</span>
+      <span style="font-size:13px;font-weight:600;color:#6B7280;">제로베이스 c안 → 정식 출시 버전</span>
+    </div>
+    <h1 style="margin:0;font-size:30px;font-weight:800;color:#17171C;letter-spacing:-0.5px;">챗봇 · 장바구니 · 좋아요 동선을 갖춘 릴리즈 빌드</h1>
+    <p style="margin:0;font-size:14px;line-height:1.7;color:#4B5563;">프로토타입(1c~5c)에 출시급 동선을 더했습니다: ① 상단 유틸 고정 — 홈은 검색·알림·장바구니 3종, 다른 탭은 검색·장바구니 2종 ② 탐색 랭킹 → '화장대 비교'로 진입, 비교 화면(<a href="#6f">6f</a>)에서 비교와 동시에 담기 ③ 신규 챗봇 화면(<a href="#6d">6d</a>) + 홈의 마스코트 챗봇 진입 ④ 마이(<a href="#6e">6e</a>)는 5c 구조 + 레벨 자세히보기(행동별 경험치 가이드) ⑤ 세부 페이지 — 장바구니(<a href="#6g">6g</a>) · 제품 상세(<a href="#6h">6h</a>) · 스캔 결과(<a href="#6i">6i</a>) · 알림(<a href="#6j">6j</a>) · 주문/결제(<a href="#6k">6k</a>) · 후기 작성(<a href="#6l">6l</a>) · 검색 결과(<a href="#6m">6m</a>). 스캔 탭(3c)은 변경 없음.</p>
+  </header>
+  <div style="display:flex;gap:56px;align-items:flex-start;flex-wrap:wrap;">
+
+    <div id="6a" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6a</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">홈 — 검색·알림·장바구니 상단 고정 + 챗봇 FAB</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;position:relative;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-size:21px;font-weight:900;font-style:italic;letter-spacing:-0.7px;color:#17171C;">대체뭐야</span>
+              <div style="display:flex;align-items:center;gap:15px;">
+                <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#17171C" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#17171C" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                <span style="position:relative;display:inline-flex;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:#FF5C7A;border:1.5px solid #F5F6F2;"></span></span>
+                <span style="position:relative;display:inline-flex;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:6px 20px 0 20px;">
+              <div style="position:relative;border-radius:24px;background:#2B6B52;padding:22px 20px 20px 20px;">
+                <p style="margin:0 0 8px 0;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);">7월 16일 수요일 · ☀️ 맑음 27° · 습도 62%</p>
+                <h2 style="margin:0;font-size:21px;font-weight:800;color:#FFFFFF;line-height:1.35;letter-spacing:-0.3px;">오늘은 무거운 크림보다<br>가벼운 수분 젤이 맞아요</h2>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:14px;">
+                  <span style="display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(255,255,255,.16);font-size:11px;font-weight:700;color:#FFFFFF;">💧 옹달샘 타입</span>
+                  <span style="display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:rgba(255,255,255,.16);font-size:11px;font-weight:700;color:#FFFFFF;">자외선 높음</span>
+                </div>
+                <div style="position:absolute;top:-14px;right:16px;width:64px;height:64px;border-radius:50%;background:#FFFFFF;box-shadow:0 4px 16px rgba(23,23,28,.18);display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="assets/mascot/base_face_neutral.png" alt="마스코트" style="width:84%;height:84%;object-fit:contain;"></div>
+              </div>
+              <div style="display:flex;border-radius:16px;background:#FFFFFF;box-shadow:0 2px 12px rgba(43,107,82,.08);margin-top:12px;">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:13px 0;"><span style="font-size:16px;font-weight:900;color:#17171C;">12</span><span style="font-size:10px;color:#8A8F98;margin-top:1px;">화장대 제품</span></div>
+                <div style="width:1px;background:#F0F1F3;margin:12px 0;"></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:13px 0;"><span style="font-size:16px;font-weight:900;color:#17171C;">8</span><span style="font-size:10px;color:#8A8F98;margin-top:1px;">분석 완료</span></div>
+                <div style="width:1px;background:#F0F1F3;margin:12px 0;"></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:13px 0;"><span style="font-size:16px;font-weight:900;color:#3D8F6F;">74,500원</span><span style="font-size:10px;color:#8A8F98;margin-top:1px;">절약 가능</span></div>
+              </div>
+            </div>
+            <div style="padding:24px 20px 0 20px;">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;">
+                <h3 style="margin:0;font-size:16px;font-weight:800;color:#17171C;letter-spacing:-0.2px;">오늘의 교체 제안</h3>
+                <span style="font-size:11px;font-weight:600;color:#9CA3AF;">성분 유사도 기준 · 1건</span>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:16px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="flex:1;min-width:0;text-align:center;">
+                    <div style="width:84px;height:84px;border-radius:14px;overflow:hidden;background:#F4F4F4;margin:0 auto 8px auto;"><img src="https://picsum.photos/seed/seed1/200/200" alt="쓰던 제품" style="width:100%;height:100%;object-fit:cover;"></div>
+                    <span style="display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:999px;background:#F0F1F3;font-size:9px;font-weight:700;color:#6B7280;margin-bottom:4px;">쓰던 제품</span>
+                    <p style="margin:0;font-size:12px;font-weight:600;color:#17171C;line-height:1.3;">이니스프리<br>수분 밸런싱 토너</p>
+                    <p style="margin:3px 0 0 0;font-size:12px;font-weight:700;color:#9CA3AF;text-decoration:line-through;">28,000원</p>
+                  </div>
+                  <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                    <span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:#EAF5EF;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12h16M14 6l6 6-6 6" stroke="#2B6B52" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                    <span style="font-size:10px;font-weight:800;color:#3D8F6F;">유사도 92%</span>
+                  </div>
+                  <div style="flex:1;min-width:0;text-align:center;">
+                    <div style="position:relative;width:84px;height:84px;border-radius:14px;overflow:hidden;background:#F4F4F4;margin:0 auto 8px auto;"><img src="https://picsum.photos/seed/alt102/200/200" alt="대체품" style="width:100%;height:100%;object-fit:cover;"><span style="position:absolute;top:5px;right:5px;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.92);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 20.5C12 20.5 3.5 15 3.5 9.2C3.5 6.6 5.6 4.5 8.2 4.5C9.8 4.5 11.2 5.3 12 6.5C12.8 5.3 14.2 4.5 15.8 4.5C18.4 4.5 20.5 6.6 20.5 9.2C20.5 15 12 20.5 12 20.5Z" stroke="#FF5C7A" stroke-width="2" fill="none"></path></svg></span></div>
+                    <span style="display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:999px;background:#EAF5EF;font-size:9px;font-weight:700;color:#2B6B52;margin-bottom:4px;">대체품</span>
+                    <p style="margin:0;font-size:12px;font-weight:600;color:#17171C;line-height:1.3;">코스알엑스<br>히알루론산 토너 EX</p>
+                    <p style="margin:3px 0 0 0;font-size:12px;font-weight:800;color:#17171C;">18,000원 <span style="color:#3D8F6F;">−10,000</span></p>
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:14px;">
+                  <span style="flex:1;display:flex;align-items:center;justify-content:center;height:40px;border-radius:12px;border:1px solid #E1E4DD;font-size:13px;font-weight:700;color:#374151;">성분 비교</span>
+                  <span style="flex:1.4;display:flex;align-items:center;justify-content:center;gap:6px;height:40px;border-radius:12px;background:#2B6B52;font-size:13px;font-weight:800;color:#FFFFFF;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>장바구니 담기</span>
+                </div>
+              </div>
+            </div>
+            <div style="padding:24px 20px 96px 20px;">
+              <h3 style="margin:0 0 10px 0;font-size:16px;font-weight:800;color:#17171C;letter-spacing:-0.2px;">상황 알림</h3>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:2px 16px;">
+                <div style="display:flex;align-items:center;gap:11px;padding:13px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#FF9500;flex-shrink:0;"></span>
+                  <div style="flex:1;min-width:0;"><p style="margin:0;font-size:13px;font-weight:700;color:#17171C;">아토베리어365 크림 단종 예정</p><p style="margin:1px 0 0 0;font-size:11px;color:#8A8F98;">유사도 90% 대체품 2개 준비됨</p></div>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <div style="display:flex;align-items:center;gap:11px;padding:13px 0;">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#3D8F6F;flex-shrink:0;"></span>
+                  <div style="flex:1;min-width:0;"><p style="margin:0;font-size:13px;font-weight:700;color:#17171C;">시카플라스트 밤 B5+ 재입고</p><p style="margin:1px 0 0 0;font-size:11px;color:#8A8F98;">좋아요한 제품이 입고됐어요 · 바로 담기</p></div>
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;background:#EAF5EF;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#2B6B52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#2B6B52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="position:absolute;right:16px;bottom:96px;z-index:5;">
+            <div style="display:flex;align-items:center;gap:8px;height:50px;padding:0 16px 0 7px;border-radius:999px;background:#17171C;box-shadow:0 6px 24px rgba(0,0,0,.24);">
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;background:#EAF5EF;overflow:hidden;"><img src="assets/mascot/base_face_neutral.png" alt="" style="width:82%;height:82%;object-fit:contain;"></span>
+              <span style="font-size:12px;font-weight:800;color:#FFFFFF;">무엇이든 물어보세요</span>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding-bottom:20px;position:relative;">
+            <div style="display:flex;align-items:center;">
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="#EAF5EF"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="#2B6B52" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 21V12h6v9" stroke="#2B6B52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"></path></svg><span style="font-size:10px;font-weight:700;color:#2B6B52;">홈</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M14.5 9.5l-1.8 4.2-4.2 1.8 1.8-4.2 4.2-1.8z" stroke="#9CA3AF" stroke-width="1.6" stroke-linejoin="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">탐색</span></div>
+              <div style="flex:1;height:56px;position:relative;">
+                <div style="position:absolute;left:50%;top:-22px;transform:translateX(-50%);width:56px;height:56px;border-radius:50%;background:#2B6B52;border:4px solid #FFFFFF;box-shadow:0 6px 18px rgba(43,107,82,.35);display:flex;align-items:center;justify-content:center;">
+                  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"></path><circle cx="12" cy="12" r="3.2"></circle></svg>
+                </div>
+                <span style="position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:10px;font-weight:700;color:#2B6B52;">스캔</span>
+              </div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l2 3v10a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 20V10l2-3V3z"></path><path d="M7 13h10"></path></svg><span style="font-size:10px;color:#9CA3AF;">화장대</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">마이</span></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div id="6b" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6b</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">탐색 — 랭킹 → 내 화장대와 비교 진입</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <h1 style="margin:0;font-size:22px;font-weight:800;color:#17171C;letter-spacing:-0.4px;">탐색</h1>
+              <div style="display:flex;align-items:center;gap:15px;">
+                <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#17171C" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#17171C" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                <span style="position:relative;display:inline-flex;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;height:48px;padding:0 16px;border-radius:14px;background:#FFFFFF;border:1px solid #E1E4DD;box-shadow:0 2px 10px rgba(43,107,82,.05);">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#2B6B52" stroke-width="2"></circle><path d="M16.5 16.5L21 21" stroke="#2B6B52" stroke-width="2" stroke-linecap="round"></path></svg>
+              <span style="flex:1;font-size:14px;color:#9CA3AF;">제품·브랜드·성분 검색</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A8F98" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"></path><circle cx="12" cy="12" r="3.2"></circle></svg>
+            </div>
+            <div class="hscroll" style="display:flex;align-items:center;gap:8px;overflow-x:auto;margin:0 -20px;padding:12px 20px;">
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 13px;border-radius:999px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">💧 옹달샘 맞춤</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;background:#FFFFFF;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#4B5563;">저자극</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;background:#FFFFFF;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#4B5563;">수분</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;background:#FFFFFF;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#4B5563;">진정</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;background:#FFFFFF;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#4B5563;">가성비</span>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:8px 20px 0 20px;">
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);row-gap:16px;column-gap:8px;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><span style="width:52px;height:52px;border-radius:18px;overflow:hidden;background:#FFFFFF;border:1px solid #ECEEE8;"><img src="https://picsum.photos/seed/catg1/104/104" alt="" style="width:100%;height:100%;object-fit:cover;"></span><span style="font-size:11px;font-weight:600;color:#374151;">스킨케어</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><span style="width:52px;height:52px;border-radius:18px;overflow:hidden;background:#FFFFFF;border:1px solid #ECEEE8;"><img src="https://picsum.photos/seed/catg2/104/104" alt="" style="width:100%;height:100%;object-fit:cover;"></span><span style="font-size:11px;font-weight:600;color:#374151;">클렌징</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><span style="width:52px;height:52px;border-radius:18px;overflow:hidden;background:#FFFFFF;border:1px solid #ECEEE8;"><img src="https://picsum.photos/seed/catg3/104/104" alt="" style="width:100%;height:100%;object-fit:cover;"></span><span style="font-size:11px;font-weight:600;color:#374151;">선케어</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><span style="width:52px;height:52px;border-radius:18px;overflow:hidden;background:#FFFFFF;border:1px solid #ECEEE8;"><img src="https://picsum.photos/seed/catg4/104/104" alt="" style="width:100%;height:100%;object-fit:cover;"></span><span style="font-size:11px;font-weight:600;color:#374151;">메이크업</span></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:12px;"><span style="font-size:11px;font-weight:600;color:#8A8F98;">카테고리 전체</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="#8A8F98" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+            </div>
+            <div style="padding:20px 20px 28px 20px;">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;">
+                <h3 style="margin:0;font-size:16px;font-weight:800;color:#17171C;letter-spacing:-0.2px;">옹달샘 타입 랭킹</h3>
+                <span style="font-size:11px;font-weight:600;color:#9CA3AF;">7.16 10시 기준</span>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:4px 16px;">
+                <sc-for list="{{ skinPicks }}" as="p" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid #F5F6F2;">
+                    <span style="width:18px;font-size:15px;font-weight:900;font-style:italic;color:#2B6B52;text-align:center;">{{ p.rank }}</span>
+                    <span style="width:52px;height:52px;border-radius:12px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="{{ p.img }}" alt="{{ p.name }}" style="width:100%;height:100%;object-fit:cover;"></span>
+                    <span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">{{ p.brand }}</span><span style="display:block;font-size:13px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.name }}</span><span style="display:flex;align-items:baseline;gap:4px;margin-top:2px;"><span style="font-size:13px;font-weight:800;color:#FF5C7A;">{{ p.disc }}</span><span style="font-size:13px;font-weight:800;color:#17171C;">{{ p.price }}</span></span></span>
+                    <span style="flex-shrink:0;display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 10px;border-radius:999px;background:#EAF5EF;font-size:10px;font-weight:800;color:#2B6B52;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13M14 3.5L17.5 7 14 10.5"></path><path d="M20 17H7M10 13.5L6.5 17l3.5 3.5"></path></svg>화장대 비교</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding-bottom:20px;position:relative;">
+            <div style="display:flex;align-items:center;">
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="#9CA3AF" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 21V12h6v9" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">홈</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#2B6B52" stroke-width="2"></circle><path d="M14.5 9.5l-1.8 4.2-4.2 1.8 1.8-4.2 4.2-1.8z" stroke="#2B6B52" stroke-width="1.8" stroke-linejoin="round" fill="#EAF5EF"></path></svg><span style="font-size:10px;font-weight:700;color:#2B6B52;">탐색</span></div>
+              <div style="flex:1;height:56px;position:relative;">
+                <div style="position:absolute;left:50%;top:-22px;transform:translateX(-50%);width:56px;height:56px;border-radius:50%;background:#2B6B52;border:4px solid #FFFFFF;box-shadow:0 6px 18px rgba(43,107,82,.35);display:flex;align-items:center;justify-content:center;">
+                  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"></path><circle cx="12" cy="12" r="3.2"></circle></svg>
+                </div>
+                <span style="position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:10px;font-weight:700;color:#2B6B52;">스캔</span>
+              </div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l2 3v10a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 20V10l2-3V3z"></path><path d="M7 13h10"></path></svg><span style="font-size:10px;color:#9CA3AF;">화장대</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">마이</span></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div id="6f" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6f</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">비교 — 랭킹 제품 vs 내 화장대, 비교하며 바로 담기</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="#17171C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span style="font-size:16px;font-weight:800;color:#17171C;">내 화장대와 비교</span>
+              <span style="position:relative;display:inline-flex;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:8px 20px 24px 20px;">
+              <p style="margin:0 0 10px 0;font-size:11px;font-weight:600;color:#8A8F98;">탐색 랭킹 1위 ↔ 내 화장대의 '수분토너'와 비교 중</p>
+              <div style="position:relative;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div style="border-radius:18px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px 12px;text-align:center;">
+                  <span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#F0F1F3;font-size:9px;font-weight:800;color:#6B7280;margin-bottom:8px;">내 화장대</span>
+                  <div style="width:88px;height:88px;border-radius:14px;overflow:hidden;background:#F4F4F4;margin:0 auto 8px auto;"><img src="https://picsum.photos/seed/seed1/200/200" alt="내 제품" style="width:100%;height:100%;object-fit:cover;"></div>
+                  <p style="margin:0;font-size:10px;font-weight:700;color:#9CA3AF;">이니스프리</p>
+                  <p style="margin:2px 0 0 0;font-size:12px;font-weight:600;color:#17171C;line-height:1.35;">수분 밸런싱 토너<br>200ml</p>
+                  <p style="margin:6px 0 0 0;font-size:14px;font-weight:800;color:#17171C;">28,000원</p>
+                </div>
+                <div style="border-radius:18px;background:#FFFFFF;border:1.5px solid #3D8F6F;padding:14px 12px;text-align:center;box-shadow:0 4px 16px rgba(61,143,111,.12);">
+                  <span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#EAF5EF;font-size:9px;font-weight:800;color:#2B6B52;margin-bottom:8px;">랭킹 1위</span>
+                  <div style="width:88px;height:88px;border-radius:14px;overflow:hidden;background:#F4F4F4;margin:0 auto 8px auto;"><img src="https://picsum.photos/seed/seed5/200/200" alt="랭킹 제품" style="width:100%;height:100%;object-fit:cover;"></div>
+                  <p style="margin:0;font-size:10px;font-weight:700;color:#9CA3AF;">바이오더마</p>
+                  <p style="margin:2px 0 0 0;font-size:12px;font-weight:600;color:#17171C;line-height:1.35;">하이드라비오 토너<br>250ml</p>
+                  <p style="margin:6px 0 0 0;font-size:14px;font-weight:800;color:#17171C;">26,500원 <span style="font-size:11px;color:#3D8F6F;">−1,500</span></p>
+                </div>
+                <div style="position:absolute;left:50%;top:86px;transform:translateX(-50%);width:56px;height:56px;border-radius:50%;background:#FFFFFF;border:3px solid #3D8F6F;box-shadow:0 4px 14px rgba(43,107,82,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2;">
+                  <span style="font-size:14px;font-weight:900;color:#2B6B52;line-height:1;">87%</span>
+                  <span style="font-size:8px;font-weight:700;color:#8A8F98;margin-top:2px;">유사도</span>
+                </div>
+              </div>
+              <div style="border-radius:18px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px 16px;margin-top:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;">
+                  <h3 style="margin:0;font-size:13px;font-weight:800;color:#17171C;">공통 핵심 성분</h3>
+                  <span style="font-size:10px;font-weight:600;color:#9CA3AF;">전성분 21개 중 16개 일치</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                  <span style="display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;border:1px solid #DCE8E1;font-size:11px;font-weight:700;color:#2B6B52;">히알루론산</span>
+                  <span style="display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;border:1px solid #DCE8E1;font-size:11px;font-weight:700;color:#2B6B52;">판테놀</span>
+                  <span style="display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;border:1px solid #DCE8E1;font-size:11px;font-weight:700;color:#2B6B52;">베타인</span>
+                  <span style="display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;border:1px solid #DCE8E1;font-size:11px;font-weight:700;color:#2B6B52;">글리세린</span>
+                  <span style="display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:#F5F6F2;font-size:11px;font-weight:700;color:#8A8F98;">+12</span>
+                </div>
+              </div>
+              <div style="border-radius:18px;background:#FFFFFF;border:1px solid #ECEEE8;padding:4px 16px;margin-top:12px;">
+                <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:7px;height:7px;border-radius:50%;background:#3D8F6F;flex-shrink:0;"></span>
+                  <span style="flex:1;font-size:12px;font-weight:600;color:#17171C;">랭킹 제품에만 <b style="color:#2B6B52;">세라마이드 NP</b></span>
+                  <span style="font-size:10px;font-weight:700;color:#8A8F98;">장벽 강화</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:7px;height:7px;border-radius:50%;background:#9CA3AF;flex-shrink:0;"></span>
+                  <span style="flex:1;font-size:12px;font-weight:600;color:#17171C;">내 제품에만 <b style="color:#4B5563;">마데카소사이드</b></span>
+                  <span style="font-size:10px;font-weight:700;color:#8A8F98;">진정</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;padding:11px 0;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#3D8F6F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  <span style="flex:1;font-size:12px;font-weight:600;color:#17171C;">주의 성분 — 양쪽 모두 0개</span>
+                </div>
+              </div>
+              <div style="border-radius:18px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px 16px;margin-top:12px;">
+                <h3 style="margin:0 0 10px 0;font-size:13px;font-weight:800;color:#17171C;">💧 옹달샘 타입 적합도</h3>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                  <span style="width:56px;font-size:11px;font-weight:600;color:#8A8F98;">내 제품</span>
+                  <div style="flex:1;height:6px;border-radius:999px;background:#F0F1F3;overflow:hidden;"><div style="height:100%;width:88%;border-radius:999px;background:#C9CFC5;"></div></div>
+                  <span style="width:32px;text-align:right;font-size:12px;font-weight:800;color:#6B7280;">88점</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="width:56px;font-size:11px;font-weight:600;color:#8A8F98;">랭킹 1위</span>
+                  <div style="flex:1;height:6px;border-radius:999px;background:#F0F1F3;overflow:hidden;"><div style="height:100%;width:95%;border-radius:999px;background:#3D8F6F;"></div></div>
+                  <span style="width:32px;text-align:right;font-size:12px;font-weight:800;color:#2B6B52;">95점</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding:12px 20px 28px 20px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="flex-shrink:0;">
+                <p style="margin:0;font-size:16px;font-weight:900;color:#17171C;">26,500원</p>
+                <p style="margin:1px 0 0 0;font-size:10px;font-weight:700;color:#3D8F6F;">내 제품보다 1,500원 저렴</p>
+              </div>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;border:1px solid #E1E4DD;margin-left:auto;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 20.5C12 20.5 3.5 15 3.5 9.2C3.5 6.6 5.6 4.5 8.2 4.5C9.8 4.5 11.2 5.3 12 6.5C12.8 5.3 14.2 4.5 15.8 4.5C18.4 4.5 20.5 6.6 20.5 9.2C20.5 15 12 20.5 12 20.5Z" stroke="#8A8F98" stroke-width="1.7"></path></svg></span>
+              <span style="display:inline-flex;align-items:center;justify-content:center;gap:6px;height:44px;padding:0 20px;border-radius:12px;background:#2B6B52;font-size:13px;font-weight:800;color:#FFFFFF;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>장바구니 담기</span>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div id="6c" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6c</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">화장대 — 좋아요·최근 본 세그먼트 통합</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <h1 style="margin:0;font-size:22px;font-weight:800;color:#17171C;letter-spacing:-0.4px;">내 화장대</h1>
+              <div style="display:flex;align-items:center;gap:15px;">
+                <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#17171C" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#17171C" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                <span style="position:relative;display:inline-flex;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+              </div>
+            </div>
+            <div style="display:flex;padding:4px;border-radius:14px;background:#EAECE6;">
+              <span style="flex:1;display:flex;align-items:center;justify-content:center;height:34px;border-radius:11px;background:#FFFFFF;font-size:13px;font-weight:800;color:#17171C;box-shadow:0 1px 4px rgba(23,23,28,.08);">내 제품 12</span>
+              <span style="flex:1;display:flex;align-items:center;justify-content:center;height:34px;border-radius:11px;font-size:13px;font-weight:600;color:#8A8F98;">좋아요 3</span>
+              <span style="flex:1;display:flex;align-items:center;justify-content:center;height:34px;border-radius:11px;font-size:13px;font-weight:600;color:#8A8F98;">최근 본 5</span>
+            </div>
+            <div style="border-radius:20px;background:#2B6B52;padding:14px 18px;display:flex;align-items:center;gap:12px;margin-top:12px;">
+              <div style="flex:1;min-width:0;">
+                <p style="margin:0;font-size:11px;font-weight:600;color:rgba(255,255,255,.65);">이번 달 절약 가능</p>
+                <p style="margin:2px 0 0 0;font-size:20px;font-weight:900;color:#FFFFFF;letter-spacing:-0.3px;">74,500원</p>
+              </div>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:999px;background:#FFFFFF;font-size:12px;font-weight:800;color:#2B6B52;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#2B6B52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#2B6B52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>제안 5건 모두 담기</span>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:12px 20px 28px 20px;">
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:2px 16px;">
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="position:relative;width:54px;height:54px;border-radius:14px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/seed1/108/108" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">이니스프리</span><span style="display:block;font-size:13px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">수분 밸런싱 토너 200ml</span><span style="display:flex;align-items:center;gap:4px;margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#3D8F6F;"></span><span style="font-size:11px;font-weight:600;color:#2B6B52;">교체 제안 · 유사도 92% · −10,000원</span></span></span>
+                  <span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:999px;background:#EAF5EF;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#2B6B52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#2B6B52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="position:relative;width:54px;height:54px;border-radius:14px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/seed6/108/108" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">에스트라</span><span style="display:block;font-size:13px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">아토베리어365 크림 80ml</span><span style="display:flex;align-items:center;gap:4px;margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#FF9500;"></span><span style="font-size:11px;font-weight:600;color:#C77700;">단종 예정 · 대체품 2개 준비됨</span></span></span>
+                  <span style="flex-shrink:0;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:#FFF4E5;font-size:11px;font-weight:800;color:#FF9500;">대비 필요</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="position:relative;width:54px;height:54px;border-radius:14px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/seed8/108/108" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">라로슈포제</span><span style="display:block;font-size:13px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">시카플라스트 밤 B5+ 40ml</span><span style="display:flex;align-items:center;gap:4px;margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#9CA3AF;"></span><span style="font-size:11px;font-weight:600;color:#8A8F98;">어제 스캔 · 주의 성분 2개</span></span></span>
+                  <span style="flex-shrink:0;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:#F0F1F3;font-size:11px;font-weight:800;color:#6B7280;">분석 보기</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 0;">
+                  <span style="position:relative;width:54px;height:54px;border-radius:14px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/seed5/108/108" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">바이오더마</span><span style="display:block;font-size:13px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">하이드라비오 토너 250ml</span><span style="display:flex;align-items:center;gap:4px;margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#9CA3AF;"></span><span style="font-size:11px;font-weight:600;color:#8A8F98;">분석 대기 중</span></span></span>
+                  <span style="flex-shrink:0;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;border:1px solid #DCE8E1;font-size:11px;font-weight:800;color:#2B6B52;">분석하기</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:6px;height:52px;border-radius:16px;border:1.5px dashed #C9CFC5;margin-top:12px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#8A8F98" stroke-width="2" stroke-linecap="round"></path></svg>
+                <span style="font-size:13px;font-weight:700;color:#6B7280;">제품 추가 — 스캔하거나 검색으로</span>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding-bottom:20px;position:relative;">
+            <div style="display:flex;align-items:center;">
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="#9CA3AF" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 21V12h6v9" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">홈</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M14.5 9.5l-1.8 4.2-4.2 1.8 1.8-4.2 4.2-1.8z" stroke="#9CA3AF" stroke-width="1.6" stroke-linejoin="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">탐색</span></div>
+              <div style="flex:1;height:56px;position:relative;">
+                <div style="position:absolute;left:50%;top:-22px;transform:translateX(-50%);width:56px;height:56px;border-radius:50%;background:#2B6B52;border:4px solid #FFFFFF;box-shadow:0 6px 18px rgba(43,107,82,.35);display:flex;align-items:center;justify-content:center;">
+                  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"></path><circle cx="12" cy="12" r="3.2"></circle></svg>
+                </div>
+                <span style="position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:10px;font-weight:700;color:#2B6B52;">스캔</span>
+              </div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l2 3v10a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 20V10l2-3V3z" fill="#EAF5EF"></path><path d="M7 13h10"></path></svg><span style="font-size:10px;font-weight:700;color:#2B6B52;">화장대</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">마이</span></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div id="6d" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6d</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">챗봇 — 신규 화면, 대화 안에서 대체품 추천·담기</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 16px 10px 16px;background:#FFFFFF;border-bottom:1px solid #ECEEE8;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="#17171C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span style="position:relative;width:40px;height:40px;border-radius:50%;background:#EAF5EF;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;"><img src="assets/mascot/base_face_neutral.png" alt="" style="width:84%;height:84%;object-fit:contain;"><span style="position:absolute;bottom:1px;right:1px;width:9px;height:9px;border-radius:50%;background:#4CC38A;border:2px solid #FFFFFF;"></span></span>
+              <div style="flex:1;min-width:0;">
+                <p style="margin:0;font-size:15px;font-weight:800;color:#17171C;">대체 챗봇</p>
+                <p style="margin:0;font-size:11px;color:#3D8F6F;font-weight:600;">내 화장대 12개를 알고 있어요</p>
+              </div>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.7" fill="#17171C"></circle><circle cx="12" cy="12" r="1.7" fill="#17171C"></circle><circle cx="19" cy="12" r="1.7" fill="#17171C"></circle></svg>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+              <div style="display:flex;align-items:flex-end;gap:8px;">
+                <span style="width:28px;height:28px;border-radius:50%;background:#EAF5EF;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="assets/mascot/base_face_neutral.png" alt="" style="width:82%;height:82%;object-fit:contain;"></span>
+                <div style="max-width:78%;border-radius:4px 16px 16px 16px;background:#FFFFFF;border:1px solid #ECEEE8;padding:11px 13px;">
+                  <p style="margin:0;font-size:13px;line-height:1.55;color:#374151;">안녕하세요, 대체러님! 🌿 화장대 제품이나 성분에 대해 무엇이든 물어보세요.</p>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:flex-end;">
+                <div style="max-width:78%;border-radius:16px 4px 16px 16px;background:#2B6B52;padding:11px 13px;">
+                  <p style="margin:0;font-size:13px;line-height:1.55;color:#FFFFFF;">시카플라스트 밤 대신 쓸 만한 거 있어? 더 싸면 좋겠어</p>
+                </div>
+              </div>
+              <div style="display:flex;align-items:flex-end;gap:8px;">
+                <span style="width:28px;height:28px;border-radius:50%;background:#EAF5EF;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="assets/mascot/base_face_neutral.png" alt="" style="width:82%;height:82%;object-fit:contain;"></span>
+                <div style="max-width:86%;display:flex;flex-direction:column;gap:8px;">
+                  <div style="border-radius:4px 16px 16px 16px;background:#FFFFFF;border:1px solid #ECEEE8;padding:11px 13px;">
+                    <p style="margin:0;font-size:13px;line-height:1.55;color:#374151;">네! 핵심 성분(판테놀·마데카소사이드)이 <b style="color:#2B6B52;">83% 일치</b>하면서 7,900원 저렴한 제품을 찾았어요. 옹달샘 타입에도 잘 맞아요.</p>
+                  </div>
+                  <div style="border-radius:16px;background:#FFFFFF;border:1px solid #DCE8E1;padding:12px;box-shadow:0 2px 10px rgba(43,107,82,.06);">
+                    <div style="display:flex;align-items:center;gap:11px;">
+                      <span style="width:56px;height:56px;border-radius:12px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/alt108/112/112" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                      <span style="flex:1;min-width:0;">
+                        <span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">일리윤</span>
+                        <span style="display:block;font-size:13px;font-weight:700;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">세라마이드 아토 농축 크림 200ml</span>
+                        <span style="display:flex;align-items:center;gap:5px;margin-top:3px;"><span style="display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:999px;background:#EAF5EF;font-size:9px;font-weight:800;color:#2B6B52;">유사도 83%</span><span style="font-size:13px;font-weight:800;color:#17171C;">17,500원 <span style="color:#3D8F6F;">−7,900</span></span></span>
+                      </span>
+                    </div>
+                    <div style="display:flex;gap:7px;margin-top:11px;">
+                      <span style="flex:1;display:flex;align-items:center;justify-content:center;height:34px;border-radius:10px;border:1px solid #E1E4DD;font-size:12px;font-weight:700;color:#374151;">성분 비교</span>
+                      <span style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;height:34px;border-radius:10px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>담기</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="hscroll" style="display:flex;gap:7px;overflow-x:auto;margin:0 -16px;padding:2px 16px 0 52px;">
+                <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;border:1px solid #DCE8E1;background:#FFFFFF;font-size:12px;font-weight:700;color:#2B6B52;">성분 차이 알려줘</span>
+                <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;border:1px solid #DCE8E1;background:#FFFFFF;font-size:12px;font-weight:700;color:#2B6B52;">더 싼 것도 있어?</span>
+                <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;border:1px solid #DCE8E1;background:#FFFFFF;font-size:12px;font-weight:700;color:#2B6B52;">내 피부에 맞아?</span>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding:10px 16px 24px 16px;">
+            <div style="display:flex;align-items:center;gap:9px;">
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:999px;background:#F0F1F3;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 012-2h1.5l1.2-1.8A1.5 1.5 0 0110 3.5h4a1.5 1.5 0 011.3.7L16.5 6H18a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2V8z"></path><circle cx="12" cy="12.5" r="3.2"></circle></svg></span>
+              <div style="flex:1;display:flex;align-items:center;height:42px;padding:0 16px;border-radius:999px;background:#F0F1F3;"><span style="font-size:13px;color:#9CA3AF;">성분·제품 무엇이든 물어보세요</span></div>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:999px;background:#2B6B52;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12l16-7-4.5 14-3.5-5.5L4 12z" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div id="6e" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6e</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">마이 — 5c 기반 + 레벨 자세히보기(경험치 가이드)</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <h1 style="margin:0;font-size:22px;font-weight:800;color:#17171C;letter-spacing:-0.4px;">마이</h1>
+              <div style="display:flex;align-items:center;gap:15px;">
+                <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#17171C" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#17171C" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                <span style="position:relative;display:inline-flex;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:4px 20px 0 20px;">
+              <div style="display:flex;align-items:center;gap:14px;">
+                <div style="width:64px;height:64px;border-radius:50%;background:#FFFFFF;border:1px solid #ECEEE8;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 2px 10px rgba(43,107,82,.08);"><img src="assets/mascot/base_face_neutral.png" alt="프로필" style="width:84%;height:84%;object-fit:contain;"></div>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;align-items:center;gap:8px;"><p style="margin:0;font-size:19px;font-weight:800;color:#17171C;letter-spacing:-0.3px;">대체러</p><span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#EAF5EF;font-size:10px;font-weight:800;color:#2B6B52;">Lv.4 꼼꼼 분석가</span></div>
+                  <p style="margin:3px 0 0 0;font-size:12px;color:#8A8F98;">user@email.com</p>
+                </div>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A8F98" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h.01a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h.01a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.01a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"></path></svg>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:16px;margin-top:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:22px;">💧</span>
+                    <div><p style="margin:0;font-size:15px;font-weight:800;color:#17171C;">수분팡팡 옹달샘</p><p style="margin:1px 0 0 0;font-size:11px;color:#8A8F98;">수분·유분 균형 · 2026.03 진단</p></div>
+                  </div>
+                  <span style="display:inline-flex;align-items:center;height:30px;padding:0 13px;border-radius:999px;background:#2B6B52;font-size:11px;font-weight:800;color:#FFFFFF;">재진단</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid #F5F6F2;">
+                  <span style="font-size:11px;font-weight:700;color:#8A8F98;white-space:nowrap;">Lv.4</span>
+                  <div style="flex:1;height:5px;border-radius:999px;background:#F0F1F3;overflow:hidden;"><div style="height:100%;width:64%;border-radius:999px;background:#3D8F6F;"></div></div>
+                  <span style="font-size:10px;color:#9CA3AF;white-space:nowrap;">320/500</span>
+                  <span style="display:inline-flex;align-items:center;gap:3px;height:24px;padding:0 9px;border-radius:999px;border:1px solid #DCE8E1;font-size:10px;font-weight:800;color:#2B6B52;">자세히보기<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="#2B6B52" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                </div>
+                <div style="border-radius:12px;background:#F5F6F2;padding:4px 12px;margin-top:10px;">
+                  <div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #EAECE6;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"></path><circle cx="12" cy="12" r="3.2"></circle></svg><span style="flex:1;font-size:12px;font-weight:600;color:#374151;">성분 스캔 1회</span><span style="font-size:12px;font-weight:800;color:#2B6B52;">+10 EXP</span></div>
+                  <div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #EAECE6;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z"></path></svg><span style="flex:1;font-size:12px;font-weight:600;color:#374151;">후기 작성</span><span style="font-size:12px;font-weight:800;color:#2B6B52;">+20 EXP</span></div>
+                  <div style="display:flex;align-items:center;gap:9px;padding:9px 0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z"></path><path d="M4 8l8 4 8-4M12 12v8"></path></svg><span style="flex:1;font-size:12px;font-weight:600;color:#374151;">제품 주문</span><span style="font-size:12px;font-weight:800;color:#2B6B52;">+50 EXP</span></div>
+                </div>
+              </div>
+              <div style="display:flex;border-radius:20px;background:#2B6B52;margin-top:12px;">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:15px 0;"><span style="font-size:16px;font-weight:900;color:#FFFFFF;">128,400원</span><span style="font-size:10px;color:rgba(255,255,255,.65);margin-top:2px;">누적 절약</span></div>
+                <div style="width:1px;background:rgba(255,255,255,.14);margin:13px 0;"></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:15px 0;"><span style="font-size:16px;font-weight:900;color:#FFFFFF;">21회</span><span style="font-size:10px;color:rgba(255,255,255,.65);margin-top:2px;">성분 스캔</span></div>
+                <div style="width:1px;background:rgba(255,255,255,.14);margin:13px 0;"></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:15px 0;"><span style="font-size:16px;font-weight:900;color:#FFFFFF;">9회</span><span style="font-size:10px;color:rgba(255,255,255,.65);margin-top:2px;">교체 성공</span></div>
+              </div>
+            </div>
+            <div style="padding:12px 20px 0 20px;">
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:2px 16px;">
+                <div style="display:flex;align-items:center;gap:12px;height:50px;border-bottom:1px solid #F5F6F2;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z"></path><path d="M4 8l8 4 8-4M12 12v8"></path></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">주문내역</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="display:flex;align-items:center;gap:12px;height:50px;border-bottom:1px solid #F5F6F2;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M12 20.5C12 20.5 3.5 15 3.5 9.2C3.5 6.6 5.6 4.5 8.2 4.5C9.8 4.5 11.2 5.3 12 6.5C12.8 5.3 14.2 4.5 15.8 4.5C18.4 4.5 20.5 6.6 20.5 9.2C20.5 15 12 20.5 12 20.5Z" stroke="#6B7280" stroke-width="1.7"></path></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">좋아요한 제품</span><span style="font-size:13px;font-weight:700;color:#3D8F6F;margin-right:4px;">3</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="display:flex;align-items:center;gap:12px;height:50px;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"></path></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">재입고 알림</span><span style="font-size:13px;font-weight:700;color:#3D8F6F;margin-right:4px;">2</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+              </div>
+            </div>
+            <div style="padding:12px 20px 28px 20px;">
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:2px 16px;">
+                <div style="display:flex;align-items:center;gap:12px;height:50px;border-bottom:1px solid #F5F6F2;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7"><rect x="3" y="7" width="18" height="10" rx="5"></rect><circle cx="16" cy="12" r="3"></circle></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">알림 설정</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="display:flex;align-items:center;gap:12px;height:50px;border-bottom:1px solid #F5F6F2;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13a7 7 0 0114 0"></path><rect x="4" y="13" width="3.5" height="6" rx="1.5"></rect><rect x="16.5" y="13" width="3.5" height="6" rx="1.5"></rect></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">고객센터</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="display:flex;align-items:center;gap:12px;height:50px;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FF5C7A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H6a2 2 0 00-2 2v10a2 2 0 002 2h3"></path><path d="M15 8l4 4-4 4M19 12H9"></path></svg><span style="flex:1;font-size:14px;font-weight:500;color:#FF5C7A;">로그아웃</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding-bottom:20px;position:relative;">
+            <div style="display:flex;align-items:center;">
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="#9CA3AF" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 21V12h6v9" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">홈</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M14.5 9.5l-1.8 4.2-4.2 1.8 1.8-4.2 4.2-1.8z" stroke="#9CA3AF" stroke-width="1.6" stroke-linejoin="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">탐색</span></div>
+              <div style="flex:1;height:56px;position:relative;">
+                <div style="position:absolute;left:50%;top:-22px;transform:translateX(-50%);width:56px;height:56px;border-radius:50%;background:#2B6B52;border:4px solid #FFFFFF;box-shadow:0 6px 18px rgba(43,107,82,.35);display:flex;align-items:center;justify-content:center;">
+                  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"></path><circle cx="12" cy="12" r="3.2"></circle></svg>
+                </div>
+                <span style="position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:10px;font-weight:700;color:#2B6B52;">스캔</span>
+              </div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l2 3v10a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 20V10l2-3V3z"></path><path d="M7 13h10"></path></svg><span style="font-size:10px;color:#9CA3AF;">화장대</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="#2B6B52" stroke-width="2.2"></circle><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="#2B6B52" stroke-width="2.2" stroke-linecap="round"></path></svg><span style="font-size:10px;font-weight:700;color:#2B6B52;">마이</span></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div id="6g" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6g</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">장바구니 — 교체 절약 요약 + 주문</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="#17171C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span style="font-size:16px;font-weight:800;color:#17171C;">장바구니 <span style="color:#3D8F6F;">2</span></span>
+              <span style="font-size:13px;font-weight:600;color:#8A8F98;">전체삭제</span>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:8px 20px 24px 20px;">
+              <div style="display:flex;align-items:center;gap:10px;border-radius:14px;background:#EAF5EF;padding:11px 14px;margin-bottom:12px;">
+                <span style="width:30px;height:30px;border-radius:50%;background:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="assets/mascot/base_face_neutral.png" alt="" style="width:82%;height:82%;object-fit:contain;"></span>
+                <p style="margin:0;flex:1;font-size:12px;line-height:1.45;color:#2B6B52;"><b>교체 제안 2건 적용됨</b> — 원래 제품 대비 <b>17,900원</b> 아꼈어요</p>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px;margin-bottom:10px;">
+                <div style="display:flex;gap:12px;">
+                  <span style="width:20px;height:20px;border-radius:6px;background:#2B6B52;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                  <span style="width:68px;height:68px;border-radius:12px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/alt102/136/136" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <div style="flex:1;min-width:0;">
+                    <p style="margin:0;font-size:10px;font-weight:700;color:#9CA3AF;">코스알엑스</p>
+                    <p style="margin:1px 0 0 0;font-size:13px;font-weight:600;color:#17171C;line-height:1.35;">히알루론산 수분 토너 EX 150ml</p>
+                    <span style="display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:999px;background:#EAF5EF;font-size:9px;font-weight:800;color:#2B6B52;margin-top:4px;">수분 밸런싱 토너 대체 · −10,000원</span>
+                  </div>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M6 6l12 12M18 6L6 18" stroke="#C3C8CE" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid #F5F6F2;">
+                  <div style="display:flex;align-items:center;border:1px solid #E1E4DD;border-radius:10px;">
+                    <span style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;color:#8A8F98;">−</span>
+                    <span style="width:26px;text-align:center;font-size:13px;font-weight:700;color:#17171C;">1</span>
+                    <span style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;color:#17171C;">+</span>
+                  </div>
+                  <p style="margin:0;font-size:15px;font-weight:900;color:#17171C;">18,000원</p>
+                </div>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px;">
+                <div style="display:flex;gap:12px;">
+                  <span style="width:20px;height:20px;border-radius:6px;background:#2B6B52;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                  <span style="width:68px;height:68px;border-radius:12px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/alt108/136/136" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <div style="flex:1;min-width:0;">
+                    <p style="margin:0;font-size:10px;font-weight:700;color:#9CA3AF;">일리윤</p>
+                    <p style="margin:1px 0 0 0;font-size:13px;font-weight:600;color:#17171C;line-height:1.35;">세라마이드 아토 농축 크림 200ml</p>
+                    <span style="display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:999px;background:#EAF5EF;font-size:9px;font-weight:800;color:#2B6B52;margin-top:4px;">시카플라스트 밤 대체 · −7,900원</span>
+                  </div>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M6 6l12 12M18 6L6 18" stroke="#C3C8CE" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid #F5F6F2;">
+                  <div style="display:flex;align-items:center;border:1px solid #E1E4DD;border-radius:10px;">
+                    <span style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;color:#8A8F98;">−</span>
+                    <span style="width:26px;text-align:center;font-size:13px;font-weight:700;color:#17171C;">1</span>
+                    <span style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;color:#17171C;">+</span>
+                  </div>
+                  <p style="margin:0;font-size:15px;font-weight:900;color:#17171C;">17,500원</p>
+                </div>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:4px 16px;margin-top:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F5F6F2;"><span style="font-size:12px;color:#8A8F98;">상품금액</span><span style="font-size:13px;font-weight:700;color:#17171C;">35,500원</span></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F5F6F2;"><span style="font-size:12px;color:#8A8F98;">배송비</span><span style="font-size:13px;font-weight:700;color:#3D8F6F;">무료</span></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;"><span style="font-size:13px;font-weight:800;color:#17171C;">결제 예정 금액</span><span style="font-size:16px;font-weight:900;color:#2B6B52;">35,500원</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding:12px 20px 28px 20px;">
+            <span style="display:flex;align-items:center;justify-content:center;height:50px;border-radius:14px;background:#2B6B52;font-size:15px;font-weight:800;color:#FFFFFF;">35,500원 주문하기 <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.7);margin-left:6px;">+50 EXP</span></span>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div id="6h" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6h</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">제품 상세 — 성분 요약 + 적합도 + 비교 진입</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#FFFFFF;">
+          <div style="position:absolute;top:0;left:0;right:0;z-index:5;padding:54px 20px 0 20px;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <span style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.9);box-shadow:0 2px 8px rgba(0,0,0,.08);display:inline-flex;align-items:center;justify-content:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="#17171C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.9);box-shadow:0 2px 8px rgba(0,0,0,.08);display:inline-flex;align-items:center;justify-content:center;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#17171C" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#17171C" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                <span style="position:relative;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.9);box-shadow:0 2px 8px rgba(0,0,0,.08);display:inline-flex;align-items:center;justify-content:center;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-2px;right:-2px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="width:100%;height:330px;background:#F4F4F4;"><img src="https://picsum.photos/seed/seed5/600/600" alt="하이드라비오 토너" style="width:100%;height:100%;object-fit:cover;"></div>
+            <div style="padding:18px 20px 0 20px;">
+              <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;font-weight:700;color:#8A8F98;">바이오더마</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+              <h2 style="margin:4px 0 0 0;font-size:19px;font-weight:800;color:#17171C;line-height:1.35;letter-spacing:-0.3px;">하이드라비오 토너 250ml 2종 기획</h2>
+              <div style="display:flex;align-items:center;gap:5px;margin-top:6px;"><span style="font-size:12px;color:#FFB800;">★</span><span style="font-size:12px;font-weight:700;color:#17171C;">4.8</span><span style="font-size:12px;color:#9CA3AF;">리뷰 7,495</span></div>
+              <div style="display:flex;align-items:baseline;gap:6px;margin-top:10px;"><span style="font-size:22px;font-weight:900;color:#FF5C7A;">30%</span><span style="font-size:22px;font-weight:900;color:#17171C;">26,500원</span><span style="font-size:13px;color:#9CA3AF;text-decoration:line-through;">37,800원</span></div>
+              <div style="border-radius:16px;background:#F5F6F2;padding:13px 14px;margin-top:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;">
+                  <span style="font-size:12px;font-weight:800;color:#17171C;">💧 옹달샘 타입 적합도</span>
+                  <span style="font-size:13px;font-weight:900;color:#2B6B52;">95점</span>
+                </div>
+                <div style="height:6px;border-radius:999px;background:#E5E8E0;overflow:hidden;"><div style="height:100%;width:95%;border-radius:999px;background:#3D8F6F;"></div></div>
+                <p style="margin:8px 0 0 0;font-size:11px;line-height:1.5;color:#6B7280;">수분 보충 성분이 풍부하고 자극 성분이 없어 수분·유분 균형 타입에 잘 맞아요.</p>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:10px;">
+                <div style="flex:1;border-radius:16px;border:1px solid #ECEEE8;padding:12px;text-align:center;"><p style="margin:0;font-size:16px;font-weight:900;color:#2B6B52;">24</p><p style="margin:2px 0 0 0;font-size:10px;font-weight:600;color:#8A8F98;">안전 성분</p></div>
+                <div style="flex:1;border-radius:16px;border:1px solid #ECEEE8;padding:12px;text-align:center;"><p style="margin:0;font-size:16px;font-weight:900;color:#FF9500;">0</p><p style="margin:2px 0 0 0;font-size:10px;font-weight:600;color:#8A8F98;">주의 성분</p></div>
+                <div style="flex:1;border-radius:16px;border:1px solid #ECEEE8;padding:12px;text-align:center;"><p style="margin:0;font-size:16px;font-weight:900;color:#17171C;">16</p><p style="margin:2px 0 0 0;font-size:10px;font-weight:600;color:#8A8F98;">내 제품과 일치</p></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;border-radius:16px;border:1.5px solid #DCE8E1;background:#FFFFFF;padding:12px 14px;margin:10px 0 24px 0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13M14 3.5L17.5 7 14 10.5"></path><path d="M20 17H7M10 13.5L6.5 17l3.5 3.5"></path></svg>
+                <span style="flex:1;font-size:13px;font-weight:700;color:#2B6B52;">내 화장대의 '수분토너'와 비교하기</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#2B6B52" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding:12px 20px 28px 20px;">
+            <div style="display:flex;gap:10px;">
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:50px;height:50px;border-radius:14px;border:1px solid #E1E4DD;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 20.5C12 20.5 3.5 15 3.5 9.2C3.5 6.6 5.6 4.5 8.2 4.5C9.8 4.5 11.2 5.3 12 6.5C12.8 5.3 14.2 4.5 15.8 4.5C18.4 4.5 20.5 6.6 20.5 9.2C20.5 15 12 20.5 12 20.5Z" stroke="#FF5C7A" stroke-width="1.8"></path></svg></span>
+              <span style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;height:50px;border-radius:14px;background:#2B6B52;font-size:14px;font-weight:800;color:#FFFFFF;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>장바구니 담기</span>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div id="6i" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6i</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">스캔 결과 — 성분 분석 + 화장대 등록</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="#17171C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span style="font-size:16px;font-weight:800;color:#17171C;">분석 결과</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H5a1.5 1.5 0 00-1.5 1.5v13A1.5 1.5 0 005 20h13a1.5 1.5 0 001.5-1.5v-6"></path><path d="M16 3.5h4.5V8M20.5 3.5L11 13"></path></svg>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:8px 20px 24px 20px;">
+              <div style="display:flex;align-items:center;gap:12px;border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px;">
+                <span style="width:60px;height:60px;border-radius:12px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/seed8/120/120" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                <div style="flex:1;min-width:0;">
+                  <p style="margin:0;font-size:10px;font-weight:700;color:#9CA3AF;">라로슈포제</p>
+                  <p style="margin:1px 0 0 0;font-size:14px;font-weight:700;color:#17171C;">시카플라스트 밤 B5+ 40ml</p>
+                  <p style="margin:3px 0 0 0;font-size:11px;color:#8A8F98;">성분 32개 인식 · 방금 스캔 <b style="color:#2B6B52;">+10 EXP</b></p>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;border-radius:14px;background:#EAF5EF;padding:11px 14px;margin-top:10px;">
+                <span style="width:30px;height:30px;border-radius:50%;background:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="assets/mascot/base_face_neutral.png" alt="" style="width:82%;height:82%;object-fit:contain;"></span>
+                <p style="margin:0;flex:1;font-size:12px;line-height:1.5;color:#2B6B52;">전반적으로 <b>옹달샘 타입에 안전</b>해요. 향료 2가지만 민감할 때 주의하세요!</p>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:12px;">
+                <div style="flex:1;border-radius:16px;background:#FFFFFF;border:1px solid #ECEEE8;padding:13px;text-align:center;"><p style="margin:0;font-size:18px;font-weight:900;color:#2B6B52;">30</p><p style="margin:2px 0 0 0;font-size:10px;font-weight:600;color:#8A8F98;">안전</p></div>
+                <div style="flex:1;border-radius:16px;background:#FFFFFF;border:1px solid #ECEEE8;padding:13px;text-align:center;"><p style="margin:0;font-size:18px;font-weight:900;color:#FF9500;">2</p><p style="margin:2px 0 0 0;font-size:10px;font-weight:600;color:#8A8F98;">주의</p></div>
+                <div style="flex:1;border-radius:16px;background:#FFFFFF;border:1px solid #ECEEE8;padding:13px;text-align:center;"><p style="margin:0;font-size:18px;font-weight:900;color:#C96A6A;">0</p><p style="margin:2px 0 0 0;font-size:10px;font-weight:600;color:#8A8F98;">위험</p></div>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:4px 16px;margin-top:12px;">
+                <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:7px;height:7px;border-radius:50%;background:#FF9500;flex-shrink:0;"></span>
+                  <span style="flex:1;font-size:13px;font-weight:600;color:#17171C;">리날룰</span>
+                  <span style="font-size:11px;font-weight:600;color:#FF9500;">알레르기 유발 가능 향료</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:7px;height:7px;border-radius:50%;background:#FF9500;flex-shrink:0;"></span>
+                  <span style="flex:1;font-size:13px;font-weight:600;color:#17171C;">제라니올</span>
+                  <span style="font-size:11px;font-weight:600;color:#FF9500;">알레르기 유발 가능 향료</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;padding:12px 0;">
+                  <span style="width:7px;height:7px;border-radius:50%;background:#3D8F6F;flex-shrink:0;"></span>
+                  <span style="flex:1;font-size:13px;font-weight:600;color:#17171C;">판테놀 · 마데카소사이드 외 28</span>
+                  <span style="display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:700;color:#2B6B52;">전체보기<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#2B6B52" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                </div>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px 16px;margin-top:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                  <h3 style="margin:0;font-size:14px;font-weight:800;color:#17171C;">이 제품의 대체품 2개</h3>
+                  <span style="font-size:11px;font-weight:600;color:#3D8F6F;">최대 7,900원 절약</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:11px;">
+                  <span style="width:48px;height:48px;border-radius:10px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/alt108/96/96" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:12px;font-weight:700;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">일리윤 세라마이드 아토 농축 크림</span><span style="display:block;font-size:11px;color:#8A8F98;margin-top:1px;">유사도 83% · 17,500원</span></span>
+                  <span style="display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 10px;border-radius:999px;background:#EAF5EF;font-size:10px;font-weight:800;color:#2B6B52;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13M14 3.5L17.5 7 14 10.5"></path><path d="M20 17H7M10 13.5L6.5 17l3.5 3.5"></path></svg>비교</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding:12px 20px 28px 20px;">
+            <div style="display:flex;gap:10px;">
+              <span style="flex:1;display:inline-flex;align-items:center;justify-content:center;height:50px;border-radius:14px;border:1px solid #E1E4DD;font-size:14px;font-weight:700;color:#374151;">다시 스캔</span>
+              <span style="flex:1.4;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:50px;border-radius:14px;background:#2B6B52;font-size:14px;font-weight:800;color:#FFFFFF;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l2 3v10a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 20V10l2-3V3z"></path><path d="M7 13h10"></path></svg>화장대에 등록</span>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div id="6j" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6j</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">알림 — 교체·재입고·활동 알림 센터</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="#17171C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span style="font-size:16px;font-weight:800;color:#17171C;">알림</span>
+              <span style="font-size:13px;font-weight:600;color:#8A8F98;">모두 읽음</span>
+            </div>
+            <div class="hscroll" style="display:flex;align-items:center;gap:8px;overflow-x:auto;margin:0 -20px;padding:4px 20px 12px 20px;">
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 13px;border-radius:999px;background:#17171C;font-size:12px;font-weight:800;color:#FFFFFF;">전체</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 13px;border-radius:999px;background:#FFFFFF;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#4B5563;">교체 제안</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 13px;border-radius:999px;background:#FFFFFF;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#4B5563;">재입고</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 13px;border-radius:999px;background:#FFFFFF;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#4B5563;">혜택</span>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:4px 20px 28px 20px;">
+              <p style="margin:0 0 8px 4px;font-size:11px;font-weight:700;color:#9CA3AF;">오늘</p>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:2px 16px;">
+                <div style="display:flex;align-items:flex-start;gap:11px;padding:13px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:34px;height:34px;border-radius:12px;background:#EAF5EF;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13M14 3.5L17.5 7 14 10.5"></path><path d="M20 17H7M10 13.5L6.5 17l3.5 3.5"></path></svg></span>
+                  <div style="flex:1;min-width:0;">
+                    <p style="margin:0;font-size:13px;font-weight:700;color:#17171C;line-height:1.4;">새 교체 제안 — 수분 밸런싱 토너</p>
+                    <p style="margin:2px 0 0 0;font-size:11px;color:#8A8F98;line-height:1.45;">유사도 92% 대체품이 10,000원 저렴해요 · 10분 전</p>
+                  </div>
+                  <span style="width:7px;height:7px;border-radius:50%;background:#FF5C7A;flex-shrink:0;margin-top:5px;"></span>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:11px;padding:13px 0;">
+                  <span style="width:34px;height:34px;border-radius:12px;background:#FFF4E5;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5M12 16.5v.5"></path><path d="M10.3 3.8L2.6 17a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 3.8a2 2 0 00-3.4 0z"></path></svg></span>
+                  <div style="flex:1;min-width:0;">
+                    <p style="margin:0;font-size:13px;font-weight:700;color:#17171C;line-height:1.4;">아토베리어365 크림 단종 예정</p>
+                    <p style="margin:2px 0 0 0;font-size:11px;color:#8A8F98;line-height:1.45;">대체품 2개를 미리 준비해뒀어요 · 2시간 전</p>
+                  </div>
+                  <span style="width:7px;height:7px;border-radius:50%;background:#FF5C7A;flex-shrink:0;margin-top:5px;"></span>
+                </div>
+              </div>
+              <p style="margin:16px 0 8px 4px;font-size:11px;font-weight:700;color:#9CA3AF;">어제</p>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:2px 16px;">
+                <div style="display:flex;align-items:flex-start;gap:11px;padding:13px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:34px;height:34px;border-radius:12px;background:#EAF5EF;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"></path></svg></span>
+                  <div style="flex:1;min-width:0;">
+                    <p style="margin:0;font-size:13px;font-weight:600;color:#4B5563;line-height:1.4;">시카플라스트 밤 B5+ 재입고</p>
+                    <p style="margin:2px 0 0 0;font-size:11px;color:#9CA3AF;line-height:1.45;">좋아요한 제품이 다시 입고됐어요</p>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:11px;padding:13px 0;">
+                  <span style="width:34px;height:34px;border-radius:12px;background:#F5F6F2;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;"><img src="assets/mascot/base_face_neutral.png" alt="" style="width:78%;height:78%;object-fit:contain;"></span>
+                  <div style="flex:1;min-width:0;">
+                    <p style="margin:0;font-size:13px;font-weight:600;color:#4B5563;line-height:1.4;">Lv.4 달성! 🎉</p>
+                    <p style="margin:2px 0 0 0;font-size:11px;color:#9CA3AF;line-height:1.45;">'꼼꼼 분석가' 칭호를 획득했어요 · 다음 레벨까지 180 EXP</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div id="6k" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6k</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">주문/결제 — 배송지·결제수단·적립 안내</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="#17171C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span style="font-size:16px;font-weight:800;color:#17171C;">주문/결제</span>
+              <span style="width:22px;"></span>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:8px 20px 24px 20px;">
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px 16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                  <span style="font-size:13px;font-weight:800;color:#17171C;">배송지</span>
+                  <span style="font-size:12px;font-weight:600;color:#3D8F6F;">변경</span>
+                </div>
+                <p style="margin:0;font-size:13px;font-weight:700;color:#17171C;">대체러 <span style="font-weight:500;color:#8A8F98;">010-1234-5678</span></p>
+                <p style="margin:3px 0 0 0;font-size:12px;color:#6B7280;line-height:1.5;">서울시 성동구 왕십리로 00, 101동 202호</p>
+                <span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#F5F6F2;font-size:10px;font-weight:700;color:#6B7280;margin-top:8px;">문 앞에 놓아주세요</span>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px 16px;margin-top:10px;">
+                <span style="display:block;font-size:13px;font-weight:800;color:#17171C;margin-bottom:10px;">주문 상품 2개</span>
+                <div style="display:flex;align-items:center;gap:11px;padding-bottom:10px;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:44px;height:44px;border-radius:10px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/alt102/88/88" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:12px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">코스알엑스 히알루론산 수분 토너 EX</span><span style="display:block;font-size:11px;color:#8A8F98;margin-top:1px;">1개</span></span>
+                  <span style="font-size:13px;font-weight:800;color:#17171C;">18,000원</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:11px;padding-top:10px;">
+                  <span style="width:44px;height:44px;border-radius:10px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/alt108/88/88" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:12px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">일리윤 세라마이드 아토 농축 크림</span><span style="display:block;font-size:11px;color:#8A8F98;margin-top:1px;">1개</span></span>
+                  <span style="font-size:13px;font-weight:800;color:#17171C;">17,500원</span>
+                </div>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px 16px;margin-top:10px;">
+                <span style="display:block;font-size:13px;font-weight:800;color:#17171C;margin-bottom:10px;">결제 수단</span>
+                <div style="display:flex;gap:8px;">
+                  <span style="flex:1;display:flex;align-items:center;justify-content:center;height:40px;border-radius:12px;border:1.5px solid #3D8F6F;background:#EAF5EF;font-size:12px;font-weight:800;color:#2B6B52;">카드</span>
+                  <span style="flex:1;display:flex;align-items:center;justify-content:center;height:40px;border-radius:12px;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#6B7280;">간편결제</span>
+                  <span style="flex:1;display:flex;align-items:center;justify-content:center;height:40px;border-radius:12px;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#6B7280;">무통장</span>
+                </div>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:4px 16px;margin-top:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F5F6F2;"><span style="font-size:12px;color:#8A8F98;">상품금액</span><span style="font-size:13px;font-weight:700;color:#17171C;">35,500원</span></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F5F6F2;"><span style="font-size:12px;color:#8A8F98;">쿠폰 할인</span><span style="font-size:13px;font-weight:700;color:#FF5C7A;">−2,000원</span></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;"><span style="font-size:13px;font-weight:800;color:#17171C;">최종 결제 금액</span><span style="font-size:16px;font-weight:900;color:#2B6B52;">33,500원</span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;border-radius:14px;background:#EAF5EF;padding:11px 14px;margin-top:10px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z"></path></svg>
+                <p style="margin:0;font-size:12px;color:#2B6B52;">결제 시 <b>+50 EXP</b> · 적립금 <b>335원</b> 적립 예정</p>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding:12px 20px 28px 20px;">
+            <span style="display:flex;align-items:center;justify-content:center;height:50px;border-radius:14px;background:#2B6B52;font-size:15px;font-weight:800;color:#FFFFFF;">33,500원 결제하기</span>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div id="6l" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6l</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">후기 작성 — 교체 경험 후기 (+20 EXP)</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="#17171C" stroke-width="2" stroke-linecap="round"></path></svg>
+              <span style="font-size:16px;font-weight:800;color:#17171C;">후기 작성</span>
+              <span style="font-size:13px;font-weight:700;color:#C3C8CE;">등록</span>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:8px 20px 24px 20px;">
+              <div style="display:flex;align-items:center;gap:12px;border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px;">
+                <span style="width:52px;height:52px;border-radius:12px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/alt102/104/104" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                <div style="flex:1;min-width:0;">
+                  <p style="margin:0;font-size:10px;font-weight:700;color:#9CA3AF;">코스알엑스</p>
+                  <p style="margin:1px 0 0 0;font-size:13px;font-weight:700;color:#17171C;">히알루론산 수분 토너 EX 150ml</p>
+                  <span style="display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:999px;background:#EAF5EF;font-size:9px;font-weight:800;color:#2B6B52;margin-top:4px;">수분 밸런싱 토너에서 교체</span>
+                </div>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:16px;margin-top:10px;text-align:center;">
+                <p style="margin:0 0 10px 0;font-size:13px;font-weight:800;color:#17171C;">만족도를 알려주세요</p>
+                <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                  <span style="font-size:30px;color:#FFB800;">★</span><span style="font-size:30px;color:#FFB800;">★</span><span style="font-size:30px;color:#FFB800;">★</span><span style="font-size:30px;color:#FFB800;">★</span><span style="font-size:30px;color:#E5E8E0;">★</span>
+                </div>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:16px;margin-top:10px;">
+                <p style="margin:0 0 10px 0;font-size:13px;font-weight:800;color:#17171C;">쓰던 제품과 비교하면 어때요?</p>
+                <div style="display:flex;flex-wrap:wrap;gap:7px;">
+                  <span style="display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;border:1.5px solid #3D8F6F;background:#EAF5EF;font-size:12px;font-weight:800;color:#2B6B52;">✓ 보습력 비슷해요</span>
+                  <span style="display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#6B7280;">더 가벼워요</span>
+                  <span style="display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;border:1.5px solid #3D8F6F;background:#EAF5EF;font-size:12px;font-weight:800;color:#2B6B52;">✓ 자극 없어요</span>
+                  <span style="display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#6B7280;">향이 달라요</span>
+                  <span style="display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#6B7280;">가성비 좋아요</span>
+                </div>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:16px;margin-top:10px;">
+                <p style="margin:0;font-size:13px;line-height:1.6;color:#374151;">2주 써봤는데 원래 쓰던 토너랑 보습감이 거의 같아요. 옹달샘 타입인데 자극도 없고, 만원이나 아껴서 만족합니다|</p>
+                <p style="margin:10px 0 0 0;font-size:11px;color:#C3C8CE;text-align:right;">58 / 최소 20자</p>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:10px;">
+                <span style="width:76px;height:76px;border-radius:14px;border:1.5px dashed #C9CFC5;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A8F98" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 012-2h1.5l1.2-1.8A1.5 1.5 0 0110 3.5h4a1.5 1.5 0 011.3.7L16.5 6H18a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2V8z"></path><circle cx="12" cy="12.5" r="3.2"></circle></svg><span style="font-size:9px;font-weight:700;color:#8A8F98;">0/3</span></span>
+                <span style="width:76px;height:76px;border-radius:14px;overflow:hidden;background:#F4F4F4;"><img src="https://picsum.photos/seed/rev1/152/152" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;border-radius:14px;background:#EAF5EF;padding:11px 14px;margin-top:12px;">
+                <span style="width:30px;height:30px;border-radius:50%;background:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="assets/mascot/base_face_neutral.png" alt="" style="width:82%;height:82%;object-fit:contain;"></span>
+                <p style="margin:0;flex:1;font-size:12px;line-height:1.45;color:#2B6B52;">교체 후기는 같은 타입 사용자에게 큰 도움이 돼요! 등록 시 <b>+20 EXP</b></p>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding:12px 20px 28px 20px;">
+            <span style="display:flex;align-items:center;justify-content:center;height:50px;border-radius:14px;background:#2B6B52;font-size:15px;font-weight:800;color:#FFFFFF;">후기 등록하기 <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.7);margin-left:6px;">+20 EXP</span></span>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div id="6m" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">6m</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">검색 결과 — 적합도 배지 + 필터</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="display:flex;align-items:center;gap:10px;height:52px;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><path d="M15 19l-7-7 7-7" stroke="#17171C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <div style="flex:1;display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-radius:12px;background:#FFFFFF;border:1px solid #E1E4DD;">
+                <span style="flex:1;font-size:14px;font-weight:700;color:#17171C;">수분 토너</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg>
+              </div>
+              <span style="position:relative;display:inline-flex;flex-shrink:0;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+            </div>
+            <div class="hscroll" style="display:flex;align-items:center;gap:8px;overflow-x:auto;margin:0 -20px;padding:8px 20px 12px 20px;">
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 12px;border-radius:999px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">💧 옹달샘 적합순</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;background:#FFFFFF;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#4B5563;">인기순</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;background:#FFFFFF;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#4B5563;">낮은 가격</span>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;gap:3px;height:30px;padding:0 12px;border-radius:999px;background:#FFFFFF;border:1px solid #E1E4DD;font-size:12px;font-weight:600;color:#4B5563;">주의 성분 제외<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="#8A8F98" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:4px 20px 28px 20px;">
+              <p style="margin:0 0 10px 2px;font-size:11px;font-weight:600;color:#8A8F98;">결과 142개 · 내 화장대 제품 1개 포함</p>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div style="border-radius:18px;background:#FFFFFF;border:1px solid #ECEEE8;padding:10px;">
+                  <div style="position:relative;width:100%;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#F4F4F4;margin-bottom:8px;"><img src="https://picsum.photos/seed/alt102/300/300" alt="" style="width:100%;height:100%;object-fit:cover;"><span style="position:absolute;top:6px;left:6px;display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:rgba(43,107,82,.92);font-size:9px;font-weight:800;color:#FFFFFF;">적합 96점</span></div>
+                  <p style="margin:0;font-size:10px;font-weight:700;color:#9CA3AF;">코스알엑스</p>
+                  <p style="margin:1px 0 0 0;font-size:12px;font-weight:600;color:#17171C;line-height:1.35;height:32px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">히알루론산 수분 토너 EX 150ml</p>
+                  <p style="margin:5px 0 0 0;font-size:14px;font-weight:900;color:#17171C;">18,000원</p>
+                  <p style="margin:3px 0 0 0;font-size:10px;color:#8A8F98;"><span style="color:#FFB800;">★</span> 4.6 (8,210)</p>
+                </div>
+                <div style="border-radius:18px;background:#FFFFFF;border:1px solid #ECEEE8;padding:10px;">
+                  <div style="position:relative;width:100%;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#F4F4F4;margin-bottom:8px;"><img src="https://picsum.photos/seed/seed5/300/300" alt="" style="width:100%;height:100%;object-fit:cover;"><span style="position:absolute;top:6px;left:6px;display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:rgba(43,107,82,.92);font-size:9px;font-weight:800;color:#FFFFFF;">적합 95점</span></div>
+                  <p style="margin:0;font-size:10px;font-weight:700;color:#9CA3AF;">바이오더마</p>
+                  <p style="margin:1px 0 0 0;font-size:12px;font-weight:600;color:#17171C;line-height:1.35;height:32px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">하이드라비오 토너 250ml 2종 기획</p>
+                  <p style="margin:5px 0 0 0;font-size:14px;font-weight:900;color:#17171C;"><span style="color:#FF5C7A;">30%</span> 26,500원</p>
+                  <p style="margin:3px 0 0 0;font-size:10px;color:#8A8F98;"><span style="color:#FFB800;">★</span> 4.8 (7,495)</p>
+                </div>
+                <div style="border-radius:18px;background:#FFFFFF;border:1.5px solid #DCE8E1;padding:10px;">
+                  <div style="position:relative;width:100%;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#F4F4F4;margin-bottom:8px;"><img src="https://picsum.photos/seed/seed1/300/300" alt="" style="width:100%;height:100%;object-fit:cover;"><span style="position:absolute;top:6px;left:6px;display:inline-flex;align-items:center;gap:3px;height:20px;padding:0 8px;border-radius:999px;background:rgba(23,23,28,.85);font-size:9px;font-weight:800;color:#FFFFFF;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#7FD4B2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l2 3v10a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 20V10l2-3V3z"></path></svg>내 화장대</span></div>
+                  <p style="margin:0;font-size:10px;font-weight:700;color:#9CA3AF;">이니스프리</p>
+                  <p style="margin:1px 0 0 0;font-size:12px;font-weight:600;color:#17171C;line-height:1.35;height:32px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">수분 밸런싱 토너 200ml</p>
+                  <p style="margin:5px 0 0 0;font-size:14px;font-weight:900;color:#17171C;">28,000원</p>
+                  <p style="margin:3px 0 0 0;font-size:10px;font-weight:700;color:#2B6B52;">교체 제안 1건 있음</p>
+                </div>
+                <div style="border-radius:18px;background:#FFFFFF;border:1px solid #ECEEE8;padding:10px;">
+                  <div style="position:relative;width:100%;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#F4F4F4;margin-bottom:8px;"><img src="https://picsum.photos/seed/alt104/300/300" alt="" style="width:100%;height:100%;object-fit:cover;"><span style="position:absolute;top:6px;left:6px;display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:rgba(255,149,0,.92);font-size:9px;font-weight:800;color:#FFFFFF;">주의 1</span></div>
+                  <p style="margin:0;font-size:10px;font-weight:700;color:#9CA3AF;">토리든</p>
+                  <p style="margin:1px 0 0 0;font-size:12px;font-weight:600;color:#17171C;line-height:1.35;height:32px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">다이브인 저분자 히알루론산 토너 300ml</p>
+                  <p style="margin:5px 0 0 0;font-size:14px;font-weight:900;color:#17171C;">22,000원</p>
+                  <p style="margin:3px 0 0 0;font-size:10px;color:#8A8F98;"><span style="color:#FFB800;">★</span> 4.8 (15,400)</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+  </div>
+</section>
+
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const img = (s, n = 400) => `https://picsum.photos/seed/${s}/${n}/${n}`;
+    const won = (n) => n.toLocaleString() + '원';
+    const P = (brand, name, seed, price, disc, tags, rating, rev, rank) => ({
+      brand, name, img: img(seed), price: won(price), disc: disc ? disc + '%' : '',
+      tags: tags || [], rating: rating != null ? rating.toFixed(1) : '',
+      rev: rev ? `(${rev > 99999 ? '99,999+' : rev.toLocaleString()})` : '', rank: rank || '',
+    });
+    const G = { c: '#3D8F6F', bg: '#EAF5EF' }, PK = { c: '#FF5C7A', bg: '#FFF0F3' }, OR = { c: '#FF9500', bg: '#FFF4E5' };
+    const A = (brand, name, seed, price, sim, delta, tags, seedName) => ({
+      brand, name, img: img(seed, 200), price: won(price),
+      sim: '유사도 ' + sim + '%', simBg: sim >= 80 ? '#3D8F6F' : '#FF9500',
+      delta: delta != null && delta < 0 ? delta.toLocaleString() : '',
+      tags, seed: seedName || '',
+    });
+    const homeMain = [
+      P('메디힐', '[6월 대체픽/15년 연속 1위] 에센셜 마스크팩 10+1매', 'p1', 10000, 50, ['오늘드림', 'BEST', '쿠폰'], 4.9, 100000),
+      P('CJ', 'CJ 바이오코어 피부면역 유산균 100억 30+10포', 'p2', 27900, 0, ['오늘드림', 'BEST'], 4.8, 9817),
+      P('닥터자르트', '세라마이드 수분 크림 60ml 대용량 기획', 'p3', 42000, 0, ['BEST'], 4.9, 3241),
+      P('파티온', '[6월 대체픽/대용량] 노스카나인 흉터 세럼 10ml', 'p4', 32300, 40, ['쿠폰'], 4.7, 5210),
+      P('바이오더마', '[6월 대체픽] 하이드라비오 토너 250ml 2종 기획', 'p5', 26500, 30, ['오늘드림', 'BEST'], 4.8, 7495),
+      P('에스트라', '[업그레이드] 아토베리어365 크림 80ml', 'p6', 25400, 23, ['BEST', '증정'], 4.9, 3200),
+    ];
+    const homeWeather = [
+      P('닥터자르트', '세라마이드 수분 크림 60ml 대용량 기획', 'p3', 42000, 0, [], 4.9, 3241),
+      P('파티온', '[6월 대체픽/대용량] 노스카나인 흉터 세럼 10ml', 'p4', 32300, 40, [], 4.7, 5210),
+      P('바이오더마', '[6월 대체픽] 하이드라비오 토너 250ml 2종 기획', 'p5', 26500, 30, [], 4.8, 7495),
+      P('에스트라', '[업그레이드] 아토베리어365 크림 80ml', 'p6', 25400, 23, [], 4.9, 3200),
+      P('에스트라', '아토베리어365 로션 150ml 대용량', 'p7', 25200, 23, [], 4.8, 2980),
+      P('라로슈포제', '시카플라스트 밤 B5+ 40ml', 'p8', 34850, 15, [], 4.9, 6120),
+    ];
+    const regAlts = [
+      A('라로슈포제', '톨러리안 더블 리페어 모이스처라이저 75ml', 'alt107', 29000, 90, 3600, [{ l: '⚠️ 단종 대응', ...OR }, { l: '💚 사막 보습', ...G }]),
+      A('라운드랩', '1025 독도 토너 200ml', 'alt105', 18900, 88, -7600, [{ l: '💰 29% 저렴', ...PK }, { l: '💚 옹달샘 궁합', ...G }]),
+      A('에스트라', '아토베리어365 크림 80ml', 'alt109', 25400, 81, -9450, [{ l: '💰 27% 저렴', ...PK }, { l: '💚 화산 진정', ...G }]),
+      A('일리윤', '세라마이드 아토 농축 크림 200ml', 'alt108', 17500, 83, -7900, [{ l: '💰 31% 저렴', ...PK }, { l: '💚 사막 보습', ...G }]),
+      A('아벤느', '떼르말 스프링 워터 토너 200ml', 'alt106', 24000, 74, -2500, [{ l: '💚 민감성 진정', ...G }]),
+      A('코스알엑스', '히알루론산 수분 토너 EX 150ml', 'alt102', 18000, 92, -10000, [{ l: '💰 36% 저렴', ...PK }, { l: '💚 옹달샘 궁합', ...G }]),
+    ];
+    const cheapAlts = [
+      A('코스알엑스', '히알루론산 수분 토너 EX 150ml', 'alt102', 18000, 92, -10000, [{ l: '💰 36% 저렴', ...PK }, { l: '💚 옹달샘 궁합', ...G }]),
+      A('일리윤', '세라마이드 아토 농축 크림 200ml', 'alt108', 17500, 83, -7900, [{ l: '💰 31% 저렴', ...PK }, { l: '💚 사막 보습', ...G }]),
+      A('라운드랩', '1025 독도 토너 200ml', 'alt105', 18900, 88, -7600, [{ l: '💰 29% 저렴', ...PK }, { l: '💚 옹달샘 궁합', ...G }]),
+      A('에스트라', '아토베리어365 크림 80ml', 'alt109', 25400, 81, -9450, [{ l: '💰 27% 저렴', ...PK }, { l: '💚 화산 진정', ...G }]),
+      A('토리든', '다이브인 저분자 히알루론산 토너 300ml', 'alt104', 22000, 71, -6000, [{ l: '💰 21% 저렴', ...PK }]),
+    ];
+    const regAltsV2 = [
+      A('코스알엑스', '히알루론산 수분 토너 EX 150ml', 'alt102', 18000, 92, -10000, [{ l: '10,000원 절약', ...G }, { l: '옹달샘 궁합', ...G }], '수분토너'),
+      A('라로슈포제', '톨러리안 더블 리페어 75ml', 'alt107', 29000, 90, 3600, [{ l: '단종 대응', ...OR }], '아토크림'),
+      A('라운드랩', '1025 독도 토너 200ml', 'alt105', 18900, 88, -7600, [{ l: '7,600원 절약', ...G }], '토너'),
+      A('일리윤', '세라마이드 아토 농축 크림 200ml', 'alt108', 17500, 83, -7900, [{ l: '7,900원 절약', ...G }], '아토크림'),
+      A('에스트라', '아토베리어365 크림 80ml', 'alt109', 25400, 81, -9450, [{ l: '9,450원 절약', ...G }], '시카밤'),
+    ];
+    const skinPicks = [
+      P('바이오더마', '하이드라비오 토너 250ml 2종 기획', 'p5', 26500, 30, [], 4.8, 7495, 1),
+      P('에스트라', '아토베리어365 크림 80ml', 'p6', 25400, 23, [], 4.9, 3200, 2),
+      P('웰라쥬', '리얼 히알루로닉 블루 100 앰플', 'p9', 29800, 40, [], 4.8, 7495, 3),
+      P('라로슈포제', '시카플라스트 밤 B5+ 40ml', 'p8', 34850, 15, [], 4.9, 6120, 4),
+      P('닥터자르트', '세라마이드 수분 크림 60ml', 'p3', 42000, 0, [], 4.9, 3241, 5),
+      P('메디힐', '에센셜 마스크팩 10+1매', 'p1', 10000, 50, [], 4.9, 100000, 6),
+    ];
+    const weatherRows = [
+      P('토리든', '다이브인 저분자 히알루론산 토너 300ml', 'alt104', 22000, 0, [], 4.8, 15400),
+      P('웰라쥬', '리얼 히알루로닉 블루 100 앰플', 'p9', 29800, 40, [], 4.8, 7495),
+      P('바이오더마', '하이드라비오 토너 250ml 2종 기획', 'p5', 26500, 30, [], 4.8, 7495),
+    ];
+    const catGroups = [
+      { name: '스킨케어', subs: ['스킨/토너', '에센스/세럼/앰플', '크림', '로션', '미스트/오일', '스킨케어세트'] },
+      { name: '마스크팩', subs: ['시트팩', '패드', '페이셜팩', '코팩', '패치'] },
+      { name: '클랜징', subs: ['클렌징폼/젤', '패드', '페이셜팩', '코팩', '패치'] },
+      { name: '선케어', subs: ['선크림', '선스틱', '선쿠션', '선스프레이/선패치'] },
+      { name: '메이크업', subs: ['립메이크업', '베이스메이크업', '아이메이크업'] },
+    ];
+    const sidebarTabs = ['스킨케어', '마스크팩', '클렌징', '선케어', '메이크업', '바디케어', '헤어케어']
+      .map((t, i) => ({ t, bg: i === 0 ? '#FFFFFF' : '#F2F3F5', c: i === 0 ? '#111827' : '#9CA3AF', fw: i === 0 ? 500 : 400 }));
+    const sidebarTabsV2 = ['스킨케어', '마스크팩', '클렌징', '선케어', '메이크업', '바디케어', '헤어케어']
+      .map((t, i) => ({ t, bg: i === 0 ? '#FFFFFF' : '#F7F8FA', c: i === 0 ? '#2B6B52' : '#6B7280', fw: i === 0 ? 800 : 500, bar: i === 0 ? '#3D8F6F' : 'transparent' }));
+    const skinCatChips = ['수분 크림', '토너/스킨', '선케어', '진정 세럼'];
+    const shelf = [
+      { brand: '이니스프리', name: '수분 밸런싱 토너 200ml', img: img('seed1', 100) },
+      { brand: '바이오더마', name: '하이드라비오 토너 250ml', img: img('seed5', 100) },
+      { brand: '에스트라', name: '아토베리어365 크림 80ml', img: img('seed6', 100) },
+      { brand: '라로슈포제', name: '시카플라스트 밤 B5+ 40ml', img: img('seed8', 100) },
+    ];
+    const popular = ['메디큐브', '셀리맥스', '클리오 쿠션', '제로이드', '식물나라', '마데카소사이드', '바이오던스', 'PDRN 세럼', '아누아', '퓌 립앤치크']
+      .map((t, i) => ({ n: String(i + 1), t, c: i < 8 ? '#3D8F6F' : '#9CA3AF' }));
+    const recentChips = ['토너', '선크림', '히알루론산'];
+    const dict = [
+      { e: '💧', l: '20가지 주의 성분' },
+      { e: '💥', l: '알레르기 유발 주의 성분' },
+      { e: '🛡️', l: '자외선 차단 기능 성분' },
+    ];
+    const histItems = [
+      { ...P('에스트라', '아토베리어365 크림 80ml', 'seed6', 25400, 23, [], 4.9, 3200), orig: '33,000원' },
+      { ...P('바이오더마', '하이드라비오 토너 250ml 2종 기획', 'seed5', 26500, 30, [], 4.8, 7495), orig: '37,800원' },
+    ];
+    const histAlt = [
+      { l: '코스알엑스 대체 92%', save: '10,000원↓' },
+      { l: '독도 토너 대체 88%', save: '7,600원↓' },
+    ];
+    const histRecs = [
+      P('DR.G', '브라이트닝 업 선크림 SPF50+', 'hist401', 24300, 24, [], 5.0, 8700),
+      P('이니스프리', '수분 밸런싱 토너 200ml', 'hist402', 28000, 20, [], 4.5, 1203),
+      P('코스알엑스', '히알루론산 수분 토너 EX 150ml', 'hist403', 18000, 0, [], 4.6, 8210),
+    ];
+    return {
+      homeMain, homeWeather, regAlts, cheapAlts, regAltsV2, skinPicks, weatherRows,
+      catGroups, sidebarTabs, sidebarTabsV2, skinCatChips, shelf, popular, recentChips, dict, histItems, histAlt, histRecs,
+    };
+  }
+}
+</script>
+</body>
+</html>
