@@ -32,7 +32,7 @@ function EmptyState({ emoji, title, subtitle }: { emoji: string; title: string; 
   );
 }
 
-function RecentTab() {
+export function RecentTab() {
   const { addedIds, toggleAdded } = useCart();
   const { items: recentlyViewed, clearRecentlyViewed } = useRecentlyViewed();
   const { isLiked, toggleLike } = useLikedProducts();
@@ -86,7 +86,7 @@ function RecentTab() {
   );
 }
 
-function LikedTab() {
+export function LikedTab() {
   const { likedProducts, isLiked, toggleLike, clearLikedProducts } = useLikedProducts();
   const { addedIds, toggleAdded } = useCart();
   const [category, setCategory] = useState('전체');
@@ -164,7 +164,7 @@ function LikedTab() {
   );
 }
 
-function FrequentTab() {
+export function FrequentTab() {
   const { isLiked, toggleLike } = useLikedProducts();
   const { addedIds, toggleAdded } = useCart();
   const [category, setCategory] = useState(FREQUENT_PURCHASE_CATEGORIES[0]);
@@ -251,8 +251,8 @@ export default function HistoryPage() {
   const tab = (searchParams.get('tab') as HistoryTab) || 'recent';
 
   return (
-    <PageWrapper hasBottomNav>
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-20">
+    <PageWrapper hasBottomNav className="bg-surface-warm">
+      <div className="sticky top-0 z-10 bg-surface-warm border-b border-gray-20">
         <div className="flex items-center justify-between h-14 px-4">
           <h1 className="text-lg font-bold text-gray-100">History</h1>
           <button onClick={() => alert('준비 중이에요')} aria-label="장바구니" className="active:scale-90 transition-transform">

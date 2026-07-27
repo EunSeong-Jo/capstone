@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
-import { BottomNav } from '../../components/layout/BottomNav';
+import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { ProductCard } from '../../components/product/ProductCard';
 import { SEED_PRODUCTS } from '../../mocks/alternatives';
 import {
   POPULAR_SEARCH_FILTERS,
   POPULAR_SEARCH_RANKING,
-  SEARCH_AD_BANNER,
   REALTIME_BEST,
   INGREDIENT_DICTIONARY,
 } from '../../mocks/search';
 import { useRecentSearches } from '../../hooks/useRecentSearches';
 import { useMyIngredients } from '../../hooks/useMyIngredients';
-import { ScannerModal } from './ScannerModal';
 
 // 내 화장대(등록·분석한 제품) — 대체품 찾기 기준제품
 const MY_SHELF = Object.values(SEED_PRODUCTS);
@@ -40,10 +38,10 @@ function RecentSearchChips({
 }) {
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-bold text-gray-100">최근 검색 항목</h3>
+      <div className="flex items-center justify-between mb-2.5">
+        <h3 className="text-[15px] font-extrabold text-gray-100">최근 검색</h3>
         {items.length > 0 && (
-          <button onClick={onClearAll} className="text-xs text-gray-70">전체삭제</button>
+          <button onClick={onClearAll} className="text-xs text-gray-50">전체삭제</button>
         )}
       </div>
       {items.length === 0 ? (
@@ -53,13 +51,13 @@ function RecentSearchChips({
           {items.map((s) => (
             <span
               key={s}
-              className="flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-full bg-gray-10 text-sm text-gray-70"
+              className="flex items-center gap-1.5 pl-3.5 pr-2.5 py-1.5 rounded-full border border-gray-20 bg-white text-[13px] text-gray-70"
             >
               <button onClick={() => onSearch(s)} className="active:opacity-60 transition-opacity">{s}</button>
               <button
                 onClick={() => onRemove(s)}
                 aria-label={`${s} 삭제`}
-                className="text-gray-50 text-xs active:scale-90 transition-transform"
+                className="text-gray-20 text-[10px] active:scale-90 transition-transform"
               >
                 ✕
               </button>
@@ -78,7 +76,6 @@ export default function SearchPage() {
   const [popularFilter, setPopularFilter] = useState<(typeof POPULAR_SEARCH_FILTERS)[number]>(POPULAR_SEARCH_FILTERS[0]);
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
 
   const generalSearches = useRecentSearches('general');
   const ingredientSearches = useRecentSearches('ingredient');
@@ -94,11 +91,39 @@ export default function SearchPage() {
   };
 
   return (
-    <PageWrapper hasBottomNav>
-      {/* 검색 헤더 */}
-      <div className="sticky top-0 z-10 bg-white px-4 py-3 border-b border-gray-20">
-        {/* 통합검색 / 성분검색 토글 */}
-        <div className="flex p-1 mb-3 rounded-full bg-gray-10">
+    <PageWrapper hasBottomNav className="bg-surface-warm">
+      {/* 검색 헤더 — 검색바(카메라 포함) + 통합/성분 탭 */}
+      <div className="sticky top-0 z-10 bg-surface-warm px-4 pt-3">
+        <div className="flex items-center gap-2 h-12 px-4 rounded-[14px] bg-white border-[1.5px] border-primary shadow-[0_0_0_3px_rgba(61,143,111,.10)]">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="7" stroke="var(--primary)" strokeWidth="2" />
+            <path d="M16.5 16.5L21 21" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <input
+            value={query}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder={mainTab === 'general' ? '제품명·브랜드·성분으로 검색' : '성분으로 검색해 보세요'}
+            className="flex-1 min-w-0 bg-transparent text-sm text-gray-100 outline-none placeholder:text-gray-50"
+          />
+          {query && (
+            <button onClick={() => handleSearch('')} aria-label="검색어 지우기" className="text-gray-50 active:scale-90 transition-transform">✕</button>
+          )}
+          {/* 검색표시 옆 카메라 → 성분 스캔(3c) 이동 */}
+          <button
+            onClick={() => navigate('/scan')}
+            aria-label="성분 스캔"
+            title="성분 스캔"
+            className="shrink-0 active:scale-90 transition-transform"
+          >
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+              <path d="M4 8a2 2 0 012-2h1.5l1.2-1.8A1.5 1.5 0 0110 3.5h4a1.5 1.5 0 011.3.7L16.5 6H18a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2V8z" stroke="#6B7280" strokeWidth="1.7" strokeLinejoin="round" />
+              <circle cx="12" cy="12.5" r="3.2" stroke="#6B7280" strokeWidth="1.7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 통합검색 / 성분검색 탭 */}
+        <div className="flex mt-1.5">
           {([
             ['general', '통합검색'],
             ['ingredient', '성분검색'],
@@ -106,51 +131,15 @@ export default function SearchPage() {
             <button
               key={tab}
               onClick={() => { setMainTab(tab); handleSearch(''); }}
-              className={`flex-1 py-1.5 rounded-full text-sm font-bold transition-colors ${
-                mainTab === tab ? 'bg-primary text-white shadow-sm' : 'text-gray-50'
+              className={`mr-5 px-1 py-2.5 text-sm border-b-2 transition-colors ${
+                mainTab === tab ? 'font-extrabold text-primary-dark border-primary' : 'font-semibold text-gray-50 border-transparent'
               }`}
             >
               {label}
             </button>
           ))}
         </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-2 h-11 px-4 rounded-full bg-gray-10">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <circle cx="11" cy="11" r="7" stroke="var(--gray50)" strokeWidth="1.8" />
-              <path d="M16.5 16.5L21 21" stroke="var(--gray50)" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-            <input
-              value={query}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder={mainTab === 'general' ? '제품명이나 성분명으로 찾아보세요' : '성분으로 검색해 보세요'}
-              className="flex-1 bg-transparent text-sm text-gray-100 outline-none placeholder:text-gray-50"
-            />
-            {query && (
-              <button onClick={() => handleSearch('')} className="text-gray-50 active:scale-90 transition-transform">✕</button>
-            )}
-          </div>
-          {mainTab === 'general' ? (
-            <button
-              onClick={() => alert('준비 중이에요')}
-              aria-label="사진으로 제품 찾기"
-              title="사진으로 제품 찾기"
-              className="shrink-0 w-11 h-11 rounded-xl bg-primary-light flex items-center justify-center text-xl active:scale-95 transition-transform"
-            >
-              📷
-            </button>
-          ) : (
-            <button
-              onClick={() => setShowScanner(true)}
-              aria-label="스마트 성분 스캔"
-              title="스마트 성분 스캔"
-              className="shrink-0 w-11 h-11 rounded-xl bg-primary-light flex items-center justify-center text-xl active:scale-95 transition-transform"
-            >
-              📸
-            </button>
-          )}
-        </div>
+        <div className="-mx-4 h-px bg-gray-10" />
       </div>
 
       <div className="px-4 py-4">
@@ -168,32 +157,35 @@ export default function SearchPage() {
             </>
           ) : (
             <>
-              {/* 내 화장대에서 고르기 → 대체품 찾기 */}
+              {/* 내 화장대에서 대체품 찾기 (핵심 차별화) */}
               {MY_SHELF.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-bold text-gray-100 mb-1">내 화장대에서 고르기</h3>
-                  <p className="text-xs text-gray-70 mb-2">등록한 제품의 대체품을 찾아보세요</p>
-                  <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4">
+                <div className="mb-[22px] rounded-2xl bg-primary-light p-3.5">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-sm font-extrabold text-primary-dark">내 화장대에서 대체품 찾기</span>
+                    <span className="text-xs font-semibold text-primary">전체 {MY_SHELF.length}개</span>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-3.5 px-3.5">
                     {MY_SHELF.map((p) => (
-                      <button
+                      <div
                         key={p.id}
-                        onClick={() => navigate(`/alternatives?seed=${p.id}&from=search`)}
-                        className="shrink-0 flex items-center gap-2 p-2 pr-3 rounded-xl border border-gray-20 bg-white active:scale-95 transition-transform"
+                        className="shrink-0 w-32 rounded-xl bg-white p-2.5 shadow-[0_1px_4px_rgba(43,107,82,.08)]"
                       >
-                        <span className="w-10 h-10 rounded-lg overflow-hidden bg-gray-10 flex items-center justify-center shrink-0">
+                        <span className="block w-11 h-11 rounded-[10px] overflow-hidden bg-gray-10 mb-1.5">
                           {p.imageUrl ? (
                             <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-lg opacity-40">🧴</span>
+                            <span className="flex h-full w-full items-center justify-center text-lg opacity-40">🧴</span>
                           )}
                         </span>
-                        <span className="text-left">
-                          <span className="block text-[11px] text-gray-70">{p.brand}</span>
-                          <span className="block text-xs font-semibold text-gray-100 truncate max-w-[110px]">
-                            {p.name}
-                          </span>
-                        </span>
-                      </button>
+                        <span className="block text-[10px] font-semibold text-gray-50">{p.brand}</span>
+                        <span className="block text-xs font-bold text-gray-100 truncate mb-2">{p.name}</span>
+                        <button
+                          onClick={() => navigate(`/alternatives?seed=${p.id}&from=search`)}
+                          className="flex items-center justify-center w-full h-7 rounded-lg bg-primary text-[11px] font-extrabold text-white active:scale-95 transition-transform"
+                        >
+                          대체품 찾기
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -207,9 +199,9 @@ export default function SearchPage() {
               />
 
               {/* 인기 검색어 */}
-              <div className="mb-6">
+              <div className="mb-[22px]">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold text-gray-100">인기 검색어</h3>
+                  <h3 className="text-[15px] font-extrabold text-gray-100">인기 검색어</h3>
                 </div>
                 <div className="flex gap-2 mb-3">
                   {POPULAR_SEARCH_FILTERS.map((f) => (
@@ -226,49 +218,51 @@ export default function SearchPage() {
                     </button>
                   ))}
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div className="grid grid-cols-2 gap-x-5 gap-y-2.5">
                   {POPULAR_SEARCH_RANKING.map((s, i) => (
                     <button
                       key={s}
                       onClick={() => handleSearch(s)}
                       className="flex items-center gap-3 text-left active:opacity-60 transition-opacity"
                     >
-                      <span className={`text-sm font-bold w-5 ${i < 8 ? 'text-primary' : 'text-gray-50'}`}>{i + 1}</span>
+                      <span className={`text-sm font-extrabold italic w-[18px] ${i < 3 ? 'text-primary' : 'text-gray-50'}`}>{i + 1}</span>
                       <span className="text-sm text-gray-100 truncate">{s}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* 배너 */}
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-primary-light mb-6">
-                <span className="text-3xl">🎁</span>
-                <div>
-                  <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold text-white bg-primary mb-1">
-                    {SEARCH_AD_BANNER.label}
-                  </span>
-                  <p className="text-sm font-semibold text-gray-100 leading-snug">
-                    {SEARCH_AD_BANNER.title}
-                    <br />
-                    {SEARCH_AD_BANNER.subtitle}
-                  </p>
-                </div>
-              </div>
+              {/* 마스코트 스캔 배너 → 성분 스캔(3c) 이동 */}
+              <button
+                onClick={() => navigate('/scan')}
+                className="flex w-full items-center gap-3.5 rounded-2xl bg-oy-black p-4 mb-[22px] text-left active:scale-[.99] transition-transform"
+              >
+                <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2A2A31]">
+                  <img src="/mascot/base_face_neutral.png" alt="" className="h-[82%] w-[82%] object-contain" />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-extrabold text-white">성분표가 어렵다면, 찍어보세요</span>
+                  <span className="block text-xs text-white/55 mt-0.5">AI가 전성분을 읽고 주의 성분을 알려드려요</span>
+                </span>
+                <span className="shrink-0 inline-flex items-center h-8 px-3.5 rounded-full bg-primary text-xs font-extrabold text-white">
+                  스캔
+                </span>
+              </button>
 
               {/* 실시간 판매 BEST */}
               <div>
                 <div className="flex items-center gap-1 mb-3">
-                  <h3 className="text-sm font-bold text-gray-100">실시간 판매 BEST</h3>
+                  <h3 className="text-[15px] font-extrabold text-gray-100">실시간 판매 BEST</h3>
                   <span className="text-xs text-gray-50">ⓘ {REALTIME_BEST.updatedAt}</span>
                 </div>
                 <button
                   onClick={() => navigate(`/detail/${REALTIME_BEST.product.rank}`)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-20 active:scale-[.98] transition-transform"
+                  className="w-full flex items-center gap-3 p-3 rounded-[14px] border border-gray-10 active:scale-[.98] transition-transform"
                 >
-                  <span className="text-lg font-black text-primary shrink-0">{REALTIME_BEST.product.rank}</span>
-                  <span className="w-12 h-12 rounded-lg bg-gray-10 flex items-center justify-center text-xl shrink-0">💧</span>
+                  <span className="text-[17px] font-black italic text-primary shrink-0">{REALTIME_BEST.product.rank}</span>
+                  <span className="w-12 h-12 rounded-[10px] bg-gray-10 flex items-center justify-center text-xl shrink-0">💧</span>
                   <span className="flex-1 min-w-0 text-left">
-                    <span className="block text-xs text-gray-70">{REALTIME_BEST.product.brand}</span>
+                    <span className="block text-xs text-gray-50">{REALTIME_BEST.product.brand}</span>
                     <span className="block text-sm font-medium text-gray-100 truncate">{REALTIME_BEST.product.name}</span>
                     <span className="flex items-center gap-1.5 mt-0.5">
                       <span className="text-xs text-star">⭐ {REALTIME_BEST.product.rating}</span>
@@ -362,9 +356,7 @@ export default function SearchPage() {
         )}
       </div>
 
-      {showScanner && <ScannerModal onClose={() => setShowScanner(false)} />}
-
-      <BottomNav />
+      <OyBottomNav />
     </PageWrapper>
   );
 }

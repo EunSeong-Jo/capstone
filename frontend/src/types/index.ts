@@ -132,6 +132,7 @@ export interface RegistryItem {
 /** ID 카드용 등록물품 요약 */
 export interface RegistrySummary {
   count: number; // 등록물품 개수
+  totalSavings: number; // 대체품으로 이번 달 절약 가능 금액(원)
   recent?: RegistryItem[]; // 카드 썸네일용 (선택)
 }
 
