@@ -27,6 +27,7 @@
 
     /* Aliases */
     --surface: var(--gray05);
+    --surface-warm: #F5F6F2; /* 따뜻한 오프화이트 페이지 배경 (화장대·마이) */
     --border: var(--gray20);
     --text: var(--gray100);
     --text-sub: var(--gray70);
@@ -67,6 +68,10 @@
     /* Safe area (Capacitor / iOS) */
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+    /* 레이아웃 규격 (전 페이지 공통) */
+    --bottom-nav-h: 56px; /* 하단 탭바 높이 (OyBottomNav·BottomNav 공통) */
+    --header-h: 52px;     /* 서브페이지 헤더 높이 */
   }
 
   * {
@@ -78,12 +83,18 @@
     overscroll-behavior: none;
   }
 
+  /* 스크롤바 공간을 항상 예약 → 페이지마다 콘텐츠 높이가 달라도 폭이 흔들리지 않음 */
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
     @apply bg-surface text-gray-100 font-sans;
     max-width: 430px;
     margin: 0 auto;
     min-height: 100dvh;
     padding-top: var(--safe-top);
+    overflow-x: hidden;
   }
 }
 

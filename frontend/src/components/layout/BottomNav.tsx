@@ -93,7 +93,7 @@ export function BottomNav() {
           <NavLink
             key={to}
             to={to}
-            className="flex-1 flex flex-col items-center justify-center h-16 gap-1 active:scale-95 transition-transform"
+            className="flex-1 flex flex-col items-center justify-center h-14 gap-0.5 active:scale-95 transition-transform"
           >
             {({ isActive }) => (
               <>

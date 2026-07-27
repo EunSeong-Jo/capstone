@@ -6,13 +6,13 @@ import { ProfileDashboard } from '../../components/home/oy/sections/ProfileDashb
 import { ProductCarousel } from '../../components/home/oy/sections/ProductCarousel';
 import { AlternativeCarousel } from '../../components/home/oy/sections/AlternativeCarousel';
 import { OY_PRODUCTS } from '../../mocks/oliveyoung';
-import { MOCK_WEATHER, MOCK_CHARACTER, MOCK_PROFILE } from '../../mocks/home';
+import { MOCK_WEATHER, MOCK_CHARACTER, MOCK_PROFILE, MOCK_REGISTRY } from '../../mocks/home';
 import { MOCK_ALTERNATIVES_FOR_REGISTRY, MOCK_CHEAPER_ALTERNATIVES } from '../../mocks/alternatives';
 import { SKIN_TYPE_META, SkinType } from '../../types';
 
 /** 섹션 사이 굵은 회색 구분 띠 (올리브영식 리듬) */
 function Divider() {
-  return <div className="h-2 bg-oy-chip" />;
+  return <div className="h-2 bg-oy-line" />;
 }
 
 /** 한글 목적격 조사 을/를 (받침 유무) */
@@ -32,14 +32,14 @@ export default function HomePage() {
 
   return (
     <div
-      className="flex flex-col min-h-dvh bg-white text-oy-text font-sans"
-      style={{ paddingBottom: 'calc(56px + var(--safe-bottom))' }}
+      className="flex flex-col min-h-dvh bg-surface-warm text-oy-text font-sans"
+      style={{ paddingBottom: 'calc(var(--bottom-nav-h) + var(--safe-bottom))' }}
     >
       <OyAppBar />
 
       <main>
         {/* 개인 대시보드: 날씨 + 마스코트(탭→옷장) + 경험치 */}
-        <ProfileDashboard weather={MOCK_WEATHER} character={MOCK_CHARACTER} user={MOCK_PROFILE} />
+        <ProfileDashboard weather={MOCK_WEATHER} character={MOCK_CHARACTER} user={MOCK_PROFILE} registry={MOCK_REGISTRY} />
         <Divider />
 
         {/* 피부타입 맞춤 추천 */}

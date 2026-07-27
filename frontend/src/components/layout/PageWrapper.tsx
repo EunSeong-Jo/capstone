@@ -10,7 +10,7 @@ interface PageWrapperProps {
 export function PageWrapper({ children, className = '', hasBottomNav = false }: PageWrapperProps) {
   return (
     <div
-      className={`flex flex-col min-h-dvh bg-surface ${hasBottomNav ? 'pb-[calc(64px+var(--safe-bottom))]' : ''} ${className}`}
+      className={`flex flex-col min-h-dvh bg-surface ${hasBottomNav ? 'pb-[calc(var(--bottom-nav-h)+var(--safe-bottom))]' : ''} ${className}`}
     >
       {children}
     </div>

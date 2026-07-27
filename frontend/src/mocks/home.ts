@@ -100,6 +100,7 @@ export const MOCK_CHARACTER: CharacterState = {
 // ===== 등록물품 =====
 export const MOCK_REGISTRY: RegistrySummary = {
   count: 12,
+  totalSavings: 74500,
   recent: [
     { id: 1, name: '아토베리어365 크림', brand: '에스트라', category: '크림', imageUrl: img('reg1') },
     { id: 2, name: '하이드라비오 토너', brand: '바이오더마', category: '토너', imageUrl: img('reg2') },

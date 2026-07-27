@@ -36,7 +36,7 @@ export function OyAppBar({ cartCount = 0, vertical = 'cosmetics', onChangeVertic
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex items-center justify-between h-14 px-4 bg-white">
+      <header className="sticky top-0 z-30 flex items-center justify-between h-[52px] px-4 bg-surface-warm">
         {/* 로고 + 화살표 버튼 */}
         <div className="flex items-center gap-1.5">
           <h1 className="text-[22px] font-black italic tracking-tight text-oy-black">대체뭐야</h1>
@@ -55,15 +55,15 @@ export function OyAppBar({ cartCount = 0, vertical = 'cosmetics', onChangeVertic
 
         {/* 우측 아이콘 */}
         <div className="flex items-center gap-4">
+          <button aria-label="알림" className="active:scale-90 transition-transform">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
           <button aria-label="검색" onClick={() => navigate('/search')} className="active:scale-90 transition-transform">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <circle cx="11" cy="11" r="7" stroke="#17171C" strokeWidth="1.8" />
               <path d="M16.5 16.5L21 21" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          </button>
-          <button aria-label="알림" className="active:scale-90 transition-transform">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
           <button aria-label="장바구니" className="relative active:scale-90 transition-transform">

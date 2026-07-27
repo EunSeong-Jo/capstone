@@ -64,15 +64,19 @@ capstone/
 │   │   │   ├── Onboarding/   # 회원가입 온보딩
 │   │   │   ├── QnA/          # 피부타입 진단 문답
 │   │   │   ├── Search/       # 텍스트·이미지 검색
-│   │   │   ├── Detail/       # 제품 상세 + 대체품 TOP 3
+│   │   │   ├── Category/     # 카테고리 메인 + 리스트(BEST/전체)
+│   │   │   ├── ProductDetail/ # 제품 상세 (상품정보 / 리뷰·성분 탭 + AI 분석 팝업)
 │   │   │   ├── Result/       # 검색 결과
 │   │   │   ├── Mypage/       # 마이페이지
 │   │   │   └── Popup/        # 신규 가입 유도 팝업
 │   │   ├── components/
 │   │   │   ├── layout/       # Header, BottomNav, PageWrapper
-│   │   │   ├── product/      # ProductCard
+│   │   │   ├── product/      # ProductCard (Home용)
+│   │   │   ├── category/     # 카테고리·상품상세 공용 UI (Icon, PriceTag, ActionIcons, ProductCard 등)
+│   │   │   ├── common/       # 범용 유틸 컴포넌트 (DragScrollRow 등)
 │   │   │   ├── skin/         # SkinTypeBadge
 │   │   │   └── ui/           # Button, Badge, Chip
+│   │   ├── assets/           # 정적 에셋 (플레이스홀더 이미지 등)
 │   │   ├── types/            # TypeScript 타입 정의
 │   │   ├── App.tsx
 │   │   ├── main.tsx
@@ -129,6 +133,27 @@ capstone/
 | Task 15 | 예산 기반 구매 가이드 (그리디+빔서치) |
 | Task 9 | AWS EC2 서버 배포 + Prometheus/Grafana |
 | Task 10 | 베타 테스트 및 피드백 수집 |
+
+### 🌿 프론트엔드 화면 브랜치 현황
+
+각 팀원이 화면 단위 feature 브랜치로 작업했고, `dev`에 병합된 화면들은 **2026-07 UI 통일 작업에서 하나의 디자인 시스템으로 재구성**됐습니다(하단 네비·헤더 규격·배경색 통일, 검색 스캔 진입, 히스토리의 화장대 탭 통합 등). 상세 규격·통일 내역은 [frontend/README.md](frontend/README.md)의 `7-1 화면 규격 표준` 참고.
+
+**✅ 완료 — `dev` 병합됨**
+
+| 브랜치 | 화면 / 기능 | PR |
+|--------|-------------|----|
+| `home_es` | 홈(개인 대시보드·날씨·추천/대체품 캐러셀) + 프로젝트·PRD·환경 세팅 기반 | #9 |
+| `search_jw` | 검색(통합/성분 검색, 최근·인기 검색어) | #12 |
+| `category_yb` | 카테고리(좌측 사이드바 + 서브카테고리 목록) | #13 |
+| `dg_mypage` | 마이페이지(프로필·주문/혜택/설정 메뉴, 고객센터·문의·챗봇 UI 서브페이지) | #14 |
+| `history_misong` | 히스토리(최근 본·좋아요·자주 구매) — 현재는 화장대 화면 내부 탭으로 통합 | #15 |
+
+**🔧 진행 중 — 아직 `dev` 미병합**
+
+| 브랜치 | 내용 | 비고 |
+|--------|------|------|
+| `flash_yb` | 스플래시 화면 + 온보딩 플로우 모션 프로토타입 | 병합 시 기존 Splash/Onboarding과 정리 필요 |
+| `rag-chatbot_jw` | RAG 기반 화장품 챗봇 (Task 7) — `flash_yb` 위에 작업 | 병합 시 임시 챗봇 UI(`ChatSupportPage`) 교체 대상 |
 
 ---
 

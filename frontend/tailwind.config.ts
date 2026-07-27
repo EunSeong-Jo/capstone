@@ -18,6 +18,7 @@ export default {
         star: '#FFB800',
         badge: '#FF3B30',
         surface: '#F7F8FA',
+        'surface-warm': '#F5F6F2',
         border: '#E8EAED',
         gray: {
           0: '#FFFFFF',

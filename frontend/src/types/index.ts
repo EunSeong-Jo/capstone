@@ -34,6 +34,8 @@ export interface Product {
   isBest?: boolean;
   /** 올리브영식 태그칩 (예: '오늘드림', 'BEST', '쿠폰', '증정', '오특') */
   tags?: string[];
+  /** 누적 구매 횟수 (자주 구매 목록에서 사용) */
+  purchaseCount?: number;
 }
 
 // ===== 성분 =====
@@ -130,6 +132,7 @@ export interface RegistryItem {
 /** ID 카드용 등록물품 요약 */
 export interface RegistrySummary {
   count: number; // 등록물품 개수
+  totalSavings: number; // 대체품으로 이번 달 절약 가능 금액(원)
   recent?: RegistryItem[]; // 카드 썸네일용 (선택)
 }
 
