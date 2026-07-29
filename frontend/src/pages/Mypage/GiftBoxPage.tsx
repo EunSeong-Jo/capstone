@@ -98,7 +98,7 @@ export default function GiftBoxPage() {
         <div className="px-4 py-5 mt-auto">
           <button className="w-full flex items-center justify-between p-4 rounded-2xl bg-primary-light border border-primary/20">
             <span className="text-left">
-              <span className="block text-xs text-gray-50 mb-1">대체뭐야 선물하기 어렵지 않아요!</span>
+              <span className="block text-xs text-gray-50 mb-1">swappy 선물하기 어렵지 않아요!</span>
               <span className="block text-[15px] font-extrabold text-gray-100">선물하기 가이드 바로가기</span>
             </span>
             <span className="flex -space-x-2 ml-2">

@@ -1,4 +1,4 @@
-# 대체뭐야 프론트엔드 컴포넌트 가이드
+# swappy 프론트엔드 컴포넌트 가이드
 
 > Capacitor + React 18 + TypeScript + Tailwind CSS 3 기반  
 > 이 문서를 기준으로 UI를 개발하세요. 임의로 색상·간격을 하드코딩하지 마세요.
@@ -449,6 +449,6 @@ npx cap sync
 
 ## 참고 문서
 
-- [PRD v1.8](PRD_대체뭐야_v1.8.md) — 전체 기획 명세
+- [PRD v1.8](PRD_swappy_v1.8.md) — 전체 기획 명세
 - [개발 가이드라인](dev_guidelines.md) — 화면별 체크리스트, API 스펙
 - [프로토타입](prototype.html) — 브라우저에서 직접 열어 UI 확인

@@ -21,7 +21,7 @@ if settings.SENTRY_DSN:
 
 # ── FastAPI 앱 ───────────────────────────────────────────
 app = FastAPI(
-    title="대체뭐야 API",
+    title="swappy API",
     version="0.1.0",
     description="AI 기반 프로필 맞춤 제품 추천 및 성분 유사도 대체품 매칭 서비스",
     docs_url="/api/docs",

@@ -5,7 +5,7 @@ import { Product } from '../types';
 
 const img = (seed: string, w = 400, h = 400) => `https://picsum.photos/seed/${seed}/${w}/${h}`;
 
-// ===== 상단 도메인 전환 (대체뭐야 ▾ 드롭다운) =====
+// ===== 상단 도메인 전환 (swappy ▾ 드롭다운) =====
 export interface Vertical {
   id: string;
   label: string;
@@ -30,7 +30,7 @@ export interface HeroBanner {
   imageUrl: string;
 }
 export const OY_HERO_BANNERS: HeroBanner[] = [
-  { id: 1, title: '신상 15% 쿠폰', subtitle: '리뷰 1만P 혜택까지!', caption: '6월 대체뭐야 신상위크', gradient: 'from-emerald-300 to-stone-300', imageUrl: img('oy-hero1', 600, 600) },
+  { id: 1, title: '신상 15% 쿠폰', subtitle: '리뷰 1만P 혜택까지!', caption: '6월 swappy 신상위크', gradient: 'from-emerald-300 to-stone-300', imageUrl: img('oy-hero1', 600, 600) },
   { id: 2, title: '여름 수분 충전', subtitle: '베스트 토너 모음전', caption: '오늘드림 무료배송', gradient: 'from-sky-300 to-indigo-200', imageUrl: img('oy-hero2', 600, 600) },
   { id: 3, title: '선크림 페스타', subtitle: '자외선 차단 필수템', caption: '최대 40% 할인', gradient: 'from-amber-200 to-rose-200', imageUrl: img('oy-hero3', 600, 600) },
 ];

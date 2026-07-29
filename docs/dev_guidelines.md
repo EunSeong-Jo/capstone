@@ -1,4 +1,4 @@
-# 대체뭐야 — 앱 개발 가이드라인 v1.0
+# swappy — 앱 개발 가이드라인 v1.0
 
 > PRD v1.8 + prototype.html 기반. 팀원이 일관된 방향으로 개발할 수 있도록 디자인 시스템, 화면 구조, API, DB, 역할 분담을 한 문서에 정리합니다.
 
@@ -22,7 +22,7 @@
 
 ## 1. 프로젝트 개요
 
-**서비스명:** 대체뭐야  
+**서비스명:** swappy  
 **핵심 가치:** 피부타입 8캐릭터 기반 개인 맞춤 화장품 추천 + 성분 유사 대체품 자동 매칭
 
 ### 메인 플로우 (P0)
@@ -302,7 +302,7 @@
 ## 6. API 엔드포인트 요약
 
 모든 인증 필요 요청: `Authorization: Bearer {access_token}` 헤더 포함  
-Base URL: `http://localhost:8000` (P0) / `https://api.대체뭐야.com` (P1)
+Base URL: `http://localhost:8000` (P0) / `https://api.swappy.com` (P1)
 
 ### 6.1 인증
 
@@ -566,6 +566,6 @@ services:
 
 ## 참고 문서
 
-- `docs/PRD_대체뭐야_v1.8.md` — 전체 기획 명세
+- `docs/PRD_swappy_v1.8.md` — 전체 기획 명세
 - `docs/prototype.html` — 화면 디자인 시연 (브라우저에서 직접 열어 확인)
 - `tasks/` — 개별 작업 태스크 목록
