@@ -196,7 +196,7 @@ function printReport(target, findings) {
   console.log('\n───────────────────────────────────────────');
   console.log('PR 올리기 전 원본 export/스캐폴딩 폴더를 정리해주세요:');
   console.log('  - 삭제하거나');
-  console.log('  - 디자인 근거로 남기고 싶으면 frontend/ANALYSIS.md에 요약 + frontend/example/에 대표 스크린샷 1~2장만 보관');
+  console.log('  - 디자인 근거로 남기고 싶으면 frontend/ANALYSIS.md에 요약 + docs/design/references/에 대표 스크린샷 1~2장만 보관');
   console.log('자세한 내용: frontend/README.md 10절, frontend/ANALYSIS.md');
   console.log('───────────────────────────────────────────');
 
