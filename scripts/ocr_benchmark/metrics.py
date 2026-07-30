@@ -88,13 +88,74 @@ def best_fragment_match(reference: str, fragments: list[str]) -> dict:
     }
 
 
-def compute_all_metrics(reference: str, hypothesis: str, fragments: list[str], latency_sec: float) -> dict:
+MATCH_THRESHOLD = 0.3  # 프로덕션 pg_trgm 임계값(0.3)과 동일하게 맞춤
+
+
+def field_matched(reference_field: str, fragments: list[str]) -> bool:
+    """참고 필드(브랜드/한글명/영어명)가 조각들 중 하나와 임계값 이상 유사한지."""
+    if not (reference_field or "").strip():
+        return False
+    candidates = list(fragments)
+    for i in range(len(fragments) - 1):
+        candidates.append(f"{fragments[i]} {fragments[i + 1]}")
+    if not candidates:
+        return False
+    best_sim = max(trigram_similarity(reference_field, frag) for frag in candidates)
+    return best_sim >= MATCH_THRESHOLD
+
+
+def compute_identification_score(brand: str, korean_name: str, english_name: str, fragments: list[str]) -> dict:
+    """브랜드/한글명/영어명 매칭 여부를 등급으로 채점한다.
+
+    등급(상호배타, 최고 등급만 인정):
+    - 3점: 라벨에 존재하는 이름 필드(한글명·영어명)를 전부 맞춤
+      (한쪽 필드가 애초에 없는 제품은 있는 필드만 맞아도 3점 만점)
+    - 1점: 존재하는 이름 필드 중 일부만 맞춤 (한글/영어 둘 다 있는데 하나만 맞은 경우)
+    - 0.5점: 이름은 하나도 못 맞췄지만 브랜드는 맞춤
+    - 0점: 브랜드도 이름도 못 맞춤
+    """
+    brand_ok = field_matched(brand, fragments)
+    korean_ok = field_matched(korean_name, fragments)
+    english_ok = field_matched(english_name, fragments)
+
+    name_results = [
+        ok for ok, ref in [(korean_ok, korean_name), (english_ok, english_name)]
+        if (ref or "").strip()
+    ]
+
+    if name_results and all(name_results):
+        score = 3.0
+    elif any(name_results):
+        score = 1.0
+    elif brand_ok:
+        score = 0.5
+    else:
+        score = 0.0
+
+    return {
+        "brand_matched": brand_ok,
+        "korean_name_matched": korean_ok,
+        "english_name_matched": english_ok,
+        "identification_score": score,
+    }
+
+
+def compute_all_metrics(
+    reference: str,
+    hypothesis: str,
+    fragments: list[str],
+    latency_sec: float,
+    brand: str = "",
+    korean_name: str = "",
+    english_name: str = "",
+) -> dict:
     metrics = {
         "full_text_cer": compute_cer(reference, hypothesis),
         "full_text_wer": compute_wer(reference, hypothesis),
         "latency_sec": latency_sec,
     }
     metrics.update(best_fragment_match(reference, fragments))
+    metrics.update(compute_identification_score(brand, korean_name, english_name, fragments))
     return metrics
 
 
@@ -105,6 +166,9 @@ def aggregate_by_engine(df: pd.DataFrame) -> pd.DataFrame:
         exact_match_rate_pct=("best_exact_match", lambda s: s.mean() * 100),
         mean_trigram_similarity=("best_trigram_similarity", "mean"),
         mean_full_text_cer=("full_text_cer", "mean"),
+        mean_identification_score=("identification_score", "mean"),
+        full_score_rate_pct=("identification_score", lambda s: (s == 3.0).mean() * 100),
+        zero_score_rate_pct=("identification_score", lambda s: (s == 0.0).mean() * 100),
         mean_latency_sec=("latency_sec", "mean"),
         p95_latency_sec=("latency_sec", lambda s: s.quantile(0.95)),
         n_images=("filename", "count"),

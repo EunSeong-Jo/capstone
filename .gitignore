@@ -96,5 +96,7 @@ scripts/ocr_benchmark/images/*
 !scripts/ocr_benchmark/images/.gitkeep
 scripts/ocr_benchmark/output/*
 !scripts/ocr_benchmark/output/.gitkeep
+scripts/ocr_benchmark/test/*
+!scripts/ocr_benchmark/test/.gitkeep
 scripts/ocr_benchmark/labels.csv
 
