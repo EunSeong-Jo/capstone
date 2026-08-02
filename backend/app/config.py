@@ -9,9 +9,9 @@ class Settings(BaseSettings):
     # DB
     POSTGRES_HOST: str = "postgres"
     POSTGRES_PORT: int = 5432
-    POSTGRES_DB: str = "daechemuya"
-    POSTGRES_USER: str = "daechemuya"
-    POSTGRES_PASSWORD: str = "daechemuya_dev"
+    POSTGRES_DB: str = "swappy"
+    POSTGRES_USER: str = "swappy"
+    POSTGRES_PASSWORD: str = "swappy_dev"
 
     @property
     def DATABASE_URL(self) -> str:

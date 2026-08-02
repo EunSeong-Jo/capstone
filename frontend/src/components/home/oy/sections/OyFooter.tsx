@@ -1,12 +1,12 @@
-/** 25. 푸터 — 고객센터 메뉴 + 사업자 정보 (대체뭐야로 치환) */
+/** 25. 푸터 — 고객센터 메뉴 + 사업자 정보 (swappy로 치환) */
 export function OyFooter() {
   const menus = ['대표전화', '채팅 상담', '1:1문의', '고객센터'];
   const info: [string, string][] = [
     ['대표이사', '홍길동'],
     ['사업자 등록번호', '000-00-00000'],
-    ['호스팅 사업자', '대체뭐야'],
+    ['호스팅 사업자', 'swappy'],
     ['통신판매업신고번호', '2026-서울-0000'],
-    ['이메일', 'help@daechemuya.app'],
+    ['이메일', 'help@swappy.app'],
   ];
   return (
     <footer className="mt-4 bg-oy-chip px-4 py-6">
@@ -19,7 +19,7 @@ export function OyFooter() {
         ))}
       </div>
 
-      <p className="text-center text-sm font-bold text-oy-text mt-5">대체뭐야 (주)</p>
+      <p className="text-center text-sm font-bold text-oy-text mt-5">swappy (주)</p>
 
       <dl className="mt-3 space-y-1.5 text-xs text-oy-sub">
         {info.map(([k, v]) => (

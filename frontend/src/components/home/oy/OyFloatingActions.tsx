@@ -3,7 +3,7 @@ interface OyFloatingActionsProps {
   onRecommendSet?: () => void;
 }
 
-/** 우하단 원형 빠른접근 버튼 — 대체뭐야 추천 세트 + 챗봇 (맨위로 버튼 위에 위치) */
+/** 우하단 원형 빠른접근 버튼 — swappy 추천 세트 + 챗봇 (맨위로 버튼 위에 위치) */
 export function OyFloatingActions({ onChatbot, onRecommendSet }: OyFloatingActionsProps) {
   return (
     <div
@@ -13,7 +13,7 @@ export function OyFloatingActions({ onChatbot, onRecommendSet }: OyFloatingActio
       {/* 추천 상품 세트 */}
       <button
         onClick={onRecommendSet}
-        aria-label="대체뭐야 추천 상품 세트"
+        aria-label="swappy 추천 상품 세트"
         className="w-16 h-16 rounded-full shadow-lg flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
         style={{ backgroundColor: '#3D8F6F' }}
       >

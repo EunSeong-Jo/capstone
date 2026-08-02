@@ -11,7 +11,7 @@ export const POPULAR_SEARCH_RANKING = [
 ];
 
 export const SEARCH_AD_BANNER = {
-  label: '대체뭐야 AD',
+  label: 'swappy AD',
   title: '단종템 대체 1등 제품,',
   subtitle: '최저가로 만나보세요',
 };

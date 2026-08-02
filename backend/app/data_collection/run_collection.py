@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 DB_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://daechemuya:daechemuya_dev@localhost:5432/daechemuya"
+    "postgresql://swappy:swappy_dev@localhost:5432/swappy"
 )
 MFDS_API_KEY = os.getenv("MFDS_API_KEY", "")
 

@@ -2,29 +2,29 @@ services:
   # ── PostgreSQL 16 ────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: daechemuya_postgres
+    container_name: swappy_postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-daechemuya}
-      POSTGRES_USER: ${POSTGRES_USER:-daechemuya}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-daechemuya_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-swappy}
+      POSTGRES_USER: ${POSTGRES_USER:-swappy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-swappy_dev}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init_db.sh:/docker-entrypoint-initdb.d/init_db.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-daechemuya}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-swappy}"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
-      - daechemuya_net
+      - swappy_net
     restart: unless-stopped
 
   # ── Redis 7 ──────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: daechemuya_redis
+    container_name: swappy_redis
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -36,7 +36,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - daechemuya_net
+      - swappy_net
     restart: unless-stopped
 
   # ── FastAPI 백엔드 ────────────────────────────────────────
@@ -44,7 +44,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: daechemuya_backend
+    container_name: swappy_backend
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     env_file:
@@ -61,7 +61,7 @@ services:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
-      - daechemuya_net
+      - swappy_net
     restart: unless-stopped
 
   # ── React 프론트엔드 (개발 서버) ──────────────────────────
@@ -69,7 +69,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: daechemuya_frontend
+    container_name: swappy_frontend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
@@ -80,7 +80,7 @@ services:
     depends_on:
       - backend
     networks:
-      - daechemuya_net
+      - swappy_net
     restart: unless-stopped
 
 volumes:
@@ -88,5 +88,5 @@ volumes:
   redis_data:
 
 networks:
-  daechemuya_net:
+  swappy_net:
     driver: bridge

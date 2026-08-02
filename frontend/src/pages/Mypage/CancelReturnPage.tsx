@@ -88,7 +88,7 @@ export default function CancelReturnPage() {
         <div className="mx-4 mb-4 p-4 rounded-2xl bg-gray-10">
           {[
             '취소/반품/교환 내역은 최근 1년 이내의 내역만 조회할 수 있습니다.',
-            '단종 상품 환불의 경우 대체뭐야 고객센터로 문의해 주세요.',
+            '단종 상품 환불의 경우 swappy 고객센터로 문의해 주세요.',
           ].map((text) => (
             <div key={text} className="flex gap-2 mb-1.5 last:mb-0">
               <span className="text-xs text-gray-50 shrink-0">·</span>

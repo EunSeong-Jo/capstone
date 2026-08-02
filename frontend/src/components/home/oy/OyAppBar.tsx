@@ -18,7 +18,7 @@ function Chevron() {
   );
 }
 
-/** 올리브영식 상단 앱바 — 로고(대체뭐야) + 도메인 전환 시트(상단에서 내려옴) */
+/** 올리브영식 상단 앱바 — 로고(swappy) + 도메인 전환 시트(상단에서 내려옴) */
 export function OyAppBar({ cartCount = 0, vertical = 'cosmetics', onChangeVertical }: OyAppBarProps) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -37,9 +37,13 @@ export function OyAppBar({ cartCount = 0, vertical = 'cosmetics', onChangeVertic
   return (
     <>
       <header className="sticky top-0 z-30 flex items-center justify-between h-[52px] px-4 bg-surface-warm">
-        {/* 로고 + 화살표 버튼 */}
+        {/* 로고(7c ≈ 마크) + 워드마크 + 화살표 버튼 */}
         <div className="flex items-center gap-1.5">
-          <h1 className="text-[22px] font-black italic tracking-tight text-oy-black">대체뭐야</h1>
+          <svg viewBox="-120 -120 240 240" className="h-[22px] w-[22px] shrink-0" aria-hidden>
+            <path d="M-84,-34 C-56,-76 -28,8 0,-34 C28,-76 56,8 84,-34" fill="none" stroke="#2B6B52" strokeWidth="32" strokeLinecap="round" />
+            <path d="M-84,40 C-56,-2 -28,82 0,40 C28,-2 56,82 84,40" fill="none" stroke="#9DCDB8" strokeWidth="32" strokeLinecap="round" />
+          </svg>
+          <h1 className="text-[22px] font-black italic tracking-tight text-oy-black">swappy</h1>
           <button
             onClick={() => setOpen(true)}
             aria-label="카테고리 전환"

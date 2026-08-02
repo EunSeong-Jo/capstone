@@ -51,7 +51,7 @@ export default function ChatSupportPage() {
     const botReply: Message = {
       id: nextId.current++,
       role: 'bot',
-      text: '안녕하세요! 대체뭐야 챗봇이에요 😊\n말씀하신 내용을 확인 중입니다.\n잠시만 기다려 주세요.',
+      text: '안녕하세요! swappy 챗봇이에요 😊\n말씀하신 내용을 확인 중입니다.\n잠시만 기다려 주세요.',
     };
     setMessages((prev) => [...prev, userMsg, botReply]);
     setInputText('');
@@ -82,7 +82,7 @@ export default function ChatSupportPage() {
               <div className="flex gap-2 mb-3 items-start">
                 <BotAvatar />
                 <div className="flex-1 max-w-[80%]">
-                  <span className="text-[11px] text-gray-50 mb-1 block">대체뭐야 · 방금 전</span>
+                  <span className="text-[11px] text-gray-50 mb-1 block">swappy · 방금 전</span>
 
                   {msg.isWelcome && (
                     <>
@@ -92,7 +92,7 @@ export default function ChatSupportPage() {
                       <div className="bg-white rounded-tl-[4px] rounded-tr-2xl rounded-b-2xl px-4 py-3.5 shadow-sm text-[13px] text-gray-100 leading-relaxed">
                         반갑습니다.
                         <br />
-                        저는 고객님의 궁금증을 해결해 드릴 대체뭐야 챗봇이에요.
+                        저는 고객님의 궁금증을 해결해 드릴 swappy 챗봇이에요.
                         <br />
                         <br />
                         ⭐ <strong>대화 TIP</strong>

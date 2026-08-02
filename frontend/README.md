@@ -1,4 +1,4 @@
-# 대체뭐야 — Frontend
+# swappy — Frontend
 
 화장품 **성분 기반 대체품 추천 + 개인 맞춤(피부타입)** 모바일 웹앱의 프론트엔드입니다.
 이 문서는 **팀 공통 개발 기준**입니다. 작업 전 반드시 한 번 읽어주세요.
@@ -186,7 +186,7 @@ frontend/
 
 - [`docs/frontend-component-guide.md`](../docs/frontend-component-guide.md) — 컴포넌트 카탈로그·디자인 토큰 상세
 - [`docs/dev_guidelines.md`](../docs/dev_guidelines.md) — 화면별 구현 체크리스트·역할 분담
-- [`docs/PRD_대체뭐야_v1.8.md`](../docs/PRD_대체뭐야_v1.8.md) — 제품 요구사항
+- [`docs/PRD_swappy_v1.8.md`](../docs/PRD_swappy_v1.8.md) — 제품 요구사항
 - [`ANALYSIS.md`](./ANALYSIS.md) — 팀원 제출물 병합 분석(무엇을 병합했고 원본과 실제 구현이 어떻게 달랐는지)
 
 ---
@@ -217,7 +217,7 @@ frontend/
    포함하고 있어 프로젝트 전체와 충돌합니다. **JSX/TSX 로직만 참고 자료**로 삼으세요.
 5. **원본 export 폴더를 PR에 그대로 남기지 마세요.** 병합 후에는 삭제하거나, 디자인 근거로 남기고
    싶으면 `ANALYSIS.md`에 레이아웃/카피/색상을 요약하고 대표 스크린샷 1~2장만
-   `frontend/example/`에 보관하세요 (`frontend/example/oliveyoung/` 참고). 이번 6건도 병합 후
+   `docs/design/references/`에 보관하세요 (`docs/design/references/oliveyoung/` 참고). 이번 6건도 병합 후
    원본 폴더(`code/*_React`, `dg-mypage-design-main/`, `frontend/category_UI_yb/`, `design_jw/`
    등)와 관련 없는 옛 병합 잔재(`frontend/category-standalone/`, `capstone-frontend/`,
    `my-workspace/`)를 전부 정리했습니다.

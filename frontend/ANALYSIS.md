@@ -40,7 +40,7 @@
 - 좋아요 브랜드: 찜한 브랜드 카드 + 해당 브랜드 상품 가로스크롤 + "또 다른 브랜드를 확인해보세요"
 - 자주 구매: 필터칩 + 정렬 + "N회 구매" 뱃지 + "재구매가 많은 다른 상품도 있어요!"
 
-대표 이미지: [`example/최근본.png`](./example/최근본.png)
+대표 이미지: [`docs/design/references/최근본.png`](../docs/design/references/최근본.png)
 
 **최종 구현**: `/history`를 3개 탭(최근 본/좋아요 상품/자주 구매) 허브로 재구현했습니다.
 **"좋아요 브랜드" 탭은 사용자 판단으로 이번 범위에서 제외**했습니다(브랜드 단위 찜 개념 자체가
@@ -96,7 +96,7 @@ dependency), MUI+Radix+shadcn 전체 스택을 포함하고 있어 그대로 설
 `--primary` 등 전역 CSS 변수와 `button/input/h1~h4` 엘리먼트 셀렉터를 재정의해서 그대로 import하면
 앱 전체 스타일이 깨지는 구조였습니다.
 
-대표 이미지(원본 `src/imports/`의 참고 이미지 예시): [`example/mypage.jpg`](./example/mypage.jpg)
+대표 이미지(원본 `src/imports/`의 참고 이미지 예시): [`docs/design/references/mypage.jpg`](../docs/design/references/mypage.jpg)
 
 **이식 (12개 전부 완료, 2단계로 진행)**
 
@@ -107,7 +107,7 @@ dependency), MUI+Radix+shadcn 전체 스택을 포함하고 있어 그대로 설
 
 2단계 — 처음엔 "PRD 범위 밖" 또는 "예정된 AI 챗봇과 컨셉 겹침"을 이유로 보류했다가, 이후
 "팀원 작업물에 있으면 일단 구현" 방침으로 마저 이식한 6개:
-`MoneyPage`→`/mypage/money`(제목을 "대체뭐야머니"에서 **"Swappy머니"로 변경**, 마이페이지
+`MoneyPage`→`/mypage/money`(제목을 "swappy머니"에서 **"Swappy머니"로 변경**, 마이페이지
 메인의 적립금/쿠폰 사이에 배치해 금액이 한눈에 보이도록 함), `ReviewPage`→`/mypage/reviews`,
 `GiftBoxPage`→`/mypage/giftbox`, `CustomerServicePage`→`/mypage/customer-service`,
 `ChatSupportPage`→`/mypage/chat-support`(**임시 챗봇 UI** — 캔드 응답만 반환, 실제 AI 연동
@@ -142,7 +142,7 @@ grep으로 확인) — **신규 npm 의존성 추가 없이** 전부 이식했�
 **원본**: `frontend/category-standalone/`(완성된 React 앱, 이미 병합되어 삭제됨) +
 `frontend/category_UI_yb/Category main.png` 등 디자인 이미지.
 
-대표 이미지: [`example/category.png`](./example/category.png)
+대표 이미지: [`docs/design/references/category.png`](../docs/design/references/category.png)
 
 **구현 상태**: `CategoryMainPage.tsx`/`CategoryPage.tsx`는 `category-standalone`의 코드를 거의
 그대로(byte-identical 수준) 병합해 사용 중입니다. `CategoryPage.tsx`(상품 리스트 화면)는 BEST

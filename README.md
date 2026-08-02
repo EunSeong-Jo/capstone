@@ -1,4 +1,4 @@
-# 대체뭐야 🌿
+# swappy 🌿
 
 > 주제: AI 기반 프로필 맞춤 제품 추천 및 성분 유사도 대체품 매칭 서비스
 
@@ -87,7 +87,7 @@ capstone/
 ├── scripts/
 │   └── init_db.sh            # PostgreSQL 확장 자동 설치
 ├── docs/
-│   ├── PRD_대체뭐야_v1.8.md  # 제품 요구사항 문서
+│   ├── PRD_swappy_v1.8.md  # 제품 요구사항 문서
 │   ├── dev_guidelines.md     # 팀 개발 가이드라인
 │   └── prototype.html        # 앱 화면 프로토타입
 ├── .taskmaster/              # Task Master AI 설정
@@ -174,7 +174,7 @@ capstone/
 
 ## 문서
 
-- [PRD v1.8](docs/PRD_대체뭐야_v1.8.md) — 전체 제품 요구사항
+- [PRD v1.8](docs/PRD_swappy_v1.8.md) — 전체 제품 요구사항
 - [개발 가이드라인](docs/dev_guidelines.md) — 디자인 시스템, API, DB 스키마
 - [프로토타입](docs/prototype.html) — 브라우저에서 열어 확인
 - [Task Master](/.taskmaster/docs/prd.md) — 태스크 관리

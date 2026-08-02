@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Rubik+Doodle+Shadow&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-doodle: "Rubik Doodle Shadow", system-ui, sans-serif;
+  --color-swappy-green: #2d7a4f;
+  --color-swappy-pink: #ef969f;
+  --color-swappy-beige: #f4e9d8;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: #1c1c1e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/*
+ * 웹 프리뷰 전용 모바일 기기 프레임. 실제 앱(Capacitor)으로 빌드되면
+ * #root가 곧 전체 화면(100dvh/100dvw)이 되므로 이 프레임은 자연스럽게
+ * 화면 전체를 채우게 되어 아래 스타일은 무해하다. container-type: size로
+ * 지정해서 내부 컴포넌트가 vw/vh 대신 cqw/cqh/cqmin 단위로 프레임 자체
+ * 크기를 기준 삼아 반응형 배치를 할 수 있게 한다.
+ */
+.device-frame {
+  position: relative;
+  width: min(393px, 100vw);
+  height: min(852px, 100dvh);
+  overflow: hidden;
+  container-type: size;
+  background: var(--color-swappy-beige);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 500px) {
+  .device-frame {
+    border-radius: 40px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+}
