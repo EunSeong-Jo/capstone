@@ -23,6 +23,8 @@
 # 환경 변수
 # ───────────────────────────────
 .env
+.env.example
+".env copy.example"
 .env.local
 .env.*.local
 
@@ -31,6 +33,7 @@
 # ───────────────────────────────
 node_modules/
 frontend/node_modules/
+frontend_flash_demo/node_modules/
 
 # ───────────────────────────────
 # 로그
@@ -59,6 +62,11 @@ dev-debug.log
 .DS_Store
 Thumbs.db
 *:Zone.Identifier
+
+# ───────────────────────────────
+# 로컬 DB (SQLite 테스트 DB)
+# ───────────────────────────────
+backend/data/
 
 # ───────────────────────────────
 # Python
