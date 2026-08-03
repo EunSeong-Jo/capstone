@@ -13,7 +13,11 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     -- uuid-ossp: UUID 기본값 생성
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-    RAISE NOTICE '확장 모듈 설치 완료: pg_trgm, uuid-ossp';
+    DO \$\$
+    BEGIN
+        RAISE NOTICE '확장 모듈 설치 완료: pg_trgm, uuid-ossp';
+    END
+    \$\$;
 EOSQL
 
 echo "✅ PostgreSQL 초기화 완료"
