@@ -23,7 +23,6 @@
 # 환경 변수
 # ───────────────────────────────
 .env
-.env.example
 ".env copy.example"
 .env.local
 .env.*.local
