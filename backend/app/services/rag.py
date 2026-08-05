@@ -1,12 +1,12 @@
 """
 RAG 서비스 — 제품 DB에서 검색해 LLM 컨텍스트를 구성한다.
 
-현재: SQLite 테스트 DB (backend/data/products.db)
-추후: get_all_products() / get_products_by_skin_type() 교체만으로 PostgreSQL·벡터DB 전환 가능.
+현재: rag_seed.py의 임시 SQLite 시드를 조회한다.
+추후: PostgreSQL 전환 시 스키마 매핑이 필요하다 (rag_seed.py 상단 주석 참고).
 """
 from __future__ import annotations
 
-from app.db.products_db import get_all_products, get_products_by_skin_type
+from app.services.rag_seed import get_all_products, get_products_by_skin_type
 
 _KEYWORD_MAP = {
     "히알루론산": ["히알루론산", "수분", "보습"],

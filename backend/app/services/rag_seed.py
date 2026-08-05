@@ -1,8 +1,15 @@
 """
-테스트용 SQLite 제품 DB.
+RAG 챗봇용 임시 제품 데이터 (SQLite).
 
-현재: SQLite (로컬 파일, backend/data/products.db)
-추후: PostgreSQL로 교체 시 get_all_products() 내부만 수정하면 됨.
+⚠️ 이 모듈은 PostgreSQL 스키마 확정 전까지만 사용하는 임시 저장소다.
+   data_collection/db_storage.py의 products 스키마와 컬럼 구조가 다르다:
+     - 이곳: name / skin_types·ingredients·efficacy (JSON TEXT)
+     - PG  : product_name / 성분은 product_ingredients 별도 테이블,
+             skin_types·efficacy 컬럼 자체가 없음
+   따라서 전환 시 함수 내부 교체만으로는 불가능하며,
+   스키마 매핑과 피부타입·효능 데이터 확보가 선행되어야 한다.
+
+저장 위치: backend/data/products.db (.gitignore 처리됨, 최초 호출 시 생성)
 """
 from __future__ import annotations
 
@@ -180,7 +187,7 @@ def _row_to_dict(row: tuple) -> dict:
 
 
 def get_all_products() -> list[dict]:
-    """전체 제품 목록 반환. PostgreSQL 전환 시 이 함수만 교체."""
+    """전체 제품 목록 반환. (임시 시드 — 상단 모듈 docstring 참고)"""
     _ensure_initialized()
     with sqlite3.connect(_DB_PATH) as conn:
         rows = conn.execute("SELECT * FROM products ORDER BY id").fetchall()
