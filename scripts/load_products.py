@@ -124,6 +124,9 @@ def main() -> None:
     # ── 제품 ─────────────────────────────────────────────────────
     product_rows = []
     for gno, r in by_goods.items():
+        # 원본 문자열 기준 성분 개수(중복 포함). product_ingredients 행수는
+        # 제품 내 중복을 제거하므로 이 값과 다를 수 있다.
+        raw_count = len(parse_ingredients(r.get("화장품성분", "")))
         product_rows.append((
             gno,
             (r.get("상품명") or "").strip(),
@@ -138,12 +141,14 @@ def main() -> None:
             (r.get("제조국") or "").strip() or None,
             (r.get("제조사") or "").strip() or None,
             (r.get("사용기한") or "").strip() or None,
+            raw_count,
         ))
 
     execute_values(cur, """
         INSERT INTO products
             (goods_no, name, brand_id, category_id, price, rating, review_count,
-             image_url, product_url, volume, country, manufacturer, expiry_info)
+             image_url, product_url, volume, country, manufacturer, expiry_info,
+             ingredient_count_raw)
         VALUES %s
         ON CONFLICT (goods_no) DO UPDATE SET
             name = EXCLUDED.name, brand_id = EXCLUDED.brand_id,
@@ -152,6 +157,7 @@ def main() -> None:
             image_url = EXCLUDED.image_url, product_url = EXCLUDED.product_url,
             volume = EXCLUDED.volume, country = EXCLUDED.country,
             manufacturer = EXCLUDED.manufacturer, expiry_info = EXCLUDED.expiry_info,
+            ingredient_count_raw = EXCLUDED.ingredient_count_raw,
             updated_at = now()
     """, product_rows, page_size=500)
     conn.commit()

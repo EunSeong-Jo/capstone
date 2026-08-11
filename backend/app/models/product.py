@@ -104,6 +104,16 @@ class Product(Base, TimestampMixin):
     manufacturer: Mapped[str | None] = mapped_column(Text)
     expiry_info: Mapped[str | None] = mapped_column(Text)
 
+    # 원본 전성분 문자열을 파싱한 성분 개수(중복 포함).
+    # product_ingredients 행수와 다르다 — 그쪽은 제품 내 중복 성분을 한 번만
+    # 세기 때문. 4,634건 중 719건(15.5%)에서 값이 갈린다.
+    #
+    # 차이가 클수록 'N종 택1' 기획세트일 가능성이 높다. 호수별 전성분을
+    # 한 셀에 이어 붙이면서 같은 성분이 반복되기 때문
+    # (최대 사례: 원본 1,978개 → 고유 141개).
+    # 유사도 계산에서 이런 제품을 걸러낼 때 이 값이 판단 근거가 된다.
+    ingredient_count_raw: Mapped[int | None] = mapped_column(Integer)
+
     report_no: Mapped[str | None] = mapped_column(Text)  # 식약처 보고번호
     availability: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="active"
