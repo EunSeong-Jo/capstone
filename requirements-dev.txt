@@ -1,0 +1,7 @@
+# 개발·데이터 준비 전용 의존성.
+# 백엔드 런타임에는 필요 없으므로 backend/requirements.txt와 분리한다.
+#
+#   pip install -r requirements-dev.txt
+
+# 성분사전 PDF 추출 (scripts/extract_ingredient_dict.py)
+pdfplumber==0.11.10

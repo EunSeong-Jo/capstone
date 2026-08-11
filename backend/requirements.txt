@@ -7,6 +7,7 @@ sqlalchemy==2.0.36
 alembic==1.14.0
 asyncpg==0.30.0
 psycopg2-binary==2.9.10
+greenlet==3.1.1          # SQLAlchemy async 런타임 의존
 
 # Cache
 redis==5.2.1
@@ -26,6 +27,14 @@ structlog==24.4.0
 
 # HTTP Client
 httpx==0.28.1
+
+# 데이터 수집 (app/data_collection/)
+# API 서버 구동에는 필요 없고, 수집기를 직접 실행할 때만 쓰인다.
+#   python -m app.data_collection.run_collection
+# selenium은 Chrome/Chromedriver가 별도로 설치돼 있어야 동작한다.
+requests==2.34.2
+beautifulsoup4==4.15.0
+selenium==4.47.0
 
 # LLM (챗봇)
 openai==1.57.0
