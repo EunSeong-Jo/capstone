@@ -24,7 +24,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 
-class ProductSimilarity(Base):
+class Similarity(Base):
     """사전 계산된 성분 유사도.
 
     전체 쌍이 아니라 제품별 상위 20개만 저장한다. 제품 4,634개면
@@ -34,7 +34,7 @@ class ProductSimilarity(Base):
     어느 쪽이 나은지 비교할 수 있게 한다.
     """
 
-    __tablename__ = "product_similarities"
+    __tablename__ = "similarities"
     __table_args__ = (
         # 대체품 조회의 주 쿼리 경로: 기준제품 → 방식 → 점수 내림차순
         Index(
@@ -53,24 +53,24 @@ class ProductSimilarity(Base):
     )
     method: Mapped[str] = mapped_column(Text, primary_key=True)  # tfidf/jaccard/rbo
     score: Mapped[float] = mapped_column(Float, nullable=False)  # 0~1
-    shared_key_ingredients: Mapped[list | None] = mapped_column(JSONB)  # 근거 표시용
+    shared_ingredients: Mapped[list | None] = mapped_column(JSONB)  # 근거 표시용
     computed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
 
 
-class SkinTypeRecommendationRule(Base):
+class SkinTypeRule(Base):
     """피부타입별 추천/기피 태그 (Task 14).
 
     JSONB로 관리해 운영 중 수정이 가능하다 — 재배포 없이 추천 성향을 바꾼다.
     """
 
-    __tablename__ = "skin_type_recommendation_rules"
+    __tablename__ = "skin_type_rules"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     skin_type: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    recommended_tags: Mapped[list] = mapped_column(JSONB, nullable=False)
-    avoid_tags: Mapped[list] = mapped_column(JSONB, nullable=False)
+    include_tags: Mapped[list] = mapped_column(JSONB, nullable=False)
+    exclude_tags: Mapped[list] = mapped_column(JSONB, nullable=False)
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="true"
     )

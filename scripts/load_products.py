@@ -10,10 +10,10 @@
     사용기한, 내용량, 제조국, 제조사, 이미지파일명, 이미지URL, 상품URL, 수집일시
 
 성분 해석 순서
-    1) normalize()      → ingredients.normalized_name
+    1) normalize()      → ingredients.norm_name
     2) 별칭 조회        → ingredient_aliases (is_ambiguous 제외)
     3) normalize_loose() → 괄호까지 제거 후 재시도
-    4) 실패 시 ingredients에 신규 등록 (official_code=NULL)
+    4) 실패 시 ingredients에 신규 등록 (code=NULL)
   → 어떤 경우에도 성분을 버리지 않는다.
 """
 from __future__ import annotations
@@ -147,7 +147,7 @@ def main() -> None:
     execute_values(cur, """
         INSERT INTO products
             (goods_no, name, brand_id, category_id, price, rating, review_count,
-             image_url, product_url, volume, country, manufacturer, expiry_info,
+             image_url, product_url, volume, country, manufacturer, expiry,
              ingredient_count_raw)
         VALUES %s
         ON CONFLICT (goods_no) DO UPDATE SET
@@ -156,7 +156,7 @@ def main() -> None:
             rating = EXCLUDED.rating, review_count = EXCLUDED.review_count,
             image_url = EXCLUDED.image_url, product_url = EXCLUDED.product_url,
             volume = EXCLUDED.volume, country = EXCLUDED.country,
-            manufacturer = EXCLUDED.manufacturer, expiry_info = EXCLUDED.expiry_info,
+            manufacturer = EXCLUDED.manufacturer, expiry = EXCLUDED.expiry,
             ingredient_count_raw = EXCLUDED.ingredient_count_raw,
             updated_at = now()
     """, product_rows, page_size=500)
@@ -167,7 +167,7 @@ def main() -> None:
     print(f"제품 적재 {len(pid_of):,}건")
 
     # ── 성분 해석 ────────────────────────────────────────────────
-    cur.execute("SELECT normalized_name, id FROM ingredients")
+    cur.execute("SELECT norm_name, id FROM ingredients")
     ing_id = dict(cur.fetchall())
     cur.execute("SELECT alias, ingredient_id FROM ingredient_aliases WHERE NOT is_ambiguous")
     alias_id = dict(cur.fetchall())
@@ -177,7 +177,7 @@ def main() -> None:
     pending_new: dict[str, str] = {}   # normalized → 원문
 
     def resolve(raw: str) -> str | None:
-        """성분 원문 → normalized_name (신규는 pending_new에 적재)"""
+        """성분 원문 → norm_name (신규는 pending_new에 적재)"""
         key = normalize(raw)
         if not key:
             return None
@@ -224,11 +224,11 @@ def main() -> None:
     # 사전에 없던 성분 등록
     if pending_new:
         execute_values(cur,
-            """INSERT INTO ingredients (normalized_name, korean_name)
-               VALUES %s ON CONFLICT (normalized_name) DO NOTHING""",
+            """INSERT INTO ingredients (norm_name, name_ko)
+               VALUES %s ON CONFLICT (norm_name) DO NOTHING""",
             [(k, v) for k, v in pending_new.items()], page_size=1000)
         conn.commit()
-        cur.execute("SELECT normalized_name, id FROM ingredients")
+        cur.execute("SELECT norm_name, id FROM ingredients")
         ing_id = dict(cur.fetchall())
 
     # ── product_ingredients ──────────────────────────────────────

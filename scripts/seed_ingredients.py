@@ -57,7 +57,7 @@ def main() -> None:
     changes = read_gz_csv(CHANGES_CSV) if CHANGES_CSV.exists() else []
     print(f"표준화명칭목록 {len(rows):,}행 / 명칭변경목록 {len(changes):,}행")
 
-    # ── 표준 성분 집계 (normalized_name이 유일키) ──────────────────
+    # ── 표준 성분 집계 (norm_name이 유일키) ───────────────────────
     ingredients: dict[str, dict] = {}
     for r in rows:
         std = (r["std_ko"] or "").strip()
@@ -67,10 +67,10 @@ def main() -> None:
         if not key or key in ingredients:
             continue
         ingredients[key] = {
-            "normalized_name": key,
-            "korean_name": std,
-            "english_name": (r["std_en"] or "").strip() or None,
-            "official_code": (r["code"] or "").strip() or None,
+            "norm_name": key,
+            "name_ko": std,
+            "name_en": (r["std_en"] or "").strip() or None,
+            "code": (r["code"] or "").strip() or None,
         }
 
     # ── 별칭 집계 ────────────────────────────────────────────────
@@ -104,19 +104,19 @@ def main() -> None:
         execute_values(
             cur,
             """INSERT INTO ingredients
-                   (normalized_name, korean_name, english_name, official_code)
+                   (norm_name, name_ko, name_en, code)
                VALUES %s
-               ON CONFLICT (normalized_name) DO UPDATE SET
-                   korean_name   = EXCLUDED.korean_name,
-                   english_name  = COALESCE(EXCLUDED.english_name, ingredients.english_name),
-                   official_code = COALESCE(EXCLUDED.official_code, ingredients.official_code)""",
-            [(v["normalized_name"], v["korean_name"], v["english_name"], v["official_code"])
+               ON CONFLICT (norm_name) DO UPDATE SET
+                   name_ko = EXCLUDED.name_ko,
+                   name_en = COALESCE(EXCLUDED.name_en, ingredients.name_en),
+                   code    = COALESCE(EXCLUDED.code, ingredients.code)""",
+            [(v["norm_name"], v["name_ko"], v["name_en"], v["code"])
              for v in ingredients.values()],
             page_size=1000,
         )
         conn.commit()
 
-        cur.execute("SELECT normalized_name, id FROM ingredients")
+        cur.execute("SELECT norm_name, id FROM ingredients")
         id_of = dict(cur.fetchall())
 
         alias_rows = []

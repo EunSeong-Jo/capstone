@@ -5,11 +5,11 @@ Alembic이 Base.metadata로 스키마를 자동 생성하므로, 새 모델을 �
 """
 from app.db.base import Base
 from app.models.diagnosis import (
+    Diagnosis,
     DiagnosisRank,
     QuizOption,
     QuizQuestion,
     QuizVersion,
-    SkinDiagnosis,
 )
 from app.models.product import (
     Brand,
@@ -17,12 +17,12 @@ from app.models.product import (
     Ingredient,
     IngredientAlias,
     IngredientTag,
-    IngredientTagMap,
     Product,
     ProductIngredient,
+    Tag,
 )
-from app.models.recommendation import ProductSimilarity, SkinTypeRecommendationRule
-from app.models.user import RefreshToken, User, UserProfile
+from app.models.recommendation import Similarity, SkinTypeRule
+from app.models.user import Profile, RefreshToken, User
 
 __all__ = [
     "Base",
@@ -33,19 +33,19 @@ __all__ = [
     "Ingredient",
     "IngredientAlias",
     "ProductIngredient",
+    "Tag",
     "IngredientTag",
-    "IngredientTagMap",
     # 사용자 · 인증
     "User",
-    "UserProfile",
+    "Profile",
     "RefreshToken",
     # 진단
     "QuizVersion",
     "QuizQuestion",
     "QuizOption",
-    "SkinDiagnosis",
+    "Diagnosis",
     "DiagnosisRank",
     # 추천
-    "ProductSimilarity",
-    "SkinTypeRecommendationRule",
+    "Similarity",
+    "SkinTypeRule",
 ]

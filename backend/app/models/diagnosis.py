@@ -77,7 +77,7 @@ class QuizOption(Base):
     question: Mapped["QuizQuestion"] = relationship(back_populates="options")
 
 
-class SkinDiagnosis(Base):
+class Diagnosis(Base):
     """진단 1회 = 1행.
 
     user_id가 NULL이면 게스트 진단(Soft-gate). 가입 시 guest_token으로 찾아
@@ -85,10 +85,10 @@ class SkinDiagnosis(Base):
     과거 진단도 재산정할 수 있다 (PRD §7.2.2).
     """
 
-    __tablename__ = "skin_diagnoses"
+    __tablename__ = "diagnoses"
     __table_args__ = (
-        Index("idx_skin_diagnoses_user", "user_id", "created_at"),
-        Index("idx_skin_diagnoses_guest", "guest_token"),
+        Index("idx_diagnoses_user", "user_id", "created_at"),
+        Index("idx_diagnoses_guest", "guest_token"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -100,7 +100,7 @@ class SkinDiagnosis(Base):
         ForeignKey("quiz_versions.id", ondelete="RESTRICT"), nullable=False
     )
     answers: Mapped[dict] = mapped_column(JSONB, nullable=False)      # 응답 원본
-    axis_scores: Mapped[dict] = mapped_column(JSONB, nullable=False)  # 산출 5축
+    scores: Mapped[dict] = mapped_column(JSONB, nullable=False)      # 산출 5축
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
@@ -119,10 +119,10 @@ class DiagnosisRank(Base):
     __tablename__ = "diagnosis_ranks"
 
     diagnosis_id: Mapped[int] = mapped_column(
-        ForeignKey("skin_diagnoses.id", ondelete="CASCADE"), primary_key=True
+        ForeignKey("diagnoses.id", ondelete="CASCADE"), primary_key=True
     )
     rank: Mapped[int] = mapped_column(SmallInteger, primary_key=True)  # 1,2,3
     skin_type: Mapped[str] = mapped_column(Text, nullable=False)
     score: Mapped[float] = mapped_column(Float, nullable=False)
 
-    diagnosis: Mapped["SkinDiagnosis"] = relationship(back_populates="ranks")
+    diagnosis: Mapped["Diagnosis"] = relationship(back_populates="ranks")
