@@ -55,6 +55,17 @@ DEFAULT_CSV = REPO / "data/raw/oliveyoung_products.csv.gz"
 # 참고 분포(4,478건): 중앙 38 · 90퍼센타일 87 · 95퍼센타일 142 · 최대 1,978
 SIMILARITY_SAFE_MAX = 100   # 통계 표시용 기준값 (적재를 막지는 않는다)
 
+# 적재 대상에서 뺄 카테고리.
+#
+# 이너뷰티·향수/디퓨저 — 성분 기반 추천이 구조적으로 불가능하다. 먹는 제품과
+#   향료 제품은 화장품 전성분 표기 대상이 아니거나 표기 방식이 달라, 수집된
+#   60건 중 39건(65%)·48건 중 24건(50%)에 성분이 아예 없다.
+# 남성케어 — 성분은 온전하나 50건뿐이라 "성분이 비슷하면서 더 싼 제품"을
+#   찾을 후보군이 되지 않는다.
+#
+# CSV 원본은 그대로 두므로 이 집합을 비우고 다시 돌리면 언제든 복구된다.
+EXCLUDED_CATEGORIES = {"이너뷰티", "향수/디퓨저", "남성케어"}
+
 _GOODS_NO = re.compile(r"goodsNo=([A-Za-z0-9]+)")
 
 
@@ -90,15 +101,19 @@ def main() -> None:
 
     # ── goods_no 기준 dedup (뒤에 온 행이 최신) ──────────────────
     by_goods: dict[str, dict] = {}
-    no_goods_no = 0
+    no_goods_no = excluded = 0
     for r in rows:
+        if (r.get("카테고리") or "").strip() in EXCLUDED_CATEGORIES:
+            excluded += 1
+            continue
         m = _GOODS_NO.search(r.get("상품URL", "") or "")
         if not m:
             no_goods_no += 1
             continue
         by_goods[m.group(1)] = r
+    dup = len(rows) - len(by_goods) - no_goods_no - excluded
     print(f"고유 제품 {len(by_goods):,}건 "
-          f"(중복 {len(rows) - len(by_goods) - no_goods_no:,} / URL없음 {no_goods_no})")
+          f"(중복 {dup:,} / URL없음 {no_goods_no} / 제외 카테고리 {excluded:,})")
 
     conn = psycopg2.connect(settings.DATABASE_DSN)
     cur = conn.cursor()
