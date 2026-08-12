@@ -66,7 +66,28 @@ SIMILARITY_SAFE_MAX = 100   # 통계 표시용 기준값 (적재를 막지는 �
 # CSV 원본은 그대로 두므로 이 집합을 비우고 다시 돌리면 언제든 복구된다.
 EXCLUDED_CATEGORIES = {"이너뷰티", "향수/디퓨저", "남성케어"}
 
+# 성분 칸에 성분 대신 안내문구가 적힌 경우. 판매자가 상품정보제공고시 표에
+# 그렇게 입력한 것이라 재수집해도 같은 값이 나온다.
+#
+#     '상세페이지 참조' · '상품 상세페이지 참고.' · '■ 제품 상세페이지 참조'
+#
+# 성분이 딱 하나로 파싱될 때만 적용한다. 정상 단일성분 제품
+# ('아벤느 온천수(아쿠아)', '로즈힙씨오일(100%)')을 잘못 걸러내지 않기 위해서다.
+_PLACEHOLDER = re.compile(r"상세\s*페이지|상품\s*상세|별도\s*표기|해당\s*없음|^\s*없음\s*$")
+
 _GOODS_NO = re.compile(r"goodsNo=([A-Za-z0-9]+)")
+
+
+def is_unusable(parts: list[str]) -> bool:
+    """전성분을 얻을 수 없는 제품인지 판단.
+
+    성분이 없으면 대체품 추천 자체가 불가능하다. 기기·브러시·패치처럼
+    애초에 화장품이 아닌 것과, 판매자가 성분 대신 안내문구를 넣은 것이
+    여기 걸린다.
+    """
+    if not parts:
+        return True
+    return len(parts) == 1 and bool(_PLACEHOLDER.search(parts[0]))
 
 
 def to_int(s: str) -> int | None:
@@ -118,6 +139,24 @@ def main() -> None:
     conn = psycopg2.connect(settings.DATABASE_DSN)
     cur = conn.cursor()
 
+    # ── 성분 사전 선로드 ─────────────────────────────────────────
+    # 전성분 구분자가 제품마다 달라(쉼표/공백/@) 파서가 사전을 참고해야 한다.
+    cur.execute("SELECT norm_name, id FROM ingredients")
+    ing_id = dict(cur.fetchall())
+    cur.execute("SELECT alias, ingredient_id FROM ingredient_aliases WHERE NOT is_ambiguous")
+    alias_id = dict(cur.fetchall())
+    vocab = set(ing_id) | set(alias_id)
+    print(f"사전 로드 — 성분 {len(ing_id):,} / 별칭 {len(alias_id):,}")
+
+    # ── 전성분을 얻을 수 없는 제품 제외 ──────────────────────────
+    parsed = {g: parse_ingredients(r.get("화장품성분", ""), vocab)
+              for g, r in by_goods.items()}
+    unusable = {g for g, p in parsed.items() if is_unusable(p)}
+    if unusable:
+        for g in unusable:
+            del by_goods[g], parsed[g]
+        print(f"성분 없음으로 제외 {len(unusable):,}건 → 적재 대상 {len(by_goods):,}건")
+
     # ── 브랜드 · 카테고리 ────────────────────────────────────────
     brands = sorted({(r.get("브랜드") or "").strip() for r in by_goods.values()} - {""})
     cats = sorted({(r.get("카테고리") or "").strip() for r in by_goods.values()} - {""})
@@ -141,7 +180,7 @@ def main() -> None:
     for gno, r in by_goods.items():
         # 원본 문자열 기준 성분 개수(중복 포함). product_ingredients 행수는
         # 제품 내 중복을 제거하므로 이 값과 다를 수 있다.
-        raw_count = len(parse_ingredients(r.get("화장품성분", "")))
+        raw_count = len(parsed[gno])
         product_rows.append((
             gno,
             (r.get("상품명") or "").strip(),
@@ -182,12 +221,6 @@ def main() -> None:
     print(f"제품 적재 {len(pid_of):,}건")
 
     # ── 성분 해석 ────────────────────────────────────────────────
-    cur.execute("SELECT norm_name, id FROM ingredients")
-    ing_id = dict(cur.fetchall())
-    cur.execute("SELECT alias, ingredient_id FROM ingredient_aliases WHERE NOT is_ambiguous")
-    alias_id = dict(cur.fetchall())
-    print(f"사전 로드 — 성분 {len(ing_id):,} / 별칭 {len(alias_id):,}")
-
     stat = {"direct": 0, "alias": 0, "loose": 0, "new": 0}
     pending_new: dict[str, str] = {}   # normalized → 원문
 
@@ -212,12 +245,9 @@ def main() -> None:
         return key
 
     links: list[tuple[str, str, int, str]] = []  # (goods_no, key, position, raw)
-    over_threshold = skipped_empty = 0
-    for gno, r in by_goods.items():
-        parts = parse_ingredients(r.get("화장품성분", ""))
-        if not parts:
-            skipped_empty += 1
-            continue
+    over_threshold = 0
+    for gno in by_goods:
+        parts = parsed[gno]
         if len(parts) > SIMILARITY_SAFE_MAX:
             over_threshold += 1   # 적재는 하되 집계만 남긴다
         seen: set[str] = set()
@@ -232,8 +262,7 @@ def main() -> None:
 
     print(f"성분 해석 — 사전직결 {stat['direct']:,} / 별칭 {stat['alias']:,} / "
           f"완화 {stat['loose']:,} / 신규 {stat['new']:,}")
-    print(f"성분없음 {skipped_empty}건 · "
-          f"성분 {SIMILARITY_SAFE_MAX}개 초과 {over_threshold}건"
+    print(f"성분 {SIMILARITY_SAFE_MAX}개 초과 {over_threshold}건 "
           f"(적재는 하되 유사도 계산에서 제외 권장)")
 
     # 사전에 없던 성분 등록
