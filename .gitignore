@@ -113,3 +113,11 @@ scripts/ocr_benchmark/labels.csv
 # 수집 결과는 data/raw/ 에 gzip으로 커밋한다
 # ───────────────────────────────
 crawling/
+
+# ───────────────────────────────
+# 로컬 도구 상태 (커밋 대상 아님)
+# .neon            — Neon CLI(npx) 초기화 마커
+# skills-lock.json — Claude Code 스킬 핀. 개발자마다 다르다
+# ───────────────────────────────
+.neon
+skills-lock.json

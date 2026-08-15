@@ -4,7 +4,7 @@
   - products / brands / categories : 올리브영 크롤러 (scripts/load_products.py)
   - ingredients / ingredient_aliases : 대한화장품협회 표준화명칭목록
                                        (scripts/seed_ingredients.py)
-  - ingredient_tags / grade / ewg   : 수동 큐레이션 (아직 미착수)
+  - tags / ingredient_tags / grade / ewg : 수동 큐레이션 (아직 미착수)
 """
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ class Product(Base, TimestampMixin):
     __table_args__ = (
         Index("idx_products_brand", "brand_id"),
         Index("idx_products_category", "category_id"),
-        Index("idx_products_availability", "availability"),
+        Index("idx_products_status", "status"),
         Index("idx_products_price", "price"),
         # 제품명 퍼지 검색 (pg_trgm). 확장은 첫 마이그레이션에서 설치한다.
         Index(
@@ -89,7 +89,7 @@ class Product(Base, TimestampMixin):
     )
 
     price: Mapped[int | None] = mapped_column(Integer)           # 원 단위
-    original_price: Mapped[int | None] = mapped_column(Integer)  # 할인 전
+    list_price: Mapped[int | None] = mapped_column(Integer)      # 할인 전 정가
     discount_rate: Mapped[int | None] = mapped_column(SmallInteger)
     rating: Mapped[float | None] = mapped_column(Numeric(2, 1))
     review_count: Mapped[int | None] = mapped_column(Integer)
@@ -102,10 +102,20 @@ class Product(Base, TimestampMixin):
     volume: Mapped[str | None] = mapped_column(Text)
     country: Mapped[str | None] = mapped_column(Text)
     manufacturer: Mapped[str | None] = mapped_column(Text)
-    expiry_info: Mapped[str | None] = mapped_column(Text)
+    expiry: Mapped[str | None] = mapped_column(Text)
+
+    # 원본 전성분 문자열을 파싱한 성분 개수(중복 포함).
+    # product_ingredients 행수와 다르다 — 그쪽은 제품 내 중복 성분을 한 번만
+    # 세기 때문. 4,634건 중 719건(15.5%)에서 값이 갈린다.
+    #
+    # 차이가 클수록 'N종 택1' 기획세트일 가능성이 높다. 호수별 전성분을
+    # 한 셀에 이어 붙이면서 같은 성분이 반복되기 때문
+    # (최대 사례: 원본 1,978개 → 고유 141개).
+    # 유사도 계산에서 이런 제품을 걸러낼 때 이 값이 판단 근거가 된다.
+    ingredient_count_raw: Mapped[int | None] = mapped_column(Integer)
 
     report_no: Mapped[str | None] = mapped_column(Text)  # 식약처 보고번호
-    availability: Mapped[str] = mapped_column(
+    status: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="active"
     )  # active / soldout / discontinued
     source: Mapped[str] = mapped_column(
@@ -122,19 +132,19 @@ class Product(Base, TimestampMixin):
 class Ingredient(Base, TimestampMixin):
     """성분 마스터. 대한화장품협회 표준화명칭목록이 원본.
 
-    normalized_name이 표기 흔들림을 흡수하는 조회 키다
+    norm_name이 표기 흔들림을 흡수하는 조회 키다
     ('살리실릭애씨드(0.5%)' · '살리실릭애씨드' → 같은 행).
-    official_code가 NULL이면 사전에 없는 성분(크롤링 원문 그대로 등록).
+    code가 NULL이면 사전에 없는 성분(크롤링 원문 그대로 등록).
     """
 
     __tablename__ = "ingredients"
-    __table_args__ = (Index("idx_ingredients_official_code", "official_code"),)
+    __table_args__ = (Index("idx_ingredients_code", "code"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    normalized_name: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    korean_name: Mapped[str] = mapped_column(Text, nullable=False)
-    english_name: Mapped[str | None] = mapped_column(Text)   # INCI
-    official_code: Mapped[str | None] = mapped_column(String(20))
+    norm_name: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    name_ko: Mapped[str] = mapped_column(Text, nullable=False)
+    name_en: Mapped[str | None] = mapped_column(Text)   # INCI
+    code: Mapped[str | None] = mapped_column(String(20))
 
     # 아래 3개는 수동 큐레이션 대상 (크롤링으로 얻을 수 없음)
     ewg_grade: Mapped[int | None] = mapped_column(SmallInteger)   # 1~10
@@ -200,24 +210,24 @@ class ProductIngredient(Base):
     ingredient: Mapped["Ingredient"] = relationship(back_populates="products")
 
 
-class IngredientTag(Base):
-    """효능 태그. skin_type_recommendation_rules가 참조하는 어휘의 실체."""
+class Tag(Base):
+    """효능 태그 마스터. skin_type_rules가 참조하는 어휘의 실체."""
 
-    __tablename__ = "ingredient_tags"
+    __tablename__ = "tags"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     code: Mapped[str] = mapped_column(Text, nullable=False, unique=True)  # moisture_balance
     label: Mapped[str] = mapped_column(Text, nullable=False)              # 균형보습
 
 
-class IngredientTagMap(Base):
+class IngredientTag(Base):
     # (ingredient_id, tag_id) 복합 PK가 유일성을 이미 보장하므로
     # 별도 UniqueConstraint를 두지 않는다 (두면 Alembic이 매번 드리프트로 잡는다).
-    __tablename__ = "ingredient_tag_map"
+    __tablename__ = "ingredient_tags"
 
     ingredient_id: Mapped[int] = mapped_column(
         ForeignKey("ingredients.id", ondelete="CASCADE"), primary_key=True
     )
     tag_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredient_tags.id", ondelete="CASCADE"), primary_key=True
+        ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True
     )

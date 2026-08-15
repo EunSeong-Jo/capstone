@@ -27,19 +27,8 @@ _OPENERS = "([{"
 _CLOSERS = ")]}"
 
 
-def parse_ingredients(raw: str) -> list[str]:
-    """전성분 문자열을 성분 목록으로 분리.
-
-    쉼표를 구분자로 쓰되 두 경우는 예외로 둔다.
-      1) 괄호 안에 있는 쉼표          — 자작나무수액(10,000ppm)
-      2) 숫자와 숫자 사이의 쉼표      — 1,2-헥산다이올
-
-    >>> parse_ingredients("정제수, 1,2-헥산다이올, 자작나무수액(10,000ppm)")
-    ['정제수', '1,2-헥산다이올', '자작나무수액(10,000ppm)']
-    """
-    if not raw:
-        return []
-
+def _split_by_comma(raw: str) -> list[str]:
+    """쉼표로 분리. 괄호 안 쉼표와 숫자 사이 쉼표는 구분자로 보지 않는다."""
     out: list[str] = []
     buf: list[str] = []
     depth = 0
@@ -67,6 +56,72 @@ def parse_ingredients(raw: str) -> list[str]:
     if token:
         out.append(token)
     return out
+
+
+def _segment_by_vocab(raw: str, vocab: set[str], max_join: int = 4) -> list[str]:
+    """공백으로 나뉜 전성분을 사전 최장일치로 묶는다.
+
+    성분명 자체에 공백이 들어가는 경우가 있어(속명 + 종명) 단순 split이
+    통하지 않는다. 협회 사전 기준 3.9%가 여기 해당한다.
+
+        '정제수 알로에 페리추출물 글리세린'
+          → ['정제수', '알로에 페리추출물', '글리세린']
+
+    사전에 없으면 한 토큰씩 끊어 원문을 그대로 남긴다. 성분을 버리지 않는다.
+    """
+    tokens = raw.split()
+    out: list[str] = []
+    i = 0
+    while i < len(tokens):
+        matched = 0
+        # 긴 것부터 시도해 가장 긴 일치를 취한다
+        for n in range(min(max_join, len(tokens) - i), 1, -1):
+            cand = " ".join(tokens[i:i + n])
+            if normalize(cand) in vocab:
+                out.append(cand)
+                matched = n
+                break
+        if not matched:
+            out.append(tokens[i])
+            matched = 1
+        i += matched
+    return out
+
+
+def parse_ingredients(raw: str, vocab: set[str] | None = None) -> list[str]:
+    """전성분 문자열을 성분 목록으로 분리.
+
+    구분자가 제품마다 다르다. 쉼표가 표준이지만 공백이나 '@'를 쓰는
+    제품도 있어, 쉼표로 하나밖에 안 나오면 다른 구분자를 시도한다.
+
+      1) 쉼표  — 대부분(4,300여 건). 괄호 안 쉼표와 '1,2-' 는 예외 처리
+      2) '@'   — 성분명에 쓰이지 않아 그대로 잘라도 안전
+      3) 공백  — vocab이 있을 때만. 사전 최장일치로 묶는다
+
+    '/'는 구분자로 쓰지 않는다. '약모밀꽃/잎/줄기수'처럼 성분명의 일부라
+    자르면 존재하지 않는 성분이 생긴다. 공백 처리 과정에서 함께 해결된다.
+
+    vocab: 정규화된 성분명 집합. 없으면 1)·2)만 수행한다.
+
+    >>> parse_ingredients("정제수, 1,2-헥산다이올, 자작나무수액(10,000ppm)")
+    ['정제수', '1,2-헥산다이올', '자작나무수액(10,000ppm)']
+    >>> parse_ingredients("정제수@글리세린@판테놀")
+    ['정제수', '글리세린', '판테놀']
+    """
+    if not raw or not raw.strip():
+        return []
+
+    parts = _split_by_comma(raw)
+    if len(parts) > 1:
+        return parts
+
+    if "@" in raw:
+        return [t.strip() for t in raw.split("@") if t.strip()]
+
+    if vocab and len(raw.split()) > 1:
+        return _segment_by_vocab(raw, vocab)
+
+    return parts
 
 
 def normalize(name: str) -> str:

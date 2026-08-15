@@ -26,7 +26,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     password_hash: Mapped[str | None] = mapped_column(Text)  # bcrypt. 소셜 로그인은 NULL
     nickname: Mapped[str | None] = mapped_column(Text)
-    auth_provider: Mapped[str] = mapped_column(
+    provider: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="local"
     )  # local / kakao / google
     is_active: Mapped[bool] = mapped_column(
@@ -37,7 +37,7 @@ class User(Base):
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    profile: Mapped["UserProfile | None"] = relationship(
+    profile: Mapped["Profile | None"] = relationship(
         back_populates="user", cascade="all, delete-orphan", uselist=False
     )
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
@@ -45,14 +45,14 @@ class User(Base):
     )
 
 
-class UserProfile(Base, TimestampMixin):
+class Profile(Base, TimestampMixin):
     """users와 1:1.
 
     skin_type은 최신 진단 1순위를 복사해 둔 비정규화 캐시다. 매 요청마다
-    skin_diagnoses를 조회하지 않기 위한 것이며, 원본은 diagnosis_ranks다.
+    diagnoses를 조회하지 않기 위한 것이며, 원본은 diagnosis_ranks다.
     """
 
-    __tablename__ = "user_profiles"
+    __tablename__ = "profiles"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -60,10 +60,10 @@ class UserProfile(Base, TimestampMixin):
         primary_key=True,
     )
     skin_type: Mapped[str | None] = mapped_column(Text)  # 8타입 코드
-    axis_scores: Mapped[dict | None] = mapped_column(JSONB)  # 5축 점수
+    scores: Mapped[dict | None] = mapped_column(JSONB)  # 5축 점수
     budget_min: Mapped[int | None] = mapped_column(Integer)
     budget_max: Mapped[int | None] = mapped_column(Integer)
-    interested_domains: Mapped[list | None] = mapped_column(JSONB)
+    domains: Mapped[list | None] = mapped_column(JSONB)
 
     user: Mapped["User"] = relationship(back_populates="profile")
 
