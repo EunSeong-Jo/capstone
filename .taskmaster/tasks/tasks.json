@@ -9,7 +9,7 @@
         "testStrategy": "Docker Compose로 모든 서비스가 정상적으로 기동되는지 확인합니다. 각 서비스의 로그를 확인하여 오류가 없는지 점검합니다.",
         "priority": "high",
         "dependencies": [],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -82,21 +82,21 @@
             "id": 6,
             "title": "Sentry 에러 추적 및 structlog 구조화 로깅 설정 (P0)",
             "description": "P0 로컬 개발 환경에서 Sentry SDK 초기화, DSN 환경변수 설정, structlog를 이용한 JSON 포맷 구조화 로깅 설정. 회원가입 퍼널·QnA 완주율·추천 클릭률 이벤트 로깅 구조 정의.",
-            "status": "in-progress",
+            "status": "done",
             "dependencies": [],
             "details": "PRD 5.4 P0 요구사항: Sentry(에러 추적) + structlog(구조화 로깅, 로컬 파일). P1 단계에서 Task 9의 Prometheus+Grafana와 별개로 P0에서 먼저 적용 필요.",
             "parentId": "undefined",
-            "updatedAt": "2026-05-26T07:13:59.026Z"
+            "updatedAt": "2026-08-17T14:10:54.905Z"
           }
         ],
-        "updatedAt": "2026-05-26T07:13:59.026Z",
+        "updatedAt": "2026-08-17T14:10:54.905Z",
         "group": "인프라"
       },
       {
         "id": "2",
         "title": "제품 데이터 수집기 개발",
         "description": "식약처 API와 올리브영 크롤러를 통해 제품 데이터를 수집합니다.",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           "1"
         ],
@@ -110,9 +110,10 @@
             "description": "식약처 API에서 제품 데이터를 수집하기 위한 Python 스크립트를 작성합니다.",
             "dependencies": [],
             "details": "식약처 API의 엔드포인트를 확인하고, 필요한 인증 정보를 포함하여 데이터를 요청하는 스크립트를 작성합니다. 수집된 데이터를 JSON 형식으로 변환합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": null,
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:21.979Z"
           },
           {
             "id": 2,
@@ -120,9 +121,10 @@
             "description": "Selenium과 BeautifulSoup을 사용하여 올리브영 웹사이트에서 제품 정보를 크롤링합니다.",
             "dependencies": [],
             "details": "올리브영 웹사이트의 구조를 분석하여 필요한 제품 정보를 추출하는 크롤러를 작성합니다. Selenium을 사용하여 동적 콘텐츠를 로드하고, BeautifulSoup으로 HTML을 파싱합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": null,
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:21.986Z"
           },
           {
             "id": 3,
@@ -133,9 +135,10 @@
               2
             ],
             "details": "PostgreSQL 데이터베이스에 연결하고, 수집된 데이터를 적절한 테이블에 삽입하는 코드를 작성합니다. 데이터베이스 스키마를 설계하고, 데이터 무결성을 유지합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": null,
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:21.990Z"
           },
           {
             "id": 4,
@@ -145,9 +148,10 @@
               3
             ],
             "details": "수집된 데이터의 정확성과 일관성을 확인하기 위해 샘플 데이터를 추출하고, 예상 결과와 비교합니다. 데이터베이스의 일관성을 체크합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": null,
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:21.995Z"
           },
           {
             "id": 5,
@@ -169,9 +173,10 @@
               3
             ],
             "details": "INCI Name 매핑 테이블을 구축하고, 500개 이상의 동의어 사전을 생성합니다. 자동 정규화 스크립트를 작성하여 95% 이상의 정규화율을 목표로 합니다. 미매핑 성분은 수동 검토 큐에 추가하여 관리합니다. '정제수' = 'Water' = 'Aqua', '비타민C' = '아스코르빈산' = 'ascorbic acid' 등의 동의어를 통합합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "정규화율 95% 이상 달성 여부를 측정하고, 샘플 성분명으로 매핑 정확도를 검증합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.000Z"
           },
           {
             "id": 7,
@@ -181,9 +186,10 @@
               6
             ],
             "details": "화해 공개 데이터, 대한화장품학회 자료, CIR 데이터베이스에서 성분 정보를 수집합니다. ingredient_dictionary 테이블에 INCI Name, 한글명, 기능 태그(보습/미백/자외선차단 등), EWG 안전등급(1~10), 쉬운 한국어 설명, 주의사항을 입력합니다. P0 단계에서는 검색 시 성분 설명 표시에 사용하고, P1 단계에서 챗봇 Context Injection용 RAG로 활용합니다.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "500종 이상 성분 데이터 확보 여부를 확인하고, 챗봇 테스트 시 성분 설명의 정확성을 검증합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:30.331Z"
           },
           {
             "id": 8,
@@ -223,7 +229,8 @@
             "parentId": "undefined"
           }
         ],
-        "group": "데이터·수집"
+        "group": "데이터·수집",
+        "updatedAt": "2026-08-17T14:10:30.331Z"
       },
       {
         "id": "3",
@@ -342,7 +349,7 @@
         "dependencies": [
           "1"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -350,9 +357,10 @@
             "description": "OpenCV로 이미지를 전처리하고, EAST 또는 CRAFT 모델로 텍스트 영역을 검출합니다.",
             "dependencies": [],
             "details": "OpenCV로 이미지 리사이즈(최대 1280px), 자동 회전 보정(EXIF Orientation), 밝기/대비 정규화, 노이즈 제거(Gaussian Blur)를 수행합니다. EAST Text Detector 또는 CRAFT를 사용하여 패키지 라벨, 브랜드 로고 텍스트 영역(ROI)을 우선 검출합니다. 검출된 ROI는 Tesseract와 EasyOCR에 입력되어 정확도를 향상시킵니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "다양한 각도 및 조명 조건의 이미지로 텍스트 영역 검출 정확도를 테스트합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.005Z"
           },
           {
             "id": 2,
@@ -362,9 +370,10 @@
               1
             ],
             "details": "Tesseract의 설정을 최적화하여 다양한 폰트와 크기의 텍스트를 인식할 수 있도록 합니다. 추출된 텍스트는 후속 단계에서 사용됩니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": null,
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.010Z"
           },
           {
             "id": 3,
@@ -374,9 +383,10 @@
               1
             ],
             "details": "EasyOCR의 모델을 활용하여 다양한 언어의 텍스트를 인식합니다. Tesseract와의 결과를 비교하여 최적의 방법을 결정합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": null,
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.015Z"
           },
           {
             "id": 4,
@@ -401,18 +411,20 @@
               4
             ],
             "details": "다양한 조건의 이미지를 사용하여 모듈의 인식률을 측정합니다. 인식 실패 시 Fallback 기능이 작동하는지 확인합니다.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": null,
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:30.338Z"
           }
         ],
-        "group": "AI·ML"
+        "group": "AI·ML",
+        "updatedAt": "2026-08-17T14:10:30.338Z"
       },
       {
         "id": "5",
         "title": "프론트엔드 개발",
         "description": "React 18 + TypeScript + Tailwind CSS로 프론트엔드를 개발합니다. 온보딩 흐름(Task 11)을 제외한 메인 홈, 제품 검색·상세, 대체품 비교, 구매 링크, 마이페이지, 하단 네비게이션, 모바일 반응형 등 핵심 화면을 구현합니다.",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           "3",
           "4",
@@ -428,9 +440,10 @@
             "description": "PRD v1.8 디자인 토큰(--primary: #3D8F6F, --accent: #FF5C7A 등)을 Tailwind CSS 설정에 적용하고, 공통 UI 컴포넌트(버튼, 칩, 카드, 모달)를 개발합니다.",
             "dependencies": [],
             "details": "docs/prototype.html의 CSS 변수 체계를 Tailwind CSS tailwind.config.js에 맵핑합니다. 공통 컴포넌트: Button(primary/ghost/next), Chip(on/off/warn), Card(product/rank), Modal(bottom-sheet/center), ProgressBar, Icon 등. 색상 토큰: primary(#3D8F6F), primary-light(#EAF5EF), accent(#FF5C7A), accent-light(#FFF0F3), gray 팔레트, shadow 변수. 타이포그래피: Noto Sans KR, 크기 변수(t-xs~t-4xl). 간격/라운딩 변수 적용.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Storybook 또는 테스트 페이지에서 모든 공통 컴포넌트가 디자인 토큰에 맞게 렌더링되는지 확인합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.020Z"
           },
           {
             "id": 2,
@@ -440,9 +453,10 @@
               1
             ],
             "details": "prototype.html의 #s-home, header, search-wrap, banner, type-badge, section 스타일 참조. 헤더: 로고('대체뭐야'), 알림/설정 아이콘. 검색 바(search-pill): 돋보기 아이콘, 플레이스홀더, 카메라 아이콘. 배너 슬라이더(banner, bslide): 프로모션/이벤트 배너, 도트 인디케이터. 피부타입 배지(type-badge): 로그인 사용자만 표시, 캐릭터 아이콘, 타입명, 서브텍스트. 게스트 모드: '피부타입 진단하고 맞춤 추천 받기' 배너 표시. 로그인 모드: 피부타입 기반 큐레이션 섹션('당신을 위한 추천'). 섹션: 인기 대체품, 카테고리별 추천 등. 제품 그리드(prod-grid), 랭크 카드(rcard).",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "게스트/로그인 상태에 따라 올바른 UI가 표시되는지, 배너 슬라이더가 정상 작동하는지, 검색 바 클릭 시 검색 화면으로 이동하는지 테스트합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.025Z"
           },
           {
             "id": 3,
@@ -452,9 +466,10 @@
               1
             ],
             "details": "검색 입력 필드: 자동완성 기능, 최근 검색어 표시. 검색 필터 칩(chips-row): 카테고리, 브랜드, 가격대 필터. 이미지 검색: 카메라 아이콘 클릭 시 이미지 업로드 또는 촬영. React와 Tailwind CSS를 사용하여 반응형 디자인 적용.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "검색어 입력 및 자동완성이 정상 작동하는지, 이미지 업로드 후 검색이 실행되는지 테스트합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.030Z"
           },
           {
             "id": 4,
@@ -464,9 +479,10 @@
               3
             ],
             "details": "검색 결과를 그리드(prod-grid) 또는 리스트 형태로 표시. 각 제품 카드(prod-card): 이미지, 배지(BEST/NEW/SALE), 찜하기 버튼, 브랜드명, 제품명, 별점, 가격. 유사도 점수 배지 표시. 성분 유사도 기반 정렬. Tailwind CSS를 활용하여 스타일링.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "검색 결과가 올바르게 표시되는지, 제품 카드 클릭 시 상세 페이지로 이동하는지 테스트합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.035Z"
           },
           {
             "id": 5,
@@ -476,9 +492,10 @@
               4
             ],
             "details": "선택된 제품 비교 화면: 2~3개 제품 나란히 표시. 비교 항목: 가격, 용량, ml당 가격, 주요 성분, 별점. 가성비 비교표: 테이블 형태로 시각화. 성분 일치/차이 하이라이트. React 컴포넌트로 비교 로직 구현.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "제품 선택 후 비교 화면이 올바르게 표시되는지, 가성비 계산이 정확한지 테스트합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.040Z"
           },
           {
             "id": 6,
@@ -501,9 +518,10 @@
               1
             ],
             "details": "피부타입 카드: 캐릭터 아이콘, 타입명, 진단일, 추천/주의 성분 요약. 사용 통계: 검색 횟수, 비교 횟수, 찜한 제품 수. 재진단 메뉴: '피부타입 다시 진단하기' 버튼 클릭 시 QnA 화면으로 이동. 설정: 알림, 로그아웃 등. 로그인 상태가 아닌 경우 로그인 유도 UI 표시.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "마이페이지 정보가 올바르게 표시되는지, 재진단 버튼 클릭 시 QnA 화면으로 이동하는지 테스트합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.044Z"
           },
           {
             "id": 8,
@@ -513,9 +531,10 @@
               1
             ],
             "details": "prototype.html의 bnav 스타일 참조. 하단 내비게이션: 홈, 검색, 비교, 마이페이지 탭. 활성 탭 하이라이트(primary 색상). 화면 전환: 슬라이드 애니메이션(screen.active, screen.slide-left). React Router 또는 상태 기반 화면 관리.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "각 탭 클릭 시 올바른 화면으로 전환되는지, 애니메이션이 부드럽게 작동하는지 테스트합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.049Z"
           },
           {
             "id": 9,
@@ -529,9 +548,10 @@
               7
             ],
             "details": "CSS 미디어 쿼리를 사용하여 다양한 화면 크기(320px~428px 모바일, 768px 태블릿)에 맞춰 UI 요소의 크기와 배치를 조정합니다. 터치 친화적 버튼 크기(최소 44px), 스와이프 제스처 지원. 모든 주요 화면에서 반응형 적용.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "다양한 모바일 디바이스 및 화면 크기에서 UI가 올바르게 표시되는지 테스트합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.056Z"
           },
           {
             "id": 10,
@@ -553,7 +573,8 @@
             "parentId": "undefined"
           }
         ],
-        "group": "프론트엔드"
+        "group": "프론트엔드",
+        "updatedAt": "2026-08-17T14:10:22.056Z"
       },
       {
         "id": "6",
@@ -566,7 +587,7 @@
           "3",
           "4"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -625,12 +646,14 @@
               4
             ],
             "details": "Swagger를 설정하여 모든 API 엔드포인트에 대한 문서를 자동으로 생성합니다. 이를 통해 개발자와 사용자 모두 API 사용법을 쉽게 이해할 수 있도록 합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Swagger UI를 통해 생성된 문서를 검토하고, 모든 API 엔드포인트가 올바르게 문서화되었는지 확인합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.061Z"
           }
         ],
-        "group": "백엔드"
+        "group": "백엔드",
+        "updatedAt": "2026-08-17T14:10:22.061Z"
       },
       {
         "id": "7",
@@ -645,7 +668,7 @@
           "5",
           "6"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -653,9 +676,10 @@
             "description": "AI 챗봇에 Claude API를 통합하여 자연어 처리 기능을 구현합니다.",
             "dependencies": [],
             "details": "Claude API를 호출하는 기능을 구현하고, API 응답을 처리하여 챗봇의 대화 흐름에 맞게 변환합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": null,
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.065Z"
           },
           {
             "id": 2,
@@ -665,9 +689,10 @@
               1
             ],
             "details": "Context Builder로 현재 조회 중인 제품 정보(제품명, 전성분 리스트), 대체품 분석 결과를 대화에 자동 주입합니다. ingredient_dictionary 테이블에서 관련 성분 정보를 조회하는 RAG Lite를 구현합니다. 최근 대화 히스토리 최대 10턴을 유지하고, 오래된 턴은 요약 압축하여 토큰을 절약합니다. System Prompt를 동적으로 조립하며, 의료 진단 질문 시 '피부과 전문의 상담을 권장드려요' 메시지로 차단합니다.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "제품 맥락이 대화에 정확히 반영되는지, 성분 설명이 ingredient_dictionary에서 올바르게 조회되는지, 의료 진단 차단이 작동하는지 테스트합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:30.343Z"
           },
           {
             "id": 3,
@@ -677,9 +702,10 @@
               2
             ],
             "details": "React와 Tailwind CSS를 사용하여 챗봇의 대화창 및 입력창을 디자인하고, 사용자 경험을 고려하여 반응형으로 구현합니다.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": null,
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:30.348Z"
           },
           {
             "id": 4,
@@ -706,7 +732,8 @@
             "parentId": "undefined"
           }
         ],
-        "group": "AI·ML"
+        "group": "AI·ML",
+        "updatedAt": "2026-08-17T14:10:30.348Z"
       },
       {
         "id": "8",
@@ -793,7 +820,7 @@
           "7",
           "8"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -849,9 +876,10 @@
               2
             ],
             "details": "Sentry 계정을 생성하고 FastAPI 애플리케이션에 Sentry SDK를 설치하여 에러 추적을 설정합니다. structlog를 설치하고 JSON 포맷으로 구조화 로깅을 구현합니다. 검색 쿼리, 유사도 결과, 이미지 분석 로그를 수집합니다. P0 단계에서는 로컬 파일 로깅을 사용하고, P1 단계에서는 서버 집중 로깅으로 전환합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "에러 발생 시 Sentry에 알림이 전송되는지, 로그가 JSON 포맷으로 올바르게 기록되는지 확인합니다.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.070Z"
           },
           {
             "id": 6,
@@ -866,7 +894,8 @@
             "parentId": "undefined"
           }
         ],
-        "group": "인프라"
+        "group": "인프라",
+        "updatedAt": "2026-08-17T14:10:22.070Z"
       },
       {
         "id": "10",
@@ -947,7 +976,7 @@
         "description": "prototype.html 디자인 토큰 기반 React 컴포넌트로 온보딩 스플래시, QnA 화면, 결과 화면, 추천 세트 팝업, Soft-gate 모달을 구현하고, 중간 이탈 시 localStorage 진행률 저장 기능을 포함합니다.",
         "details": "## 구현 상세\n\n### 1. 디자인 토큰 시스템 (prototype.html 기반)\nprototype.html에 정의된 CSS 변수를 Tailwind CSS 설정으로 마이그레이션:\n- Primary: `#3D8F6F`, Primary-light: `#EAF5EF`, Primary-dark: `#2B6B52`\n- Accent: `#FF5C7A`, Accent-light: `#FFF0F3`\n- Gray scale: `#FFFFFF` ~ `#111827`\n- Typography: `--t-xs: 11px` ~ `--t-4xl: 28px`\n- Spacing: `--sp1: 4px` ~ `--sp8: 32px`\n- Border radius: `--r-sm: 4px` ~ `--r-full: 999px`\n- Shadows: `--shadow-sm`, `--shadow-md`, `--shadow-lg`\n\n### 2. 온보딩 스플래시 화면 (s-onboard)\n**레이아웃:**\n- 풀스크린 그라디언트 배경: `linear-gradient(160deg, #1B5E40 0%, #3D8F6F 60%, #5BB88A 100%)`\n- `.ob-body`: flex column, space-between, padding `32px 24px`\n\n**컴포넌트:**\n- 앱 로고: `🧴` 이모지 80px, drop-shadow\n- 앱명: \"대체뭐야\" (font-size: 28px, font-weight: 900)\n- 3개 핵심 기능 카드 (`.ob-feat`):\n  - 반투명 배경: `rgba(255,255,255,0.15)`, backdrop-filter: `blur(8px)`\n  - border-radius: 16px, padding: 12px 16px\n  - 아이콘 22px + 텍스트\n  - 내용: 🔬 성분 분석, 💰 저렴이 매칭, 🎯 예산 가이드\n- 버튼 영역:\n  - '피부 타입 진단하고 시작하기' 주요 버튼 (`.btn-primary`): \n    - 52px 높이, border-radius 16px, 배경 #fff, 색상 --primary\n  - '로그인 없이 둘러보기' ghost 버튼 (`.btn-ghost`):\n    - 44px 높이, border 1.5px solid rgba(255,255,255,0.4)\n\n### 3. QnA 화면 (s-qna)\n**상단 진행 바:**\n- `.qna-bar`: height 4px, border-radius 999px, 배경 `--gray20`\n- `.qna-bar-fill`: `linear-gradient(90deg, #3D8F6F, #5BB88A)`, transition: `width 0.4s ease`\n- 단계 표시: \"3 / 7\" 형태\n\n**문항 카테고리 칩:**\n- `.qna-category`: padding 4px 10px, 배경 `--primary-light`, 색상 `--primary`\n- 예: \"피부 고민\", \"유분/수분\", \"민감도\"\n\n**4~5지선다 옵션 카드 (`.qna-opt`):**\n- padding 16px, border-radius 16px\n- 기본: border 2px solid `--gray20`\n- 선택 시: border-color `--primary`, background `--primary-light`\n- 선택 원형 레터 (`.qna-opt-letter`): 28px, 선택 시 배경 `--primary`, 색상 #fff\n\n**다음 버튼:**\n- 선택 전: opacity 0.5, cursor not-allowed\n- 선택 후: opacity 1, active 시 scale(0.97)\n\n### 4. 결과 화면 (s-result)\n**결과 카드 (`.result-card`):**\n- 배경: 연한 그레이(`--gray05`), 카드: #fff, box-shadow: `--shadow-md`\n- 캐릭터 이모지: 72px (8종 피부타입별: 🌊 옹달샘, 🦭 물개, 🌋 화산 등 - 임시)\n- 타입명: font-size 24px, font-weight 900\n- 설명: font-size 14px, line-height 1.7\n\n**추천/주의 성분 칩:**\n- `.r-chip.good`: 배경 `--primary-light`, 테두리 `--primary`\n- `.r-chip.warn`: 배경 `--accent-light`, 테두리 `--accent`\n\n**CTA 버튼:**\n- '추천 세트 보기': 52px, 배경 `--primary`\n\n**만족도 5점 척도 미니 설문:**\n- 별점 또는 숫자(1~5) 선택 UI\n- 선택적 피드백 텍스트 입력\n\n### 5. 추천 세트 팝업 (bottom-sheet)\n**오버레이:**\n- `.popup-overlay`: 배경 rgba(0,0,0,0.5), backdrop-filter: blur(2px)\n\n**시트:**\n- `.popup-sheet`: border-radius 20px 20px 0 0, max-height 75%\n- 드래그 핸들: width 36px, height 4px, 배경 `--gray30`, border-radius 2px\n\n**세트 카드 (`.popup-card`):**\n- 피부타입별 3종 세트 (저가/중가/고가)\n- 이미지 60x60, 카테고리 칩, 제품명, 가격\n- 매칭률 배지: padding 3px 8px, 배경 `--primary-light`\n\n### 6. Soft-gate 모달\n**트리거 조건:**\n- 개인화 기능 접근 시 (찜하기, 맞춤 추천, 히스토리 등)\n- 게스트 모드에서만 노출\n\n**디자인:**\n- 중앙 정렬 모달, 배경 오버레이\n- 가입 혜택 설명 + CTA 버튼\n- '나중에 하기' 옵션\n\n### 7. localStorage 진행률 저장\n**저장 항목:**\n- `onboarding_progress`: { currentStep: number, answers: object, timestamp: ISO string }\n- 각 문항 답변 시 자동 저장\n- 재방문 시 이어서 진행 가능\n\n**구현:**\n```typescript\ninterface OnboardingProgress {\n  currentStep: number;\n  answers: Record<number, string>;\n  timestamp: string;\n}\n\nconst saveProgress = (step: number, answers: Record<number, string>) => {\n  localStorage.setItem('onboarding_progress', JSON.stringify({\n    currentStep: step,\n    answers,\n    timestamp: new Date().toISOString()\n  }));\n};\n\nconst loadProgress = (): OnboardingProgress | null => {\n  const saved = localStorage.getItem('onboarding_progress');\n  return saved ? JSON.parse(saved) : null;\n};\n```\n\n### 8. 컴포넌트 구조\n```\nsrc/\n├── components/\n│   ├── onboarding/\n│   │   ├── OnboardingSplash.tsx      # 스플래시 화면\n│   │   ├── OnboardingQnA.tsx         # QnA 화면\n│   │   ├── OnboardingResult.tsx      # 결과 화면\n│   │   ├── ProgressBar.tsx           # 진행 바 (0.4s 애니메이션)\n│   │   ├── QuestionCard.tsx          # 문항 카드\n│   │   ├── OptionCard.tsx            # 선택지 카드\n│   │   └── SatisfactionSurvey.tsx    # 만족도 설문\n│   ├── common/\n│   │   ├── Button.tsx                # Primary/Ghost 버튼\n│   │   ├── Chip.tsx                  # 카테고리/성분 칩\n│   │   ├── BottomSheet.tsx           # 추천 세트 팝업\n│   │   └── Modal.tsx                 # Soft-gate 모달\n│   └── recommendation/\n│       └── RecommendSetCard.tsx      # 추천 세트 카드\n├── hooks/\n│   └── useOnboardingProgress.ts      # localStorage 진행률 관리\n├── pages/\n│   └── Onboarding.tsx                # 온보딩 플로우 통합 페이지\n└── styles/\n    └── tokens.css                    # 디자인 토큰 정의\n```\n\n### 9. 애니메이션 및 트랜지션\n- 화면 전환: transform translateX, duration 0.35s, cubic-bezier(0.4, 0, 0.2, 1)\n- 진행 바: width transition 0.4s ease\n- 버튼 hover/active: transform scale(0.97)\n- bottom-sheet: slide-up animation",
         "testStrategy": "## 테스트 전략\n\n### 1. 유닛 테스트\n- 각 컴포넌트의 props 전달 및 렌더링 확인\n- useOnboardingProgress 훅의 저장/불러오기 로직 테스트\n- 버튼 disabled 상태 (선택 전 '다음' 버튼 opacity 0.5) 검증\n\n### 2. 통합 테스트\n- 온보딩 전체 플로우 테스트: 스플래시 → QnA → 결과 → 추천 세트\n- localStorage 진행률 저장/복원 테스트:\n  - 중간 이탈 후 재방문 시 이전 단계에서 이어서 진행되는지 확인\n  - 72시간 이상 경과 시 진행률 초기화 여부 확인\n- Soft-gate 모달 트리거 조건 검증:\n  - 게스트 모드에서 개인화 기능 접근 시 모달 노출\n  - 로그인 상태에서는 모달 미노출\n\n### 3. UI/UX 테스트\n- 디자인 토큰 적용 검증: 색상, 폰트, 간격이 prototype.html과 일치하는지 확인\n- 진행 바 애니메이션 0.4s 동작 확인\n- 옵션 카드 선택 시 --primary 테두리+배경 적용 확인\n- 선택 전 '다음' 버튼 비활성화(opacity 0.5) 확인\n- bottom-sheet 드래그 핸들 및 슬라이드 동작 확인\n\n### 4. 반응형 테스트\n- 375px(iPhone), 390px(iPhone 14), 414px(iPhone Plus) 뷰포트 테스트\n- 긴 텍스트 및 다양한 언어 지원 확인\n\n### 5. 접근성 테스트\n- 버튼 및 선택 요소의 포커스 상태 확인\n- 스크린 리더 호환성 (ARIA 라벨)\n- 키보드 네비게이션 지원\n\n### 6. 성능 테스트\n- 초기 로딩 시간 측정 (목표: 2초 이내)\n- localStorage 읽기/쓰기 지연 확인\n- 애니메이션 프레임 드롭 없이 60fps 유지 확인",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           "12",
           "13",
@@ -961,9 +990,10 @@
             "description": "Vite + React + TypeScript 프로젝트를 초기화하고 prototype.html 기반 디자인 토큰을 Tailwind CSS 설정으로 마이그레이션합니다.",
             "dependencies": [],
             "details": "1. Vite + React + TypeScript 프로젝트 초기화 (npm create vite@latest)\n2. Tailwind CSS 설치 및 설정\n3. prototype.html의 CSS 변수를 tailwind.config.js의 theme.extend로 변환:\n   - colors: primary(#3D8F6F), primary-light(#EAF5EF), primary-dark(#2B6B52), accent(#FF5C7A), accent-light(#FFF0F3), gray00~gray100\n   - fontSize: t-xs(11px)~t-4xl(28px)\n   - spacing: sp1(4px)~sp8(32px)\n   - borderRadius: r-sm(4px)~r-full(999px)\n   - boxShadow: shadow-sm, shadow-md, shadow-lg\n4. 글로벌 스타일(tokens.css) 생성 및 Noto Sans KR 폰트 설정\n5. 기본 App.tsx, 라우팅 구조(react-router-dom) 설정",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Tailwind 설정 후 각 디자인 토큰이 올바르게 적용되는지 테스트 컴포넌트에서 확인. Storybook 또는 간단한 테스트 페이지로 색상/타이포그래피/스페이싱 렌더링 검증.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.074Z"
           },
           {
             "id": 2,
@@ -973,9 +1003,10 @@
               1
             ],
             "details": "1. Button 컴포넌트 (src/components/common/Button.tsx):\n   - variant: 'primary'(52px, 배경 #fff, 색상 primary), 'ghost'(44px, 투명 배경, border), 'next'(52px, 배경 primary)\n   - disabled 상태: opacity 0.5, cursor not-allowed\n   - active 상태: transform scale(0.97)\n2. Chip 컴포넌트 (src/components/common/Chip.tsx):\n   - variant: 'default'(gray border), 'selected'(primary bg/border), 'good'(primary-light bg), 'warn'(accent-light bg)\n   - 카테고리 칩, 성분 칩 용도\n3. Modal 컴포넌트 (src/components/common/Modal.tsx):\n   - 중앙 정렬, 오버레이 배경(rgba(0,0,0,0.5))\n   - 닫기 버튼, 트랜지션 애니메이션\n4. BottomSheet 컴포넌트 (src/components/common/BottomSheet.tsx):\n   - 드래그 핸들(36x4px), border-radius 20px 20px 0 0\n   - max-height 75%, slide-up 애니메이션\n   - backdrop-filter: blur(2px)",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "각 컴포넌트별 유닛 테스트(Jest + React Testing Library)로 props 전달 및 렌더링 확인. 버튼 클릭, 모달 열기/닫기 이벤트 테스트.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:30.354Z"
           },
           {
             "id": 3,
@@ -986,9 +1017,10 @@
               2
             ],
             "details": "1. OnboardingSplash.tsx 컴포넌트 생성 (src/components/onboarding/OnboardingSplash.tsx):\n   - 풀스크린 그라디언트 배경: linear-gradient(160deg, #1B5E40 0%, #3D8F6F 60%, #5BB88A 100%)\n   - 상단 영역: 🧴 이모지(80px, drop-shadow), 앱명 '대체뭐야'(28px, font-weight 900), 태그라인\n   - 3개 기능 카드(ob-feat): 반투명 배경(rgba(255,255,255,0.15)), backdrop-filter blur(8px)\n     - 🔬 성분 분석, 💰 저렴이 매칭, 🎯 예산 가이드\n   - 하단 버튼 영역:\n     - '피부 타입 진단하고 시작하기' btn-primary → QnA 화면 이동\n     - '로그인 없이 둘러보기' btn-ghost → 홈 화면 이동\n2. 네비게이션 핸들러 props: onStartDiagnosis, onSkipToHome",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "컴포넌트 렌더링 테스트, 버튼 클릭 시 콜백 함수 호출 확인. 그라디언트 배경 및 레이아웃 스타일 스냅샷 테스트.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.078Z"
           },
           {
             "id": 4,
@@ -999,9 +1031,10 @@
               2
             ],
             "details": "1. ProgressBar.tsx (src/components/onboarding/ProgressBar.tsx):\n   - height 4px, border-radius 999px, 배경 gray20\n   - fill: linear-gradient(90deg, #3D8F6F, #5BB88A), transition width 0.4s ease\n   - props: currentStep, totalSteps\n2. QuestionCard.tsx (src/components/onboarding/QuestionCard.tsx):\n   - 카테고리 칩(qna-category): 배경 primary-light, 색상 primary\n   - 질문 텍스트(qna-q): font-size 18px, font-weight 700\n3. OptionCard.tsx (src/components/onboarding/OptionCard.tsx):\n   - 4~5지선다 옵션, 기본: border 2px solid gray20\n   - 선택 시: border-color primary, background primary-light\n   - 레터 마커(A/B/C/D): 28px 원형, 선택 시 배경 primary, 색상 #fff\n4. OnboardingQnA.tsx (src/components/onboarding/OnboardingQnA.tsx):\n   - 상단: 뒤로가기 버튼, 단계 표시(3/7), ProgressBar\n   - 중앙: QuestionCard + OptionCard 목록\n   - 하단: '다음' 버튼(선택 전 opacity 0.5, 선택 후 활성화)\n   - props: questions(배열), currentStep, onAnswer, onNext, onBack",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "ProgressBar width 애니메이션 테스트. 옵션 선택 시 상태 변경 및 스타일 전환 확인. 다음 버튼 disabled/enabled 상태 테스트.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:30.358Z"
           },
           {
             "id": 5,
@@ -1012,9 +1045,10 @@
               2
             ],
             "details": "1. OnboardingResult.tsx (src/components/onboarding/OnboardingResult.tsx):\n   - 배경: gray05(연한 그레이)\n   - 결과 카드(result-card): 배경 #fff, box-shadow shadow-md, border-radius 20px\n     - 캐릭터 이모지(72px): 8타입별(🌊옹달샘, 🦭물개, 🌋화산, 🏜사막 등)\n     - 타입명: font-size 24px, font-weight 900\n     - 설명: font-size 14px, line-height 1.7\n   - 추천/주의 성분 칩 섹션:\n     - .r-chip.good: 배경 primary-light, 테두리 primary\n     - .r-chip.warn: 배경 accent-light, 테두리 accent\n   - CTA: '추천 세트 보기' 버튼(52px, 배경 primary)\n   - '세트 건너뛰고 홈으로' 스킵 버튼\n2. SatisfactionSurvey.tsx (src/components/onboarding/SatisfactionSurvey.tsx):\n   - 5점 척도 선택 UI(별점 또는 숫자 1~5)\n   - 선택적 피드백 텍스트 입력 필드\n   - props: onSubmit(rating, feedback)",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "8가지 피부타입별 결과 카드 렌더링 테스트. 추천/주의 성분 칩 스타일 확인. 만족도 설문 제출 시 데이터 전달 검증.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:30.363Z"
           },
           {
             "id": 6,
@@ -1026,9 +1060,10 @@
               5
             ],
             "details": "1. RecommendSetPopup.tsx (src/components/recommendation/RecommendSetPopup.tsx):\n   - BottomSheet 활용, max-height 75%\n   - 헤더: 타입명 + '추천 세트' 타이틀, 서브텍스트\n   - 세트 카드 목록(popup-card):\n     - 이미지(60x60), 카테고리 칩, 제품명, 가격\n     - 매칭률 배지: padding 3px 8px, 배경 primary-light\n   - 피부타입별 3종 세트(저가/중가/고가) 데이터 표시\n   - props: skinType, recommendedProducts, onClose, onNavigateHome\n2. SoftGateModal.tsx (src/components/common/SoftGateModal.tsx):\n   - 트리거 조건: 게스트 모드에서 개인화 기능(찜하기, 맞춤 추천, 히스토리) 접근 시\n   - 중앙 정렬 모달, 배경 오버레이\n   - 가입 혜택 설명 텍스트 + 일러스트\n   - CTA: '가입하고 시작하기' 버튼\n   - '나중에 하기' 옵션 버튼\n   - props: isOpen, onSignUp, onLater, onClose",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "BottomSheet 슬라이드 업 애니메이션 테스트. 세트 카드 3종 렌더링 확인. Soft-gate 모달 트리거 조건별 노출 테스트.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:30.368Z"
           },
           {
             "id": 7,
@@ -1054,12 +1089,14 @@
               7
             ],
             "details": "1. Onboarding.tsx (src/pages/Onboarding.tsx):\n   - 온보딩 전체 상태 관리: currentScreen(splash/qna/result), answers, skinType\n   - useOnboardingProgress 훅 연동: 진입 시 복구, 진행 시 저장\n   - 화면 전환 핸들러: goToQnA, goToResult, goToHome\n   - QnA 완료 시 피부타입 계산 로직 연동 (Task 13 의존)\n2. 화면 전환 애니메이션 구현:\n   - 공통 트랜지션: transform translateX, duration 0.35s, cubic-bezier(0.4, 0, 0.2, 1)\n   - Splash → QnA: 왼쪽으로 슬라이드 아웃\n   - QnA → Result: 왼쪽으로 슬라이드 아웃\n   - AnimatedTransition 컴포넌트 또는 framer-motion 활용\n3. 라우팅 설정: /onboarding 경로에 Onboarding 페이지 매핑\n4. 홈 화면 네비게이션: react-router-dom useNavigate 활용",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "전체 온보딩 플로우 E2E 테스트(Cypress 또는 Playwright). 스플래시→QnA→결과→홈 전체 흐름 검증. localStorage 복구 시나리오 테스트. 화면 전환 애니메이션 시각적 검증.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:30.373Z"
           }
         ],
-        "group": "프론트엔드"
+        "group": "프론트엔드",
+        "updatedAt": "2026-08-17T14:10:30.373Z"
       },
       {
         "id": "12",
@@ -1067,7 +1104,7 @@
         "description": "PRD v1.8 F1 요구사항에 따라 이메일/비밀번호 기반 회원가입, JWT stateless 인증(access 30분/refresh 30일), Soft-gate 정책(게스트 모드 지원), 관심 도메인 선택 UI를 구현하고 users/user_profiles 테이블 및 인증 API를 개발합니다.",
         "details": "## 구현 상세\n\n### 1. 데이터베이스 스키마 구현\n\n#### 1.1 users 테이블\n```sql\nCREATE TABLE users (\n    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    email VARCHAR(255) UNIQUE NOT NULL,\n    password_hash VARCHAR(255) NOT NULL,  -- bcrypt 해싱\n    auth_provider VARCHAR(20) DEFAULT 'local',  -- local / kakao / google\n    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n    last_login_at TIMESTAMP WITH TIME ZONE,\n    is_active BOOLEAN DEFAULT TRUE\n);\n\nCREATE INDEX idx_users_email ON users(email);\n```\n\n#### 1.2 user_profiles 테이블\n```sql\nCREATE TABLE user_profiles (\n    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,\n    skin_type VARCHAR(20),  -- 8타입 enum: ondalsam, mulgae, subuji, hwasan, samak, injeolmi, yuriguseul, memilmuk\n    skin_type_traits JSONB DEFAULT '{}',  -- 보조 특성\n    skin_quiz_answers JSONB DEFAULT '[]',  -- QnA 응답 원본\n    skin_quiz_scores JSONB DEFAULT '{}',  -- 5축 점수\n    interested_domains JSONB DEFAULT '[\"cosmetics\"]',  -- 관심 도메인\n    allergy_ingredients JSONB DEFAULT '[]',  -- 알레르기 성분\n    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n```\n\n#### 1.3 refresh_tokens 테이블 (토큰 관리)\n```sql\nCREATE TABLE refresh_tokens (\n    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    user_id UUID REFERENCES users(id) ON DELETE CASCADE,\n    token_hash VARCHAR(255) NOT NULL,  -- SHA-256 해시\n    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,\n    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n    revoked_at TIMESTAMP WITH TIME ZONE\n);\n\nCREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);\nCREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);\n```\n\n### 2. FastAPI 백엔드 구현\n\n#### 2.1 인증 모듈 구조\n```\nbackend/\n├── app/\n│   ├── api/\n│   │   └── v1/\n│   │       └── auth.py          # 인증 API 라우터\n│   ├── core/\n│   │   ├── security.py          # JWT, 비밀번호 해싱\n│   │   └── config.py            # 설정 (SECRET_KEY 등)\n│   ├── models/\n│   │   ├── user.py              # SQLAlchemy User 모델\n│   │   └── user_profile.py      # UserProfile 모델\n│   ├── schemas/\n│   │   └── auth.py              # Pydantic 스키마\n│   └── services/\n│       └── auth_service.py      # 비즈니스 로직\n```\n\n#### 2.2 비밀번호 보안 (bcrypt)\n```python\nfrom passlib.context import CryptContext\n\npwd_context = CryptContext(schemes=[\"bcrypt\"], deprecated=\"auto\")\n\ndef hash_password(password: str) -> str:\n    return pwd_context.hash(password)\n\ndef verify_password(plain_password: str, hashed_password: str) -> bool:\n    return pwd_context.verify(plain_password, hashed_password)\n```\n\n#### 2.3 JWT 토큰 구현\n```python\nfrom jose import jwt, JWTError\nfrom datetime import datetime, timedelta\n\n# 설정값 (config.py)\nSECRET_KEY = os.getenv(\"JWT_SECRET_KEY\")\nALGORITHM = \"HS256\"\nACCESS_TOKEN_EXPIRE_MINUTES = 30\nREFRESH_TOKEN_EXPIRE_DAYS = 30\n\ndef create_access_token(user_id: str) -> str:\n    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)\n    payload = {\"sub\": user_id, \"exp\": expire, \"type\": \"access\"}\n    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)\n\ndef create_refresh_token(user_id: str) -> str:\n    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)\n    payload = {\"sub\": user_id, \"exp\": expire, \"type\": \"refresh\"}\n    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)\n```\n\n#### 2.4 API 엔드포인트 구현\n\n**POST /api/v1/auth/signup**\n```python\n@router.post(\"/signup\", response_model=AuthResponse)\nasync def signup(\n    request: SignupRequest,\n    db: AsyncSession = Depends(get_db)\n):\n    # 이메일 중복 검사\n    existing = await get_user_by_email(db, request.email)\n    if existing:\n        raise HTTPException(400, \"이미 등록된 이메일입니다\")\n    \n    # 비밀번호 유효성 검사 (최소 8자, 영문+숫자)\n    validate_password(request.password)\n    \n    # 사용자 생성\n    user = User(\n        email=request.email,\n        password_hash=hash_password(request.password),\n        auth_provider=\"local\"\n    )\n    db.add(user)\n    \n    # 프로필 초기 생성\n    profile = UserProfile(\n        user_id=user.id,\n        interested_domains=[\"cosmetics\"]\n    )\n    db.add(profile)\n    await db.commit()\n    \n    # 토큰 발급\n    access_token = create_access_token(str(user.id))\n    refresh_token = create_refresh_token(str(user.id))\n    \n    # refresh_token DB 저장 (해시)\n    await store_refresh_token(db, user.id, refresh_token)\n    \n    return AuthResponse(\n        user_id=str(user.id),\n        access_token=access_token,\n        refresh_token=refresh_token\n    )\n```\n\n**POST /api/v1/auth/login**\n```python\n@router.post(\"/login\", response_model=AuthResponse)\nasync def login(\n    request: LoginRequest,\n    db: AsyncSession = Depends(get_db)\n):\n    user = await get_user_by_email(db, request.email)\n    if not user or not verify_password(request.password, user.password_hash):\n        raise HTTPException(401, \"이메일 또는 비밀번호가 올바르지 않습니다\")\n    \n    if not user.is_active:\n        raise HTTPException(403, \"비활성화된 계정입니다\")\n    \n    # 마지막 로그인 시간 업데이트\n    user.last_login_at = datetime.utcnow()\n    await db.commit()\n    \n    access_token = create_access_token(str(user.id))\n    refresh_token = create_refresh_token(str(user.id))\n    await store_refresh_token(db, user.id, refresh_token)\n    \n    return AuthResponse(\n        user_id=str(user.id),\n        access_token=access_token,\n        refresh_token=refresh_token\n    )\n```\n\n**POST /api/v1/auth/refresh**\n```python\n@router.post(\"/refresh\", response_model=TokenResponse)\nasync def refresh_token(\n    request: RefreshRequest,\n    db: AsyncSession = Depends(get_db)\n):\n    try:\n        payload = jwt.decode(request.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])\n        if payload.get(\"type\") != \"refresh\":\n            raise HTTPException(401, \"유효하지 않은 토큰입니다\")\n        \n        user_id = payload.get(\"sub\")\n        \n        # DB에서 토큰 유효성 확인\n        token_valid = await verify_stored_refresh_token(db, user_id, request.refresh_token)\n        if not token_valid:\n            raise HTTPException(401, \"토큰이 만료되었거나 폐기되었습니다\")\n        \n        new_access_token = create_access_token(user_id)\n        return TokenResponse(access_token=new_access_token)\n        \n    except JWTError:\n        raise HTTPException(401, \"토큰 검증에 실패했습니다\")\n```\n\n### 3. Soft-gate 정책 구현\n\n#### 3.1 게스트 모드 지원\n```python\n# 선택적 인증 의존성\nasync def get_current_user_optional(\n    token: str = Depends(oauth2_scheme_optional)\n) -> Optional[User]:\n    if not token:\n        return None  # 게스트 모드\n    return await get_current_user(token)\n\n# 게스트도 접근 가능한 엔드포인트\n@router.get(\"/products/search\")\nasync def search_products(\n    q: str,\n    current_user: Optional[User] = Depends(get_current_user_optional)\n):\n    # 게스트/로그인 사용자 모두 검색 가능\n    pass\n```\n\n#### 3.2 개인화 기능 접근 제한\n```python\n# 로그인 필수 의존성\nasync def require_authenticated_user(\n    current_user: Optional[User] = Depends(get_current_user_optional)\n) -> User:\n    if not current_user:\n        raise HTTPException(\n            status_code=401,\n            detail={\n                \"code\": \"SOFT_GATE\",\n                \"message\": \"이 기능을 사용하려면 로그인이 필요합니다\",\n                \"action\": \"show_login_modal\"\n            }\n        )\n    return current_user\n\n# 개인화 기능 (로그인 필수)\n@router.get(\"/recommendations/main\")\nasync def get_main_recommendations(\n    current_user: User = Depends(require_authenticated_user)\n):\n    # 프로필 기반 추천\n    pass\n```\n\n### 4. 관심 도메인 선택 UI 연동\n\n#### 4.1 도메인 선택 API\n```python\n@router.patch(\"/profile/me\", response_model=ProfileResponse)\nasync def update_profile(\n    request: UpdateProfileRequest,\n    current_user: User = Depends(require_authenticated_user),\n    db: AsyncSession = Depends(get_db)\n):\n    profile = await get_user_profile(db, current_user.id)\n    \n    if request.interested_domains:\n        # 화장품 외 도메인은 \"추후 오픈\" 처리\n        valid_domains = [\"cosmetics\"]  # P0에서 활성화된 도메인\n        profile.interested_domains = [\n            d for d in request.interested_domains \n            if d in valid_domains or d in [\"supplement\", \"fashion\"]  # 저장은 허용\n        ]\n    \n    profile.updated_at = datetime.utcnow()\n    await db.commit()\n    \n    return ProfileResponse.from_orm(profile)\n```\n\n### 5. 보안 고려사항\n\n- 비밀번호 정책: 최소 8자, 영문+숫자 조합 필수\n- bcrypt cost factor: 12 (기본값)\n- JWT secret key: 256비트 이상 랜덤 생성\n- refresh token: DB 저장 시 SHA-256 해시 처리\n- CORS 설정: 프론트엔드 도메인만 허용\n- Rate limiting: 로그인 실패 5회 시 1분 대기",
         "testStrategy": "## 테스트 전략\n\n### 1. 유닛 테스트\n\n#### 1.1 비밀번호 해싱 테스트\n```python\ndef test_password_hash_and_verify():\n    password = \"TestPass123\"\n    hashed = hash_password(password)\n    assert hashed != password\n    assert verify_password(password, hashed)\n    assert not verify_password(\"WrongPass\", hashed)\n\ndef test_password_hash_uniqueness():\n    password = \"TestPass123\"\n    hash1 = hash_password(password)\n    hash2 = hash_password(password)\n    assert hash1 != hash2  # bcrypt salt로 인해 매번 다름\n```\n\n#### 1.2 JWT 토큰 테스트\n```python\ndef test_access_token_creation_and_validation():\n    user_id = \"test-user-id\"\n    token = create_access_token(user_id)\n    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])\n    assert payload[\"sub\"] == user_id\n    assert payload[\"type\"] == \"access\"\n\ndef test_token_expiration():\n    # 만료된 토큰 검증 시 JWTError 발생 확인\n    pass\n```\n\n#### 1.3 비밀번호 유효성 검사 테스트\n```python\ndef test_password_validation():\n    assert validate_password(\"ValidPass1\")  # 통과\n    with pytest.raises(ValidationError):\n        validate_password(\"short\")  # 8자 미만\n    with pytest.raises(ValidationError):\n        validate_password(\"nouppercase1\")  # 대문자 없음\n    with pytest.raises(ValidationError):\n        validate_password(\"NoNumbers\")  # 숫자 없음\n```\n\n### 2. 통합 테스트 (API 엔드포인트)\n\n#### 2.1 회원가입 API 테스트\n```python\nasync def test_signup_success(client: AsyncClient):\n    response = await client.post(\"/api/v1/auth/signup\", json={\n        \"email\": \"test@example.com\",\n        \"password\": \"TestPass123\",\n        \"agreements\": {\"terms\": True, \"privacy\": True}\n    })\n    assert response.status_code == 200\n    data = response.json()\n    assert \"user_id\" in data\n    assert \"access_token\" in data\n    assert \"refresh_token\" in data\n\nasync def test_signup_duplicate_email(client: AsyncClient):\n    # 먼저 사용자 생성\n    await create_test_user(\"dup@example.com\")\n    \n    response = await client.post(\"/api/v1/auth/signup\", json={\n        \"email\": \"dup@example.com\",\n        \"password\": \"TestPass123\"\n    })\n    assert response.status_code == 400\n    assert \"이미 등록된 이메일\" in response.json()[\"detail\"]\n```\n\n#### 2.2 로그인 API 테스트\n```python\nasync def test_login_success(client: AsyncClient, test_user):\n    response = await client.post(\"/api/v1/auth/login\", json={\n        \"email\": test_user.email,\n        \"password\": \"TestPass123\"\n    })\n    assert response.status_code == 200\n    assert \"access_token\" in response.json()\n\nasync def test_login_wrong_password(client: AsyncClient, test_user):\n    response = await client.post(\"/api/v1/auth/login\", json={\n        \"email\": test_user.email,\n        \"password\": \"WrongPassword\"\n    })\n    assert response.status_code == 401\n```\n\n#### 2.3 토큰 갱신 API 테스트\n```python\nasync def test_refresh_token_success(client: AsyncClient, auth_tokens):\n    response = await client.post(\"/api/v1/auth/refresh\", json={\n        \"refresh_token\": auth_tokens[\"refresh_token\"]\n    })\n    assert response.status_code == 200\n    assert \"access_token\" in response.json()\n\nasync def test_refresh_with_expired_token(client: AsyncClient):\n    expired_token = create_expired_refresh_token()\n    response = await client.post(\"/api/v1/auth/refresh\", json={\n        \"refresh_token\": expired_token\n    })\n    assert response.status_code == 401\n```\n\n### 3. Soft-gate 정책 테스트\n\n```python\nasync def test_guest_can_search_products(client: AsyncClient):\n    # 토큰 없이 검색 가능\n    response = await client.get(\"/api/v1/products/search?q=토너\")\n    assert response.status_code == 200\n\nasync def test_guest_cannot_access_personalized_recommendations(client: AsyncClient):\n    # 토큰 없이 개인화 추천 접근 시 Soft-gate 응답\n    response = await client.get(\"/api/v1/recommendations/main\")\n    assert response.status_code == 401\n    assert response.json()[\"detail\"][\"code\"] == \"SOFT_GATE\"\n\nasync def test_authenticated_user_gets_personalized_recommendations(client: AsyncClient, auth_headers):\n    response = await client.get(\n        \"/api/v1/recommendations/main\",\n        headers=auth_headers\n    )\n    assert response.status_code == 200\n```\n\n### 4. 데이터베이스 무결성 테스트\n\n```python\nasync def test_user_profile_created_on_signup(db: AsyncSession):\n    # 회원가입 후 user_profiles 레코드 자동 생성 확인\n    user = await create_user_via_signup(db, \"test@example.com\")\n    profile = await get_user_profile(db, user.id)\n    assert profile is not None\n    assert profile.interested_domains == [\"cosmetics\"]\n\nasync def test_cascade_delete_user_profile(db: AsyncSession):\n    user = await create_test_user(db)\n    await db.delete(user)\n    await db.commit()\n    profile = await get_user_profile(db, user.id)\n    assert profile is None  # CASCADE 삭제 확인\n```\n\n### 5. 보안 테스트\n\n```python\nasync def test_bcrypt_hash_stored_not_plain_password(db: AsyncSession):\n    await create_user_via_signup(db, \"test@example.com\", \"PlainPass123\")\n    user = await get_user_by_email(db, \"test@example.com\")\n    assert user.password_hash != \"PlainPass123\"\n    assert user.password_hash.startswith(\"$2b$\")  # bcrypt prefix\n\nasync def test_refresh_token_stored_as_hash(db: AsyncSession, test_user):\n    refresh_token = create_refresh_token(str(test_user.id))\n    await store_refresh_token(db, test_user.id, refresh_token)\n    \n    stored = await db.execute(\n        select(RefreshToken).where(RefreshToken.user_id == test_user.id)\n    )\n    token_record = stored.scalar_one()\n    assert token_record.token_hash != refresh_token  # 원본이 아닌 해시 저장\n```\n\n### 6. E2E 테스트 시나리오\n\n1. **회원가입 → 로그인 → 토큰 갱신 플로우**\n   - 새 사용자 가입 → access/refresh 토큰 수신\n   - 로그아웃 후 재로그인 → 새 토큰 발급\n   - access 토큰 만료 시 refresh로 갱신\n\n2. **게스트 → 로그인 전환 시나리오**\n   - 게스트로 제품 검색 → 정상 동작\n   - 개인화 추천 클릭 → Soft-gate 모달 트리거\n   - 로그인 완료 → 개인화 추천 접근 가능\n\n3. **도메인 선택 저장 확인**\n   - 가입 후 화장품+영양제 선택\n   - 프로필 조회 시 선택값 유지 확인",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           "1"
         ],
@@ -1079,9 +1116,10 @@
             "description": "users, user_profiles, refresh_tokens 테이블을 포함한 인증 관련 데이터베이스 스키마를 설계하고 SQLAlchemy 모델 및 Alembic 마이그레이션 파일을 생성합니다.",
             "dependencies": [],
             "details": "1. backend/app/models/ 디렉토리에 user.py, user_profile.py 파일 생성\n2. users 테이블: id(UUID PK), email(UNIQUE NOT NULL), password_hash, auth_provider(local/kakao/google), created_at, last_login_at, is_active\n3. user_profiles 테이블: user_id(FK), skin_type(enum 8종), skin_type_traits(JSONB), skin_quiz_answers(JSONB), skin_quiz_scores(JSONB), interested_domains(JSONB default ['cosmetics']), allergy_ingredients(JSONB)\n4. refresh_tokens 테이블: id(UUID), user_id(FK), token_hash(SHA-256), expires_at, created_at, revoked_at\n5. 각 테이블에 필요한 인덱스 생성 (idx_users_email, idx_refresh_tokens_user, idx_refresh_tokens_hash)\n6. Alembic 마이그레이션 파일 생성 및 테스트",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "PostgreSQL 컨테이너에서 마이그레이션 실행 후 테이블 생성 확인. 각 테이블의 컬럼 타입, 제약조건, 인덱스가 올바르게 생성되었는지 검증. 외래 키 관계 및 CASCADE 삭제 동작 테스트.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.083Z"
           },
           {
             "id": 2,
@@ -1162,7 +1200,8 @@
             "parentId": "undefined"
           }
         ],
-        "group": "백엔드"
+        "group": "백엔드",
+        "updatedAt": "2026-08-17T14:10:22.083Z"
       },
       {
         "id": "13",
@@ -1170,7 +1209,7 @@
         "description": "PRD v1.8 F2 요구사항에 따라 7~10개 문항의 피부타입 진단 시스템을 구현합니다. 5축(moisture/oil/sensitivity/pigmentation/trouble) 점수 산출, skin_type_mapping_rules 룰 테이블 기반 8타입 매핑, 경계 타입 안내 기능을 포함합니다.",
         "details": "## 구현 상세\n\n### 1. 데이터베이스 스키마 구현\n\n#### 1.1 skin_quiz_questions 테이블 (질문 및 선택지 정의)\n```sql\nCREATE TABLE skin_quiz_questions (\n    id SERIAL PRIMARY KEY,\n    question_order INT NOT NULL,                    -- 문항 순서 (1~10)\n    category VARCHAR(50) NOT NULL,                  -- 카테고리: moisture_oil, sensitivity, pigmentation, trouble, pore_redness\n    question_text TEXT NOT NULL,                    -- 질문 내용\n    is_active BOOLEAN DEFAULT TRUE,\n    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n\nCREATE TABLE skin_quiz_options (\n    id SERIAL PRIMARY KEY,\n    question_id INT NOT NULL REFERENCES skin_quiz_questions(id) ON DELETE CASCADE,\n    option_order CHAR(1) NOT NULL,                  -- A, B, C, D, E\n    option_text TEXT NOT NULL,                      -- 선택지 텍스트\n    moisture_score INT DEFAULT 0,                   -- 수분 축 점수 (-2 ~ +3)\n    oil_score INT DEFAULT 0,                        -- 유분 축 점수 (-2 ~ +3)\n    sensitivity_score INT DEFAULT 0,               -- 민감성 축 점수 (-2 ~ +3)\n    pigmentation_score INT DEFAULT 0,              -- 색소침착 축 점수 (-2 ~ +3)\n    trouble_score INT DEFAULT 0,                    -- 트러블 축 점수 (-2 ~ +3)\n    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n\nCREATE INDEX idx_quiz_questions_order ON skin_quiz_questions(question_order);\nCREATE INDEX idx_quiz_options_question ON skin_quiz_options(question_id);\n```\n\n#### 1.2 skin_type_mapping_rules 테이블 (8타입 매핑 룰)\n```sql\nCREATE TABLE skin_type_mapping_rules (\n    id SERIAL PRIMARY KEY,\n    skin_type_code VARCHAR(20) NOT NULL,           -- ongdalsam, mulgae, subji, hwasan, samak, injeolmi, yuriguseul, memilmuk\n    skin_type_name_ko VARCHAR(50) NOT NULL,        -- 옹달샘, 물개, 수부지, 화산, 사막, 인절미, 유리구슬, 메밀묵\n    skin_type_emoji CHAR(4) NOT NULL,              -- 💧, ✨, 🌊, 🌋, 🏜️, 🍡, 🫧, 🫘\n    skin_type_description TEXT,                     -- 타입 설명\n    \n    -- 각 축별 점수 범위 조건 (NULL은 해당 축 조건 없음)\n    moisture_min INT,\n    moisture_max INT,\n    oil_min INT,\n    oil_max INT,\n    sensitivity_min INT,\n    sensitivity_max INT,\n    pigmentation_min INT,\n    pigmentation_max INT,\n    trouble_min INT,\n    trouble_max INT,\n    \n    priority INT DEFAULT 0,                         -- 조건 충돌 시 우선순위 (높을수록 우선)\n    is_active BOOLEAN DEFAULT TRUE,\n    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n\nCREATE INDEX idx_mapping_rules_type ON skin_type_mapping_rules(skin_type_code);\nCREATE INDEX idx_mapping_rules_priority ON skin_type_mapping_rules(priority DESC);\n```\n\n#### 1.3 user_profiles 테이블 확장 (Task 12의 기존 구조 확장)\n```sql\nALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS\n    quiz_responses JSONB,                           -- 원본 응답 저장: {\"q1\": \"B\", \"q2\": \"A\", ...}\n    \nALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS\n    axis_scores JSONB,                              -- 5축 점수: {\"moisture\": 8, \"oil\": 3, \"sensitivity\": 5, \"pigmentation\": 2, \"trouble\": 4}\n\nALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS\n    skin_type_code VARCHAR(20),                     -- 결정된 피부타입 코드\n    \nALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS\n    secondary_type_code VARCHAR(20),                -- 경계 타입 (보조 특성)\n    \nALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS\n    skin_diagnosed_at TIMESTAMP WITH TIME ZONE;     -- 진단 일시\n\nCREATE INDEX idx_profiles_skin_type ON user_profiles(skin_type_code);\n```\n\n### 2. 진단 문항 설계 (7~10개)\n\n```python\n# 문항 데이터 시드\nSKIN_QUIZ_QUESTIONS = [\n    {\n        \"order\": 1,\n        \"category\": \"moisture_oil\",\n        \"text\": \"세안 후 아무것도 바르지 않았을 때, 피부가 당기기 시작하는 시간은?\",\n        \"options\": [\n            {\"letter\": \"A\", \"text\": \"5분 이내 — 바로 당겨요\", \"scores\": {\"moisture\": -2, \"oil\": -1}},\n            {\"letter\": \"B\", \"text\": \"10~30분 — 조금 있다가 당겨요\", \"scores\": {\"moisture\": 0, \"oil\": 0}},\n            {\"letter\": \"C\", \"text\": \"1시간 이상 — 별로 안 당겨요\", \"scores\": {\"moisture\": 2, \"oil\": 1}},\n            {\"letter\": \"D\", \"text\": \"당김 없이 번들거려요\", \"scores\": {\"moisture\": 1, \"oil\": 3}}\n        ]\n    },\n    {\n        \"order\": 2,\n        \"category\": \"moisture_oil\",\n        \"text\": \"오후가 되면 T존(이마, 코) 부위가 어떻게 변하나요?\",\n        \"options\": [\n            {\"letter\": \"A\", \"text\": \"윤기 없이 푸석해요\", \"scores\": {\"moisture\": -1, \"oil\": -2}},\n            {\"letter\": \"B\", \"text\": \"자연스러운 윤기가 나요\", \"scores\": {\"moisture\": 1, \"oil\": 1}},\n            {\"letter\": \"C\", \"text\": \"기름종이가 필요할 정도로 번들거려요\", \"scores\": {\"moisture\": 0, \"oil\": 3}},\n            {\"letter\": \"D\", \"text\": \"T존은 번들, 볼은 건조해요\", \"scores\": {\"moisture\": -1, \"oil\": 2}}\n        ]\n    },\n    {\n        \"order\": 3,\n        \"category\": \"trouble\",\n        \"text\": \"한 달 기준, 트러블(여드름, 뾰루지)이 생기는 빈도는?\",\n        \"options\": [\n            {\"letter\": \"A\", \"text\": \"거의 없어요 (0~1개)\", \"scores\": {\"trouble\": 0}},\n            {\"letter\": \"B\", \"text\": \"가끔 생겨요 (2~4개)\", \"scores\": {\"trouble\": 1}},\n            {\"letter\": \"C\", \"text\": \"자주 생겨요 (5~10개)\", \"scores\": {\"trouble\": 2}},\n            {\"letter\": \"D\", \"text\": \"항상 있어요 (10개 이상)\", \"scores\": {\"trouble\": 3}}\n        ]\n    },\n    {\n        \"order\": 4,\n        \"category\": \"sensitivity\",\n        \"text\": \"새로운 화장품을 사용했을 때 피부 반응은?\",\n        \"options\": [\n            {\"letter\": \"A\", \"text\": \"대부분 잘 맞아요\", \"scores\": {\"sensitivity\": 0}},\n            {\"letter\": \"B\", \"text\": \"가끔 따갑거나 붉어져요\", \"scores\": {\"sensitivity\": 1}},\n            {\"letter\": \"C\", \"text\": \"자주 트러블이 생겨요\", \"scores\": {\"sensitivity\": 2, \"trouble\": 1}},\n            {\"letter\": \"D\", \"text\": \"웬만한 제품은 못 써요\", \"scores\": {\"sensitivity\": 3}}\n        ]\n    },\n    {\n        \"order\": 5,\n        \"category\": \"pore_redness\",\n        \"text\": \"모공이 눈에 띄는 부위가 있나요?\",\n        \"options\": [\n            {\"letter\": \"A\", \"text\": \"거의 안 보여요\", \"scores\": {\"oil\": -1, \"trouble\": 0}},\n            {\"letter\": \"B\", \"text\": \"코 주변만 약간 보여요\", \"scores\": {\"oil\": 1, \"trouble\": 0}},\n            {\"letter\": \"C\", \"text\": \"T존 전체가 눈에 띄어요\", \"scores\": {\"oil\": 2, \"trouble\": 1}},\n            {\"letter\": \"D\", \"text\": \"볼까지 넓게 보여요\", \"scores\": {\"oil\": 3, \"trouble\": 2}}\n        ]\n    },\n    {\n        \"order\": 6,\n        \"category\": \"pore_redness\",\n        \"text\": \"홍조나 붉은 기가 자주 나타나나요?\",\n        \"options\": [\n            {\"letter\": \"A\", \"text\": \"전혀 없어요\", \"scores\": {\"sensitivity\": 0, \"trouble\": 0}},\n            {\"letter\": \"B\", \"text\": \"운동/음주 후에만 붉어져요\", \"scores\": {\"sensitivity\": 1}},\n            {\"letter\": \"C\", \"text\": \"볼이나 코 주변이 항상 붉어요\", \"scores\": {\"sensitivity\": 2, \"trouble\": 1}},\n            {\"letter\": \"D\", \"text\": \"피부 전체가 쉽게 달아올라요\", \"scores\": {\"sensitivity\": 3, \"trouble\": 1}}\n        ]\n    },\n    {\n        \"order\": 7,\n        \"category\": \"pigmentation\",\n        \"text\": \"자외선에 노출 후 피부 반응은?\",\n        \"options\": [\n            {\"letter\": \"A\", \"text\": \"금방 빨개졌다가 원래대로 돌아와요\", \"scores\": {\"pigmentation\": 0}},\n            {\"letter\": \"B\", \"text\": \"약간 타지만 금방 돌아와요\", \"scores\": {\"pigmentation\": 1}},\n            {\"letter\": \"C\", \"text\": \"쉽게 타고 오래 남아요\", \"scores\": {\"pigmentation\": 2}},\n            {\"letter\": \"D\", \"text\": \"기미/잡티가 쉽게 생겨요\", \"scores\": {\"pigmentation\": 3}}\n        ]\n    },\n    {\n        \"order\": 8,\n        \"category\": \"pigmentation\",\n        \"text\": \"다크서클이나 색소침착 고민이 있나요?\",\n        \"options\": [\n            {\"letter\": \"A\", \"text\": \"거의 없어요\", \"scores\": {\"pigmentation\": 0}},\n            {\"letter\": \"B\", \"text\": \"피곤할 때만 다크서클이 보여요\", \"scores\": {\"pigmentation\": 1}},\n            {\"letter\": \"C\", \"text\": \"항상 어둡고 칙칙해 보여요\", \"scores\": {\"pigmentation\": 2}},\n            {\"letter\": \"D\", \"text\": \"기미/검버섯이 있어요\", \"scores\": {\"pigmentation\": 3}}\n        ]\n    }\n]\n```\n\n### 3. 8타입 매핑 룰 정의\n\n```python\n# 8타입 매핑 룰 시드 데이터\nSKIN_TYPE_MAPPING_RULES = [\n    {\n        \"code\": \"ongdalsam\",\n        \"name_ko\": \"옹달샘\",\n        \"emoji\": \"💧\",\n        \"description\": \"수분과 유분의 균형이 잘 잡힌 이상적인 피부. 가벼운 보습 루틴만 유지해도 피부가 빛납니다.\",\n        \"conditions\": {\"moisture\": (4, 10), \"oil\": (2, 6), \"sensitivity\": (0, 3), \"trouble\": (0, 3)},\n        \"priority\": 10\n    },\n    {\n        \"code\": \"mulgae\",\n        \"name_ko\": \"물개\",\n        \"emoji\": \"✨\",\n        \"description\": \"유분기가 많은 지성 피부. 과도한 피지 조절이 핵심입니다.\",\n        \"conditions\": {\"oil\": (7, 15), \"moisture\": (3, 15)},\n        \"priority\": 9\n    },\n    {\n        \"code\": \"subji\",\n        \"name_ko\": \"수부지\",\n        \"emoji\": \"🌊\",\n        \"description\": \"겉은 번들거리지만 속은 건조한 복합성 피부. 유수분 밸런스가 중요합니다.\",\n        \"conditions\": {\"oil\": (5, 15), \"moisture\": (-5, 3)},\n        \"priority\": 8\n    },\n    {\n        \"code\": \"hwasan\",\n        \"name_ko\": \"화산\",\n        \"emoji\": \"🌋\",\n        \"description\": \"트러블과 홍조가 잦은 민감성 피부. 진정 케어가 필수입니다.\",\n        \"conditions\": {\"trouble\": (5, 15), \"sensitivity\": (4, 15)},\n        \"priority\": 9\n    },\n    {\n        \"code\": \"samak\",\n        \"name_ko\": \"사막\",\n        \"emoji\": \"🏜️\",\n        \"description\": \"수분이 많이 부족한 극건성 피부. 집중 보습이 필요합니다.\",\n        \"conditions\": {\"moisture\": (-10, 0), \"oil\": (-10, 2)},\n        \"priority\": 9\n    },\n    {\n        \"code\": \"injeolmi\",\n        \"name_ko\": \"인절미\",\n        \"emoji\": \"🍡\",\n        \"description\": \"건조하면서 탄력이 떨어진 피부. 영양 공급과 안티에이징이 필요합니다.\",\n        \"conditions\": {\"moisture\": (-5, 2), \"oil\": (-5, 3), \"sensitivity\": (0, 4)},\n        \"priority\": 7\n    },\n    {\n        \"code\": \"yuriguseul\",\n        \"name_ko\": \"유리구슬\",\n        \"emoji\": \"🫧\",\n        \"description\": \"외부 자극에 민감하게 반응하는 피부. 순한 성분 위주의 케어가 필요합니다.\",\n        \"conditions\": {\"sensitivity\": (5, 15), \"trouble\": (0, 4)},\n        \"priority\": 8\n    },\n    {\n        \"code\": \"memilmuk\",\n        \"name_ko\": \"메밀묵\",\n        \"emoji\": \"🫘\",\n        \"description\": \"색소침착이 쉽게 생기는 피부. 미백과 자외선 차단이 핵심입니다.\",\n        \"conditions\": {\"pigmentation\": (5, 15)},\n        \"priority\": 8\n    }\n]\n```\n\n### 4. 백엔드 API 구현\n\n#### 4.1 FastAPI 라우터 구조\n```python\n# app/routers/skin_quiz.py\nfrom fastapi import APIRouter, Depends, HTTPException\nfrom sqlalchemy.ext.asyncio import AsyncSession\nfrom pydantic import BaseModel\nfrom typing import List, Dict, Optional\n\nrouter = APIRouter(prefix=\"/api/v1/profile\", tags=[\"skin-quiz\"])\n\nclass QuizResponse(BaseModel):\n    responses: Dict[str, str]  # {\"1\": \"B\", \"2\": \"A\", \"3\": \"C\", ...}\n\nclass QuizResultResponse(BaseModel):\n    skin_type_code: str\n    skin_type_name: str\n    skin_type_emoji: str\n    skin_type_description: str\n    axis_scores: Dict[str, int]\n    secondary_type: Optional[Dict[str, str]]  # 경계 타입\n    is_boundary: bool\n    recommended_ingredients: List[str]\n    warning_ingredients: List[str]\n\n@router.get(\"/skin-quiz/questions\")\nasync def get_quiz_questions(db: AsyncSession = Depends(get_db)):\n    \"\"\"활성화된 모든 진단 문항 반환\"\"\"\n    questions = await get_active_questions(db)\n    return {\"questions\": questions, \"total\": len(questions)}\n\n@router.post(\"/skin-quiz\")\nasync def submit_skin_quiz(\n    quiz_data: QuizResponse,\n    current_user: User = Depends(get_current_user_optional),\n    db: AsyncSession = Depends(get_db)\n) -> QuizResultResponse:\n    \"\"\"\n    피부타입 진단 제출 및 결과 반환\n    - 5축 점수 계산\n    - 8타입 매핑\n    - 경계 타입 판정 (점수차 2점 이하)\n    - user_profiles에 저장 (로그인 사용자)\n    \"\"\"\n    # 1. 응답 검증\n    validate_responses(quiz_data.responses)\n    \n    # 2. 5축 점수 계산\n    axis_scores = calculate_axis_scores(db, quiz_data.responses)\n    \n    # 3. 타입 매핑\n    primary_type, secondary_type, is_boundary = map_skin_type(db, axis_scores)\n    \n    # 4. 결과 저장 (로그인 사용자)\n    if current_user:\n        await save_quiz_result(\n            db, \n            user_id=current_user.id,\n            responses=quiz_data.responses,\n            axis_scores=axis_scores,\n            skin_type_code=primary_type.code,\n            secondary_type_code=secondary_type.code if secondary_type else None\n        )\n    \n    return QuizResultResponse(\n        skin_type_code=primary_type.code,\n        skin_type_name=primary_type.name_ko,\n        skin_type_emoji=primary_type.emoji,\n        skin_type_description=primary_type.description,\n        axis_scores=axis_scores,\n        secondary_type={\n            \"code\": secondary_type.code,\n            \"name\": secondary_type.name_ko,\n            \"emoji\": secondary_type.emoji\n        } if secondary_type else None,\n        is_boundary=is_boundary,\n        recommended_ingredients=get_recommended_ingredients(primary_type.code),\n        warning_ingredients=get_warning_ingredients(primary_type.code)\n    )\n```\n\n#### 4.2 진단 알고리즘 핵심 로직\n```python\n# app/services/skin_diagnosis.py\n\ndef calculate_axis_scores(db: AsyncSession, responses: Dict[str, str]) -> Dict[str, int]:\n    \"\"\"응답을 기반으로 5축 점수 계산\"\"\"\n    scores = {\n        \"moisture\": 0,\n        \"oil\": 0,\n        \"sensitivity\": 0,\n        \"pigmentation\": 0,\n        \"trouble\": 0\n    }\n    \n    for question_id, option_letter in responses.items():\n        option = await get_option_by_question_and_letter(db, int(question_id), option_letter)\n        if option:\n            scores[\"moisture\"] += option.moisture_score\n            scores[\"oil\"] += option.oil_score\n            scores[\"sensitivity\"] += option.sensitivity_score\n            scores[\"pigmentation\"] += option.pigmentation_score\n            scores[\"trouble\"] += option.trouble_score\n    \n    return scores\n\ndef map_skin_type(\n    db: AsyncSession, \n    axis_scores: Dict[str, int]\n) -> Tuple[SkinTypeRule, Optional[SkinTypeRule], bool]:\n    \"\"\"\n    5축 점수를 기반으로 피부타입 매핑\n    \n    Returns:\n        - primary_type: 주요 피부타입\n        - secondary_type: 경계 타입 (점수차 2점 이하 시)\n        - is_boundary: 경계 타입 여부\n    \"\"\"\n    rules = await get_active_mapping_rules(db)\n    matched_types = []\n    \n    for rule in rules:\n        if matches_rule(axis_scores, rule):\n            match_score = calculate_match_score(axis_scores, rule)\n            matched_types.append((rule, match_score))\n    \n    # 우선순위와 매칭 점수로 정렬\n    matched_types.sort(key=lambda x: (x[0].priority, x[1]), reverse=True)\n    \n    if not matched_types:\n        # 기본값: 옹달샘 (균형 타입)\n        return await get_default_type(db), None, False\n    \n    primary = matched_types[0][0]\n    primary_score = matched_types[0][1]\n    \n    # 경계 타입 판정: 1순위와 2순위 점수차 2점 이하\n    is_boundary = False\n    secondary = None\n    \n    if len(matched_types) > 1:\n        secondary_score = matched_types[1][1]\n        if abs(primary_score - secondary_score) <= 2:\n            is_boundary = True\n            secondary = matched_types[1][0]\n    \n    return primary, secondary, is_boundary\n\ndef matches_rule(scores: Dict[str, int], rule: SkinTypeRule) -> bool:\n    \"\"\"점수가 룰의 조건을 만족하는지 확인\"\"\"\n    for axis in [\"moisture\", \"oil\", \"sensitivity\", \"pigmentation\", \"trouble\"]:\n        min_val = getattr(rule, f\"{axis}_min\")\n        max_val = getattr(rule, f\"{axis}_max\")\n        \n        if min_val is not None and scores[axis] < min_val:\n            return False\n        if max_val is not None and scores[axis] > max_val:\n            return False\n    \n    return True\n```\n\n### 5. 프론트엔드 연동 (Task 11과 통합)\n\n```typescript\n// src/services/skinQuizService.ts\nimport { api } from './api';\n\nexport interface QuizQuestion {\n  id: number;\n  order: number;\n  category: string;\n  text: string;\n  options: {\n    letter: string;\n    text: string;\n  }[];\n}\n\nexport interface QuizResult {\n  skinTypeCode: string;\n  skinTypeName: string;\n  skinTypeEmoji: string;\n  skinTypeDescription: string;\n  axisScores: {\n    moisture: number;\n    oil: number;\n    sensitivity: number;\n    pigmentation: number;\n    trouble: number;\n  };\n  secondaryType?: {\n    code: string;\n    name: string;\n    emoji: string;\n  };\n  isBoundary: boolean;\n  recommendedIngredients: string[];\n  warningIngredients: string[];\n}\n\nexport const skinQuizService = {\n  getQuestions: () => api.get<{questions: QuizQuestion[]}>('/api/v1/profile/skin-quiz/questions'),\n  \n  submitQuiz: (responses: Record<string, string>) => \n    api.post<QuizResult>('/api/v1/profile/skin-quiz', { responses }),\n};\n```\n\n### 6. DB 룰 관리를 통한 튜닝 기능\n\n```sql\n-- 재배포 없이 문항/룰 수정 예시\n-- 1. 새 문항 추가\nINSERT INTO skin_quiz_questions (question_order, category, question_text)\nVALUES (9, 'moisture_oil', '아침에 일어났을 때 피부 상태는?');\n\n-- 2. 매핑 룰 조정\nUPDATE skin_type_mapping_rules \nSET moisture_min = 3, moisture_max = 12\nWHERE skin_type_code = 'ongdalsam';\n\n-- 3. 새 타입 룰 추가 (필요시)\nINSERT INTO skin_type_mapping_rules \n(skin_type_code, skin_type_name_ko, skin_type_emoji, ...)\nVALUES ('newtype', '새타입', '🆕', ...);\n```",
         "testStrategy": "## 테스트 전략\n\n### 1. 유닛 테스트\n\n#### 1.1 5축 점수 계산 테스트\n```python\ndef test_calculate_axis_scores_basic():\n    \"\"\"기본 점수 계산 검증\"\"\"\n    responses = {\"1\": \"A\", \"2\": \"B\", \"3\": \"C\"}\n    scores = calculate_axis_scores(mock_db, responses)\n    \n    assert \"moisture\" in scores\n    assert \"oil\" in scores\n    assert \"sensitivity\" in scores\n    assert \"pigmentation\" in scores\n    assert \"trouble\" in scores\n    assert all(isinstance(v, int) for v in scores.values())\n\ndef test_calculate_axis_scores_extreme_dry():\n    \"\"\"극건성 응답 패턴 검증\"\"\"\n    responses = {\"1\": \"A\", \"2\": \"A\", \"3\": \"A\", \"4\": \"A\", ...}  # 모두 건조 답변\n    scores = calculate_axis_scores(mock_db, responses)\n    \n    assert scores[\"moisture\"] < 0\n    assert scores[\"oil\"] < 2\n\ndef test_calculate_axis_scores_oily():\n    \"\"\"지성 응답 패턴 검증\"\"\"\n    responses = {\"1\": \"D\", \"2\": \"C\", \"5\": \"D\", ...}  # 유분 높은 답변\n    scores = calculate_axis_scores(mock_db, responses)\n    \n    assert scores[\"oil\"] >= 7\n```\n\n#### 1.2 타입 매핑 테스트\n```python\ndef test_map_skin_type_ongdalsam():\n    \"\"\"균형 피부 → 옹달샘 매핑\"\"\"\n    scores = {\"moisture\": 5, \"oil\": 4, \"sensitivity\": 2, \"pigmentation\": 1, \"trouble\": 1}\n    primary, secondary, is_boundary = map_skin_type(mock_db, scores)\n    \n    assert primary.code == \"ongdalsam\"\n    assert is_boundary == False\n\ndef test_map_skin_type_hwasan():\n    \"\"\"트러블 민감성 → 화산 매핑\"\"\"\n    scores = {\"moisture\": 3, \"oil\": 5, \"sensitivity\": 7, \"pigmentation\": 2, \"trouble\": 8}\n    primary, secondary, is_boundary = map_skin_type(mock_db, scores)\n    \n    assert primary.code == \"hwasan\"\n\ndef test_map_skin_type_boundary():\n    \"\"\"경계 타입 판정 테스트 (점수차 2점 이하)\"\"\"\n    scores = {\"moisture\": 1, \"oil\": 6, \"sensitivity\": 2, \"pigmentation\": 1, \"trouble\": 2}\n    primary, secondary, is_boundary = map_skin_type(mock_db, scores)\n    \n    assert is_boundary == True\n    assert secondary is not None\n```\n\n#### 1.3 룰 매칭 테스트\n```python\ndef test_matches_rule_within_range():\n    \"\"\"범위 내 점수 매칭\"\"\"\n    scores = {\"moisture\": 5, \"oil\": 3, \"sensitivity\": 2, \"pigmentation\": 1, \"trouble\": 1}\n    rule = MockRule(moisture_min=4, moisture_max=10, oil_min=2, oil_max=6)\n    \n    assert matches_rule(scores, rule) == True\n\ndef test_matches_rule_out_of_range():\n    \"\"\"범위 외 점수 매칭 실패\"\"\"\n    scores = {\"moisture\": 15, \"oil\": 3, \"sensitivity\": 2, \"pigmentation\": 1, \"trouble\": 1}\n    rule = MockRule(moisture_min=4, moisture_max=10)\n    \n    assert matches_rule(scores, rule) == False\n```\n\n### 2. 통합 테스트\n\n#### 2.1 API 엔드포인트 테스트\n```python\nasync def test_get_quiz_questions():\n    \"\"\"문항 조회 API\"\"\"\n    response = await client.get(\"/api/v1/profile/skin-quiz/questions\")\n    \n    assert response.status_code == 200\n    data = response.json()\n    assert \"questions\" in data\n    assert len(data[\"questions\"]) >= 7\n    assert len(data[\"questions\"]) <= 10\n\nasync def test_submit_quiz_success():\n    \"\"\"진단 제출 성공\"\"\"\n    responses = {\"1\": \"B\", \"2\": \"B\", \"3\": \"A\", \"4\": \"A\", \"5\": \"B\", \"6\": \"A\", \"7\": \"B\", \"8\": \"A\"}\n    response = await client.post(\n        \"/api/v1/profile/skin-quiz\",\n        json={\"responses\": responses}\n    )\n    \n    assert response.status_code == 200\n    result = response.json()\n    assert \"skin_type_code\" in result\n    assert \"axis_scores\" in result\n    assert result[\"skin_type_code\"] in [\"ongdalsam\", \"mulgae\", \"subji\", \"hwasan\", \"samak\", \"injeolmi\", \"yuriguseul\", \"memilmuk\"]\n\nasync def test_submit_quiz_invalid_responses():\n    \"\"\"잘못된 응답 형식 에러 처리\"\"\"\n    response = await client.post(\n        \"/api/v1/profile/skin-quiz\",\n        json={\"responses\": {\"1\": \"Z\"}}  # 잘못된 선택지\n    )\n    \n    assert response.status_code == 400\n\nasync def test_submit_quiz_saves_to_profile():\n    \"\"\"로그인 사용자 진단 결과 저장 검증\"\"\"\n    token = await get_test_user_token()\n    responses = {\"1\": \"A\", \"2\": \"A\", ...}\n    \n    response = await client.post(\n        \"/api/v1/profile/skin-quiz\",\n        json={\"responses\": responses},\n        headers={\"Authorization\": f\"Bearer {token}\"}\n    )\n    \n    assert response.status_code == 200\n    \n    # DB에서 저장 확인\n    profile = await get_user_profile(test_user_id)\n    assert profile.quiz_responses is not None\n    assert profile.axis_scores is not None\n    assert profile.skin_type_code is not None\n```\n\n### 3. 시나리오 테스트\n\n#### 3.1 8가지 피부타입 전체 커버리지 테스트\n```python\n@pytest.mark.parametrize(\"skin_type,expected_responses\", [\n    (\"ongdalsam\", {\"1\": \"B\", \"2\": \"B\", \"3\": \"A\", \"4\": \"A\", \"5\": \"B\", \"6\": \"A\", \"7\": \"A\", \"8\": \"A\"}),\n    (\"mulgae\", {\"1\": \"D\", \"2\": \"C\", \"3\": \"B\", \"4\": \"A\", \"5\": \"C\", \"6\": \"A\", \"7\": \"B\", \"8\": \"A\"}),\n    (\"subji\", {\"1\": \"D\", \"2\": \"D\", \"3\": \"B\", \"4\": \"B\", \"5\": \"C\", \"6\": \"B\", \"7\": \"B\", \"8\": \"A\"}),\n    (\"hwasan\", {\"1\": \"B\", \"2\": \"B\", \"3\": \"D\", \"4\": \"C\", \"5\": \"C\", \"6\": \"D\", \"7\": \"B\", \"8\": \"B\"}),\n    (\"samak\", {\"1\": \"A\", \"2\": \"A\", \"3\": \"A\", \"4\": \"A\", \"5\": \"A\", \"6\": \"A\", \"7\": \"A\", \"8\": \"A\"}),\n    (\"injeolmi\", {\"1\": \"A\", \"2\": \"A\", \"3\": \"A\", \"4\": \"B\", \"5\": \"A\", \"6\": \"B\", \"7\": \"B\", \"8\": \"B\"}),\n    (\"yuriguseul\", {\"1\": \"B\", \"2\": \"B\", \"3\": \"A\", \"4\": \"D\", \"5\": \"A\", \"6\": \"C\", \"7\": \"A\", \"8\": \"A\"}),\n    (\"memilmuk\", {\"1\": \"B\", \"2\": \"B\", \"3\": \"A\", \"4\": \"A\", \"5\": \"B\", \"6\": \"A\", \"7\": \"D\", \"8\": \"D\"}),\n])\nasync def test_all_skin_types_reachable(skin_type, expected_responses):\n    \"\"\"모든 8가지 피부타입이 도달 가능한지 검증\"\"\"\n    response = await client.post(\n        \"/api/v1/profile/skin-quiz\",\n        json={\"responses\": expected_responses}\n    )\n    \n    assert response.status_code == 200\n    assert response.json()[\"skin_type_code\"] == skin_type\n```\n\n### 4. DB 룰 변경 테스트\n\n```python\nasync def test_rule_change_affects_mapping():\n    \"\"\"DB 룰 변경 시 매핑 결과 변경 검증\"\"\"\n    # 기존 룰로 진단\n    result1 = await submit_quiz(test_responses)\n    original_type = result1[\"skin_type_code\"]\n    \n    # 룰 변경 (재배포 없이)\n    await db.execute(\n        \"UPDATE skin_type_mapping_rules SET moisture_min = 0 WHERE skin_type_code = 'samak'\"\n    )\n    \n    # 변경된 룰로 재진단\n    result2 = await submit_quiz(test_responses)\n    \n    # 룰 변경이 실시간 반영되는지 확인\n    # (실제 결과는 테스트 데이터에 따라 달라질 수 있음)\n    assert result2[\"skin_type_code\"] is not None\n```\n\n### 5. 프론트엔드 E2E 테스트\n\n```typescript\ndescribe('피부타입 진단 플로우', () => {\n  it('전체 진단 플로우 완료', async () => {\n    // 1. 온보딩에서 진단 시작\n    await page.click('[data-testid=\"start-diagnosis\"]');\n    \n    // 2. 모든 문항 응답\n    for (let i = 0; i < 8; i++) {\n      await page.click('[data-testid=\"option-B\"]');\n      await page.click('[data-testid=\"next-button\"]');\n    }\n    \n    // 3. 결과 화면 확인\n    await expect(page.locator('[data-testid=\"result-type\"]')).toBeVisible();\n    await expect(page.locator('[data-testid=\"result-emoji\"]')).toBeVisible();\n    await expect(page.locator('[data-testid=\"recommended-ingredients\"]')).toBeVisible();\n  });\n  \n  it('경계 타입 안내 표시', async () => {\n    // 경계 타입 응답 시나리오 실행\n    // ...\n    await expect(page.locator('[data-testid=\"boundary-type-notice\"]')).toBeVisible();\n  });\n});",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           "1",
           "2",
@@ -1184,9 +1223,10 @@
             "description": "skin_quiz_questions, skin_quiz_options, skin_type_mapping_rules 테이블과 user_profiles 확장 컬럼을 위한 데이터베이스 스키마를 설계하고 마이그레이션 파일을 생성합니다.",
             "dependencies": [],
             "details": "SQLAlchemy 모델 정의: 1) skin_quiz_questions 테이블 - question_order, category(moisture_oil/sensitivity/pigmentation/trouble/pore_redness), question_text, is_active 컬럼 포함. 2) skin_quiz_options 테이블 - question_id FK, option_order(A~E), option_text, 5축 점수 컬럼(moisture_score, oil_score, sensitivity_score, pigmentation_score, trouble_score, 각 -2~+3 범위). 3) skin_type_mapping_rules 테이블 - skin_type_code(8타입), skin_type_name_ko, skin_type_emoji, description, 5축별 min/max 조건, priority, is_active. 4) user_profiles 확장 - quiz_responses(JSONB), axis_scores(JSONB), skin_type_code, secondary_type_code, skin_diagnosed_at 컬럼 추가. 인덱스: question_order, skin_type_code, priority DESC.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "마이그레이션 실행 후 psql로 테이블 구조 확인. 각 테이블에 테스트 데이터 INSERT 후 정상 저장 및 FK 제약조건 검증.",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.088Z"
           },
           {
             "id": 2,
@@ -1278,7 +1318,8 @@
             "parentId": "undefined"
           }
         ],
-        "group": "AI·ML"
+        "group": "AI·ML",
+        "updatedAt": "2026-08-17T14:10:22.088Z"
       },
       {
         "id": "14",
@@ -1286,7 +1327,7 @@
         "description": "PRD v1.8 F3(P0) 요구사항에 따라 사용자 피부타입 기반 메인 화면 추천 API(GET /api/v1/recommendations/main, GET /api/v1/recommendations/welcome-set)를 개발합니다. skin_type_recommendation_rules 테이블에서 추천 성분 태그를 도출하고, 점수 기반 랭킹으로 상위 12개 제품을 반환하며, Redis TTL 24시간 캐싱과 admin_curated_sets 테이블 기반 환영 세트 기능을 포함합니다.",
         "details": "## 구현 상세\n\n### 1. 데이터베이스 스키마 구현\n\n#### 1.1 skin_type_recommendation_rules 테이블\n```sql\nCREATE TABLE skin_type_recommendation_rules (\n    id SERIAL PRIMARY KEY,\n    skin_type VARCHAR(20) NOT NULL,              -- ondalsam, mulgae, subuji, hwasan, samak, injeolmi, yuriguseul, memilmuk\n    recommended_tags JSONB NOT NULL,              -- [\"균형보습\", \"항산화\", \"가벼운유분\"]\n    avoid_tags JSONB NOT NULL,                    -- [\"알코올\", \"강한계면활성제\"]\n    priority INT DEFAULT 1,\n    is_active BOOLEAN DEFAULT TRUE,\n    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n    UNIQUE(skin_type)\n);\n\nCREATE INDEX idx_skin_type_rec_rules_type ON skin_type_recommendation_rules(skin_type);\n```\n\n#### 1.2 admin_curated_sets 테이블 (이미 정의된 스키마 확장)\n```sql\nCREATE TABLE admin_curated_sets (\n    id SERIAL PRIMARY KEY,\n    skin_type VARCHAR(20) NOT NULL,\n    set_name VARCHAR(100) NOT NULL,               -- \"옹달샘 균형 케어 입문 세트\"\n    product_ids JSONB NOT NULL,                   -- [123, 456, 789]\n    price_tier VARCHAR(10) NOT NULL,              -- low, mid, high\n    categories JSONB DEFAULT '[\"스킨\", \"로션\", \"에센스\"]',\n    description TEXT,\n    is_active BOOLEAN DEFAULT TRUE,\n    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\n\nCREATE INDEX idx_curated_sets_skin_type ON admin_curated_sets(skin_type);\nCREATE INDEX idx_curated_sets_active ON admin_curated_sets(is_active) WHERE is_active = TRUE;\n```\n\n#### 1.3 recommendation_cache 테이블 (Redis 백업용)\n```sql\nCREATE TABLE recommendation_cache (\n    cache_key VARCHAR(255) PRIMARY KEY,           -- \"main:{skin_type}:{category}\"\n    recommendations JSONB NOT NULL,\n    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n    expires_at TIMESTAMP WITH TIME ZONE NOT NULL\n);\n```\n\n### 2. FastAPI 추천 엔진 서비스 구현\n\n#### 2.1 추천 점수 계산 모듈 (app/services/recommendation_engine.py)\n```python\nimport math\nfrom typing import List, Dict, Optional\nfrom sqlalchemy.orm import Session\nfrom app.models import Product, ProductIngredient, ProductRating, SkinTypeRecommendationRule\nimport redis\nimport json\n\nclass RecommendationEngine:\n    def __init__(self, db: Session, redis_client: redis.Redis):\n        self.db = db\n        self.redis = redis_client\n        self.CACHE_TTL = 86400  # 24시간\n\n    def get_recommendation_rules(self, skin_type: str) -> Dict:\n        \"\"\"피부타입별 추천/주의 성분 태그 조회\"\"\"\n        rule = self.db.query(SkinTypeRecommendationRule).filter(\n            SkinTypeRecommendationRule.skin_type == skin_type,\n            SkinTypeRecommendationRule.is_active == True\n        ).first()\n        \n        if not rule:\n            return {\"recommended_tags\": [], \"avoid_tags\": []}\n        return {\n            \"recommended_tags\": rule.recommended_tags,\n            \"avoid_tags\": rule.avoid_tags\n        }\n\n    def filter_candidates(\n        self, \n        category: Optional[str], \n        recommended_tags: List[str], \n        avoid_tags: List[str]\n    ) -> List[Product]:\n        \"\"\"후보 제품 1차 필터링: 카테고리 + 추천 태그 포함 + 주의 태그 제외\"\"\"\n        query = self.db.query(Product).filter(Product.is_available == True)\n        \n        if category:\n            query = query.filter(Product.category == category)\n        \n        # 추천 태그 1개 이상 포함하는 제품 필터링\n        # ingredient_dictionary의 function_tags와 매칭\n        # (실제 구현에서는 JOIN으로 처리)\n        \n        return query.all()\n\n    def calculate_product_score(\n        self, \n        product: Product, \n        recommended_tags: List[str],\n        brand_counts: Dict[str, int]\n    ) -> float:\n        \"\"\"제품 점수 산출 (매칭×0.4 + 별점×0.3 + 리뷰수 로그×0.2 + 다양성×0.1)\"\"\"\n        # 1. 매칭 성분 수 계산 (0.4)\n        matching_count = self._count_matching_ingredients(product.id, recommended_tags)\n        matching_score = min(matching_count / 5.0, 1.0) * 0.4  # 최대 5개 매칭 가정\n        \n        # 2. 별점 평균 (0.3)\n        rating = self._get_product_rating(product.id)\n        rating_score = (rating / 5.0) * 0.3\n        \n        # 3. 리뷰 건수 로그 스케일 (0.2)\n        review_count = self._get_review_count(product.id)\n        review_score = min(math.log10(review_count + 1) / 4.0, 1.0) * 0.2  # log10(10000)=4 최대\n        \n        # 4. 브랜드 다양성 보정 (0.1)\n        brand = product.brand\n        diversity_penalty = min(brand_counts.get(brand, 0) * 0.05, 0.1)\n        diversity_score = 0.1 - diversity_penalty\n        \n        return matching_score + rating_score + review_score + diversity_score\n\n    def get_main_recommendations(\n        self, \n        skin_type: str, \n        category: Optional[str] = None,\n        limit: int = 12\n    ) -> List[Dict]:\n        \"\"\"메인 화면 추천 제품 조회 (상위 12개)\"\"\"\n        # Redis 캐시 확인\n        cache_key = f\"main:{skin_type}:{category or 'all'}\"\n        cached = self.redis.get(cache_key)\n        if cached:\n            return json.loads(cached)\n        \n        # 추천 룰 조회\n        rules = self.get_recommendation_rules(skin_type)\n        \n        # 후보 필터링\n        candidates = self.filter_candidates(\n            category, \n            rules[\"recommended_tags\"], \n            rules[\"avoid_tags\"]\n        )\n        \n        # 점수 계산 및 정렬\n        brand_counts = {}\n        scored_products = []\n        \n        for product in candidates:\n            score = self.calculate_product_score(\n                product, \n                rules[\"recommended_tags\"],\n                brand_counts\n            )\n            scored_products.append((product, score))\n            brand_counts[product.brand] = brand_counts.get(product.brand, 0) + 1\n        \n        scored_products.sort(key=lambda x: x[1], reverse=True)\n        \n        # 동일 브랜드 최대 2개 제한\n        result = []\n        brand_in_result = {}\n        for product, score in scored_products:\n            if brand_in_result.get(product.brand, 0) >= 2:\n                continue\n            result.append(self._serialize_product(product, score, rules[\"recommended_tags\"]))\n            brand_in_result[product.brand] = brand_in_result.get(product.brand, 0) + 1\n            if len(result) >= limit:\n                break\n        \n        # Redis 캐싱\n        self.redis.setex(cache_key, self.CACHE_TTL, json.dumps(result))\n        \n        return result\n```\n\n#### 2.2 환영 세트 서비스 (app/services/welcome_set_service.py)\n```python\nfrom typing import List, Dict, Optional\nfrom sqlalchemy.orm import Session\nfrom app.models import AdminCuratedSet, Product\n\nclass WelcomeSetService:\n    def __init__(self, db: Session):\n        self.db = db\n\n    def get_welcome_sets(\n        self, \n        skin_type: str, \n        price_tier: Optional[str] = None\n    ) -> List[Dict]:\n        \"\"\"피부타입별 사전 큐레이션 세트 조회\"\"\"\n        query = self.db.query(AdminCuratedSet).filter(\n            AdminCuratedSet.skin_type == skin_type,\n            AdminCuratedSet.is_active == True\n        )\n        \n        if price_tier:\n            query = query.filter(AdminCuratedSet.price_tier == price_tier)\n        else:\n            # 기본: 저가/중가/고가 각 1개씩\n            pass\n        \n        sets = query.all()\n        \n        result = []\n        for curated_set in sets:\n            products = self._get_products_by_ids(curated_set.product_ids)\n            total_price = sum(p.get(\"current_price\", 0) for p in products)\n            \n            result.append({\n                \"set_id\": curated_set.id,\n                \"set_name\": curated_set.set_name,\n                \"skin_type\": curated_set.skin_type,\n                \"price_tier\": curated_set.price_tier,\n                \"total_price\": total_price,\n                \"products\": products,\n                \"categories\": curated_set.categories,\n                \"description\": curated_set.description\n            })\n        \n        return result\n\n    def _get_products_by_ids(self, product_ids: List[int]) -> List[Dict]:\n        \"\"\"제품 ID 목록으로 제품 상세 조회\"\"\"\n        products = self.db.query(Product).filter(\n            Product.id.in_(product_ids)\n        ).all()\n        \n        return [self._serialize_product(p) for p in products]\n```\n\n### 3. API 엔드포인트 구현 (app/routers/recommendations.py)\n\n```python\nfrom fastapi import APIRouter, Depends, HTTPException, Query\nfrom sqlalchemy.orm import Session\nfrom typing import Optional, List\nfrom app.database import get_db\nfrom app.services.recommendation_engine import RecommendationEngine\nfrom app.services.welcome_set_service import WelcomeSetService\nfrom app.auth import get_current_user_optional, get_current_user\nfrom app.schemas.recommendation import (\n    MainRecommendationResponse,\n    WelcomeSetResponse,\n    ProductRecommendation\n)\nimport redis\n\nrouter = APIRouter(prefix=\"/api/v1/recommendations\", tags=[\"recommendations\"])\n\nredis_client = redis.Redis(host='localhost', port=6379, db=0)\n\n@router.get(\"/main\", response_model=MainRecommendationResponse)\nasync def get_main_recommendations(\n    limit: int = Query(12, ge=1, le=50),\n    category: Optional[str] = Query(None, description=\"카테고리 필터\"),\n    db: Session = Depends(get_db),\n    current_user = Depends(get_current_user_optional)\n):\n    \"\"\"\n    메인 화면 큐레이션 추천 API\n    - 로그인 사용자: 피부타입 기반 개인화 추천\n    - 게스트: 전체 인기 제품 (별점+리뷰 기반)\n    \"\"\"\n    engine = RecommendationEngine(db, redis_client)\n    \n    if current_user and current_user.profile and current_user.profile.skin_type:\n        # 로그인 사용자: 피부타입 기반 추천\n        skin_type = current_user.profile.skin_type\n        recommendations = engine.get_main_recommendations(\n            skin_type=skin_type,\n            category=category,\n            limit=limit\n        )\n        return MainRecommendationResponse(\n            skin_type=skin_type,\n            is_personalized=True,\n            recommendations=recommendations,\n            cache_ttl=86400\n        )\n    else:\n        # 게스트: 인기 제품\n        recommendations = engine.get_popular_products(\n            category=category,\n            limit=limit\n        )\n        return MainRecommendationResponse(\n            skin_type=None,\n            is_personalized=False,\n            recommendations=recommendations,\n            cache_ttl=3600\n        )\n\n@router.get(\"/welcome-set\", response_model=List[WelcomeSetResponse])\nasync def get_welcome_set(\n    price_tier: Optional[str] = Query(None, regex=\"^(low|mid|high)$\"),\n    db: Session = Depends(get_db),\n    current_user = Depends(get_current_user)\n):\n    \"\"\"\n    가입 직후 추천 세트 API (로그인 필수)\n    - 피부타입별 사전 큐레이션 3종 세트 반환\n    - price_tier 미지정 시 저가/중가/고가 각 1개\n    \"\"\"\n    if not current_user.profile or not current_user.profile.skin_type:\n        raise HTTPException(\n            status_code=400, \n            detail=\"피부타입 진단을 먼저 완료해주세요.\"\n        )\n    \n    skin_type = current_user.profile.skin_type\n    service = WelcomeSetService(db)\n    \n    sets = service.get_welcome_sets(\n        skin_type=skin_type,\n        price_tier=price_tier\n    )\n    \n    if not sets:\n        raise HTTPException(\n            status_code=404,\n            detail=f\"{skin_type} 타입에 대한 추천 세트가 아직 준비되지 않았습니다.\"\n        )\n    \n    return sets\n```\n\n### 4. Pydantic 스키마 정의 (app/schemas/recommendation.py)\n\n```python\nfrom pydantic import BaseModel\nfrom typing import List, Optional\n\nclass ProductRecommendation(BaseModel):\n    id: int\n    name: str\n    brand: str\n    category: str\n    image_url: Optional[str]\n    current_price: int\n    original_price: Optional[int]\n    discount_rate: Optional[int]\n    rating: float\n    review_count: int\n    matching_score: float\n    matching_tags: List[str]\n    volume_ml: Optional[int]\n\nclass MainRecommendationResponse(BaseModel):\n    skin_type: Optional[str]\n    is_personalized: bool\n    recommendations: List[ProductRecommendation]\n    cache_ttl: int\n\nclass WelcomeSetProduct(BaseModel):\n    id: int\n    name: str\n    brand: str\n    category: str\n    image_url: Optional[str]\n    current_price: int\n    matching_percentage: Optional[int]\n\nclass WelcomeSetResponse(BaseModel):\n    set_id: int\n    set_name: str\n    skin_type: str\n    price_tier: str\n    total_price: int\n    products: List[WelcomeSetProduct]\n    categories: List[str]\n    description: Optional[str]\n```\n\n### 5. Redis 캐싱 구성\n\n#### 5.1 캐시 키 구조\n- 메인 추천: `recommendations:main:{skin_type}:{category}` (TTL: 24시간)\n- 환영 세트: `recommendations:welcome:{skin_type}` (TTL: 24시간)\n- 인기 제품: `recommendations:popular:{category}` (TTL: 1시간)\n\n#### 5.2 캐시 무효화 트리거\n- 제품 가격/별점 업데이트 시\n- admin_curated_sets 수정 시\n- skin_type_recommendation_rules 수정 시\n\n### 6. 8타입 추천 성분 룰 초기 데이터\n\n```sql\nINSERT INTO skin_type_recommendation_rules (skin_type, recommended_tags, avoid_tags) VALUES\n('ondalsam', '[\"균형보습\", \"항산화\", \"가벼운유분\", \"비타민\"]', '[]'),\n('mulgae', '[\"피지조절\", \"모공케어\", \"산뜻함\", \"BHA\"]', '[\"과도한유분\", \"리치텍스처\"]'),\n('subuji', '[\"수분공급\", \"가벼운보습\", \"피지조절\"]', '[\"무거운오일\"]'),\n('hwasan', '[\"진정\", \"카밍\", \"약산성\", \"저자극\"]', '[\"알코올\", \"인공향료\", \"강한계면활성제\"]'),\n('samak', '[\"고보습\", \"오일\", \"세라마이드\", \"장벽강화\"]', '[\"알코올\", \"수렴성분\"]'),\n('injeolmi', '[\"보습\", \"영양\", \"탄력\"]', '[]'),\n('yuriguseul', '[\"저자극\", \"무향\", \"진정\", \"시카\"]', '[\"알코올\", \"인공색소\", \"방부제\"]'),\n('memilmuk', '[\"미백\", \"비타민C\", \"나이아신아마이드\", \"각질케어\"]', '[\"강한자극성분\"]');\n```",
         "testStrategy": "## 테스트 전략\n\n### 1. 유닛 테스트\n\n#### 1.1 추천 점수 계산 테스트\n```python\ndef test_calculate_product_score_basic():\n    \"\"\"기본 점수 계산 검증\"\"\"\n    engine = RecommendationEngine(mock_db, mock_redis)\n    product = create_mock_product(rating=4.5, review_count=100)\n    recommended_tags = [\"보습\", \"진정\"]\n    brand_counts = {}\n    \n    score = engine.calculate_product_score(product, recommended_tags, brand_counts)\n    \n    assert 0 <= score <= 1.0\n    assert score > 0.5  # 좋은 평점과 리뷰가 있는 제품\n\ndef test_brand_diversity_penalty():\n    \"\"\"동일 브랜드 다양성 페널티 검증\"\"\"\n    engine = RecommendationEngine(mock_db, mock_redis)\n    product = create_mock_product(brand=\"BrandA\")\n    brand_counts = {\"BrandA\": 2}\n    \n    score_with_penalty = engine.calculate_product_score(product, [], brand_counts)\n    \n    brand_counts_empty = {}\n    score_no_penalty = engine.calculate_product_score(product, [], brand_counts_empty)\n    \n    assert score_no_penalty > score_with_penalty\n```\n\n#### 1.2 후보 필터링 테스트\n```python\ndef test_filter_candidates_includes_recommended():\n    \"\"\"추천 태그 포함 제품 필터링\"\"\"\n    candidates = engine.filter_candidates(\n        category=\"스킨\",\n        recommended_tags=[\"보습\", \"진정\"],\n        avoid_tags=[\"알코올\"]\n    )\n    \n    for product in candidates:\n        product_tags = get_product_tags(product.id)\n        assert any(tag in recommended_tags for tag in product_tags)\n        assert \"알코올\" not in product_tags\n\ndef test_filter_excludes_avoid_tags():\n    \"\"\"주의 태그 제품 제외 검증\"\"\"\n    candidates = engine.filter_candidates(\n        category=None,\n        recommended_tags=[],\n        avoid_tags=[\"알코올\", \"인공향료\"]\n    )\n    \n    for product in candidates:\n        product_tags = get_product_tags(product.id)\n        assert not any(tag in [\"알코올\", \"인공향료\"] for tag in product_tags)\n```\n\n#### 1.3 브랜드 다양성 제한 테스트\n```python\ndef test_brand_limit_max_two():\n    \"\"\"동일 브랜드 최대 2개 제한 검증\"\"\"\n    recommendations = engine.get_main_recommendations(\n        skin_type=\"ondalsam\",\n        limit=12\n    )\n    \n    brand_counts = {}\n    for rec in recommendations:\n        brand = rec[\"brand\"]\n        brand_counts[brand] = brand_counts.get(brand, 0) + 1\n    \n    for brand, count in brand_counts.items():\n        assert count <= 2, f\"브랜드 {brand}가 {count}개로 제한 초과\"\n```\n\n### 2. 통합 테스트\n\n#### 2.1 메인 추천 API 테스트\n```python\n@pytest.mark.asyncio\nasync def test_main_recommendations_authenticated():\n    \"\"\"로그인 사용자 메인 추천 테스트\"\"\"\n    # 피부타입이 있는 사용자 토큰\n    token = create_test_token(user_id=1, skin_type=\"hwasan\")\n    \n    response = await client.get(\n        \"/api/v1/recommendations/main?limit=12\",\n        headers={\"Authorization\": f\"Bearer {token}\"}\n    )\n    \n    assert response.status_code == 200\n    data = response.json()\n    assert data[\"is_personalized\"] == True\n    assert data[\"skin_type\"] == \"hwasan\"\n    assert len(data[\"recommendations\"]) <= 12\n    \n    # 화산 타입에 맞는 추천인지 확인 (진정, 카밍 태그 포함 제품)\n    for rec in data[\"recommendations\"]:\n        assert \"알코올\" not in rec.get(\"matching_tags\", [])\n\n@pytest.mark.asyncio\nasync def test_main_recommendations_guest():\n    \"\"\"게스트 메인 추천 테스트 (인기 제품)\"\"\"\n    response = await client.get(\"/api/v1/recommendations/main?limit=12\")\n    \n    assert response.status_code == 200\n    data = response.json()\n    assert data[\"is_personalized\"] == False\n    assert data[\"skin_type\"] is None\n    assert len(data[\"recommendations\"]) > 0\n```\n\n#### 2.2 환영 세트 API 테스트\n```python\n@pytest.mark.asyncio\nasync def test_welcome_set_authenticated():\n    \"\"\"환영 세트 조회 테스트\"\"\"\n    token = create_test_token(user_id=1, skin_type=\"ondalsam\")\n    \n    response = await client.get(\n        \"/api/v1/recommendations/welcome-set\",\n        headers={\"Authorization\": f\"Bearer {token}\"}\n    )\n    \n    assert response.status_code == 200\n    sets = response.json()\n    assert len(sets) >= 1\n    \n    for s in sets:\n        assert s[\"skin_type\"] == \"ondalsam\"\n        assert s[\"price_tier\"] in [\"low\", \"mid\", \"high\"]\n        assert len(s[\"products\"]) == 3  # 기본 3종 세트\n\n@pytest.mark.asyncio\nasync def test_welcome_set_requires_auth():\n    \"\"\"환영 세트 인증 필수 확인\"\"\"\n    response = await client.get(\"/api/v1/recommendations/welcome-set\")\n    assert response.status_code == 401\n\n@pytest.mark.asyncio\nasync def test_welcome_set_requires_skin_type():\n    \"\"\"피부타입 미완료 시 에러\"\"\"\n    token = create_test_token(user_id=2, skin_type=None)\n    \n    response = await client.get(\n        \"/api/v1/recommendations/welcome-set\",\n        headers={\"Authorization\": f\"Bearer {token}\"}\n    )\n    \n    assert response.status_code == 400\n    assert \"피부타입 진단\" in response.json()[\"detail\"]\n```\n\n### 3. 캐싱 테스트\n\n#### 3.1 Redis 캐싱 동작 테스트\n```python\ndef test_recommendations_cached():\n    \"\"\"추천 결과 캐싱 확인\"\"\"\n    # 첫 호출\n    result1 = engine.get_main_recommendations(\"ondalsam\", limit=12)\n    \n    # 캐시 키 확인\n    cache_key = \"recommendations:main:ondalsam:all\"\n    cached_data = redis_client.get(cache_key)\n    assert cached_data is not None\n    \n    # TTL 확인 (24시간 = 86400초)\n    ttl = redis_client.ttl(cache_key)\n    assert ttl > 86000\n\ndef test_cache_hit_performance():\n    \"\"\"캐시 히트 시 성능 테스트\"\"\"\n    import time\n    \n    # 첫 호출 (캐시 미스)\n    start = time.time()\n    engine.get_main_recommendations(\"ondalsam\", limit=12)\n    first_call = time.time() - start\n    \n    # 두 번째 호출 (캐시 히트)\n    start = time.time()\n    engine.get_main_recommendations(\"ondalsam\", limit=12)\n    second_call = time.time() - start\n    \n    assert second_call < first_call * 0.1  # 캐시 히트가 10배 이상 빠름\n```\n\n### 4. 성능 테스트\n\n#### 4.1 응답 시간 테스트\n```python\n@pytest.mark.asyncio\nasync def test_main_recommendations_response_time():\n    \"\"\"메인 추천 응답 시간 2초 이내\"\"\"\n    import time\n    \n    token = create_test_token(user_id=1, skin_type=\"ondalsam\")\n    \n    # 캐시 비우기\n    redis_client.flushdb()\n    \n    start = time.time()\n    response = await client.get(\n        \"/api/v1/recommendations/main?limit=12\",\n        headers={\"Authorization\": f\"Bearer {token}\"}\n    )\n    elapsed = time.time() - start\n    \n    assert response.status_code == 200\n    assert elapsed < 2.0, f\"응답 시간 {elapsed:.2f}초가 목표(2초) 초과\"\n```\n\n### 5. 데이터 검증 테스트\n\n#### 5.1 8타입 추천 룰 커버리지\n```python\ndef test_all_skin_types_have_rules():\n    \"\"\"모든 8타입에 추천 룰이 정의되어 있는지 확인\"\"\"\n    skin_types = [\n        \"ondalsam\", \"mulgae\", \"subuji\", \"hwasan\",\n        \"samak\", \"injeolmi\", \"yuriguseul\", \"memilmuk\"\n    ]\n    \n    for skin_type in skin_types:\n        rules = engine.get_recommendation_rules(skin_type)\n        assert len(rules[\"recommended_tags\"]) >= 3, f\"{skin_type} 추천 태그 부족\"\n\ndef test_curated_sets_coverage():\n    \"\"\"피부타입×가격대 = 24개 이상 큐레이션 세트 확인\"\"\"\n    sets = db.query(AdminCuratedSet).filter(\n        AdminCuratedSet.is_active == True\n    ).all()\n    \n    coverage = {}\n    for s in sets:\n        key = f\"{s.skin_type}:{s.price_tier}\"\n        coverage[key] = coverage.get(key, 0) + 1\n    \n    assert len(coverage) >= 24\n```",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           "2",
           "3",
@@ -1300,9 +1341,10 @@
             "description": "skin_type_recommendation_rules, admin_curated_sets, recommendation_cache 테이블의 SQLAlchemy 모델과 Alembic 마이그레이션 파일을 작성합니다.",
             "dependencies": [],
             "details": "PRD v1.8 F3 요구사항에 따라 추천 엔진에 필요한 3개의 핵심 테이블을 정의합니다:\n\n1. skin_type_recommendation_rules 테이블:\n- skin_type(VARCHAR 20, UNIQUE): 8가지 피부타입(ondalsam, mulgae, subuji, hwasan, samak, injeolmi, yuriguseul, memilmuk)\n- recommended_tags(JSONB): 추천 성분 태그 배열\n- avoid_tags(JSONB): 주의 성분 태그 배열\n- priority(INT), is_active(BOOLEAN)\n- created_at, updated_at 타임스탬프\n\n2. admin_curated_sets 테이블:\n- skin_type, set_name, product_ids(JSONB)\n- price_tier(ENUM: low, mid, high)\n- categories(JSONB), description(TEXT)\n- is_active(BOOLEAN)\n\n3. recommendation_cache 테이블:\n- cache_key(VARCHAR 255 PK)\n- recommendations(JSONB)\n- expires_at(TIMESTAMP)\n\nSQLAlchemy ORM 모델을 app/models/recommendation.py에 작성하고, skin_type ENUM 타입과 적절한 인덱스(skin_type, is_active)를 포함합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Alembic 마이그레이션 적용 후 psql로 테이블 구조 확인, SQLAlchemy 모델의 CRUD 테스트(생성/조회/수정/삭제) 수행, 인덱스 및 제약조건 검증",
-            "parentId": "undefined"
+            "parentId": "undefined",
+            "updatedAt": "2026-08-17T14:10:22.092Z"
           },
           {
             "id": 2,
@@ -1393,7 +1435,8 @@
             "parentId": "undefined"
           }
         ],
-        "group": "AI·ML"
+        "group": "AI·ML",
+        "updatedAt": "2026-08-17T14:10:22.092Z"
       },
       {
         "id": "15",
@@ -1500,9 +1543,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-05-26T07:13:59.027Z",
+      "lastModified": "2026-08-17T14:10:54.906Z",
       "taskCount": 15,
-      "completedCount": 0,
+      "completedCount": 1,
       "tags": [
         "master"
       ]
