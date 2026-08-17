@@ -44,8 +44,13 @@ export type IngredientGrade = 'key' | 'normal' | 'warn'; // 주요 / 일반 / �
 export interface Ingredient {
   id: number;
   name: string; // '히알루론산'
-  grade: IngredientGrade;
-  ewg?: number; // EWG 등급(선택)
+  /**
+   * 성분 등급. 아직 큐레이션 전이라 API가 주지 않습니다.
+   * DB(ingredients.grade)가 전부 NULL이며, 상위 200종이 전체 출현의
+   * 58%를 덮으므로 그 범위부터 채울 예정입니다.
+   */
+  grade?: IngredientGrade;
+  ewg?: number; // EWG 등급(선택). grade와 같은 이유로 아직 비어 있습니다
   /** 피부타입별 궁합 (good=잘 맞음, caution=주의) */
   skinAffinity?: Partial<Record<SkinType, 'good' | 'caution'>>;
 }
