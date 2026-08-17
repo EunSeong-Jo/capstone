@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.logging_config import configure_logging
 from app.api.chat import router as chat_router
+from app.api.products import router as products_router
 
 # ── 로깅 초기화 (P0: structlog) ─────────────────────────
 configure_logging()
@@ -44,6 +45,7 @@ app.add_middleware(
 
 
 app.include_router(chat_router)
+app.include_router(products_router)
 
 
 @app.on_event("startup")
