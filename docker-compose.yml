@@ -1,6 +1,10 @@
 services:
   # ── PostgreSQL 16 ────────────────────────────────────────
+  # 팀 공용 DB는 Neon이라 기본 기동에서는 뜨지 않는다.
+  # 로컬 DB가 필요하면:  docker compose --profile local-db up
+  # 단, 이 컨테이너는 빈 DB다. alembic upgrade head + 시드 스크립트를 따로 돌려야 한다.
   postgres:
+    profiles: ["local-db"]
     image: postgres:16-alpine
     container_name: swappy_postgres
     environment:
@@ -22,7 +26,9 @@ services:
     restart: unless-stopped
 
   # ── Redis 7 ──────────────────────────────────────────────
+  # 아직 코드에서 쓰지 않는다. Task 14(추천 캐싱)에서 기본 기동으로 되돌린다.
   redis:
+    profiles: ["local-db"]
     image: redis:7-alpine
     container_name: swappy_redis
     ports:
@@ -54,11 +60,8 @@ services:
       REDIS_HOST: redis
     volumes:
       - ./backend:/app
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    # depends_on을 두지 않는다. profile로 분리한 postgres·redis를 참조하면
+    # Compose가 프로파일을 무시하고 함께 띄워 분리가 무의미해진다.
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - swappy_net
@@ -73,7 +76,10 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+      # 컨테이너 안에서 백엔드는 'backend' 호스트다. localhost는 자기 자신이라
+      # .env의 VITE_API_BASE_URL(로컬 npm run dev 전용)이 새어들면 프록시가 깨진다.
+      # 치환을 쓰지 않고 고정하는 이유가 이것이다.
+      VITE_API_BASE_URL: http://backend:8000
     volumes:
       - ./frontend:/app
       - /app/node_modules
