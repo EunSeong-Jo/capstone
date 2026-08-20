@@ -256,7 +256,7 @@ export default function SearchPage() {
                   <span className="text-xs text-gray-50">ⓘ {REALTIME_BEST.updatedAt}</span>
                 </div>
                 <button
-                  onClick={() => navigate(`/detail/${REALTIME_BEST.product.rank}`)}
+                  onClick={() => navigate(`/detail/${REALTIME_BEST.product.id}`)}
                   className="w-full flex items-center gap-3 p-3 rounded-[14px] border border-gray-10 active:scale-[.98] transition-transform"
                 >
                   <span className="text-[17px] font-black italic text-primary shrink-0">{REALTIME_BEST.product.rank}</span>

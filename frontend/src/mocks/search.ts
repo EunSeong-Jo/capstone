@@ -19,6 +19,10 @@ export const SEARCH_AD_BANNER = {
 export const REALTIME_BEST = {
   updatedAt: '2026.06.23 18시 기준',
   product: {
+    // 상세로 이동하려면 실제 제품 id가 필요합니다. rank(1,2,3…)를 넘기면
+    // 엉뚱한 제품이 열립니다. 아래 id는 DB에 있는 실제 토리든 세럼입니다.
+    // TODO(Task 6): 이 블록 전체를 /products?sort=popular&size=1 결과로 교체
+    id: 216,
     rank: 1,
     brand: '토리든',
     name: '다이브인 저분자 히알루론산 세럼 100ml (+수딩크림)',
