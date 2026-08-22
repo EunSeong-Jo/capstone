@@ -359,50 +359,86 @@ Base URL: `http://localhost:8000` (P0) / `https://api.swappy.com` (P1)
 
 ## 7. DB 스키마 요약
 
-> 전체 스키마는 PRD v1.8 § 7.9 참고. 여기서는 프론트엔드 연동에 필요한 핵심 필드만 정리합니다.
+> **정본은 [db-schema.md](db-schema.md)입니다.** 여기서는 프론트엔드 연동에 자주 쓸 테이블만 추립니다.
+> PRD v1.8 §7.9는 설계 시점의 안이라 실제와 테이블·컬럼명이 다릅니다.
+>
+> 2026-08-17 기준 — 테이블 18개 중 **제품·성분 6개에만 데이터가 있습니다.** 나머지는 스키마만 있습니다.
 
-### 7.1 사용자 / 프로필 (P0)
-
-```sql
-users: id, email, password_hash, auth_provider, created_at
-
-user_profiles: user_id, skin_type(enum 8종), skin_type_traits(JSON),
-  skin_quiz_answers(JSON), skin_quiz_scores(JSON),
-  interested_domains(JSON), allergy_ingredients(JSON)
-```
-
-`skin_type` enum 값: `ondalsam | mulgae | subuji | hwasan | samak | injeolmi | yuriguseul | memilmuk`
-
-### 7.2 제품 관련 (P0)
+### 7.1 제품 · 성분 (데이터 있음)
 
 ```sql
-products: id, name, brand, category, image_url, volume_ml, is_available
+products              -- 4,150행
+  id, goods_no(UQ), name,
+  brand_id(FK → brands), category_id(FK → categories),
+  price, list_price, discount_rate, rating, review_count,
+  image_url, product_url,
+  volume, country, manufacturer, expiry, report_no,
+  ingredient_count_raw,      -- 원본 성분 개수(중복 포함)
+  status('active'), source('oliveyoung'), created_at, updated_at
 
-product_ingredients: id, product_id, ingredient_name, inci_name, position
+ingredients           -- 25,923행 (대한화장품협회 표준화명칭목록)
+  id, norm_name(UQ), name_ko, name_en, code,
+  ewg_grade, grade, is_allergen        -- 앞 셋은 아직 비어 있음
 
-ingredient_dictionary: inci_name(PK), name_ko, function_tags(JSON),
-  description, caution, ewg_grade
+product_ingredients   -- 171,334행 · (product_id, ingredient_id) 복합 PK
+  product_id, ingredient_id, position, raw_name
 
-product_prices: id, product_id, source, price, url, crawled_at
-
-product_ratings: product_id, avg_rating, review_count, source
-
-ingredient_vectors: product_id, tfidf_vector(BYTEA), vector_version
+brands                -- 511행 : id, name(UQ)
+categories            -- 4행   : id, code(UQ), label, parent_id
 ```
 
-### 7.3 피부타입 진단 룰 (P0)
+**주의할 점**
+
+- `products.brand`·`category`는 **문자열이 아니라 FK**입니다. 표시하려면 조인하세요
+- `position`은 전성분 표기 순서입니다. 함량 내림차순이라 순서 자체가 정보입니다
+- 카테고리는 **스킨케어 / 마스크팩 / 클렌징 / 선케어 4종**뿐입니다. 얼굴용만 적재합니다
+- `ingredients.grade`·`ewg_grade`는 수동 큐레이션 대상이라 **아직 NULL**입니다. 성분 등급 UI는 이 값이 채워진 뒤에 붙습니다
 
 ```sql
-skin_quiz_questions: id, order_index, question_text, category, options(JSON), is_active
-
-skin_type_mapping_rules: id, skin_type, condition(JSON), recommended_tags(JSON),
-  avoid_tags(JSON), priority
-
-admin_curated_sets: id, skin_type, set_name, product_ids(JSON),
-  price_tier(low/mid/high), is_active
+-- 제품 1건의 전성분을 순서대로
+SELECT p.name, i.name_ko, pi.position
+FROM products p
+JOIN product_ingredients pi ON pi.product_id = p.id
+JOIN ingredients i ON i.id = pi.ingredient_id
+WHERE p.id = $1
+ORDER BY pi.position;
 ```
 
----
+### 7.2 사용자 / 프로필 (스키마만)
+
+```sql
+users     id(uuid), email(UQ), password_hash, nickname,
+          provider('local'/kakao/google), is_active, created_at, last_login_at
+
+profiles  user_id(PK, FK → users), skin_type, scores(jsonb),
+          budget_min, budget_max, domains(jsonb)
+```
+
+`skin_type` 값: `ondalsam | mulgae | subuji | hwasan | samak | injeolmi | yuriguseul | memilmuk`
+
+### 7.3 진단 (스키마만)
+
+```sql
+quiz_versions    id, label, is_active           -- is_active 하나만 켜서 현행 문항을 정한다
+quiz_questions   id, version_id(FK), code, axis, body, order_no
+quiz_options     id, question_id(FK), label, weights(jsonb), order_no
+diagnoses        id, user_id(FK, NULL 허용), guest_token, version_id(FK),
+                 answers(jsonb), scores(jsonb)  -- 비회원 진단은 guest_token으로
+diagnosis_ranks  diagnosis_id(FK), rank, skin_type, score  -- 1~3순위
+```
+
+### 7.4 추천 (스키마만)
+
+```sql
+similarities     product_id(FK), similar_id(FK), method, score,
+                 shared_ingredients(jsonb), computed_at
+                 -- product_id가 기준 제품, similar_id가 대체품. 방향이 있다
+                 -- method: tfidf / jaccard / rbo
+
+skin_type_rules  id, skin_type(UQ), include_tags(jsonb), exclude_tags(jsonb), is_active
+tags             id, code(UQ), label          -- 효능 태그 마스터
+ingredient_tags  ingredient_id, tag_id        -- 성분 ↔ 태그 N:M
+```
 
 ## 8. 기술 스택 및 환경 설정
 
@@ -533,7 +569,7 @@ services:
 
 ### 11.4 QnA 진단 룰
 
-- 가중치 룰은 코드가 아닌 DB `skin_type_mapping_rules` 테이블로 관리 (재배포 없이 튜닝 가능)
+- 가중치 룰은 코드가 아닌 DB `skin_type_rules` 테이블로 관리 (재배포 없이 튜닝 가능)
 - 점수 차이가 작을 때 (≤2점 차이) → 두 타입 사이임을 안내 + 보조 질문으로 확정
 - QnA 응답 원본 + 5축 점수 + 최종 타입 모두 DB 저장 (추후 룰 재산정 가능하게)
 

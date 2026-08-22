@@ -996,6 +996,11 @@ Frontend 파서가 마커를 감지:
 
 ### 7.9 데이터베이스 스키마 (주요 테이블)
 
+> 📌 **이 절은 설계 시점(v1.8)의 스키마 안입니다.** 구현된 실제 스키마는 [docs/db-schema.md](db-schema.md)를 참고하세요.
+> 정규화를 거치며 테이블·컬럼명이 상당히 달라졌습니다 — `user_profiles` → `profiles`,
+> `ingredient_dictionary` → `ingredients` + `tags`, `skin_type_mapping_rules` → `skin_type_rules` 등.
+> 설계 의도의 이력을 남기기 위해 이 절은 원문 그대로 보존합니다.
+
 **P0 — MVP 테이블:**
 
 ```

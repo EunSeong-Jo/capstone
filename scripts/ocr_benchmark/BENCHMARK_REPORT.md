@@ -3,7 +3,7 @@
 ## 배경
 
 Task 4(이미지 인식 모듈)의 실제 구현에 들어가기 전, 어떤 OCR 엔진을 채택할지 결정하기 위한
-선행 실험이다. PRD(`docs/PRD_대체뭐야_v1.8.md` §7.5)는 Tesseract + EasyOCR 조합만 명시했지만,
+선행 실험이다. PRD(`docs/PRD_swappy_v1.8.md` §7.5)는 Tesseract + EasyOCR 조합만 명시했지만,
 오픈소스·한글 지원·GPU 불필요 조건에 맞는 PaddleOCR을 세 번째 후보로 추가해 3종을 비교했다.
 
 PRD상 OCR 모듈의 실제 역할은 **사진 속 브랜드명/제품명만 인식해 DB와 fuzzy-match(pg_trgm)하는 것**이며,
