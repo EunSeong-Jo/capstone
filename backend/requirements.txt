@@ -39,3 +39,9 @@ selenium==4.47.0
 # LLM (챗봇)
 openai==1.57.0
 anthropic==0.40.0
+
+# 테스트
+# 공용 Neon DB에 읽기 전용으로 붙는다 (backend/tests/conftest.py 참고).
+#   cd backend && pytest
+pytest==8.3.4
+pytest-asyncio==0.25.0

@@ -30,11 +30,14 @@ cd capstone
 
 # 2. 환경변수 설정
 cp .env.example .env
-# .env 파일을 열어 필요한 값 입력
+#    .env를 열어 DATABASE_DSN 에 Neon 연결 문자열을 붙여넣습니다.  ← 필수
+#    Neon 조직 dmu 초대를 받으면 콘솔에서 확인할 수 있습니다.
 
 # 3. 전체 스택 실행
 docker compose up --build
 ```
+
+**뜨는 컨테이너는 `backend`·`frontend` 둘뿐입니다.** 팀 공용 DB가 Neon이라 로컬 postgres·redis는 기본 기동에서 빠져 있습니다.
 
 | 서비스 | URL |
 |--------|-----|
@@ -42,7 +45,43 @@ docker compose up --build
 | 백엔드 API | http://localhost:8000/health |
 | Swagger 문서 | http://localhost:8000/api/docs |
 
-> 🎨 **프론트엔드만 단독 개발**(Docker 없이 `npm run dev`)하거나 팀 공통 개발 기준(버전 통일·컨벤션·협업 규칙)이 필요하면 → **[frontend/README.md](frontend/README.md)** 참고
+`DATABASE_DSN`이 비어 있으면 서버는 뜨지만 제품 API가 전부 실패합니다. 이 경우 기동 로그에 안내 문구가 출력되니 `docker compose logs backend`로 확인하세요.
+
+<details>
+<summary>Docker 없이 로컬에서 돌리기</summary>
+
+터미널 두 개가 필요하고, 프론트에는 **프록시 대상을 지정해야 합니다.**
+
+```bash
+# 터미널 1 — 백엔드
+cd backend && uvicorn app.main:app --reload
+
+# 터미널 2 — 프론트엔드
+cd frontend && VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev
+```
+
+`vite.config.ts`의 기본 프록시 대상은 Docker용(`http://backend:8000`)이라, 로컬 실행에서는 해석되지 않습니다.
+
+</details>
+
+<details>
+<summary>로컬 PostgreSQL이 필요할 때</summary>
+
+```bash
+docker compose --profile local-db up
+```
+
+postgres·redis 컨테이너가 함께 뜹니다. 다만 **빈 DB**라 스키마와 데이터를 직접 넣어야 합니다.
+
+```bash
+cd backend && alembic upgrade head
+python scripts/seed_ingredients.py
+python scripts/load_products.py
+```
+
+</details>
+
+> 🎨 **프론트엔드만 단독 개발**하거나 팀 공통 개발 기준(버전 통일·컨벤션·협업 규칙)이 필요하면 → **[frontend/README.md](frontend/README.md)** 참고
 
 ---
 

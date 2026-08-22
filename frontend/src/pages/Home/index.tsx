@@ -5,10 +5,10 @@ import { OyFloatingActions } from '../../components/home/oy/OyFloatingActions';
 import { ProfileDashboard } from '../../components/home/oy/sections/ProfileDashboard';
 import { ProductCarousel } from '../../components/home/oy/sections/ProductCarousel';
 import { AlternativeCarousel } from '../../components/home/oy/sections/AlternativeCarousel';
-import { OY_PRODUCTS } from '../../mocks/oliveyoung';
 import { MOCK_WEATHER, MOCK_CHARACTER, MOCK_PROFILE, MOCK_REGISTRY } from '../../mocks/home';
 import { MOCK_ALTERNATIVES_FOR_REGISTRY, MOCK_CHEAPER_ALTERNATIVES } from '../../mocks/alternatives';
 import { SKIN_TYPE_META, SkinType } from '../../types';
+import { useProducts } from '../../hooks/useProducts';
 
 /** 섹션 사이 굵은 회색 구분 띠 (올리브영식 리듬) */
 function Divider() {
@@ -25,10 +25,48 @@ function withObjParticle(word: string) {
 // TODO: 사용자 store/context 연동 후 실제 피부타입으로 교체
 const userSkinType: SkinType = 'ondalsam';
 
+/** 캐러셀 자리를 채우는 로딩 자리표시자. 카드 높이(w-[150px])에 맞춘다. */
+function CarouselSkeleton() {
+  return (
+    <div className="flex gap-3 overflow-hidden px-4 pb-4">
+      {Array.from({ length: 3 }, (_, i) => (
+        <div key={i} className="w-[150px] shrink-0 animate-pulse">
+          <div className="aspect-square rounded-lg bg-oy-line" />
+          <div className="mt-2 h-3 w-2/3 rounded bg-oy-line" />
+          <div className="mt-1.5 h-3 w-full rounded bg-oy-line" />
+          <div className="mt-1.5 h-3 w-1/2 rounded bg-oy-line" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CarouselError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="mx-4 mb-4 rounded-lg bg-oy-line/60 px-4 py-6 text-center">
+      <p className="text-sm text-oy-sub">{message}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-3 rounded-full border border-oy-text/20 px-4 py-1.5 text-sm font-medium active:scale-95"
+      >
+        다시 시도
+      </button>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
   const skinLabel = SKIN_TYPE_META[userSkinType].label;
   const registrySeedId = MOCK_ALTERNATIVES_FOR_REGISTRY[0]?.seedId ?? 6;
+
+  // 두 캐러셀이 나눠 쓸 12건을 한 번에 받는다.
+  // TODO(Task 14): 지금은 리뷰 수 순(popular)이라 피부타입 개인화가 아니다.
+  //   profiles·similarities가 채워지면 추천 API로 교체한다.
+  const { products, loading, error, reload } = useProducts({ size: 12 });
+  const forYou = products.slice(0, 6);
+  const seasonal = products.slice(6, 12);
 
   return (
     <div
@@ -43,7 +81,9 @@ export default function HomePage() {
         <Divider />
 
         {/* 피부타입 맞춤 추천 */}
-        <ProductCarousel title={`${withObjParticle(skinLabel)} 위한 상품`} products={OY_PRODUCTS.slice(0, 6)} ad />
+        <ProductCarousel title={`${withObjParticle(skinLabel)} 위한 상품`} products={forYou} ad />
+        {loading && <CarouselSkeleton />}
+        {error && <CarouselError message={error} onRetry={reload} />}
         <Divider />
 
         {/* 대체품 추천 (핵심): 내 화장대 성분 기반 */}
@@ -57,8 +97,9 @@ export default function HomePage() {
         {/* 날씨·계절 맞춤 (대시보드 날씨 연계) */}
         <ProductCarousel
           title={`🌤 ${MOCK_WEATHER.seasonLabel} 맞춤, 수분 집중 추천`}
-          products={OY_PRODUCTS.slice(2, 8)}
+          products={seasonal}
         />
+        {loading && <CarouselSkeleton />}
         <Divider />
 
         {/* 더 저렴한 대체품 (가격절약 축) */}
