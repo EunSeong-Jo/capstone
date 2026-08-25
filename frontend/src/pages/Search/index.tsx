@@ -12,18 +12,27 @@ import {
 } from '../../mocks/search';
 import { useRecentSearches } from '../../hooks/useRecentSearches';
 import { useMyIngredients } from '../../hooks/useMyIngredients';
+import { useSearchProducts } from '../../hooks/useSearchProducts';
 
 // 내 화장대(등록·분석한 제품) — 대체품 찾기 기준제품
 const MY_SHELF = Object.values(SEED_PRODUCTS);
 
-// TODO: Task 6 완료 후 실제 검색 API 연동
-const MOCK_RESULTS = [
-  { id: 1, name: '수분 밸런싱 토너 200ml', brand: '이니스프리', category: '토너', price: 28000, originalPrice: 35000, discountRate: 20, rating: 4.5, reviewCount: 1203 },
-  { id: 2, name: '히알루론산 에센스 50ml', brand: '코스알엑스', category: '에센스', price: 18000, rating: 4.3, reviewCount: 2341 },
-];
-
 type MainTab = 'general' | 'ingredient';
 type IngredientSubTab = 'dict' | 'my';
+
+function SearchResultSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {Array.from({ length: 4 }, (_, i) => (
+        <div key={i} className="animate-pulse">
+          <div className="aspect-square rounded-xl bg-gray-10" />
+          <div className="mt-2 h-3 w-2/3 rounded bg-gray-10" />
+          <div className="mt-1.5 h-3 w-full rounded bg-gray-10" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function RecentSearchChips({
   items,
@@ -80,6 +89,15 @@ export default function SearchPage() {
   const generalSearches = useRecentSearches('general');
   const ingredientSearches = useRecentSearches('ingredient');
   const myIngredients = useMyIngredients();
+
+  const searchQuery = mainTab === 'general' ? query : '';
+  const {
+    products: searchResults,
+    total: searchTotal,
+    loading: searchLoading,
+    error: searchError,
+    reload: reloadSearch,
+  } = useSearchProducts(searchQuery);
 
   const handleSearch = (q: string) => {
     setQuery(q);
@@ -145,16 +163,40 @@ export default function SearchPage() {
       <div className="px-4 py-4">
         {mainTab === 'general' ? (
           isSearching ? (
-            <>
-              <p className="text-sm text-gray-70 mb-4">
-                <span className="font-bold text-gray-100">"{query}"</span> 검색 결과 {MOCK_RESULTS.length}개
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                {MOCK_RESULTS.map((p, i) => (
-                  <ProductCard key={p.id} product={p} index={i} />
-                ))}
+            query.trim().length < 2 ? (
+              <div className="flex flex-col items-center gap-2 pt-16 text-center">
+                <p className="text-sm text-gray-50">2자 이상 입력해 주세요.</p>
               </div>
-            </>
+            ) : searchLoading ? (
+              <SearchResultSkeleton />
+            ) : searchError ? (
+              <div className="rounded-lg bg-gray-10/60 px-4 py-10 text-center">
+                <p className="text-sm text-gray-70">{searchError}</p>
+                <button
+                  type="button"
+                  onClick={reloadSearch}
+                  className="mt-3 rounded-full border border-gray-20 px-4 py-1.5 text-sm font-medium text-gray-70 active:scale-95"
+                >
+                  다시 시도
+                </button>
+              </div>
+            ) : searchResults.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 pt-16 text-center">
+                <p className="text-sm font-semibold text-gray-100">검색 결과가 없어요</p>
+                <p className="text-xs text-gray-50">다른 검색어로 시도해 보세요.</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-gray-70 mb-4">
+                  <span className="font-bold text-gray-100">"{query}"</span> 검색 결과 {searchTotal}개
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {searchResults.map((p, i) => (
+                    <ProductCard key={p.id} product={p} index={i} />
+                  ))}
+                </div>
+              </>
+            )
           ) : (
             <>
               {/* 내 화장대에서 대체품 찾기 (핵심 차별화) */}
