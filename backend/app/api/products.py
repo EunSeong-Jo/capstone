@@ -11,13 +11,16 @@ FastAPI가 "search"를 id로 해석해 422를 낸다.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from enum import Enum
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload
 
+from app.core.cache import cache_get, cache_set, get_cache_version
 from app.db.session import get_db
 from app.models.product import (
     Brand,
@@ -36,6 +39,23 @@ from app.schemas.product import (
 router = APIRouter(prefix="/api/v1/products", tags=["products"])
 
 MAX_PAGE_SIZE = 100
+LIST_CACHE_TTL = 300     # 5분 — 목록·검색
+DETAIL_CACHE_TTL = 1800  # 30분 — 상세
+
+
+def _cache_key(namespace: str, version: int, **params: object) -> str:
+    """캐시 키 = 네임스페이스 + 버전 + 파라미터 해시.
+
+    해시를 쓰는 이유: 검색어에 ':'·공백·이모지가 들어가도 키가 깨지지 않고,
+    새 쿼리 파라미터를 추가할 때 누락하면(=캐시 포이즈닝) 호출부에서
+    딕셔너리로 명시 전달을 강제해 리뷰 때 바로 티가 나게 하기 위해서다.
+    """
+    normalized = json.dumps(
+        {k: v for k, v in sorted(params.items())},
+        ensure_ascii=False, separators=(",", ":"),
+    )
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:24]
+    return f"products:{namespace}:v{version}:{digest}"
 
 
 class SortBy(str, Enum):
@@ -81,25 +101,45 @@ def _to_out(p: Product) -> ProductOut:
 async def _paginate(
     db: AsyncSession, stmt: Select, page: int, size: int
 ) -> ProductListOut:
-    """공통 페이지네이션. count와 목록을 각각 한 번씩 조회한다."""
-    total = await db.scalar(
-        select(func.count()).select_from(stmt.order_by(None).subquery())
-    )
-    rows = await db.scalars(
-        stmt.options(selectinload(Product.brand), selectinload(Product.category))
+    """공통 페이지네이션. count(*) OVER()로 count+목록을 한 왕복에 담는다.
+
+    count(*) OVER()는 WHERE/JOIN 적용 후, LIMIT/OFFSET 적용 전 시점의
+    행 수를 계산하므로 페이지와 무관하게 필터링된 전체 결과 기준의 정확한
+    총계가 나온다. 요청한 page가 실제 결과 범위를 넘어서면(마지막 페이지
+    뒤) 행 자체가 0개라 total도 함께 사라지므로 그 경우만 별도 count로
+    보충한다(드문 경로라 성능 영향 무시 가능).
+
+    brand·category는 다대일이라 joinedload로 메인 쿼리의 LEFT JOIN
+    하나에 합친다 — selectinload처럼 관계당 별도 SELECT를 추가로
+    날리지 않는다.
+    """
+    windowed = stmt.add_columns(func.count().over().label("_total"))
+    result = await db.execute(
+        windowed.options(joinedload(Product.brand), joinedload(Product.category))
         .offset((page - 1) * size)
         .limit(size)
     )
-    return ProductListOut(
-        items=[_to_out(p) for p in rows.all()],
-        total=total or 0,
-        page=page,
-        size=size,
-    )
+    rows = result.all()
+
+    if rows:
+        total = rows[0][1]
+        items = [_to_out(p) for p, _ in rows]
+    else:
+        items = []
+        total = (
+            await db.scalar(
+                select(func.count()).select_from(stmt.order_by(None).subquery())
+            )
+            if page > 1
+            else 0
+        ) or 0
+
+    return ProductListOut(items=items, total=total, page=page, size=size)
 
 
 @router.get("", response_model=ProductListOut, summary="제품 목록")
 async def list_products(
+    response: Response,
     db: AsyncSession = Depends(get_db),
     category: str | None = Query(
         None, description="카테고리 코드 (스킨케어 · 마스크팩 · 클렌징 · 선케어)"
@@ -110,11 +150,24 @@ async def list_products(
     sort: SortBy = Query(SortBy.popular),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=MAX_PAGE_SIZE),
-) -> ProductListOut:
+) -> ProductListOut | Response:
     """조건에 맞는 제품을 정렬해 반환한다.
 
     품절·단종은 기본으로 제외한다(status='active').
     """
+    version = await get_cache_version()
+    key = _cache_key(
+        "list", version,
+        category=category, brand=brand, min_price=min_price,
+        max_price=max_price, sort=sort.value, page=page, size=size,
+    )
+    cached = await cache_get(key)
+    if cached is not None:
+        return Response(
+            content=cached, media_type="application/json",
+            headers={"Cache-Control": "public, max-age=60", "X-Cache": "HIT"},
+        )
+
     stmt = select(Product).where(Product.status == "active")
 
     if category:
@@ -130,17 +183,23 @@ async def list_products(
     if max_price is not None:
         stmt = stmt.where(Product.price <= max_price)
 
-    return await _paginate(db, _apply_sort(stmt, sort), page, size)
+    result = await _paginate(db, _apply_sort(stmt, sort), page, size)
+
+    await cache_set(key, result.model_dump_json(by_alias=True), LIST_CACHE_TTL)
+    response.headers["Cache-Control"] = "public, max-age=60"
+    response.headers["X-Cache"] = "MISS"
+    return result
 
 
 @router.get("/search", response_model=ProductListOut, summary="제품명 검색")
 async def search_products(
+    response: Response,
     db: AsyncSession = Depends(get_db),
     q: str = Query(..., min_length=2, description="검색어 (2자 이상)"),
     sort: SortBy = Query(SortBy.popular),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=MAX_PAGE_SIZE),
-) -> ProductListOut:
+) -> ProductListOut | Response:
     """제품명 부분일치 검색.
 
     ILIKE '%q%'는 idx_products_name_trgm(gin_trgm_ops)이 받는다.
@@ -149,27 +208,53 @@ async def search_products(
     LIKE 메타문자를 이스케이프한다. '50%' 같은 검색어가 와일드카드로
     해석되면 엉뚱한 결과가 나온다.
     """
+    version = await get_cache_version()
+    key = _cache_key("search", version, q=q, sort=sort.value, page=page, size=size)
+    cached = await cache_get(key)
+    if cached is not None:
+        return Response(
+            content=cached, media_type="application/json",
+            headers={"Cache-Control": "public, max-age=60", "X-Cache": "HIT"},
+        )
+
     escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     stmt = (
         select(Product)
         .where(Product.status == "active")
         .where(Product.name.ilike(f"%{escaped}%", escape="\\"))
     )
-    return await _paginate(db, _apply_sort(stmt, sort), page, size)
+    result = await _paginate(db, _apply_sort(stmt, sort), page, size)
+
+    await cache_set(key, result.model_dump_json(by_alias=True), LIST_CACHE_TTL)
+    response.headers["Cache-Control"] = "public, max-age=60"
+    response.headers["X-Cache"] = "MISS"
+    return result
 
 
 @router.get("/{product_id}", response_model=ProductDetailOut, summary="제품 상세")
 async def get_product(
+    response: Response,
     product_id: int = Path(..., ge=1),
     db: AsyncSession = Depends(get_db),
-) -> ProductDetailOut:
+) -> ProductDetailOut | Response:
     """제품 1건과 전성분을 표기 순서대로 반환한다."""
+    version = await get_cache_version()
+    key = f"products:detail:v{version}:{product_id}"
+    cached = await cache_get(key)
+    if cached is not None:
+        return Response(
+            content=cached, media_type="application/json",
+            headers={"Cache-Control": "public, max-age=300", "X-Cache": "HIT"},
+        )
+
     product = await db.scalar(
         select(Product)
         .where(Product.id == product_id)
-        .options(selectinload(Product.brand), selectinload(Product.category))
+        .options(joinedload(Product.brand), joinedload(Product.category))
     )
     if product is None:
+        # 404는 캐싱하지 않는다 — 부정 결과를 캐시하면 나중에 데이터가
+        # 생겨도 TTL이 지날 때까지 계속 404가 나갈 수 있다.
         raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
 
     rows = await db.execute(
@@ -181,7 +266,7 @@ async def get_product(
     )
 
     base = _to_out(product)
-    return ProductDetailOut(
+    detail = ProductDetailOut(
         **base.model_dump(),
         product_url=product.product_url,
         volume=product.volume,
@@ -195,3 +280,8 @@ async def get_product(
             for i, ko, en, pos in rows.all()
         ],
     )
+
+    await cache_set(key, detail.model_dump_json(by_alias=True), DETAIL_CACHE_TTL)
+    response.headers["Cache-Control"] = "public, max-age=300"
+    response.headers["X-Cache"] = "MISS"
+    return detail

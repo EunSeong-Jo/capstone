@@ -68,6 +68,8 @@ class Product(Base, TimestampMixin):
         Index("idx_products_category", "category_id"),
         Index("idx_products_status", "status"),
         Index("idx_products_price", "price"),
+        Index("idx_products_rating", "rating"),
+        Index("idx_products_review_count", "review_count"),
         # 제품명 퍼지 검색 (pg_trgm). 확장은 첫 마이그레이션에서 설치한다.
         Index(
             "idx_products_name_trgm",

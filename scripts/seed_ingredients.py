@@ -32,6 +32,24 @@ sys.path.insert(0, str(REPO / "backend"))
 from app.config import settings  # noqa: E402
 from app.utils.ingredients import normalize  # noqa: E402
 
+
+def bump_cache_version() -> None:
+    """products:cache_version INCR — best-effort.
+
+    성분명은 ProductDetailOut.ingredients[]에 그대로 노출되므로, 재시드 후
+    상세 캐시에 오래된 이름이 남지 않도록 함께 무효화한다. 실패해도
+    스크립트 자체는 성공으로 끝나야 한다.
+    """
+    try:
+        import redis
+        r = redis.Redis.from_url(
+            settings.REDIS_URL, socket_connect_timeout=0.5, socket_timeout=0.5,
+        )
+        print(f"캐시 버전 갱신 → v{r.incr('products:cache_version')}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"캐시 버전 갱신 실패(무시): {exc}")
+
+
 DICT_CSV = REPO / "data/seed/ingredient_dict.csv.gz"
 CHANGES_CSV = REPO / "data/seed/name_changes.csv.gz"
 
@@ -150,6 +168,7 @@ def main() -> None:
         cur.execute("SELECT count(*) FROM ingredient_aliases WHERE is_ambiguous")
         n_amb = cur.fetchone()[0]
 
+    bump_cache_version()
     print(f"\n완료 — ingredients {n_ing:,}행 / ingredient_aliases {n_alias:,}행 "
           f"(모호 {n_amb:,})")
 

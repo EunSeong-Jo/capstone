@@ -4,6 +4,7 @@ import sentry_sdk
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import text
 
 from app.api.chat import router as chat_router
@@ -35,6 +36,7 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
