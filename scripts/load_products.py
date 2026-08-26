@@ -38,6 +38,22 @@ from app.utils.ingredients import (  # noqa: E402
     parse_ingredients,
 )
 
+
+def bump_cache_version() -> None:
+    """products:cache_version INCR — best-effort.
+
+    실패해도 스크립트 자체는 성공으로 끝나야 한다(캐시는 가속기일 뿐,
+    적재 성공 여부와 무관하다).
+    """
+    try:
+        import redis
+        r = redis.Redis.from_url(
+            settings.REDIS_URL, socket_connect_timeout=0.5, socket_timeout=0.5,
+        )
+        print(f"캐시 버전 갱신 → v{r.incr('products:cache_version')}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"캐시 버전 갱신 실패(무시): {exc}")
+
 DEFAULT_CSV = REPO / "data/raw/oliveyoung_products.csv.gz"
 
 # 'N종 택1' 기획세트는 호수별 전성분을 한 셀에 이어 붙여 최대 1,978개까지 나온다.
@@ -405,6 +421,7 @@ def main() -> None:
 
     cur.close()
     conn.close()
+    bump_cache_version()
     print("\n완료")
 
 
