@@ -1,0 +1,159 @@
+"""대체품 API 계약 테스트.
+
+계산 로직은 test_similarity.py가 DB 없이 검증한다. 여기서는 **엔드포인트가
+지켜야 할 약속**만 본다.
+
+similarities는 아직 일부 카테고리만 적재돼 있다. 그래서 이 파일은
+"결과가 몇 개 나온다"에 기대지 않는다 — 대신 **비어 있어도 200이고 모양이
+같다**는 쪽을 못박는다. 프론트가 그 계약에 기대어 '준비 중' 자리표시자를
+띄우기 때문이다.
+"""
+from __future__ import annotations
+
+import pytest
+import pytest_asyncio
+from httpx import AsyncClient
+
+pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+LIST = "/api/v1/products"
+
+# 프론트 Alternative 타입이 Product를 extends 하므로 카드 필드가 그대로 필요하다.
+REQUIRED = ("id", "name", "brand", "category", "price", "score", "sharedIngredients")
+
+
+def _url(product_id: int) -> str:
+    return f"{LIST}/{product_id}/similar"
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def seed(client: AsyncClient) -> int:
+    """유사도가 실제로 적재된 제품 하나.
+
+    세션 스코프인 이유: 공용 Neon에 붙어 있어 왕복 하나가 비싸다. 테스트마다
+    후보를 다시 찾으면 파일 전체가 분 단위로 늘어진다.
+
+    배치가 선케어만 적재한 상태라 거기서 찾는다. 못 찾으면 유사도를 요구하는
+    테스트만 건너뛴다 — 배치를 안 돌린 팀원의 로컬에서도 나머지는 돌아야 한다.
+    """
+    res = await client.get(LIST, params={"category": "선케어", "size": 8})
+    for item in res.json()["items"]:
+        got = await client.get(_url(item["id"]))
+        if got.status_code == 200 and got.json()["items"]:
+            return item["id"]
+    pytest.skip("similarities가 아직 적재되지 않았습니다")
+
+
+# ── 응답 계약 ────────────────────────────────────────────────
+
+
+async def test_envelope(client: AsyncClient) -> None:
+    """데이터가 있든 없든 봉투 모양은 같다."""
+    res = await client.get(_url(1))
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert set(body) == {"seedId", "method", "items"}
+    assert body["seedId"] == 1
+    assert body["method"] == "tfidf"  # 기본값
+    assert isinstance(body["items"], list)
+
+
+async def test_empty_result_is_200_not_404(client: AsyncClient) -> None:
+    """제품은 있는데 유사도만 없는 경우 — 404를 내면 화면이 오류로 뜬다.
+
+    아직 계산하지 않은 카테고리가 있어 이 경로는 실제로 자주 밟힌다.
+    """
+    res = await client.get(LIST, params={"category": "마스크팩", "size": 1})
+    product_id = res.json()["items"][0]["id"]
+    got = await client.get(_url(product_id))
+    assert got.status_code == 200
+    assert got.json()["items"] == []
+
+
+async def test_unknown_product_is_404(client: AsyncClient) -> None:
+    res = await client.get(_url(99_999_999))
+    assert res.status_code == 404
+
+
+async def test_fields_are_camel_case(client: AsyncClient, seed: int) -> None:
+    item = (await client.get(_url(seed))).json()["items"][0]
+    for field in REQUIRED:
+        assert field in item, f"{field} 누락"
+    assert "shared_ingredients" not in item  # snake_case가 새면 안 된다
+
+
+async def test_price_is_never_null(client: AsyncClient, seed: int) -> None:
+    """ProductCardV가 price.toLocaleString()을 가드 없이 부른다."""
+    for item in (await client.get(_url(seed))).json()["items"]:
+        assert isinstance(item["price"], int)
+
+
+# ── 정렬·경계 ────────────────────────────────────────────────
+
+
+async def test_sorted_by_score_desc(client: AsyncClient, seed: int) -> None:
+    scores = [i["score"] for i in (await client.get(_url(seed))).json()["items"]]
+    assert scores == sorted(scores, reverse=True)
+
+
+async def test_scores_are_in_unit_range(client: AsyncClient, seed: int) -> None:
+    for item in (await client.get(_url(seed))).json()["items"]:
+        assert 0.0 < item["score"] <= 1.0
+
+
+async def test_seed_is_not_its_own_alternative(client: AsyncClient, seed: int) -> None:
+    ids = [i["id"] for i in (await client.get(_url(seed))).json()["items"]]
+    assert seed not in ids
+
+
+async def test_limit_is_honoured(client: AsyncClient, seed: int) -> None:
+    res = await client.get(_url(seed), params={"limit": 3})
+    assert len(res.json()["items"]) <= 3
+
+
+async def test_limit_above_max_is_422(client: AsyncClient) -> None:
+    """배치가 제품당 20개만 적재한다. 더 달라는 요청은 막는다."""
+    assert (await client.get(_url(1), params={"limit": 21})).status_code == 422
+    assert (await client.get(_url(1), params={"limit": 0})).status_code == 422
+
+
+# ── 방식 선택 ────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("method", ["tfidf", "jaccard", "rbo"])
+async def test_each_method_answers(client: AsyncClient, method: str) -> None:
+    res = await client.get(_url(1), params={"method": method})
+    assert res.status_code == 200
+    assert res.json()["method"] == method
+
+
+async def test_unknown_method_is_422(client: AsyncClient) -> None:
+    res = await client.get(_url(1), params={"method": "cosine"})
+    assert res.status_code == 422
+
+
+async def test_methods_can_disagree(client: AsyncClient, seed: int) -> None:
+    """세 방식을 나란히 적재하는 이유 — 결과가 달라야 비교할 의미가 있다.
+
+    tfidf는 IDF로 흔한 성분을 죽이고 jaccard는 그러지 않는다. 상위권이
+    완전히 같다면 IDF가 일하지 않고 있다는 신호다.
+    """
+    tfidf = await client.get(_url(seed), params={"method": "tfidf"})
+    jaccard = await client.get(_url(seed), params={"method": "jaccard"})
+    if not jaccard.json()["items"]:
+        pytest.skip("jaccard 결과가 없습니다")
+    assert [i["score"] for i in tfidf.json()["items"]] != [
+        i["score"] for i in jaccard.json()["items"]
+    ]
+
+
+async def test_shared_ingredients_avoid_ubiquitous_ones(client: AsyncClient, seed: int) -> None:
+    """근거로 정제수·글리세린을 보여주면 추천을 신뢰할 수 없다.
+
+    IDF 큰 순으로 고르므로 상위 근거에는 흔한 성분이 오면 안 된다.
+    """
+    ubiquitous = {"정제수", "글리세린", "1,2-헥산다이올", "부틸렌글라이콜"}
+    for item in (await client.get(_url(seed))).json()["items"]:
+        shared = item["sharedIngredients"]
+        if shared:
+            assert shared[0] not in ubiquitous
