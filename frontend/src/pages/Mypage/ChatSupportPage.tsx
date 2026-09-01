@@ -1,10 +1,13 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
+import { sendChatMessage } from '../../api/chat';
+import { ApiError } from '../../api/client';
 
 /**
- * 임시 챗봇 UI — 캔드(정형) 응답만 반환하는 목업입니다.
- * TODO: Task 7(Claude API 연동 실제 AI 챗봇)이 완료되면 이 화면을 교체합니다.
+ * AI 챗봇 UI — backend POST /api/v1/chat(RAG) 연동.
+ * quickButtons(고객센터 FAQ)는 기존 정형 응답을 그대로 유지합니다 — AI 챗봇과는 별개 기능입니다.
+ * TODO: 사용자 피부타입/날씨 정보 연동은 별도 작업으로 진행 예정. 지금은 skin_type 미전달.
  */
 
 interface Message {
@@ -34,6 +37,7 @@ function BotAvatar() {
 
 export default function ChatSupportPage() {
   const [inputText, setInputText] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, role: 'bot', isWelcome: true },
     { id: 2, role: 'bot', isButtons: true },
@@ -45,16 +49,35 @@ export default function ChatSupportPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const sendMessage = () => {
-    if (!inputText.trim()) return;
-    const userMsg: Message = { id: nextId.current++, role: 'user', text: inputText };
-    const botReply: Message = {
-      id: nextId.current++,
-      role: 'bot',
-      text: '안녕하세요! swappy 챗봇이에요 😊\n말씀하신 내용을 확인 중입니다.\n잠시만 기다려 주세요.',
-    };
-    setMessages((prev) => [...prev, userMsg, botReply]);
+  const sendMessage = async () => {
+    if (!inputText.trim() || isSending) return;
+
+    const userText = inputText;
+    const userMsg: Message = { id: nextId.current++, role: 'user', text: userText };
+    setMessages((prev) => [...prev, userMsg]);
     setInputText('');
+    setIsSending(true);
+
+    // 서버에 보낼 대화 히스토리 (welcome/버튼 안내 메시지는 제외)
+    const history = messages
+      .filter((m) => m.text)
+      .map((m) => ({ role: m.role === 'bot' ? ('assistant' as const) : ('user' as const), content: m.text! }));
+
+    try {
+      const { reply } = await sendChatMessage({ message: userText, history });
+      const botReply: Message = { id: nextId.current++, role: 'bot', text: reply };
+      setMessages((prev) => [...prev, botReply]);
+    } catch (err) {
+      const detail = err instanceof ApiError ? err.message : '잠시 후 다시 시도해 주세요.';
+      const botReply: Message = {
+        id: nextId.current++,
+        role: 'bot',
+        text: `죄송해요, 답변을 가져오지 못했어요.\n${detail}`,
+      };
+      setMessages((prev) => [...prev, botReply]);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleQuickBtn = (label: string) => {
@@ -165,13 +188,15 @@ export default function ChatSupportPage() {
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          placeholder="버튼을 선택하거나 메시지를 입력하세요"
-          className="flex-1 border border-gray-20 rounded-full px-3.5 py-2.5 text-[13px] text-gray-100 bg-gray-5 outline-none"
+          disabled={isSending}
+          placeholder={isSending ? '답변을 기다리는 중...' : '버튼을 선택하거나 메시지를 입력하세요'}
+          className="flex-1 border border-gray-20 rounded-full px-3.5 py-2.5 text-[13px] text-gray-100 bg-gray-5 outline-none disabled:opacity-60"
         />
         <button
           onClick={sendMessage}
+          disabled={isSending}
           className={`w-[34px] h-[34px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
-            inputText.trim() ? 'bg-primary' : 'bg-gray-20'
+            inputText.trim() && !isSending ? 'bg-primary' : 'bg-gray-20'
           }`}
           aria-label="전송"
         >
