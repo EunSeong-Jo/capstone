@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 from urllib.parse import urlsplit
 
 import sentry_sdk
@@ -10,7 +12,7 @@ from sqlalchemy import text
 from app.api.chat import router as chat_router
 from app.api.products import router as products_router
 from app.config import settings
-from app.db.session import engine
+from app.db.session import engine, keepalive_loop
 from app.logging_config import configure_logging
 
 # ── 로깅 초기화 (P0: structlog) ─────────────────────────
@@ -102,14 +104,23 @@ async def _check_db() -> None:
     log.info("db_connected", host=host, dsn_configured=bool(settings.DATABASE_DSN))
 
 
+_keepalive_task: asyncio.Task | None = None
+
+
 @app.on_event("startup")
 async def startup() -> None:
+    global _keepalive_task
     log.info("server_started", env=settings.APP_ENV, version="0.1.0")
     await _check_db()
+    _keepalive_task = asyncio.create_task(keepalive_loop())
 
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
+    if _keepalive_task is not None:
+        _keepalive_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await _keepalive_task
     log.info("server_stopped")
 
 

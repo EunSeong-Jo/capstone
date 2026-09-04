@@ -39,8 +39,14 @@ from app.schemas.product import (
 router = APIRouter(prefix="/api/v1/products", tags=["products"])
 
 MAX_PAGE_SIZE = 100
-LIST_CACHE_TTL = 300     # 5분 — 목록·검색
-DETAIL_CACHE_TTL = 1800  # 30분 — 상세
+# 데이터 변경은 배치 스크립트(load_products.py/seed_ingredients.py) 실행
+# 시점에만 일어나고, 그때 products:cache_version이 즉시 올라가 이전 버전
+# 키를 무효화한다. 즉 TTL은 정합성이 아니라 Redis 메모리 청소용 안전망일
+# 뿐이라 길게 잡아도 "낡은 데이터가 보이는" 문제는 생기지 않는다 — 대신
+# 트래픽이 뜸한 쿼리 조합이 캐시 미스(DB 왕복 1.2~1.9s)를 만날 빈도가
+# 크게 줄어든다.
+LIST_CACHE_TTL = 3600     # 1시간 — 목록·검색
+DETAIL_CACHE_TTL = 21600  # 6시간 — 상세
 
 
 def _cache_key(namespace: str, version: int, **params: object) -> str:
