@@ -67,3 +67,38 @@ export async function request<T>(
 
   return (await res.json()) as T;
 }
+
+/** POST + JSON body. GET 전용 `request`와 별개로 둡니다(쿼리스트링 조립이 필요 없어서). */
+export async function postJson<T>(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  const url = `${API_BASE}${path}`;
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      signal,
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+    throw new ApiError(0, '서버에 연결할 수 없습니다.');
+  }
+
+  if (!res.ok) {
+    let detail = `요청에 실패했습니다. (${res.status})`;
+    try {
+      const errBody = await res.json();
+      if (typeof errBody?.detail === 'string') detail = errBody.detail;
+    } catch {
+      // 본문이 JSON이 아닌 경우 기본 메시지를 씁니다.
+    }
+    throw new ApiError(res.status, detail);
+  }
+
+  return (await res.json()) as T;
+}

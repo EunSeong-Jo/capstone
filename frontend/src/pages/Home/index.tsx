@@ -110,7 +110,7 @@ export default function HomePage() {
         />
       </main>
 
-      <OyFloatingActions />
+      <OyFloatingActions onChatbot={() => navigate('/mypage/chat-support')} />
       <OyBottomNav />
     </div>
   );
