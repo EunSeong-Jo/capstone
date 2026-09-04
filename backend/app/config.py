@@ -87,6 +87,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""              # OpenAI API 키
     ANTHROPIC_API_KEY: str = ""           # Claude 전환 시 사용
 
+    # 날씨 (홈 대시보드) — https://openweathermap.org 무료 티어 키
+    OPENWEATHER_API_KEY: str = ""
+
     # env_file은 실행 위치가 아니라 파일 위치 기준으로 찾는다.
     # backend/ 에서 uvicorn을 띄우든 리포 루트에서 스크립트를 돌리든
     # 같은 .env를 읽어야 하기 때문. (Docker는 환경변수를 직접 주입하므로 무관)
