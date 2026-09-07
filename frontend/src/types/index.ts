@@ -94,6 +94,8 @@ export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 export interface WeatherInfo {
   condition: WeatherCondition;
   conditionLabel: string; // "Sunny"
+  /** OpenWeatherMap 아이콘 코드 (예: "01d"). https://openweathermap.org/img/wn/{icon}@2x.png */
+  icon: string;
   temperature: number; // 25
   season: Season;
   seasonLabel: string; // "초여름"

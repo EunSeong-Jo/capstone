@@ -19,6 +19,8 @@ class _CamelModel(BaseModel):
 class WeatherOut(_CamelModel):
     condition: str          # 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'windy'
     condition_label: str    # OpenWeatherMap 한국어 설명 (예: "맑음")
+    icon: str               # OWM 아이콘 코드 (예: "01d"). 프론트가
+                             # https://openweathermap.org/img/wn/{icon}@2x.png 로 렌더링한다.
     temperature: int
     season: str             # 'spring' | 'summer' | 'autumn' | 'winter'
     season_label: str       # "봄" 등

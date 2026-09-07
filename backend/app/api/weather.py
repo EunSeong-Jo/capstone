@@ -11,7 +11,9 @@ MVP라 위치는 서울 좌표로 고정한다. 사용자 위치·주소 데이�
 """
 from __future__ import annotations
 
-from datetime import date
+from dataclasses import dataclass
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import httpx
 import structlog
@@ -25,6 +27,7 @@ router = APIRouter(prefix="/api/v1/weather", tags=["weather"])
 log = structlog.get_logger()
 
 SEOUL_LAT, SEOUL_LON = 37.5665, 126.9780
+SEOUL_TZ = ZoneInfo("Asia/Seoul")
 CACHE_TTL = 600  # 10분 — 날씨는 자주 안 바뀌고, 무료 API 호출 한도(60회/분)도 아낀다
 CACHE_KEY = "weather:seoul:v1"
 
@@ -55,7 +58,36 @@ def _map_condition(main: str, wind_speed: float) -> str:
     return base
 
 
-async def _fetch_openweather() -> WeatherOut:
+@dataclass
+class WeatherSnapshot:
+    """OpenWeatherMap 원본 응답에서 뽑아낸 값 모음.
+
+    이 엔드포인트(WeatherOut 응답)뿐 아니라 care_tip.py의 AI 프롬프트도
+    이 스냅샷을 그대로 재사용한다 — 같은 외부 API를 두 곳에서 각자 다르게
+    파싱하지 않기 위해서다.
+    """
+
+    condition: str
+    condition_label: str
+    icon: str
+    temperature: int
+    feels_like: int
+    temp_min: int
+    temp_max: int
+    humidity: int | None
+    clouds: int
+    season: str
+    season_label: str
+
+
+async def fetch_weather_snapshot() -> WeatherSnapshot:
+    """OpenWeatherMap Current Weather API를 직접 호출한다.
+
+    캐싱은 여기서 하지 않는다 — 호출부(엔드포인트)마다 캐싱 전략이 다르기
+    때문이다(이 엔드포인트는 최종 응답 JSON을 10분 캐싱하고, care_tip.py는
+    날짜 단위 캐시로 호출 빈도 자체를 억제한다). 그래서 이 함수는
+    "캐시가 비어 있을 때만" 불린다.
+    """
     if not settings.OPENWEATHER_API_KEY:
         raise HTTPException(
             status_code=503,
@@ -84,17 +116,24 @@ async def _fetch_openweather() -> WeatherOut:
 
     data = resp.json()
     main = data["weather"][0]["main"]
-    label = data["weather"][0]["description"]
     wind_speed = data.get("wind", {}).get("speed", 0.0)
-    season, season_label = _SEASON_BY_MONTH[date.today().month]
+    # 서버가 어느 시간대에서 돌든(Docker는 보통 UTC) 계절·날짜 캐시 키는
+    # 항상 서울 기준으로 굴러야 한다 — 서비스가 서울 고정이라서다.
+    season, season_label = _SEASON_BY_MONTH[datetime.now(SEOUL_TZ).month]
+    m = data["main"]
 
-    return WeatherOut(
+    return WeatherSnapshot(
         condition=_map_condition(main, wind_speed),
-        condition_label=label,
-        temperature=round(data["main"]["temp"]),
+        condition_label=data["weather"][0]["description"],
+        icon=data["weather"][0]["icon"],
+        temperature=round(m["temp"]),
+        feels_like=round(m["feels_like"]),
+        temp_min=round(m["temp_min"]),
+        temp_max=round(m["temp_max"]),
+        humidity=m.get("humidity"),
+        clouds=data.get("clouds", {}).get("all", 0),
         season=season,
         season_label=season_label,
-        humidity=data["main"].get("humidity"),
     )
 
 
@@ -107,7 +146,16 @@ async def get_weather(response: Response) -> WeatherOut | Response:
             headers={"Cache-Control": "public, max-age=300", "X-Cache": "HIT"},
         )
 
-    result = await _fetch_openweather()
+    snap = await fetch_weather_snapshot()
+    result = WeatherOut(
+        condition=snap.condition,
+        condition_label=snap.condition_label,
+        icon=snap.icon,
+        temperature=snap.temperature,
+        season=snap.season,
+        season_label=snap.season_label,
+        humidity=snap.humidity,
+    )
 
     await cache_set(CACHE_KEY, result.model_dump_json(by_alias=True), CACHE_TTL)
     response.headers["Cache-Control"] = "public, max-age=300"
