@@ -16,9 +16,8 @@ export default function ResultCardScreen({ resultType, onClose, onRecommend }: R
 
   return (
     <motion.div
-      className="absolute inset-0 flex flex-col overflow-hidden"
+      className="absolute inset-0 flex flex-col overflow-hidden bg-ob-bg"
       style={{
-        background: '#F5F6F3',
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}

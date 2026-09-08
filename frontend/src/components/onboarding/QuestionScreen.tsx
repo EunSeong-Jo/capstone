@@ -113,19 +113,19 @@ export default function QuestionScreen({ onNext, onBack }: QuestionScreenProps) 
         </button>
         <div className="h-1 flex-1 rounded-full bg-[#d9d9d9]">
           <div
-            className="h-1 rounded-full transition-all duration-300"
-            style={{ width: `${((qIndex + 1) / TOTAL) * 100}%`, background: '#00916d' }}
+            className="h-1 rounded-full bg-ob-green transition-all duration-300"
+            style={{ width: `${((qIndex + 1) / TOTAL) * 100}%` }}
           />
         </div>
         <p className="shrink-0 text-[12px] italic">
-          <span className="font-bold" style={{ color: '#2d7a4f' }}>{pad(qIndex + 1)}</span>
+          <span className="font-bold text-ob-green-deep">{pad(qIndex + 1)}</span>
           <span className="text-black"> / {pad(TOTAL)}</span>
         </p>
       </div>
 
       {/* 질문 */}
       <div className="px-5 pt-5">
-        <p className="text-[18px] font-semibold" style={{ color: '#2d7a4f' }}>Q{qIndex + 1}.</p>
+        <p className="text-[18px] font-semibold text-ob-green-deep">Q{qIndex + 1}.</p>
         <p className="mt-2 text-[15px] font-bold leading-snug text-black">{question.q}</p>
         <p className="mt-2 text-[11px] font-semibold" style={{ color: '#b3b3b3' }}>{HINT}</p>
       </div>
@@ -140,7 +140,7 @@ export default function QuestionScreen({ onNext, onBack }: QuestionScreenProps) 
               type="button"
               onClick={() => pick(i)}
               className="flex items-center gap-3 rounded-lg bg-white px-4 py-5 text-left transition-shadow"
-              style={{ boxShadow: isSel ? '0 0 0 2px #00916d' : '0 0 2px rgba(0,0,0,0.4)' }}
+              style={{ boxShadow: isSel ? '0 0 0 2px var(--ob-green)' : '0 0 2px rgba(0,0,0,0.4)' }}
             >
               <span className="flex-1">
                 <span className="block text-[12px] font-medium text-black">{opt.title}</span>
@@ -148,9 +148,9 @@ export default function QuestionScreen({ onNext, onBack }: QuestionScreenProps) 
               </span>
               <span
                 className="grid h-5 w-5 shrink-0 place-items-center rounded-full border"
-                style={{ borderColor: isSel ? '#00916d' : '#c9c9c9' }}
+                style={{ borderColor: isSel ? 'var(--ob-green)' : '#c9c9c9' }}
               >
-                {isSel && <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#00916d' }} />}
+                {isSel && <span className="h-2.5 w-2.5 rounded-full bg-ob-green" />}
               </span>
             </button>
           );
@@ -163,8 +163,7 @@ export default function QuestionScreen({ onNext, onBack }: QuestionScreenProps) 
           type="button"
           onClick={goNext}
           disabled={selected === null}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-full text-[13px] font-medium text-white transition-opacity disabled:opacity-40"
-          style={{ background: '#00916d' }}
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-ob-green text-[13px] font-medium text-white transition-opacity disabled:opacity-40"
         >
           {isLast ? '결과보러가기' : '다음으로'}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

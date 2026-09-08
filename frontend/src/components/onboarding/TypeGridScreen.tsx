@@ -14,9 +14,8 @@ interface TypeGridScreenProps {
 export default function TypeGridScreen({ selectedType, onSelect, onConfirm }: TypeGridScreenProps) {
   return (
     <motion.div
-      className="absolute inset-0 overflow-hidden"
+      className="absolute inset-0 overflow-hidden bg-ob-bg"
       style={{
-        background: '#f5f6f3',
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: 'env(safe-area-inset-bottom)',
         paddingLeft: 'env(safe-area-inset-left)',
