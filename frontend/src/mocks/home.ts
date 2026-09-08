@@ -104,6 +104,7 @@ export const MOCK_REGISTRY: RegistrySummary = {
 export const MOCK_PROFILE: ProfileUser = {
   nickname: '대체러',
   skinType: 'ondalsam',
+  email: 'user@email.com',
   memberSince: '2026.03',
   idNo: '960101-OY1****',
 };

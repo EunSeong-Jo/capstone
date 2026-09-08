@@ -159,6 +159,7 @@ export interface QuickAction {
 export interface ProfileUser {
   nickname: string;
   skinType: SkinType;
+  email?: string;
   memberSince?: string; // 발급일 컨셉 "2026.03"
   idNo?: string; // 더미 식별번호 "960101-OY1****"
 }

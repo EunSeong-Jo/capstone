@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { skinTypes, RESULT_TYPE_ID } from '../../data/skinTypes';
+import { useUserProfile } from '../../context/userProfile';
 import type { SkinType } from '../../data/skinTypes';
 import GreetingScreen from '../../components/onboarding/GreetingScreen';
 import TypeGridScreen from '../../components/onboarding/TypeGridScreen';
@@ -21,6 +22,7 @@ const resultType = skinTypes.find((t) => t.id === RESULT_TYPE_ID) ?? skinTypes[0
 
 export default function OnboardingPage({ initialStep = 'greeting' }: { initialStep?: Step }) {
   const navigate = useNavigate();
+  const { profile } = useUserProfile();
   const [step, setStep] = useState<Step>(initialStep);
   const [greetingIndex, setGreetingIndex] = useState(0);
   const [selectedType, setSelectedType] = useState<SkinType>(skinTypes[0]);
@@ -74,6 +76,7 @@ export default function OnboardingPage({ initialStep = 'greeting' }: { initialSt
         {step === 'resultMsg' && (
           <ResultMessageScreen
             key="resultMsg"
+            nickname={profile.nickname}
             typeLabel={resultType.label}
             onAdvance={() => setStep('resultCard')}
           />
