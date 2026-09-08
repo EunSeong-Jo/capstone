@@ -93,15 +93,14 @@ export default function QuestionScreen({ onNext, onBack }: QuestionScreenProps) 
     <motion.div
       className="absolute inset-0 flex flex-col overflow-hidden bg-white"
       style={{
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingBottom: 'var(--safe-bottom)',
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
     >
-      {/* 상단 여백: 상태바(시간·배터리) 자리 ~44px */}
+      {/* 콘텐츠 상단 여백. 상태바/노치 인셋은 body의 --safe-top이 담당하므로 여기선 디자인 여백만 둔다 */}
       <div className="pt-11" />
 
       {/* 진행바 + 뒤로가기 + 카운트 — 바로 아래에 질문이 붙는다 */}

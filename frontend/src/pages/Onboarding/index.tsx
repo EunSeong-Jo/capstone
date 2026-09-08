@@ -30,7 +30,7 @@ export default function OnboardingPage({ initialStep = 'greeting' }: { initialSt
   // container-type:size → 자식이 cqmin/cqh(앱 프레임 기준)로 배치된다.
   // mode="wait" 없이: 각 화면은 absolute inset-0라 0.5s 크로스페이드된다.
   return (
-    <div className="relative w-full h-dvh overflow-hidden" style={{ containerType: 'size' }}>
+    <div className="relative w-full h-[calc(100dvh-var(--safe-top))] overflow-hidden" style={{ containerType: 'size' }}>
       <AnimatePresence>
         {step === 'greeting' && (
           <GreetingScreen

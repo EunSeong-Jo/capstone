@@ -52,7 +52,8 @@ export default function ProfileEditPage() {
           {USER_EMAIL}
         </div>
 
-        <div className="mt-auto pt-8">
+        {/* 하단 네비가 없는 페이지라 PageWrapper가 하단 인셋을 넣지 않는다. 홈 인디케이터에 가리지 않도록 직접 확보 */}
+        <div className="mt-auto pt-8 pb-[var(--safe-bottom)]">
           <Button
             variant="next"
             disabled={!valid}

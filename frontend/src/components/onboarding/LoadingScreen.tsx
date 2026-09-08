@@ -16,10 +16,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
     <motion.div
       className="absolute inset-0 overflow-hidden bg-ob-bg"
       style={{
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
-        paddingLeft: 'env(safe-area-inset-left)',
-        paddingRight: 'env(safe-area-inset-right)',
+        paddingBottom: 'var(--safe-bottom)',
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}

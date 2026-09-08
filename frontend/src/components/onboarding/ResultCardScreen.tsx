@@ -18,15 +18,14 @@ export default function ResultCardScreen({ resultType, onClose, onRecommend }: R
     <motion.div
       className="absolute inset-0 flex flex-col overflow-hidden bg-ob-bg"
       style={{
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingBottom: 'var(--safe-bottom)',
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
     >
-      {/* 상단: 상태바 자리 ~44px + 닫기 */}
+      {/* 상단 닫기. 노치 인셋은 body의 --safe-top이 담당하고 pt-11은 디자인 여백이다 */}
       <div className="flex justify-end px-5 pt-11">
         <button
           type="button"

@@ -15,7 +15,7 @@ export default function SplashPage() {
   // container-type:size → 자식이 cqmin(앱 프레임 짧은 변) 기준으로 배치된다.
   // body가 max-width 430px 중앙 정렬이므로 w-full로 그 폭을 채운다.
   return (
-    <div className="relative w-full h-dvh overflow-hidden" style={{ containerType: 'size' }}>
+    <div className="relative w-full h-[calc(100dvh-var(--safe-top))] overflow-hidden" style={{ containerType: 'size' }}>
       <SplashScreen />
     </div>
   );
