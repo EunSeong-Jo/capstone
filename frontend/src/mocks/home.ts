@@ -18,19 +18,11 @@ const img = (seed: string, s = 80) => `https://picsum.photos/seed/${seed}/${s}/$
 export const MOCK_WEATHER: WeatherInfo = {
   condition: 'sunny',
   conditionLabel: '맑음',
+  icon: '01d', // OpenWeatherMap 맑은 낮 아이콘 코드
   temperature: 27,
   season: 'summer',
   seasonLabel: '초여름',
   humidity: 62,
-};
-
-/** 날씨 condition → 배경 그라데이션 + 아이콘 (WeatherBanner 시각) */
-export const WEATHER_VISUAL: Record<WeatherCondition, { gradient: string; emoji: string }> = {
-  sunny: { gradient: 'from-amber-200 via-orange-100 to-sky-200', emoji: '☀️' },
-  cloudy: { gradient: 'from-slate-200 to-slate-300', emoji: '☁️' },
-  rainy: { gradient: 'from-sky-300 to-indigo-200', emoji: '🌧️' },
-  snowy: { gradient: 'from-sky-100 to-slate-200', emoji: '❄️' },
-  windy: { gradient: 'from-teal-100 to-emerald-200', emoji: '🌬️' },
 };
 
 // ===== 피부타입 × 날씨 맞춤 케어 메시지 =====

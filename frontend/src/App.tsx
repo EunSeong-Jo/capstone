@@ -3,8 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 const SplashPage     = lazy(() => import('./pages/Splash'));
 const OnboardingPage = lazy(() => import('./pages/Onboarding'));
-const QnAPage        = lazy(() => import('./pages/QnA'));
-const ResultPage     = lazy(() => import('./pages/Result'));
+const LoginPage      = lazy(() => import('./pages/Login'));
 const PopupPage      = lazy(() => import('./pages/Popup'));
 const HomePage       = lazy(() => import('./pages/Home'));
 const ClosetPage     = lazy(() => import('./pages/Closet'));
@@ -29,6 +28,10 @@ const GiftBoxPage     = lazy(() => import('./pages/Mypage/GiftBoxPage'));
 const CustomerServicePage = lazy(() => import('./pages/Mypage/CustomerServicePage'));
 const ChatSupportPage = lazy(() => import('./pages/Mypage/ChatSupportPage'));
 const InquiryPage     = lazy(() => import('./pages/Mypage/InquiryPage'));
+const SettingsPage    = lazy(() => import('./pages/Mypage/SettingsPage'));
+const ProfileEditPage = lazy(() => import('./pages/Mypage/ProfileEditPage'));
+const WithdrawPage    = lazy(() => import('./pages/Mypage/WithdrawPage'));
+const LegalPage       = lazy(() => import('./pages/Mypage/LegalPage'));
 
 function LoadingScreen() {
   return (
@@ -44,9 +47,11 @@ export default function App() {
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           <Route path="/"           element={<SplashPage />} />
+          <Route path="/login"      element={<LoginPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/qna"        element={<QnAPage />} />
-          <Route path="/result"     element={<ResultPage />} />
+          {/* 마이페이지 '피부타입 재진단'은 질문창부터 시작 */}
+          <Route path="/qna"        element={<OnboardingPage initialStep="question" />} />
+          <Route path="/result"     element={<Navigate to="/onboarding" replace />} />
           <Route path="/popup"      element={<PopupPage />} />
           <Route path="/home"       element={<HomePage />} />
           <Route path="/closet"     element={<ClosetPage />} />
@@ -73,6 +78,11 @@ export default function App() {
           <Route path="/mypage/customer-service" element={<CustomerServicePage />} />
           <Route path="/mypage/chat-support"  element={<ChatSupportPage />} />
           <Route path="/mypage/inquiry"       element={<InquiryPage />} />
+          <Route path="/mypage/settings"      element={<SettingsPage />} />
+          <Route path="/mypage/settings/profile"  element={<ProfileEditPage />} />
+          <Route path="/mypage/settings/withdraw" element={<WithdrawPage />} />
+          <Route path="/mypage/settings/terms"    element={<LegalPage doc="terms" />} />
+          <Route path="/mypage/settings/privacy"  element={<LegalPage doc="privacy" />} />
           <Route path="*"           element={<Navigate to="/onboarding" replace />} />
         </Routes>
       </Suspense>
