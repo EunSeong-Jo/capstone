@@ -136,9 +136,9 @@ capstone/
 ├── crawling/                 # 팀원 JS 크롤러 작업 폴더 (gitignore)
 ├── data/                     # CSV는 평문으로 커밋한다 (PR에서 diff를 보기 위해)
 │   ├── raw/                  # 올리브영 수집 CSV
-│   │                         #   oliveyoung_products.csv.gz 5,000행 (적재 기준)
-│   │                         #   oliveyoung_products_v5.csv  5,157행 (정제본, 미적재)
-│   └── seed/                 # 대한화장품협회 성분사전 (.gz — 스크립트가 gzip을 요구)
+│   │                         #   oliveyoung_products.csv    5,000행 (적재 기준)
+│   │                         #   oliveyoung_products_v5.csv 5,157행 (정제본, 미적재)
+│   └── seed/                 # 대한화장품협회 성분사전
 │       └── skin_type_ingredients/ # 피부타입별 성분 분류 → 같은 폴더 README.md
 ├── scripts/
 │   ├── init_db.sh            # PostgreSQL 확장 설치 (Docker 전용)

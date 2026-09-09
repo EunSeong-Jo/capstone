@@ -6,8 +6,10 @@
         --std     표준화명칭목록_260630.pdf \
         --changes 명칭변경목록_260630.pdf
 
-data/seed/ 아래 gzip CSV로 저장한다. 협회가 목록을 갱신하면 새 PDF를 받아
-다시 돌리면 된다. PDF 원본은 용량이 커(8MB) 커밋하지 않으므로 팀 드라이브에 둔다.
+data/seed/ 아래 평문 CSV로 저장한다. git이 blob을 zlib으로 팩하므로 미리
+gzip해 둘 이유가 없고, 평문이면 협회가 명칭을 갱신했을 때 무엇이 바뀌었는지
+PR에서 diff로 볼 수 있다. 협회가 목록을 갱신하면 새 PDF를 받아 다시 돌리면
+된다. PDF 원본은 용량이 커(8MB) 커밋하지 않으므로 팀 드라이브에 둔다.
 
 출처: https://kcia.or.kr — 화장품 성분사전
   표준화명칭목록 : 성분코드 | 표준 성분명 | 표준 영문명 | 구명칭 | 구영문명
@@ -17,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import gzip
 import re
 import sys
 from pathlib import Path
@@ -69,9 +70,9 @@ def extract(pdf_path: Path, fields: list[str]) -> list[dict]:
     return rows
 
 
-def write_gz(rows: list[dict], fields: list[str], out: Path) -> None:
+def write_csv(rows: list[dict], fields: list[str], out: Path) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
-    with gzip.open(out, "wt", encoding="utf-8", newline="") as f:
+    with open(out, "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         w.writerows(rows)
@@ -89,12 +90,12 @@ def main() -> None:
 
     if args.std:
         print(f"표준화명칭목록 추출: {args.std}")
-        write_gz(extract(args.std, STD_FIELDS), STD_FIELDS,
-                 SEED / "ingredient_dict.csv.gz")
+        write_csv(extract(args.std, STD_FIELDS), STD_FIELDS,
+                  SEED / "ingredient_dict.csv")
     if args.changes:
         print(f"명칭변경목록 추출: {args.changes}")
-        write_gz(extract(args.changes, CHG_FIELDS), CHG_FIELDS,
-                 SEED / "name_changes.csv.gz")
+        write_csv(extract(args.changes, CHG_FIELDS), CHG_FIELDS,
+                  SEED / "name_changes.csv")
 
 
 if __name__ == "__main__":

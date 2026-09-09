@@ -18,10 +18,9 @@
 *.env.example text
 
 # 데이터 파일
-# CSV는 평문으로 커밋해 PR에서 diff를 볼 수 있게 한다. git이 zlib으로 팩하므로
-# 미리 gzip해 두는 것보다 저장소가 오히려 작고, 버전이 쌓이면 델타 압축도 걸린다.
-# (data/seed/의 성분사전 2종과 data/raw/oliveyoung_products.csv.gz만 .gz다 —
-#  seed_ingredients.py가 gzip을 강제하고 load_products.py 기본 경로가 여기다)
+# data/ 아래 CSV는 평문으로 커밋한다. git이 blob을 zlib으로 팩하므로 미리
+# gzip해 둬도 저장소 크기가 같은데(실측 2.12MB로 동일), 평문이면 PR에서
+# 무엇이 바뀌었는지 diff로 볼 수 있고 버전이 쌓이면 델타 압축도 걸린다.
 *.csv text
 *.gz binary
 

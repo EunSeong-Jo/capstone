@@ -6,8 +6,8 @@
 멱등하다. 여러 번 돌려도 행수가 늘지 않는다.
 
 입력
-  data/seed/ingredient_dict.csv.gz   표준화명칭목록 (code, std_ko, std_en, old_ko, old_en)
-  data/seed/name_changes.csv.gz      명칭변경목록 (+ changed_at)
+  data/seed/ingredient_dict.csv   표준화명칭목록 (code, std_ko, std_en, old_ko, old_en)
+  data/seed/name_changes.csv      명칭변경목록 (+ changed_at)
 
 별칭이 서로 다른 표준명 둘 이상을 가리키는 경우가 있다
 (예: '승마추출물' → 촛대승마추출물 / 라케모사승마뿌리추출물).
@@ -50,12 +50,17 @@ def bump_cache_version() -> None:
         print(f"캐시 버전 갱신 실패(무시): {exc}")
 
 
-DICT_CSV = REPO / "data/seed/ingredient_dict.csv.gz"
-CHANGES_CSV = REPO / "data/seed/name_changes.csv.gz"
+DICT_CSV = REPO / "data/seed/ingredient_dict.csv"
+CHANGES_CSV = REPO / "data/seed/name_changes.csv"
 
 
-def read_gz_csv(path: Path) -> list[dict]:
-    with gzip.open(path, "rt", encoding="utf-8") as f:
+def read_csv(path: Path) -> list[dict]:
+    """확장자로 gzip 여부를 판별한다 (load_products.read_rows와 같은 방식).
+
+    시드는 평문 CSV로 커밋하지만, 예전 .gz를 들고 있는 사람도 그대로 돌아간다.
+    """
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rt", encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
@@ -67,12 +72,22 @@ def parse_date(s: str) -> date | None:
         return None
 
 
-def main() -> None:
-    if not DICT_CSV.exists():
-        sys.exit(f"성분사전이 없습니다: {DICT_CSV}")
+def resolve(path: Path) -> Path | None:
+    """평문을 먼저 보고, 없으면 예전 .gz를 찾는다. 둘 다 없으면 None."""
+    if path.exists():
+        return path
+    legacy = path.with_suffix(path.suffix + ".gz")
+    return legacy if legacy.exists() else None
 
-    rows = read_gz_csv(DICT_CSV)
-    changes = read_gz_csv(CHANGES_CSV) if CHANGES_CSV.exists() else []
+
+def main() -> None:
+    dict_csv = resolve(DICT_CSV)
+    if dict_csv is None:
+        sys.exit(f"성분사전이 없습니다: {DICT_CSV}")
+    changes_csv = resolve(CHANGES_CSV)
+
+    rows = read_csv(dict_csv)
+    changes = read_csv(changes_csv) if changes_csv else []
     print(f"표준화명칭목록 {len(rows):,}행 / 명칭변경목록 {len(changes):,}행")
 
     # ── 표준 성분 집계 (norm_name이 유일키) ───────────────────────

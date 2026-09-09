@@ -54,7 +54,7 @@ def bump_cache_version() -> None:
     except Exception as exc:  # noqa: BLE001
         print(f"캐시 버전 갱신 실패(무시): {exc}")
 
-DEFAULT_CSV = REPO / "data/raw/oliveyoung_products.csv.gz"
+DEFAULT_CSV = REPO / "data/raw/oliveyoung_products.csv"
 
 # 'N종 택1' 기획세트는 호수별 전성분을 한 셀에 이어 붙여 최대 1,978개까지 나온다.
 # 이런 행은 '모든 성분을 가진 제품'이 되어 무엇과도 유사해지므로 유사도 계산에서
@@ -217,7 +217,11 @@ def main() -> None:
     args = ap.parse_args()
 
     if not args.csv.exists():
-        sys.exit(f"CSV가 없습니다: {args.csv}")
+        # 예전 .gz를 들고 있는 사람도 그대로 돌아가게 한다 (read_rows가 둘 다 읽는다).
+        legacy = args.csv.with_suffix(args.csv.suffix + ".gz")
+        if not legacy.exists():
+            sys.exit(f"CSV가 없습니다: {args.csv}")
+        args.csv = legacy
 
     rows = read_rows(args.csv)
     print(f"CSV {len(rows):,}행")
