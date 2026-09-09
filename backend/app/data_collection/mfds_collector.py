@@ -8,6 +8,8 @@ import logging
 import requests
 from typing import Generator
 
+from app.utils.ingredients import parse_ingredients as _parse_ingredients
+
 logger = logging.getLogger(__name__)
 
 MFDS_BASE_URL = "http://apis.data.go.kr/1471000/CsmtcsIrdntInfoService01/getCsmtcsIrdntInfo01"
@@ -63,8 +65,7 @@ def fetch_products(api_key: str, category: str = None) -> Generator[dict, None, 
         time.sleep(0.5)  # API 호출 제한 준수
 
 
-def parse_ingredients(raw: str) -> list[str]:
-    """쉼표 구분 전성분 문자열을 리스트로 파싱."""
-    if not raw:
-        return []
-    return [ing.strip() for ing in raw.split(",") if ing.strip()]
+# 파싱 로직은 app/utils/ingredients.py로 옮겼다.
+# 단순 split(",")은 '1,2-헥산다이올'을 '1' + '2-헥산다이올'로 쪼갠다.
+# 기존 호출부 호환을 위해 이름을 그대로 노출한다.
+parse_ingredients = _parse_ingredients
