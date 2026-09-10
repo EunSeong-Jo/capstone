@@ -20,9 +20,9 @@
 
 | 항목 | 값 |
 |---|---:|
-| 제품 `products` | 4,027 |
-| 성분 `ingredients` | 23,624 |
-| 제품–성분 연결 `product_ingredients` | 164,627 |
+| 제품 `products` | 4,025 |
+| 성분 `ingredients` | 23,306 |
+| 제품–성분 연결 `product_ingredients` | 164,507 |
 | 성분 별칭 `ingredient_aliases` | 3,967 |
 | 브랜드 `brands` | 512 |
 | 표준사전 매칭률 | 97.8% |
@@ -31,8 +31,8 @@
 |---|---:|---:|---:|
 | 스킨케어 | 2,099 | 52.2% | 41.2 |
 | 마스크팩 | 908 | 22.6% | 45.7 |
-| 클렌징 | 870 | 21.6% | 33.3 |
-| 선케어 | 146 | 3.6% | 52.0 |
+| 클렌징 | 873 | 21.7% | 33.3 |
+| 선케어 | 145 | 3.6% | 52.0 |
 
 얼굴용 4종만 적재합니다. 진단 5개 축이 전부 얼굴 기준이라 헤어·바디 추천은 근거가 없고, 메이크업은 `N종 택1` 기획세트가 호수별 전성분을 한 셀에 이어 붙여 데이터가 오염돼 있습니다. 제외한 카테고리도 CSV 원본에는 남아 있어 `scripts/load_products.py`의 `ALLOWED_CATEGORIES`만 되돌리면 복구됩니다.
 
@@ -79,7 +79,7 @@ erDiagram
 
 ## 제품 · 성분
 
-### `products` — 4,027행
+### `products` — 4,025행
 
 제품 마스터. **유일키가 `goods_no`인 이유**: 상품명의 77%에 `[7월 올영픽]` 같은 프로모션 접두사가 붙고 55%에 기획/증정 문구가 섞여, 이름 조합으로는 재수집 때마다 같은 제품이 새 행으로 들어옵니다. `goodsNo`가 올리브영의 실제 제품 식별자입니다.
 
@@ -124,12 +124,12 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 | 값 | 건수 | 설명 |
 |---|---:|---|
-| `single` | 2,493 | 순수 단일제품 |
-| `bonus` | 1,091 | 본품 증량·화장품 증정 (`+50ml`, `1+1`) |
+| `single` | 2,492 | 순수 단일제품 |
+| `bonus` | 1,090 | 본품 증량·화장품 증정 (`+50ml`, `1+1`) |
 | `bundle` | 362 | 묶음·N종·세트·키트 |
 | `goods` | 81 | 비화장품 굿즈 동봉 (키링·파우치·브러쉬) |
 
-### `ingredients` — 23,624행
+### `ingredients` — 23,306행
 
 성분 마스터. 대한화장품협회 표준화명칭목록 21,910건 + 크롤링에서 새로 발견된 성분입니다.
 
@@ -147,7 +147,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `norm_name`이 `살리실릭애씨드(0.5%)`와 `살리실릭애씨드`를 같은 행으로 모읍니다.
 
-### `product_ingredients` — 164,627행
+### `product_ingredients` — 164,507행
 
 제품 ↔ 성분 N:M.
 
@@ -209,9 +209,9 @@ ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 
 ## 추천
 
-### `similarities` — 147,529행
+### `similarities` — 147,469행
 
-유사도 배치(Task 3)가 채웁니다. **단일제품(`composition = 'single'`) 2,454건만** 대상이라, 기획세트·굿즈 동봉 제품은 기준으로도 대체품으로도 등장하지 않습니다.
+유사도 배치(Task 3)가 채웁니다. **단일제품(`composition = 'single'`) 2,453건만** 대상이라, 기획세트·굿즈 동봉 제품은 기준으로도 대체품으로도 등장하지 않습니다.
 
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
@@ -326,7 +326,7 @@ refresh_tokens : id(PK, uuid = gen_random_uuid()) · user_id(FK) · token_hash
 | 1 | `cd backend && alembic upgrade head` | 테이블 18개 + `pg_trgm` 확장 생성 |
 | 2 | `python scripts/seed_ingredients.py` | 협회 표준화명칭목록·명칭변경목록 → `ingredients` + `ingredient_aliases` |
 | 3 | `python scripts/load_products.py` | 올리브영 CSV 5,000행 → 카테고리 필터 → dedup → 전성분 파싱 → 벌크 삽입 |
-| 4 | `python scripts/apply_category_fixes.py` | 카테고리를 믿을 수 없는 제품 제거 — DB와 v5의 카테고리가 다른 125건 |
+| 4 | `python scripts/apply_category_fixes.py` | 카테고리를 믿을 수 없는 제품 제거 — DB와 v5의 카테고리가 다른 134건 |
 | 5 | `python scripts/backfill_from_v5.py` | v5 기준으로 `products.composition` · `display_name` 채우기 |
 | 6 | `python scripts/compute_similarities.py` | 단일제품 유사도 계산 → `similarities` |
 

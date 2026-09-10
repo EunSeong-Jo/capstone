@@ -144,6 +144,48 @@ class TestResidueCleanup:
     def test_footnote_numbers_are_stripped(self, raw, expected):
         assert normalize(raw) == expected
 
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("카올린²", "카올린"),
+            ("1,2-헥산다이올⁶", "1,2-헥산다이올"),
+            ("소듐하이드록사이드¹", "소듐하이드록사이드"),
+        ],
+    )
+    def test_superscript_footnote(self, raw, expected):
+        """유니코드 위첨자도 각주다. '1)' 형태와 같은 취급."""
+        assert normalize(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("아시아티코사이드#", "아시아티코사이드"),
+            ("아시아티코사이드#(2,000ppm)", "아시아티코사이드"),
+        ],
+    )
+    def test_hash_marker(self, raw, expected):
+        """'#'도 인증 표시다. 함량 괄호를 먼저 지워야 끝으로 와서 잡힌다."""
+        assert normalize(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("① 캐모마일꽃수", "캐모마일꽃수"),
+            ("①정제수", "정제수"),
+            ("*살리실릭애씨드", "살리실릭애씨드"),
+        ],
+    )
+    def test_leading_marker(self, raw, expected):
+        """제형 번호·인증 표시가 앞에 붙는 경우. 성분명은 이런 문자로 시작하지 않는다."""
+        assert normalize(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw", ["폴리솔베이트40", "소듐아크릴레이트크로스폴리머-2", "비타민C", "1,2-헥산다이올"]
+    )
+    def test_trailing_digits_are_part_of_the_name(self, raw):
+        """평범한 숫자는 각주가 아니다. 위첨자만 지운다."""
+        assert normalize(raw) == raw
+
     def test_ci_number_survives_footnote_rule(self):
         """'(CI 77891)'도 '1)'로 끝난다. 괄호 짝이 맞으면 건드리지 않는다."""
         assert normalize("티타늄디옥사이드(CI 77891)") == "티타늄디옥사이드(CI77891)"
