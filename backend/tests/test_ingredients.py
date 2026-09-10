@@ -397,6 +397,58 @@ class TestResidueCleanup:
     def test_lone_paren_and_hyphen(self, raw, expected):
         assert normalize(raw) == expected
 
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [("바쿠치올(100ppm）", "바쿠치올"), ("판테놀％", "판테놀%"), ("리날룰 []", "리날룰")],
+    )
+    def test_fullwidth_characters(self, raw, expected):
+        """한쪽만 전각인 표기가 있다. ASCII로 바꿔야 함량 제거가 걸린다."""
+        assert normalize(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("토타네올™ ++표시", "토타네올™"),
+            ("시트랄 + 표시", "시트랄"),
+            ("리날룰(+표시,Napiers original Formula", "리날룰"),
+        ],
+    )
+    def test_marker_notation_is_cut(self, raw, expected):
+        """'*표시'·'+표시'는 각주 기호의 뜻을 설명하는 자리다. 뒤만 자른다."""
+        assert normalize(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "(ANTI-SEBUM P 성분 *표기) 정제수",
+            "(밀크 콜라겐™ 성분 * 표기) 정제수",
+            "(독점 조성물 티트리 카밍 바이옴 성분 *표기) 정제수",
+        ],
+    )
+    def test_leading_paren_label(self, raw):
+        """각주 기호를 설명하는 괄호가 첫 성분 **앞**에 붙는 경우.
+
+        _NOTICE로 뒤를 자르면 정작 성분(정제수)이 함께 날아간다.
+        괄호 안에 '표기'·'표시'가 있을 때만 라벨로 본다.
+        """
+        assert normalize(raw) == "정제수"
+
+    def test_paren_in_name_is_not_a_label(self):
+        assert normalize("하이드로제네이티드폴리(C6-14올레핀)") == "하이드로제네이티드폴리(c6-14올레핀)"
+
+    def test_notice_is_cut_before_space_segmentation(self):
+        """쉼표 없이 공백으로 구분하는 제품(바비브라운 계열)이 있다.
+
+        토큰별로 안내문구를 지우면 늦다 — vocab 분리를 타면서 문장이
+        단어별로 쪼개져 '경우에'·'따라'·'변경될'·'수'가 각각 성분이 됐다.
+        """
+        vocab = {"리날룰", "제라니올", "페녹시에탄올"}
+        raw = ("리날룰 [] 제라니올 [] 페녹시에탄올 제공된 성분은 동일 제품이라도 "
+               "경우에 따라 변경될 수 있습니다.")
+        got = [normalize(t) for t in parse_ingredients(raw, vocab)]
+        assert "경우에" not in got and "따라" not in got
+        assert got[-1] == "페녹시에탄올"
+
     def test_cream_is_a_real_ingredient(self):
         """'크림'은 협회 사전에 정식 성분으로 있다. 라벨 목록에서 뺐다."""
         assert normalize("크림") == "크림"
