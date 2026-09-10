@@ -21,8 +21,8 @@
 | 항목 | 값 |
 |---|---:|
 | 제품 `products` | 4,025 |
-| 성분 `ingredients` | 23,306 |
-| 제품–성분 연결 `product_ingredients` | 164,507 |
+| 성분 `ingredients` | 23,270 |
+| 제품–성분 연결 `product_ingredients` | 164,459 |
 | 성분 별칭 `ingredient_aliases` | 3,967 |
 | 브랜드 `brands` | 512 |
 | 표준사전 매칭률 | 97.8% |
@@ -129,7 +129,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 | `bundle` | 362 | 묶음·N종·세트·키트 |
 | `goods` | 81 | 비화장품 굿즈 동봉 (키링·파우치·브러쉬) |
 
-### `ingredients` — 23,306행
+### `ingredients` — 23,270행
 
 성분 마스터. 대한화장품협회 표준화명칭목록 21,910건 + 크롤링에서 새로 발견된 성분입니다.
 
@@ -147,7 +147,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `norm_name`이 `살리실릭애씨드(0.5%)`와 `살리실릭애씨드`를 같은 행으로 모읍니다.
 
-### `product_ingredients` — 164,507행
+### `product_ingredients` — 164,459행
 
 제품 ↔ 성분 N:M.
 
@@ -211,7 +211,7 @@ ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 
 ### `similarities` — 147,469행
 
-유사도 배치(Task 3)가 채웁니다. **단일제품(`composition = 'single'`) 2,453건만** 대상이라, 기획세트·굿즈 동봉 제품은 기준으로도 대체품으로도 등장하지 않습니다.
+유사도 배치(Task 3)가 채웁니다. **단일제품(`composition = 'single'`) 2,452건만** 대상이라, 기획세트·굿즈 동봉 제품은 기준으로도 대체품으로도 등장하지 않습니다.
 
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|

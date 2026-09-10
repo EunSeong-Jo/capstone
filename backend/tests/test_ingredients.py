@@ -186,6 +186,73 @@ class TestResidueCleanup:
         """평범한 숫자는 각주가 아니다. 위첨자만 지운다."""
         assert normalize(raw) == raw
 
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("'정제수", "정제수"),
+            ('"정제수', "정제수"),
+            ('리날룰"', "리날룰"),
+            ('에스에이치-올리고펩타이드-1"', "에스에이치-올리고펩타이드-1"),
+        ],
+    )
+    def test_stray_quotes(self, raw, expected):
+        """CSV 인용부호가 성분명으로 새어 든 것. 앞뒤 양쪽에 붙는다."""
+        assert normalize(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [("■", ""), ("■ 정제수", "정제수"), ("■ 로즈힙씨오일(100%)", "로즈힙씨오일")],
+    )
+    def test_bullet_marker(self, raw, expected):
+        assert normalize(raw) == expected
+
+    def test_comma_with_space_inside_number(self):
+        """'1, 2-헥산다이올'처럼 띄어 쓴 표기가 실제로 있다(제품 12건).
+
+        쉼표 바로 다음 글자만 보면 공백이라 숫자 판정에 실패해 쪼개졌고,
+        그 결과 '1'이 DF=12짜리 가짜 성분으로 등록돼 있었다.
+        """
+        assert parse_ingredients("글리세린, 1, 2-헥산다이올, 프로판다이올") == [
+            "글리세린",
+            "1, 2-헥산다이올",
+            "프로판다이올",
+        ]
+        # normalize가 공백을 없애 표준명과 같아진다.
+        assert normalize("1, 2-헥산다이올") == "1,2-헥산다이올"
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("피이지-90, 1,2-헥산다이올", ["피이지-90", "1,2-헥산다이올"]),
+            ("폴리솔베이트20, 1,2-헥산다이올", ["폴리솔베이트20", "1,2-헥산다이올"]),
+            ("C12-14알케스-12, 4-t-부틸사이클로헥산올", ["C12-14알케스-12", "4-t-부틸사이클로헥산올"]),
+        ],
+    )
+    def test_number_ending_name_still_splits(self, raw, expected):
+        """앞 성분이 숫자로 끝나고 다음이 숫자로 시작해도 구분자다.
+
+        쉼표 앞 '한 글자'만 보면 이것도 성분명 내부 쉼표로 오판한다. 실제로
+        그렇게 만들었다가 '피이지-90, 1,2-헥산다이올'이 한 덩어리로 등록되는
+        것을 보고, 띄어 쓴 경우에는 **모은 것이 전부 숫자일 때만** 내부
+        쉼표로 보도록 좁혔다.
+        """
+        assert parse_ingredients(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "비스-에톡시다이글라이콜사이클로헥산1,4-다이카복실레이트",
+            "향료 *100,000ppm",
+        ],
+    )
+    def test_inner_comma_without_space_is_protected(self, raw):
+        """붙여 쓴 경우는 앞뒤 글자만 본다 — 성분명 안의 숫자 쉼표다.
+
+        띄어 쓴 경우의 규칙(모은 것이 전부 숫자)을 여기까지 적용했다가
+        이 성분들이 쪼개지는 것을 보고 공백 유무로 판정을 나눴다.
+        """
+        assert parse_ingredients(f"{raw}, 정제수") == [raw, "정제수"]
+
     def test_ci_number_survives_footnote_rule(self):
         """'(CI 77891)'도 '1)'로 끝난다. 괄호 짝이 맞으면 건드리지 않는다."""
         assert normalize("티타늄디옥사이드(CI 77891)") == "티타늄디옥사이드(CI77891)"

@@ -29,10 +29,15 @@ _AMOUNT = re.compile(
 # 유니코드 위첨자(마이카³)와 '#'(아시아티코사이드#)도 같은 역할이다.
 _MARKERS = re.compile(r"[*†‡+#⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+$")
 
-# 성분명 앞에 붙는 표시. '①  캐모마일꽃수'처럼 제형 번호가 첫 성분에 들러붙거나
-# '*살리실릭애씨드'처럼 인증 표시가 앞에 오는 경우다. 성분명이 이런 문자로
+# 성분명 앞에 붙는 표시. '① 캐모마일꽃수'처럼 제형 번호가 첫 성분에 들러붙거나
+# '*살리실릭애씨드'처럼 인증 표시가 앞에 오는 경우다. 따옴표는 CSV 인용부호가
+# 새어 든 것이고(`'정제수`), ■·◆는 구간 구분 기호다. 성분명이 이런 문자로
 # 시작하는 일은 없어 통째로 걷어내도 안전하다.
-_LEADING = re.compile(r"^[*†‡+#①-⑳⓪\s.,·|]+")
+_LEADING = re.compile(r"^[*†‡+#①-⑳⓪■◆●▶※□▲◇\"'`\s.,·|]+")
+
+# 문자열 끝의 따옴표. `리날룰\"`처럼 인용부호 짝이 깨져 남는다.
+# _MARKERS와 나눠 둔 이유는 함량 괄호 제거 뒤에도 한 번 더 돌려야 하기 때문이다.
+_TRAILING_QUOTE = re.compile(r"[\"'`]+$")
 
 # 각주 번호. '부틸렌글라이콜3)4)5)'처럼 성분명 뒤에 참조 표시가 붙는다.
 # 여는 괄호가 없는 경우에만 지운다 — '티타늄디옥사이드(CI 77891)'의 끝
@@ -64,9 +69,30 @@ def _split_by_comma(raw: str) -> list[str]:
 
         if ch == "," and depth == 0:
             prev = raw[i - 1] if i else ""
-            nxt = raw[i + 1] if i + 1 < len(raw) else ""
-            if prev.isdigit() and nxt.isdigit():
-                buf.append(ch)      # 1,2- / 10,000 → 구분자 아님
+            after = raw[i + 1] if i + 1 < len(raw) else ""
+            # 쉼표 뒤 공백을 건너뛴 다음 글자. '1, 2-헥산다이올'처럼 띄어 쓴
+            # 표기가 실제로 있다(제품 12건).
+            j = i + 1
+            while j < len(raw) and raw[j] == " ":
+                j += 1
+            nxt = raw[j] if j < len(raw) else ""
+
+            # 공백 유무로 판정을 나눈다.
+            #   붙여 쓴 경우  앞뒤 글자가 숫자면 성분명 내부다.
+            #                1,2-헥산다이올 · 10,000ppm ·
+            #                비스-에톡시다이글라이콜사이클로헥산1,4-다이카복실레이트
+            #   띄어 쓴 경우  **모은 것이 전부 숫자일 때만** 내부로 본다.
+            #                '1, 2-헥산다이올'은 내부지만
+            #                '피이지-90, 1,2-헥산다이올'은 구분자다 —
+            #                앞 글자만 보면 둘을 구별할 수 없다.
+            head = "".join(buf).strip()
+            inside = (
+                (head.isdigit() and nxt.isdigit())
+                if after == " "
+                else (prev.isdigit() and nxt.isdigit())
+            )
+            if inside:
+                buf.append(ch)
                 continue
             token = "".join(buf).strip()
             if token:
@@ -173,6 +199,7 @@ def normalize(name: str) -> str:
     s = _NOTICE.sub("", name.strip())
     s = _SECTION_LABEL.sub("", s)
     s = _LEADING.sub("", s)
+    s = _TRAILING_QUOTE.sub("", s.strip())
     # 함량 괄호가 먼저 빠져야 그 앞의 '*'가 문자열 끝으로 와서 마커로 잡힌다.
     s = _AMOUNT.sub("", s)
     s = _MARKERS.sub("", s.strip())
@@ -181,6 +208,7 @@ def normalize(name: str) -> str:
     while s.count(")") > s.count("(") and _FOOTNOTE.search(s):
         s = _FOOTNOTE.sub("", s)
     s = _MARKERS.sub("", s.strip())
+    s = _TRAILING_QUOTE.sub("", s.strip())
     s = re.sub(r"\s+", "", s)
     return s.strip(" .,·|")
 
