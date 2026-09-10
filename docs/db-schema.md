@@ -21,8 +21,8 @@
 | 항목 | 값 |
 |---|---:|
 | 제품 `products` | 4,025 |
-| 성분 `ingredients` | 23,190 |
-| 제품–성분 연결 `product_ingredients` | 164,413 |
+| 성분 `ingredients` | 23,042 |
+| 제품–성분 연결 `product_ingredients` | 164,134 |
 | 성분 별칭 `ingredient_aliases` | 3,967 |
 | 브랜드 `brands` | 512 |
 | 표준사전 매칭률 | 97.8% |
@@ -129,7 +129,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 | `bundle` | 362 | 묶음·N종·세트·키트 |
 | `goods` | 81 | 비화장품 굿즈 동봉 (키링·파우치·브러쉬) |
 
-### `ingredients` — 23,190행
+### `ingredients` — 23,042행
 
 성분 마스터. 대한화장품협회 표준화명칭목록 21,910건 + 크롤링에서 새로 발견된 성분입니다.
 
@@ -147,7 +147,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `norm_name`이 `살리실릭애씨드(0.5%)`와 `살리실릭애씨드`를 같은 행으로 모읍니다.
 
-### `product_ingredients` — 164,413행
+### `product_ingredients` — 164,134행
 
 제품 ↔ 성분 N:M.
 

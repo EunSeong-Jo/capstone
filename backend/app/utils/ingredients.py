@@ -58,6 +58,17 @@ _NOT_INGREDIENT = re.compile(
     r"습니다|바랍니다|드립니다|참고|부탁|무첨가|미포함|불검출|성분\s*목록"
 )
 
+# 제형·구간 라벨. 콜론을 구분자로 쓰면서 '세럼: 정제수'의 앞쪽이 토큰으로
+# 떨어져 나온다. 성분이 아니고 여러 제품에 반복 등장해 공통 성분처럼
+# 보이므로 DF=1 잔해보다 해롭다.
+#
+# '크림'은 협회 사전에 정식 성분으로 있어 뺐다 — 나머지는 0건 확인.
+_FORM_LABEL = frozenset(
+    """본품 전성분 스킨 토너 에센스 앰플 세럼 로션 미스트 젤 폼 밤 오일
+    마스크 패드 리필 증정 파우더 쿠션 스틱 클렌저 워시 필링 부스터
+    1제 2제 3제 제1제 제2제""".split()
+)
+
 # '*' 뒤에 설명이 이어지는 각주. 실제 성분이 그 앞에 묻혀 있다.
 #     리모넨* (*에센셜 오일에 포함된 표기성분)     → 리모넨
 #     콜라겐추출물 *분사제 : 이산화탄소            → 콜라겐추출물
@@ -73,6 +84,24 @@ _SECTION_LABEL = re.compile(r"\[[^\]]*\]")
 # 대괄호 없이 쓰는 구간 라벨. '리날룰 STEP 02 : 인텐시브 샤이닝 마스크 정제수'처럼
 # 앞 구간의 마지막 성분과 다음 구간의 첫 성분 사이에 끼어든다.
 _STEP_LABEL = re.compile(r"\s*(?:STEP|스텝)\s*\d+\s*[.:：]?\s*", re.I)
+
+# 쉼표 말고도 구분자로 쓰이는 문자들. 전부 성분명에는 쓰이지 않는다
+# (협회 사전 21,910종에 0건 확인).
+#   ，、；  전각 쉼표·세미콜론. 한자권 입력기에서 새어 든다
+#   :      '세럼: 정제수'처럼 제형 라벨을 붙일 때
+_ALT_SEPARATORS = re.compile(r"[，、；;:：]")
+
+# 한글 사이의 마침표. '피브이피.정제수.글리세린…'처럼 마침표로 구분한 제품이 있다.
+# 성분명 안의 마침표(숫자 소수점)와 구별하려고 양쪽이 한글일 때만 본다.
+_DOT_SEPARATOR = re.compile(r"(?<=[가-힣])\.(?=[가-힣])")
+
+# 괄호 밖에 적힌 함량. '판테놀 5%' · '에델바이스꽃/잎추출물 100,000ppm'
+# 천 단위 쉼표를 허용한다 — 앞의 _split_by_comma가 숫자 사이 쉼표를 지켰다.
+_BARE_AMOUNT = re.compile(r"\s+[\d,]*\d(?:\.\d+)?\s*(?:%|ppm|ppb)\s*$", re.I)
+
+# 한글이 하나도 없는 토큰. 이 카탈로그의 전성분은 전부 한글 표기라
+# (영문 전용 제품 0건) 순 영숫자는 라벨·코드 조각이다.
+_NO_HANGUL = re.compile(r"^[^가-힣]+$")
 
 _OPENERS = "([{"
 _CLOSERS = ")]}"
@@ -190,6 +219,10 @@ def parse_ingredients(raw: str, vocab: set[str] | None = None) -> list[str]:
     # 쉼표를 쓰는 문자열에서만 바꾼다(618건 중 607건). 공백 구분 문자열에
     # 적용하면 쉼표가 생겨 아래 분기가 여기서 끝나버리고, 정작 필요한
     # vocab 최장일치 분리를 건너뛰어 전성분 전체가 성분 하나로 등록된다.
+    # 쉼표 외의 구분자를 쉼표로 바꿔 아래 분리 로직에 태운다.
+    raw = _ALT_SEPARATORS.sub(",", raw)
+    raw = _DOT_SEPARATOR.sub(",", raw)
+
     if "," in raw:
         raw = _SECTION_LABEL.sub(",", raw)
         raw = _STEP_LABEL.sub(",", raw)
@@ -233,6 +266,7 @@ def normalize(name: str) -> str:
     if _NOT_INGREDIENT.search(s):
         return ""
     s = _TRAILING_QUOTE.sub("", s.strip())
+    s = _BARE_AMOUNT.sub("", s)
     # 함량 괄호가 먼저 빠져야 그 앞의 '*'가 문자열 끝으로 와서 마커로 잡힌다.
     s = _AMOUNT.sub("", s)
     s = _MARKERS.sub("", s.strip())
@@ -243,7 +277,12 @@ def normalize(name: str) -> str:
     s = _MARKERS.sub("", s.strip())
     s = _TRAILING_QUOTE.sub("", s.strip())
     s = re.sub(r"\s+", "", s)
-    return s.strip(" .,·|")
+    s = s.strip(" .,·|")
+    # 다 걷어내고 한글이 하나도 안 남으면 성분이 아니다 — 'E65R'·'TONIC'·'1,2'
+    # 같은 라벨·코드 조각이다. 이 카탈로그는 전성분이 전부 한글 표기다.
+    if _NO_HANGUL.match(s):
+        return ""
+    return "" if s in _FORM_LABEL else s
 
 
 def normalize_loose(name: str) -> str:

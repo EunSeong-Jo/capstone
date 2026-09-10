@@ -327,6 +327,66 @@ class TestResidueCleanup:
         """
         assert normalize(raw) == expected
 
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("소듐클로라이드，하이드록시에틸셀룰로오스", ["소듐클로라이드", "하이드록시에틸셀룰로오스"]),
+            ("세럼: 정제수, 글리세린", ["세럼", "정제수", "글리세린"]),
+            ("피브이피.정제수.글리세린.카올린", ["피브이피", "정제수", "글리세린", "카올린"]),
+        ],
+    )
+    def test_alternative_separators(self, raw, expected):
+        """전각 쉼표·콜론·한글 사이 마침표도 구분자다.
+
+        협회 사전 21,910종에 이 문자를 가진 성분은 하나도 없어 안전하다.
+        마침표는 양쪽이 한글일 때만 본다 — 숫자 소수점과 구별해야 한다.
+        """
+        assert parse_ingredients(raw) == expected
+
+    @pytest.mark.parametrize("junk", ["1,2", "E65R", "TONIC", "FACE", "PEG", "-"])
+    def test_token_without_hangul_is_dropped(self, junk):
+        """이 카탈로그는 전성분이 전부 한글 표기다(영문 전용 제품 0건).
+
+        한글이 하나도 없으면 라벨·코드 조각이다.
+        """
+        assert normalize(junk) == ""
+
+    def test_hangul_with_ascii_survives(self):
+        assert normalize("c18-21알케인") == "c18-21알케인"
+
+    @pytest.mark.parametrize(
+        "label", ["앰플", "에센스", "스킨", "본품", "전성분", "■토너", "1제", "리필"]
+    )
+    def test_form_label_is_dropped(self, label):
+        """콜론을 구분자로 쓰면서 '세럼: 정제수'의 앞쪽이 토큰으로 떨어진다.
+
+        성분이 아니면서 여러 제품에 반복 등장해 공통 성분처럼 보이므로,
+        DF=1 잔해보다 해롭다. 실제로 '앰플'·'에센스'가 DF 3~8로 생기는 것을
+        보고 추가했다.
+        """
+        assert normalize(label) == ""
+
+    def test_cream_is_a_real_ingredient(self):
+        """'크림'은 협회 사전에 정식 성분으로 있다. 라벨 목록에서 뺐다."""
+        assert normalize("크림") == "크림"
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("판테놀 5%", "판테놀"),
+            ("갈락토미세스발효여과물 100%", "갈락토미세스발효여과물"),
+            ("에델바이스꽃/잎추출물 100,000ppm", "에델바이스꽃/잎추출물"),
+        ],
+    )
+    def test_amount_outside_parens(self, raw, expected):
+        """괄호 없이 적은 함량. _AMOUNT는 괄호 안만 본다."""
+        assert normalize(raw) == expected
+
+    def test_unbalanced_paren_in_dictionary_is_left_alone(self):
+        """협회 사전에도 괄호 짝이 안 맞는 성분이 2종 있다. 건드리면 안 된다."""
+        name = "비스(트라이옥틸도데실시트릴다이리놀리에이트"
+        assert normalize(name) == name
+
     def test_ci_number_survives_footnote_rule(self):
         """'(CI 77891)'도 '1)'로 끝난다. 괄호 짝이 맞으면 건드리지 않는다."""
         assert normalize("티타늄디옥사이드(CI 77891)") == "티타늄디옥사이드(CI77891)"
