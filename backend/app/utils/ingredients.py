@@ -47,9 +47,21 @@ _FOOTNOTE = re.compile(r"\s*\d+\)$")
 # 성분이 아니라 안내문구. 이 표현부터 뒤는 통째로 버린다.
 _NOTICE = re.compile(r"\s*(?:※|＊표시|\*표시|제공된\s*성분|상세페이지\s*참조).*$")
 
+# '*' 뒤에 설명이 이어지는 각주. 실제 성분이 그 앞에 묻혀 있다.
+#     리모넨* (*에센셜 오일에 포함된 표기성분)     → 리모넨
+#     콜라겐추출물 *분사제 : 이산화탄소            → 콜라겐추출물
+#     다이소듐이디티에이 *글루타치온좀(...) : ...   → 다이소듐이디티에이
+# 뒤에 공백이나 글자가 올 때만 자른다. 문자열 끝의 '*'(부틸렌글라이콜*)와
+# 함량 표기 앞의 '*'(마그네슘설페이트*(4.75 ppb))는 _MARKERS가 맡는다.
+_FOOTNOTE_TEXT = re.compile(r"\s*\*(?=[\s가-힣A-Za-z]).*$")
+
 # 기획세트·다단계 제품의 구성품 라벨. '[STEP3]', '[브라이트닝]' 처럼
 # 전성분 문자열 안에서 구간을 나누는 표시라 성분명의 일부가 아니다.
 _SECTION_LABEL = re.compile(r"\[[^\]]*\]")
+
+# 대괄호 없이 쓰는 구간 라벨. '리날룰 STEP 02 : 인텐시브 샤이닝 마스크 정제수'처럼
+# 앞 구간의 마지막 성분과 다음 구간의 첫 성분 사이에 끼어든다.
+_STEP_LABEL = re.compile(r"\s*(?:STEP|스텝)\s*\d+\s*[.:：]?\s*", re.I)
 
 _OPENERS = "([{"
 _CLOSERS = ")]}"
@@ -169,6 +181,7 @@ def parse_ingredients(raw: str, vocab: set[str] | None = None) -> list[str]:
     # vocab 최장일치 분리를 건너뛰어 전성분 전체가 성분 하나로 등록된다.
     if "," in raw:
         raw = _SECTION_LABEL.sub(",", raw)
+        raw = _STEP_LABEL.sub(",", raw)
 
     parts = _split_by_comma(raw)
     if len(parts) > 1:
@@ -199,6 +212,7 @@ def normalize(name: str) -> str:
     s = _NOTICE.sub("", name.strip())
     s = _SECTION_LABEL.sub("", s)
     s = _LEADING.sub("", s)
+    s = _FOOTNOTE_TEXT.sub("", s)
     s = _TRAILING_QUOTE.sub("", s.strip())
     # 함량 괄호가 먼저 빠져야 그 앞의 '*'가 문자열 끝으로 와서 마커로 잡힌다.
     s = _AMOUNT.sub("", s)

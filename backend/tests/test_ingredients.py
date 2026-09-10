@@ -253,6 +253,46 @@ class TestResidueCleanup:
         """
         assert parse_ingredients(f"{raw}, 정제수") == [raw, "정제수"]
 
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("리모넨* (*에센셜 오일에 포함된 표기성분)", "리모넨"),
+            ("콜라겐추출물 *분사제 : 이산화탄소", "콜라겐추출물"),
+            ("토코페롤 * 무첨가 성분: 페녹시에탄올", "토코페롤"),
+            ("징크피씨에이 (100 ppb) * 10종 복합 히아루론산 총 함량 100 ppm", "징크피씨에이"),
+            ("제라니올 *아이소이에서 사용하는 에탄올은 식물발효성분입니다.", "제라니올"),
+        ],
+    )
+    def test_footnote_explanation_is_cut(self, raw, expected):
+        """'*' 뒤 설명에 실제 성분이 묻혀 있다. 그 앞만 남긴다."""
+        assert normalize(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("부틸렌글라이콜*", "부틸렌글라이콜"),
+            ("마그네슘설페이트*(4.75 ppb)", "마그네슘설페이트"),
+        ],
+    )
+    def test_trailing_star_is_not_a_footnote_text(self, raw, expected):
+        """끝의 '*'와 함량 앞의 '*'는 설명이 아니라 마커다. 자르면 안 된다."""
+        assert normalize(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw,head",
+        [
+            ("리날룰 STEP 02 : 인텐시브 샤이닝 마스크 정제수, 글리세린", "리날룰"),
+            ("리모넨 STEP 02. 콜라겐 스킨 핏 마스크 정제수, 글리세린", "리모넨"),
+        ],
+    )
+    def test_step_label_recovers_preceding_ingredient(self, raw, head):
+        """대괄호 없는 'STEP NN'도 구간 경계다.
+
+        앞 구간의 마지막 성분이 라벨에 붙어 통째로 묻히던 것을 되살린다.
+        라벨 뒤의 제품명은 여전히 남지만, 최소한 실제 성분은 회수된다.
+        """
+        assert parse_ingredients(raw)[0] == head
+
     def test_ci_number_survives_footnote_rule(self):
         """'(CI 77891)'도 '1)'로 끝난다. 괄호 짝이 맞으면 건드리지 않는다."""
         assert normalize("티타늄디옥사이드(CI 77891)") == "티타늄디옥사이드(CI77891)"
