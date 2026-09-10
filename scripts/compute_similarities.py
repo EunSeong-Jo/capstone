@@ -206,6 +206,10 @@ def write(cur, product_ids: list[int], method: str, rows: list[tuple]) -> None:
         "DELETE FROM similarities WHERE method = %s AND product_id = ANY(%s)",
         (method, product_ids),
     )
+    # 성분 집합이 완전히 같으면 점수가 1.0인데 부동소수점 반올림으로
+    # 1.0000000000000004가 나온다. 저장 계약이 0~1이라 여기서 자른다 —
+    # 세 방식이 각자 점수를 만들므로 쓰기 직전 한 곳에서 막는 편이 확실하다.
+    rows = [(a, b, m, min(1.0, max(0.0, s)), j) for a, b, m, s, j in rows]
     if rows:
         execute_values(
             cur,

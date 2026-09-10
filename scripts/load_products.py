@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import csv
 import gzip
 import re
@@ -190,6 +191,10 @@ def is_unusable(parts: list[str]) -> bool:
     """
     if not parts:
         return True
+    # 정규화하면 아무것도 안 남는 경우. '■상세페이지 참조'처럼 파서가 안내문구를
+    # 이미 걷어내 여기서는 기호만 보이는 상황이 있어, 원문 패턴만 보면 놓친다.
+    if not any(normalize(p) for p in parts):
+        return True
     return len(parts) == 1 and bool(_PLACEHOLDER.search(parts[0]))
 
 
@@ -283,6 +288,14 @@ def main() -> None:
         for g in unusable:
             del by_goods[g], parsed[g]
         print(f"성분 없음으로 제외 {len(unusable):,}건 → 적재 대상 {len(by_goods):,}건")
+
+        # 이번에 제외된 제품이 예전 적재로 DB에 남아 있으면 지운다. upsert만
+        # 하면 성분 0개인 제품이 영영 남아, 파서를 고쳐 제외 대상이 늘어도
+        # 반영되지 않는다. FK가 CASCADE라 연결·유사도도 함께 정리된다.
+        cur.execute("DELETE FROM products WHERE goods_no = ANY(%s)", (list(unusable),))
+        if cur.rowcount:
+            print(f"  그중 {cur.rowcount:,}건은 예전 적재분이라 DB에서 제거했다")
+        conn.commit()
 
     # ── 브랜드 · 카테고리 ────────────────────────────────────────
     brands = sorted({(r.get("브랜드") or "").strip() for r in by_goods.values()} - {""})
@@ -424,11 +437,22 @@ def main() -> None:
     def to_ingredient_id(key: str) -> int | None:
         return ing_id.get(key) or alias_id.get(key)
 
+    # position은 여기서 다시 매긴다. 위에서 붙인 번호를 그대로 쓰면, 성분
+    # id를 못 찾아 건너뛴 자리만큼 빈틈이 생겨 '1부터 연속'이라는 계약이
+    # 깨진다. 상대 순서는 links의 순서가 이미 보존하고 있다.
     pi_rows = []
-    for gno, key, pos, raw in links:
+    pos_of: dict[str, int] = collections.defaultdict(int)
+    placed: set[tuple[int, int]] = set()
+    for gno, key, _, raw in links:
         pid, iid = pid_of.get(gno), to_ingredient_id(key)
-        if pid and iid:
-            pi_rows.append((pid, iid, pos, raw))
+        if not (pid and iid) or (pid, iid) in placed:
+            # 앞의 seen은 key 기준이라, 별칭을 거쳐 같은 성분 id로 모이는
+            # 두 표기를 못 막는다. DB의 ON CONFLICT가 뒤엣것을 버리는데
+            # 번호는 이미 올라가 자리가 빈다 — 여기서 걸러야 한다.
+            continue
+        placed.add((pid, iid))
+        pos_of[gno] += 1
+        pi_rows.append((pid, iid, pos_of[gno], raw))
 
     cur.execute("DELETE FROM product_ingredients WHERE product_id = ANY(%s)",
                 (list(pid_of.values()),))
