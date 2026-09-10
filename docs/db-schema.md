@@ -21,9 +21,9 @@
 | 항목 | 값 |
 |---|---:|
 | 제품 `products` | 4,025 |
-| 성분 `ingredients` | 23,509 |
-| 제품–성분 연결 `product_ingredients` | 164,121 |
-| 성분 별칭 `ingredient_aliases` | 4,391 |
+| 성분 `ingredients` | 23,489 |
+| 제품–성분 연결 `product_ingredients` | 164,119 |
+| 성분 별칭 `ingredient_aliases` | 4,411 |
 | 브랜드 `brands` | 512 |
 | 표준사전 매칭률 | 97.8% |
 
@@ -129,7 +129,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 | `bundle` | 362 | 묶음·N종·세트·키트 |
 | `goods` | 81 | 비화장품 굿즈 동봉 (키링·파우치·브러쉬) |
 
-### `ingredients` — 23,509행
+### `ingredients` — 23,489행
 
 성분 마스터. 대한화장품협회 표준화명칭목록 21,910건 + 크롤링에서 새로 발견된 성분입니다.
 
@@ -147,7 +147,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `norm_name`이 `살리실릭애씨드(0.5%)`와 `살리실릭애씨드`를 같은 행으로 모읍니다.
 
-### `product_ingredients` — 164,121행
+### `product_ingredients` — 164,119행
 
 제품 ↔ 성분 N:M.
 
@@ -160,7 +160,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 **`position`이 정보입니다.** 화장품 전성분은 함량 내림차순 표기가 원칙이라, RBO 유사도가 이 순서를 씁니다.
 
-### `ingredient_aliases` — 4,391행
+### `ingredient_aliases` — 4,411행
 
 구명칭 → 표준명 매핑. `디메치콘`과 `다이메티콘`을 다른 성분으로 세면 유사도가 실제보다 낮게 나옵니다.
 
