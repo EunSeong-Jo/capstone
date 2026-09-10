@@ -10,7 +10,7 @@
 | DBMS | PostgreSQL 16.14 |
 | 호스팅 | Neon (serverless) · branch `production` · db `neondb` |
 | 확장 | `pg_trgm` 1.6 |
-| alembic head | `d4e5f6a7b8c9` |
+| alembic head | `e5f6a7b8c9d0` |
 | 테이블 | 18 (Phase 1 전량) |
 | 기준일 | 2026-09-10 |
 
@@ -20,19 +20,19 @@
 
 | 항목 | 값 |
 |---|---:|
-| 제품 `products` | 4,144 |
-| 성분 `ingredients` | 25,923 |
-| 제품–성분 연결 `product_ingredients` | 170,962 |
+| 제품 `products` | 4,027 |
+| 성분 `ingredients` | 23,624 |
+| 제품–성분 연결 `product_ingredients` | 164,627 |
 | 성분 별칭 `ingredient_aliases` | 3,967 |
-| 브랜드 `brands` | 511 |
+| 브랜드 `brands` | 512 |
 | 표준사전 매칭률 | 97.8% |
 
 | 카테고리 | 제품수 | 비율 | 평균 성분수 |
 |---|---:|---:|---:|
-| 스킨케어 | 2,145 | 51.8% | 41.6 |
-| 마스크팩 | 949 | 22.9% | 45.7 |
-| 클렌징 | 887 | 21.4% | 33.6 |
-| 선케어 | 163 | 3.9% | 53.0 |
+| 스킨케어 | 2,099 | 52.2% | 41.2 |
+| 마스크팩 | 908 | 22.6% | 45.7 |
+| 클렌징 | 870 | 21.6% | 33.3 |
+| 선케어 | 146 | 3.6% | 52.0 |
 
 얼굴용 4종만 적재합니다. 진단 5개 축이 전부 얼굴 기준이라 헤어·바디 추천은 근거가 없고, 메이크업은 `N종 택1` 기획세트가 호수별 전성분을 한 셀에 이어 붙여 데이터가 오염돼 있습니다. 제외한 카테고리도 CSV 원본에는 남아 있어 `scripts/load_products.py`의 `ALLOWED_CATEGORIES`만 되돌리면 복구됩니다.
 
@@ -79,7 +79,7 @@ erDiagram
 
 ## 제품 · 성분
 
-### `products` — 4,144행
+### `products` — 4,027행
 
 제품 마스터. **유일키가 `goods_no`인 이유**: 상품명의 77%에 `[7월 올영픽]` 같은 프로모션 접두사가 붙고 55%에 기획/증정 문구가 섞여, 이름 조합으로는 재수집 때마다 같은 제품이 새 행으로 들어옵니다. `goodsNo`가 올리브영의 실제 제품 식별자입니다.
 
@@ -87,7 +87,8 @@ erDiagram
 |---|---|---|---|---|
 | PK | `id` | serial | | |
 | UQ | `goods_no` | varchar(50) | NOT NULL | 올리브영 제품 식별자 |
-| | `name` | text | NOT NULL | |
+| | `name` | text | NOT NULL | **정제 전 원본** (아래 설명) |
+| | `display_name` | text | NULL | 화면 표시용 정제명 |
 | FK | `brand_id` | int | NULL | → `brands` [SET NULL] |
 | FK | `category_id` | int | NULL | → `categories` [SET NULL] |
 | | `price` | int | NULL | 원 단위 |
@@ -108,18 +109,27 @@ erDiagram
 | | `composition` | text | NOT NULL | `= 'single'` · single/bonus/goods/bundle (아래 설명) |
 | | `created_at` `updated_at` | timestamptz | NOT NULL | `= now()` |
 
+**`name`과 `display_name`**은 역할이 다릅니다. `name`은 정제 전 원본이라 `기획`·`N종 택1`·`+50ml` 같은 문구가 살아 있고, 그게 `composition` 판정의 입력이라 지우면 분류가 깨집니다. 화면에는 `display_name`(v5 정제명)을 쓰고, NULL이면 `name`으로 떨어집니다. 검색은 양쪽을 모두 봅니다 — 정제 과정에서 지워진 단어로 검색한 사용자가 아무것도 못 찾으면 안 되기 때문입니다.
+
+```
+name          에스트라 아토베리어365 세라-히알 속수분 앰플 30ml+30ml 리필 기획
+display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30ml
+```
+
+정제명이 원본과 다른 제품은 1,392건이고 **전부 `composition <> 'single'`** 입니다. 기획·증정 문구가 있다는 것 자체가 단일제품이 아니라는 뜻이라, 기본 조회(single만)에서는 두 값이 같습니다.
+
 **`ingredient_count_raw`**는 원본 전성분을 파싱한 성분 개수(중복 포함)로, `product_ingredients` 행수와 다릅니다. 그쪽은 제품 내 중복을 한 번만 세기 때문입니다. **차이가 클수록 `N종 택1` 기획세트일 가능성이 높습니다** — 최대 사례가 원본 1,978개 → 고유 141개입니다.
 
-**`composition`**은 제품 구성입니다. `status`(판매 상태)와는 다른 축이라 '품절된 단일제품'이 성립합니다. `single` 외에는 전성분이 제품 하나에 대응한다고 보장할 수 없어 **유사도 계산에서 빼고 조회 API도 기본으로 숨깁니다**. 판정 규칙은 [`backend/app/utils/composition.py`](../backend/app/utils/composition.py)이고, 값 채우기는 `scripts/backfill_composition.py`(v5 정제본 기준)와 `scripts/load_products.py`가 합니다.
+**`composition`**은 제품 구성입니다. `status`(판매 상태)와는 다른 축이라 '품절된 단일제품'이 성립합니다. `single` 외에는 전성분이 제품 하나에 대응한다고 보장할 수 없어 **유사도 계산에서 빼고 조회 API도 기본으로 숨깁니다**. 판정 규칙은 [`backend/app/utils/composition.py`](../backend/app/utils/composition.py)이고, 값 채우기는 `scripts/backfill_from_v5.py`(v5 정제본 기준)와 `scripts/load_products.py`가 합니다.
 
 | 값 | 건수 | 설명 |
 |---|---:|---|
-| `single` | 2,549 | 순수 단일제품 |
-| `bonus` | 1,137 | 본품 증량·화장품 증정 (`+50ml`, `1+1`) |
-| `bundle` | 372 | 묶음·N종·세트·키트 |
-| `goods` | 86 | 비화장품 굿즈 동봉 (키링·파우치·브러쉬) |
+| `single` | 2,493 | 순수 단일제품 |
+| `bonus` | 1,091 | 본품 증량·화장품 증정 (`+50ml`, `1+1`) |
+| `bundle` | 362 | 묶음·N종·세트·키트 |
+| `goods` | 81 | 비화장품 굿즈 동봉 (키링·파우치·브러쉬) |
 
-### `ingredients` — 25,923행
+### `ingredients` — 23,624행
 
 성분 마스터. 대한화장품협회 표준화명칭목록 21,910건 + 크롤링에서 새로 발견된 성분입니다.
 
@@ -137,7 +147,7 @@ erDiagram
 
 `norm_name`이 `살리실릭애씨드(0.5%)`와 `살리실릭애씨드`를 같은 행으로 모읍니다.
 
-### `product_ingredients` — 170,962행
+### `product_ingredients` — 164,627행
 
 제품 ↔ 성분 N:M.
 
@@ -199,9 +209,9 @@ ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 
 ## 추천
 
-### `similarities` — 150,552행
+### `similarities` — 147,529행
 
-유사도 배치(Task 3)가 채웁니다. **단일제품(`composition = 'single'`) 2,511건만** 대상이라, 기획세트·굿즈 동봉 제품은 기준으로도 대체품으로도 등장하지 않습니다.
+유사도 배치(Task 3)가 채웁니다. **단일제품(`composition = 'single'`) 2,454건만** 대상이라, 기획세트·굿즈 동봉 제품은 기준으로도 대체품으로도 등장하지 않습니다.
 
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
@@ -316,11 +326,15 @@ refresh_tokens : id(PK, uuid = gen_random_uuid()) · user_id(FK) · token_hash
 | 1 | `cd backend && alembic upgrade head` | 테이블 18개 + `pg_trgm` 확장 생성 |
 | 2 | `python scripts/seed_ingredients.py` | 협회 표준화명칭목록·명칭변경목록 → `ingredients` + `ingredient_aliases` |
 | 3 | `python scripts/load_products.py` | 올리브영 CSV 5,000행 → 카테고리 필터 → dedup → 전성분 파싱 → 벌크 삽입 |
-| 4 | `python scripts/apply_category_fixes.py` | v5 교정 로그 반영 — 카테고리 갱신 3건, 4종 밖으로 바뀐 6건 제거 |
-| 5 | `python scripts/backfill_composition.py` | v5 기준으로 `products.composition` 채우기 |
+| 4 | `python scripts/apply_category_fixes.py` | 카테고리를 믿을 수 없는 제품 제거 — DB와 v5의 카테고리가 다른 125건 |
+| 5 | `python scripts/backfill_from_v5.py` | v5 기준으로 `products.composition` · `display_name` 채우기 |
 | 6 | `python scripts/compute_similarities.py` | 단일제품 유사도 계산 → `similarities` |
 
 **3번 뒤에는 4·5번을 반드시 다시 돌려야 합니다.** 현재 적재 기준인 구 CSV에는 교정 전 카테고리가 들어 있고 `처리메모`·`증정기획_정리` 컬럼이 없어서, `load_products.py`가 교정 결과와 정확한 구성 판정을 매번 덮어씁니다. v5를 적재 기준으로 삼으면 4번은 불필요해집니다.
+
+4번이 제품을 지우는 이유: v5에서 카테고리가 바뀐 제품이 154건인데 교정 로그에 근거가 적힌 것은 38건뿐입니다. 나머지는 왜 바뀌었는지 검증할 수 없고, 잘못된 카테고리는 "선케어의 대체품이 클렌징"이 되는 결과로 이어지므로 통째로 제외합니다.
+
+`scripts/report_parse_residue.py`는 파이프라인이 아니라 읽기 전용 보고서입니다. 파싱 잔해가 어느 제품에 몰려 있는지 세어, 제품 단위 제거가 필요한지 판단할 근거를 냅니다.
 
 Neon에는 컨테이너 초기화 훅이 없어 `CREATE EXTENSION`을 첫 마이그레이션이 직접 책임집니다.
 
@@ -351,7 +365,7 @@ Neon에는 컨테이너 초기화 훅이 없어 `CREATE EXTENSION`을 첫 마이
 **복수 카테고리 등재 제품 28건은 제품명으로 소속을 정합니다.**
 클렌징오일처럼 올리브영이 양쪽에 노출하는 제품이 있습니다. 후보가 2개 이상일 때만 제품명 키워드로 판정하고, 나머지 4,122건은 크롤링 카테고리를 그대로 씁니다. 전수 비교 결과 둘은 96.4% 일치합니다.
 
-**스킨케어 2,145건에 소분류가 없습니다.**
+**스킨케어 2,099건에 소분류가 없습니다.**
 토너·세럼·크림이 한 덩어리라 토너를 찾는데 크림이 추천될 수 있습니다. `categories.parent_id`에 2단계를 담을 수 있고, `load_products.py`의 키워드 로직으로 90%가 자동 분류됩니다.
 
 **`ingredients.grade`·`ewg_grade`는 비어 있습니다.**

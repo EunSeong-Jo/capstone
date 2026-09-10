@@ -3,7 +3,7 @@
 제품 구성(단일제품 / 증정 / 굿즈 동봉 / 묶음)을 담는다. 유사도 계산 대상과
 앱 노출 범위를 이 값 하나로 거른다. 판정 규칙은 app/utils/composition.py.
 
-server_default='single'로 기존 행을 채운다. 백필(scripts/backfill_composition.py)을
+server_default='single'로 기존 행을 채운다. 백필(scripts/backfill_from_v5.py)을
 돌리기 전까지는 전부 single이라 현행 동작과 같다.
 
 Revision ID: d4e5f6a7b8c9

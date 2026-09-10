@@ -144,6 +144,10 @@ capstone/
 │   ├── init_db.sh            # PostgreSQL 확장 설치 (Docker 전용)
 │   ├── seed_ingredients.py   # 성분사전 → DB
 │   ├── load_products.py      # 제품 CSV → DB (멱등)
+│   ├── apply_category_fixes.py # 카테고리를 믿을 수 없는 제품 제거 ┐ 로더 뒤에
+│   ├── backfill_from_v5.py   # composition · display_name 채우기  ┘ 반드시 실행
+│   ├── compute_similarities.py # 단일제품 유사도 계산 (멱등)
+│   ├── report_parse_residue.py # 파싱 잔해 보고서 (읽기 전용)
 │   ├── extract_ingredient_dict.py # 협회 PDF → CSV
 │   └── ocr_benchmark/        # OCR 엔진 3종 비교 실험 + 보고서
 ├── docs/

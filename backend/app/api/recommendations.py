@@ -83,7 +83,7 @@ async def list_similar(
     items = [
         SimilarProductOut(
             id=p.id,
-            name=p.name,
+            name=p.display_name or p.name,
             brand=p.brand.name if p.brand else "",
             category=p.category.code if p.category else "",
             price=p.price or 0,

@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""제품 구성 백필 — v5 정제본 → products.composition (Task 3)
+"""v5 정제본 백필 — products.composition · display_name (Task 3)
 
-    python scripts/backfill_composition.py --dry-run   # 분포만 출력
-    python scripts/backfill_composition.py             # 실제 갱신
+    python scripts/backfill_from_v5.py --dry-run   # 분포만 출력
+    python scripts/backfill_from_v5.py            # 실제 갱신
 
 멱등하다. 같은 CSV로 여러 번 돌려도 결과가 같다.
+
+두 값을 함께 채우는 이유는 출처가 같기 때문이다 — 둘 다 v5에만 있는 컬럼에서
+나오고, goods_no 매칭도 한 번이면 된다.
+
+    composition   처리메모·증정기획_정리·상품명_원본으로 판정
+    display_name  v5의 `상품명`(정제명). 화면 표시용이다
 
 왜 별도 스크립트인가
 --------------------
@@ -63,8 +69,13 @@ def bump_cache_version() -> None:
 
 
 def read_csv(path: Path) -> dict[str, str]:
-    """goods_no → composition. 같은 goods_no는 더 오염된 판정을 채택."""
-    best: dict[str, str] = {}
+    """goods_no → (composition, display_name).
+
+    composition은 같은 goods_no 중 더 오염된 판정을 채택한다(묶음분리로 쪼개진
+    행들이 식별자를 공유하므로). display_name은 첫 행 것을 쓴다 — 쪼개진 행들의
+    이름이 옵션명만 다르고, 어차피 한 제품으로 접힌다.
+    """
+    best: dict[str, tuple[str, str | None]] = {}
     with open(path, newline="", encoding="utf-8-sig") as f:
         for r in csv.DictReader(f):
             m = _GOODS_NO.search(r.get("상품URL") or "")
@@ -77,8 +88,11 @@ def read_csv(path: Path) -> dict[str, str]:
                 r.get("증정기획_정리"),
                 r.get("내용량_원본"),
             )
-            if gno not in best or _RANK[c] > _RANK[best[gno]]:
-                best[gno] = c
+            name = (r.get("상품명") or "").strip() or None
+            if gno not in best:
+                best[gno] = (c, name)
+            elif _RANK[c] > _RANK[best[gno][0]]:
+                best[gno] = (c, best[gno][1])
     return best
 
 
@@ -96,26 +110,34 @@ def main() -> None:
 
     conn = psycopg2.connect(settings.DATABASE_DSN)
     cur = conn.cursor()
-    cur.execute("SELECT goods_no, name, composition FROM products")
+    cur.execute("SELECT goods_no, name, composition, display_name FROM products")
     rows = cur.fetchall()
 
     # CSV에 없는 제품은 이름만으로 판정한다. 구 CSV의 상품명은 정제 전
     # 원본이라 '기획'·'N종' 같은 문구가 살아 있어 이름 규칙이 통한다.
-    updates: list[tuple[str, str]] = []
+    updates: list[tuple[str, str, str | None]] = []
     dist = collections.Counter()
     changed = collections.Counter()
-    fallback = 0
-    for gno, name, current in rows:
-        new = by_goods.get(gno)
-        if new is None:
-            new = classify(name)
+    fallback = named = 0
+    for gno, name, current, cur_display in rows:
+        hit = by_goods.get(gno)
+        if hit is None:
+            new, display = classify(name), cur_display
             fallback += 1
+        else:
+            new, display = hit
         dist[new] += 1
-        if new != current:
-            updates.append((gno, new))
-            changed[f"{current} → {new}"] += 1
+        if display:
+            named += 1
+        if new != current or display != cur_display:
+            updates.append((gno, new, display))
+            if new != current:
+                changed[f"composition {current} → {new}"] += 1
+            if display != cur_display:
+                changed["display_name 채움"] += 1
 
     print(f"DB 제품 {len(rows):,}건 (CSV 미매칭 {fallback:,}건은 이름으로 판정)")
+    print(f"정제명이 있는 제품 {named:,}건")
     print("\n분류 결과")
     for v in VALUES:
         print(f"  {v:<8}{dist[v]:>6,}  {dist[v] / len(rows) * 100:>5.1f}%")
@@ -136,8 +158,11 @@ def main() -> None:
 
     execute_values(
         cur,
-        """UPDATE products SET composition = v.composition, updated_at = now()
-             FROM (VALUES %s) AS v(goods_no, composition)
+        """UPDATE products
+              SET composition  = v.composition,
+                  display_name = v.display_name,
+                  updated_at   = now()
+             FROM (VALUES %s) AS v(goods_no, composition, display_name)
             WHERE products.goods_no = v.goods_no""",
         updates,
         page_size=500,

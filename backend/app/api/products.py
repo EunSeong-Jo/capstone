@@ -16,7 +16,7 @@ import json
 from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -116,10 +116,15 @@ def _apply_sort(stmt: Select, sort: SortBy) -> Select:
 
 
 def _to_out(p: Product) -> ProductOut:
-    """ORM → 응답 DTO. brand·category를 문자열로 편다."""
+    """ORM → 응답 DTO. brand·category를 문자열로 편다.
+
+    name은 정제명(display_name)을 우선한다. DB의 products.name은 '기획'·'N종
+    택1' 같은 문구가 붙은 원본이라 화면에 그대로 내보내면 지저분하다. 원본은
+    composition 판정에 쓰이므로 DB에는 남겨 둔다.
+    """
     return ProductOut(
         id=p.id,
-        name=p.name,
+        name=p.display_name or p.name,
         brand=p.brand.name if p.brand else "",
         category=p.category.code if p.category else "",
         price=p.price or 0,
@@ -265,10 +270,19 @@ async def search_products(
         )
 
     escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    # 정제명과 원본명 둘 다 본다. 정제 과정에서 '기획'·'더블' 같은 단어가
+    # 지워지므로, 정제명만 보면 그 단어로 검색한 사용자가 아무것도 못 찾는다.
+    # 반대로 원본명만 보면 정제 후 바뀐 표기를 놓친다.
+    pattern = f"%{escaped}%"
     stmt = _apply_composition(
         select(Product)
         .where(Product.status == "active")
-        .where(Product.name.ilike(f"%{escaped}%", escape="\\")),
+        .where(
+            or_(
+                Product.name.ilike(pattern, escape="\\"),
+                Product.display_name.ilike(pattern, escape="\\"),
+            )
+        ),
         composition,
     )
     result = await _paginate(db, _apply_sort(stmt, sort), page, size)

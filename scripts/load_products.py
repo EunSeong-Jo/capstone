@@ -310,15 +310,19 @@ def main() -> None:
         raw_count = len(parsed[gno])
         # 제품 구성. v5 정제본이면 처리메모·증정기획_정리·상품명_원본으로
         # 정확히 판정되고, 구 CSV면 상품명만으로 판정한다(.get이 None을 낸다).
+        # v5는 정제명을 `상품명`에, 원본을 `상품명_원본`에 둔다. 구 CSV에는
+        # `상품명` 하나뿐이고 그게 원본이라 display_name은 비워둔다.
+        raw_name = (r.get("상품명_원본") or r.get("상품명") or "").strip()
+        display_name = (r.get("상품명") or "").strip() if r.get("상품명_원본") else None
         composition = classify(
-            (r.get("상품명_원본") or r.get("상품명") or "").strip(),
+            raw_name,
             r.get("처리메모"),
             r.get("증정기획_정리"),
             r.get("내용량_원본"),
         )
         product_rows.append((
             gno,
-            (r.get("상품명") or "").strip(),
+            raw_name,
             brand_id.get((r.get("브랜드") or "").strip()),
             cat_id.get((r.get("카테고리") or "").strip()),
             to_int(r.get("가격(원)", "")),
@@ -332,13 +336,14 @@ def main() -> None:
             (r.get("사용기한") or "").strip() or None,
             raw_count,
             composition,
+            display_name,
         ))
 
     execute_values(cur, """
         INSERT INTO products
             (goods_no, name, brand_id, category_id, price, rating, review_count,
              image_url, product_url, volume, country, manufacturer, expiry,
-             ingredient_count_raw, composition)
+             ingredient_count_raw, composition, display_name)
         VALUES %s
         ON CONFLICT (goods_no) DO UPDATE SET
             name = EXCLUDED.name, brand_id = EXCLUDED.brand_id,
@@ -349,6 +354,9 @@ def main() -> None:
             manufacturer = EXCLUDED.manufacturer, expiry = EXCLUDED.expiry,
             ingredient_count_raw = EXCLUDED.ingredient_count_raw,
             composition = EXCLUDED.composition,
+            -- 구 CSV로 돌리면 EXCLUDED.display_name이 NULL이라, 이미 채워둔
+            -- 정제명을 지우지 않도록 COALESCE로 보존한다.
+            display_name = COALESCE(EXCLUDED.display_name, products.display_name),
             updated_at = now()
     """, product_rows, page_size=500)
     conn.commit()

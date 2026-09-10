@@ -17,11 +17,28 @@ from __future__ import annotations
 import re
 
 # 함량 표기. 성분명의 일부인 괄호(예: 하이드로제네이티드폴리(C6-14올레핀))는
-# 남겨야 하므로, 괄호 안이 숫자·단위뿐인 경우만 지운다.
-_AMOUNT = re.compile(r"\(\s*[\d.,]+\s*(?:%|ppm|퍼센트)?\s*\)")
+# 남겨야 하므로, 괄호 안이 숫자로 시작할 때만 지운다.
+# 단위를 넓혀도 안전한 이유: 여는 괄호 다음이 반드시 숫자여야 하므로
+# (C6-14올레핀)·(CI 77891) 같은 성분명 괄호는 애초에 후보가 아니다.
+_AMOUNT = re.compile(
+    r"\(\s*[\d.,]+\s*(?:%|ppm|ppb|퍼센트|mg|g|kg|ml|mL|l|IU|iu|w/v\s*%?|v/v\s*%?)?\s*\)"
+)
 
-# 유기농·인증 성분에 붙는 표시
+# 유기농·인증 성분에 붙는 표시. 함량 괄호를 먼저 지우면 '*(0.1ppm)'의 '*'가
+# 문자열 끝으로 와서 여기 걸린다 — normalize()의 처리 순서가 그래서 중요하다.
 _MARKERS = re.compile(r"[*†‡+]+$")
+
+# 각주 번호. '부틸렌글라이콜3)4)5)'처럼 성분명 뒤에 참조 표시가 붙는다.
+# 여는 괄호가 없는 경우에만 지운다 — '티타늄디옥사이드(CI 77891)'의 끝
+# '1)'을 함께 깎아내면 안 되기 때문이다.
+_FOOTNOTE = re.compile(r"\s*\d+\)$")
+
+# 성분이 아니라 안내문구. 이 표현부터 뒤는 통째로 버린다.
+_NOTICE = re.compile(r"\s*(?:※|＊표시|\*표시|제공된\s*성분|상세페이지\s*참조).*$")
+
+# 기획세트·다단계 제품의 구성품 라벨. '[STEP3]', '[브라이트닝]' 처럼
+# 전성분 문자열 안에서 구간을 나누는 표시라 성분명의 일부가 아니다.
+_SECTION_LABEL = re.compile(r"\[[^\]]*\]")
 
 _OPENERS = "([{"
 _CLOSERS = ")]}"
@@ -111,6 +128,16 @@ def parse_ingredients(raw: str, vocab: set[str] | None = None) -> list[str]:
     if not raw or not raw.strip():
         return []
 
+    # '[STEP3]'·'[브라이트닝]' 같은 구성품 라벨은 구간 경계다. 쉼표로 바꿔
+    # 두면 '아시아틱애씨드 [STEP3] 정제수'가 두 성분으로 갈린다. 라벨을
+    # 그냥 지우면 앞뒤 성분이 한 덩어리로 붙어버린다.
+    #
+    # 쉼표를 쓰는 문자열에서만 바꾼다(618건 중 607건). 공백 구분 문자열에
+    # 적용하면 쉼표가 생겨 아래 분기가 여기서 끝나버리고, 정작 필요한
+    # vocab 최장일치 분리를 건너뛰어 전성분 전체가 성분 하나로 등록된다.
+    if "," in raw:
+        raw = _SECTION_LABEL.sub(",", raw)
+
     parts = _split_by_comma(raw)
     if len(parts) > 1:
         return parts
@@ -137,8 +164,16 @@ def normalize(name: str) -> str:
     """
     if not name:
         return ""
-    s = _MARKERS.sub("", name.strip())
+    s = _NOTICE.sub("", name.strip())
+    s = _SECTION_LABEL.sub("", s)
+    # 함량 괄호가 먼저 빠져야 그 앞의 '*'가 문자열 끝으로 와서 마커로 잡힌다.
     s = _AMOUNT.sub("", s)
+    s = _MARKERS.sub("", s.strip())
+    # 닫는 괄호가 여는 괄호보다 많을 때만 각주로 본다. 짝이 맞으면
+    # '(CI 77891)' 같은 성분명 일부라 건드리면 안 된다.
+    while s.count(")") > s.count("(") and _FOOTNOTE.search(s):
+        s = _FOOTNOTE.sub("", s)
+    s = _MARKERS.sub("", s.strip())
     s = re.sub(r"\s+", "", s)
     return s.strip(" .,·|")
 

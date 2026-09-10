@@ -42,6 +42,7 @@ from app.config import settings  # noqa: E402
 
 FIX_CSV = REPO / "data/raw/oliveyoung_v5_category_fix.csv"
 V5_CSV = REPO / "data/raw/oliveyoung_products_v5.csv"
+OLD_CSV = REPO / "data/raw/oliveyoung_products.csv"
 
 # 얼굴에 쓰는 4종만 적재한다. load_products.ALLOWED_CATEGORIES와 같은 목록.
 FACE = {"스킨케어", "마스크팩", "클렌징", "선케어"}
@@ -74,12 +75,27 @@ def targets() -> dict[str, str]:
     return out
 
 
+def v5_categories() -> dict[str, str]:
+    """goods_no → v5의 카테고리.
+
+    같은 goods_no가 여러 행이면 첫 행을 쓴다 — 묶음분리된 행들은 카테고리가
+    같다.
+    """
+    out: dict[str, str] = {}
+    for r in read_csv(V5_CSV):
+        m = _GOODS_NO.search(r.get("상품URL") or "")
+        if m:
+            out.setdefault(m.group(1), (r.get("카테고리") or "").strip())
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
     target = targets()
+    v5_cat = v5_categories()
     print(f"교정 로그에서 특정한 제품 {len(target)}건")
 
     conn = psycopg2.connect(settings.DATABASE_DSN)
@@ -87,18 +103,28 @@ def main() -> None:
     cur.execute("SELECT id, code FROM categories")
     cat_id = {c: i for i, c in cur.fetchall()}
 
+    # DB의 실제 카테고리와 v5를 직접 대조한다. 구 CSV끼리 비교하면 중복
+    # goods_no를 첫 행으로 볼지 마지막 행으로 볼지에 따라 결과가 달라지는데,
+    # 로더는 마지막 행을 쓴다. DB를 보면 그 모호함이 사라진다.
     cur.execute(
         """SELECT p.goods_no, c.code, p.name FROM products p
-             LEFT JOIN categories c ON c.id = p.category_id
-            WHERE p.goods_no = ANY(%s)""",
-        (list(target),),
+             LEFT JOIN categories c ON c.id = p.category_id"""
     )
     indb = {g: (c, n) for g, c, n in cur.fetchall()}
 
     to_delete, to_update, noop = [], [], 0
+    # 카테고리가 바뀐 제품은 분류를 믿을 수 없어 전부 제외한다. 교정 로그에
+    # 근거가 적힌 것은 일부뿐이라 나머지를 검증할 방법이 없고, 잘못된
+    # 카테고리는 '선케어의 대체품이 클렌징'이 되는 결과로 이어진다.
+    for gno, (current, name) in indb.items():
+        after = v5_cat.get(gno)
+        if after and after != current:
+            to_delete.append((gno, current, after, name))
+    already = {g for g, *_ in to_delete}
+
     for gno, after in target.items():
-        if gno not in indb:
-            continue                      # 4종 밖이라 애초에 적재되지 않은 제품
+        if gno not in indb or gno in already:
+            continue                      # 4종 밖이라 애초에 적재되지 않았거나 위에서 처리됨
         current, name = indb[gno]
         if after not in FACE:
             to_delete.append((gno, current, after, name))
@@ -108,8 +134,10 @@ def main() -> None:
             noop += 1
 
     print(f"  제거 {len(to_delete)}건 / 갱신 {len(to_update)}건 / 이미 일치 {noop}건")
-    for gno, cur_cat, after, name in to_delete:
-        print(f"    제거 {gno} [{cur_cat}] → {after:<8} {name[:42]}")
+    for gno, cur_cat, after, name in to_delete[:12]:
+        print(f"    제거 {gno} [{cur_cat}] → {after:<12} {name[:38]}")
+    if len(to_delete) > 12:
+        print(f"    … 외 {len(to_delete) - 12}건")
     for gno, cur_cat, after, name in to_update:
         print(f"    갱신 {gno} [{cur_cat}] → [{after}] {name[:42]}")
 

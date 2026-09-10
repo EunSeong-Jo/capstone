@@ -78,11 +78,22 @@ class Product(Base, TimestampMixin):
             postgresql_using="gin",
             postgresql_ops={"name": "gin_trgm_ops"},
         ),
+        Index(
+            "idx_products_display_name_trgm",
+            "display_name",
+            postgresql_using="gin",
+            postgresql_ops={"display_name": "gin_trgm_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     goods_no: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+
+    # name은 정제 전 원본이다. '기획'·'N종 택1'·'+50ml' 같은 문구가
+    # composition 판정(app/utils/composition.py)의 입력이라 지우면 분류가 깨진다.
+    # 화면에는 display_name을 쓴다 — 없으면 name으로 떨어진다.
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str | None] = mapped_column(Text)
 
     brand_id: Mapped[int | None] = mapped_column(
         ForeignKey("brands.id", ondelete="SET NULL")
