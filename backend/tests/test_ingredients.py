@@ -293,6 +293,40 @@ class TestResidueCleanup:
         """
         assert parse_ingredients(raw)[0] == head
 
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "합성 향료 및 알러젠 (최종 공정 무첨가)",
+            "제품 패키지에 포함된 성분 목록을 참고 부탁 드립니다.",
+            "있습니다.",
+            "참고하시거나",
+            "부탁",
+        ],
+    )
+    def test_notice_text_is_not_an_ingredient(self, raw):
+        """성분이 아니라 표기 문구다. 통째로 버린다.
+
+        에스티로더 계열과 바이오더마가 전성분 뒤에 붙이는 표준 문구가
+        쉼표로 쪼개져 조각으로 등록돼 있었다. 협회 사전 21,910종에 이런
+        표현을 가진 성분은 하나도 없어 안전하다.
+        """
+        assert normalize(raw) == ""
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("페녹시에탄올 제공된 성분은 동일 제품이라도 변경될 수 있습니다.", "페녹시에탄올"),
+            ("토코페롤 * 무첨가 성분: 페녹시에탄올", "토코페롤"),
+            ("황색5호 [ILN41195] *제공된 성분은 동일 제품이라도", "황색5호"),
+        ],
+    )
+    def test_ingredient_before_notice_survives(self, raw, expected):
+        """문구 앞에 실제 성분이 붙어 있으면 그것만 남긴다.
+
+        문구 판정을 절단보다 먼저 하면 성분까지 함께 버려진다 — 순서가 중요하다.
+        """
+        assert normalize(raw) == expected
+
     def test_ci_number_survives_footnote_rule(self):
         """'(CI 77891)'도 '1)'로 끝난다. 괄호 짝이 맞으면 건드리지 않는다."""
         assert normalize("티타늄디옥사이드(CI 77891)") == "티타늄디옥사이드(CI77891)"
