@@ -32,6 +32,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "backend"))
 
 from app.config import settings  # noqa: E402
+from app.utils.composition import classify  # noqa: E402
 from app.utils.ingredients import (  # noqa: E402
     normalize,
     normalize_loose,
@@ -307,6 +308,14 @@ def main() -> None:
         # 원본 문자열 기준 성분 개수(중복 포함). product_ingredients 행수는
         # 제품 내 중복을 제거하므로 이 값과 다를 수 있다.
         raw_count = len(parsed[gno])
+        # 제품 구성. v5 정제본이면 처리메모·증정기획_정리·상품명_원본으로
+        # 정확히 판정되고, 구 CSV면 상품명만으로 판정한다(.get이 None을 낸다).
+        composition = classify(
+            (r.get("상품명_원본") or r.get("상품명") or "").strip(),
+            r.get("처리메모"),
+            r.get("증정기획_정리"),
+            r.get("내용량_원본"),
+        )
         product_rows.append((
             gno,
             (r.get("상품명") or "").strip(),
@@ -322,13 +331,14 @@ def main() -> None:
             (r.get("제조사") or "").strip() or None,
             (r.get("사용기한") or "").strip() or None,
             raw_count,
+            composition,
         ))
 
     execute_values(cur, """
         INSERT INTO products
             (goods_no, name, brand_id, category_id, price, rating, review_count,
              image_url, product_url, volume, country, manufacturer, expiry,
-             ingredient_count_raw)
+             ingredient_count_raw, composition)
         VALUES %s
         ON CONFLICT (goods_no) DO UPDATE SET
             name = EXCLUDED.name, brand_id = EXCLUDED.brand_id,
@@ -338,6 +348,7 @@ def main() -> None:
             volume = EXCLUDED.volume, country = EXCLUDED.country,
             manufacturer = EXCLUDED.manufacturer, expiry = EXCLUDED.expiry,
             ingredient_count_raw = EXCLUDED.ingredient_count_raw,
+            composition = EXCLUDED.composition,
             updated_at = now()
     """, product_rows, page_size=500)
     conn.commit()

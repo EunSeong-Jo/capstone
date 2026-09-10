@@ -70,6 +70,10 @@ async def list_similar(
         .where(
             Similarity.product_id == product_id,
             Similarity.method == method.value,
+            # 배치가 단일제품만 계산하므로 similar_id도 전부 single이다.
+            # 논리적으로는 중복이지만, 분류 규칙을 바꾸고 재계산하기 전까지
+            # 남는 옛 행이 추천에 새어 나오지 않도록 하는 안전망이다.
+            Product.composition == "single",
         )
         .options(joinedload(Product.brand), joinedload(Product.category))
         .order_by(Similarity.score.desc(), Product.id)
@@ -86,6 +90,7 @@ async def list_similar(
             image_url=p.image_url,
             rating=float(p.rating) if p.rating is not None else None,
             review_count=p.review_count,
+            composition=p.composition,
             score=score,
             shared_ingredients=shared or [],
         )

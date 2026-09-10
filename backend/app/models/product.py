@@ -67,6 +67,7 @@ class Product(Base, TimestampMixin):
         Index("idx_products_brand", "brand_id"),
         Index("idx_products_category", "category_id"),
         Index("idx_products_status", "status"),
+        Index("idx_products_composition", "composition"),
         Index("idx_products_price", "price"),
         Index("idx_products_rating", "rating"),
         Index("idx_products_review_count", "review_count"),
@@ -120,6 +121,13 @@ class Product(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="active"
     )  # active / soldout / discontinued
+
+    # 제품 구성. status(판매 상태)와는 다른 축이다 — '품절된 단일제품'이 성립한다.
+    # single 외에는 전성분이 제품 하나에 대응한다고 보장할 수 없어 유사도 계산에서
+    # 빼고 앱에도 노출하지 않는다. 판정 규칙은 app/utils/composition.py.
+    composition: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="single"
+    )  # single / bonus / goods / bundle
     source: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="oliveyoung"
     )

@@ -67,8 +67,15 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
 
     성분 순서를 유지해야 rbo가 의미를 갖는다.
     """
-    where = "WHERE c.code = %s" if category else ""
-    args = (category,) if category else ()
+    # 단일제품만 계산한다. 증정·굿즈·묶음은 전성분이 제품 하나에 대응한다고
+    # 보장할 수 없다 — 특히 묶음은 여러 제품의 전성분이 한 셀에 뭉쳐 있어
+    # 무엇과도 비슷해진다. 판정은 products.composition(app/utils/composition.py).
+    conds = ["p.composition = 'single'"]
+    args: tuple = ()
+    if category:
+        conds.append("c.code = %s")
+        args = (category,)
+    where = "WHERE " + " AND ".join(conds)
     cur.execute(
         f"""
         SELECT p.id, p.name, p.ingredient_count_raw,
@@ -87,7 +94,7 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
     ids: list[int] = []
     docs: list[list[int]] = []
     names: dict[int, str] = {}
-    skipped = {"bundle": 0, "too_few": 0}
+    skipped = {"composition": 0, "bundle": 0, "too_few": 0}
 
     for pid, name, raw_count, ings in rows:
         if not min_ingredients(len(ings)):
@@ -100,7 +107,21 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
         docs.append(list(ings))
         names[pid] = name
 
-    return ids, docs, {"skipped": skipped, "names": names, "total": len(rows)}
+    # composition으로 걸러진 건수는 위 SQL이 애초에 안 가져오므로 따로 센다.
+    # 보고에서 '전체 N건 중 M건 제외'가 말이 되게 하려는 것뿐이다.
+    cur.execute(
+        f"""SELECT count(*) FROM products p
+              LEFT JOIN categories c ON c.id = p.category_id
+             WHERE p.composition <> 'single'{' AND c.code = %s' if category else ''}""",
+        (category,) if category else (),
+    )
+    skipped["composition"] = cur.fetchone()[0]
+
+    return ids, docs, {
+        "skipped": skipped,
+        "names": names,
+        "total": len(rows) + skipped["composition"],
+    }
 
 
 def ingredient_names(cur, docs: list[list[int]]) -> dict[int, str]:
@@ -235,7 +256,8 @@ def run_category(cur, category: str, methods, args) -> dict[str, list]:
     sk = meta["skipped"]
     print(
         f"\n[{category}] 제품 {len(ids):,}건 (전체 {meta['total']:,} — "
-        f"묶음 제외 {sk['bundle']} / 성분부족 제외 {sk['too_few']})"
+        f"단일제품 아님 {sk['composition']} / 묶음 제외 {sk['bundle']} / "
+        f"성분부족 제외 {sk['too_few']})"
     )
     if len(ids) < 2:
         print("  비교할 제품이 2건 미만이라 건너뜁니다.")

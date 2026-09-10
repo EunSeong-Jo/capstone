@@ -44,6 +44,9 @@ class ProductOut(_CamelModel):
     image_url: str | None = None
     rating: float | None = None
     review_count: int | None = None
+    # single / bonus / goods / bundle. 기본 조회는 single만 내보내므로 늘
+    # "single"이지만, ?composition= 로 분류를 검증할 때 값이 보여야 한다.
+    composition: str = "single"
 
 
 class IngredientOut(_CamelModel):
