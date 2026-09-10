@@ -103,6 +103,16 @@ _BARE_AMOUNT = re.compile(r"\s+[\d,]*\d(?:\.\d+)?\s*(?:%|ppm|ppb)\s*$", re.I)
 # (영문 전용 제품 0건) 순 영숫자는 라벨·코드 조각이다.
 _NO_HANGUL = re.compile(r"^[^가-힣]+$")
 
+# 보이지 않는 문자. 웹에서 복사할 때 딸려 온다.
+#   200B 제로폭 공백 · 200C 제로폭 비접합 · FEFF BOM · 00A0 줄바꿈 없는 공백
+# '소듐하이드록사이드​'가 별개 성분으로 등록돼 있었다.
+_INVISIBLE = re.compile("[​‌‍﻿ ]")
+
+# 짝이 없어 문자열 끝에 홀로 남은 괄호. '리날룰(' · '온천수)'
+# 개수로 판정한다 — 협회 사전에도 '비스(트라이옥틸…'처럼 여는 괄호만 있는
+# 이름이 2종 있어, 이름 안쪽의 짝 없는 괄호는 건드리면 안 된다.
+_LONE_PAREN = re.compile(r"[()]$")
+
 _OPENERS = "([{"
 _CLOSERS = ")]}"
 
@@ -256,7 +266,8 @@ def normalize(name: str) -> str:
     # 안내문구를 먼저 잘라낸다. 그 앞에 실제 성분이 붙어 있는 경우가 많다
     # ('페녹시에탄올 제공된 성분은 …' → '페녹시에탄올'). 순서를 뒤집으면
     # 성분까지 함께 버려진다.
-    s = _NOTICE.sub("", name.strip())
+    s = _INVISIBLE.sub("", name).strip()
+    s = _NOTICE.sub("", s)
     s = _SECTION_LABEL.sub("", s)
     s = _LEADING.sub("", s)
     s = _FOOTNOTE_TEXT.sub("", s)
@@ -277,12 +288,20 @@ def normalize(name: str) -> str:
     s = _MARKERS.sub("", s.strip())
     s = _TRAILING_QUOTE.sub("", s.strip())
     s = re.sub(r"\s+", "", s)
-    s = s.strip(" .,·|")
+    s = s.strip(" .,·|-")
+    # 끝에 홀로 남은 괄호를 뗀다. 짝이 맞으면 성분명의 일부다.
+    while s and _LONE_PAREN.search(s) and s.count("(") != s.count(")"):
+        s = s[:-1].strip(" .,·|-")
     # 다 걷어내고 한글이 하나도 안 남으면 성분이 아니다 — 'E65R'·'TONIC'·'1,2'
     # 같은 라벨·코드 조각이다. 이 카탈로그는 전성분이 전부 한글 표기다.
     if _NO_HANGUL.match(s):
         return ""
-    return "" if s in _FORM_LABEL else s
+    if s in _FORM_LABEL:
+        return ""
+    # 조회 키라서 대소문자를 통일한다. 'C18-21알케인'과 'c18-21알케인',
+    # '4-T-부틸…'과 '4-t-부틸…'이 별개 성분으로 갈려 있었다.
+    # 표시용 이름(name_ko)은 원문을 그대로 쓰므로 영향이 없다.
+    return s.lower()
 
 
 def normalize_loose(name: str) -> str:

@@ -148,6 +148,7 @@ capstone/
 │   ├── backfill_from_v5.py   # composition · display_name 채우기  ┘ 반드시 실행
 │   ├── compute_similarities.py # 단일제품 유사도 계산 (멱등)
 │   ├── report_parse_residue.py # 파싱 잔해 보고서 (읽기 전용)
+│   ├── find_typo_aliases.py  # 판매자 오타 → 표준명 후보 (읽기 전용)
 │   ├── extract_ingredient_dict.py # 협회 PDF → CSV
 │   └── ocr_benchmark/        # OCR 엔진 3종 비교 실험 + 보고서
 ├── docs/

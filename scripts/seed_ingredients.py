@@ -53,6 +53,12 @@ def bump_cache_version() -> None:
 DICT_CSV = REPO / "data/seed/ingredient_dict.csv"
 CHANGES_CSV = REPO / "data/seed/name_changes.csv"
 
+# 판매자 오타 → 표준명 별칭. scripts/find_typo_aliases.py가 만들고 사람이
+# verdict를 확정한다. 협회 CSV와 같은 자리에 두는 이유는 여기서 읽어야
+# **재시드해도 살아남기** 때문이다 — ingredient_aliases에 직접 넣으면
+# 아래 upsert(:ON CONFLICT DO UPDATE)가 ingredient_id를 덮어써 사라진다.
+TYPO_CSV = REPO / "data/seed/ingredient_typo_fixes.csv"
+
 
 def read_csv(path: Path) -> list[dict]:
     """확장자로 gzip 여부를 판별한다 (load_products.read_rows와 같은 방식).
@@ -128,6 +134,19 @@ def main() -> None:
     collect(rows, None)
     collect(changes, "changed_at")
 
+    # 오타 별칭. verdict가 'ok'인 것만 쓴다 — 빈 값은 아직 검토 중이다.
+    typos = 0
+    if TYPO_CSV.exists():
+        for r in read_csv(TYPO_CSV):
+            if (r.get("verdict") or "").strip().lower() != "ok":
+                continue
+            a, std_key = normalize(r["alias"]), normalize(r["std_ko"])
+            if not a or not std_key or a == std_key:
+                continue
+            alias_targets[a].add(std_key)
+            typos += 1
+        print(f"오타 별칭 {typos:,}건 ({TYPO_CSV.name})")
+
     ambiguous = {a for a, t in alias_targets.items() if len(t) > 1}
     print(f"성분 {len(ingredients):,}종 / 별칭 {len(alias_targets):,}건 "
           f"(모호 {len(ambiguous):,}건)")
@@ -151,6 +170,8 @@ def main() -> None:
 
         cur.execute("SELECT norm_name, id FROM ingredients")
         id_of = dict(cur.fetchall())
+        cur.execute("SELECT norm_name FROM ingredients WHERE code IS NOT NULL")
+        standard = {r[0] for r in cur.fetchall()}
 
         alias_rows = []
         for a, targets in alias_targets.items():
@@ -158,8 +179,10 @@ def main() -> None:
             # 적재 스크립트가 is_ambiguous=true인 별칭은 변환에 쓰지 않는다.
             target = sorted(targets)[0]
             ing_id = id_of.get(target)
-            if ing_id is None or a in id_of:
-                # 별칭이 그 자체로 표준명이면 매핑하지 않는다.
+            if ing_id is None or a in standard:
+                # 별칭이 그 자체로 **협회 표준명**이면 매핑하지 않는다.
+                # 사전에 없는 행으로 존재하는 것은(오타 성분) 매핑 대상이다 —
+                # 아래에서 그 행을 지워 조회가 별칭으로 흐르게 한다.
                 continue
             alias_rows.append((a, ing_id, a in ambiguous, alias_changed.get(a)))
 
@@ -174,6 +197,22 @@ def main() -> None:
             alias_rows,
             page_size=1000,
         )
+        conn.commit()
+
+        # 별칭이 걸린 오타 성분 행을 지운다. load_products.resolve()가
+        # 정규화 직결을 먼저 보므로, 행이 남아 있으면 별칭이 영영 안 쓰인다.
+        # 연결(product_ingredients)은 CASCADE로 지워지고 바로 뒤 적재가
+        # 표준 성분으로 다시 잇는다 — 그래서 이 스크립트 다음에 반드시
+        # load_products.py를 돌려야 한다.
+        aliased = [a for a, *_ in alias_rows]
+        cur.execute(
+            """DELETE FROM ingredients
+                WHERE code IS NULL AND norm_name = ANY(%s)""",
+            (aliased,),
+        )
+        if cur.rowcount:
+            print(f"별칭으로 대체된 성분 행 삭제 {cur.rowcount:,}건 "
+                  f"— load_products.py를 다시 돌려야 한다")
         conn.commit()
 
         cur.execute("SELECT count(*) FROM ingredients")

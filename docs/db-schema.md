@@ -21,9 +21,9 @@
 | 항목 | 값 |
 |---|---:|
 | 제품 `products` | 4,025 |
-| 성분 `ingredients` | 23,042 |
-| 제품–성분 연결 `product_ingredients` | 164,134 |
-| 성분 별칭 `ingredient_aliases` | 3,967 |
+| 성분 `ingredients` | 23,509 |
+| 제품–성분 연결 `product_ingredients` | 164,121 |
+| 성분 별칭 `ingredient_aliases` | 4,391 |
 | 브랜드 `brands` | 512 |
 | 표준사전 매칭률 | 97.8% |
 
@@ -129,7 +129,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 | `bundle` | 362 | 묶음·N종·세트·키트 |
 | `goods` | 81 | 비화장품 굿즈 동봉 (키링·파우치·브러쉬) |
 
-### `ingredients` — 23,042행
+### `ingredients` — 23,509행
 
 성분 마스터. 대한화장품협회 표준화명칭목록 21,910건 + 크롤링에서 새로 발견된 성분입니다.
 
@@ -147,7 +147,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `norm_name`이 `살리실릭애씨드(0.5%)`와 `살리실릭애씨드`를 같은 행으로 모읍니다.
 
-### `product_ingredients` — 164,134행
+### `product_ingredients` — 164,121행
 
 제품 ↔ 성분 N:M.
 
@@ -160,7 +160,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 **`position`이 정보입니다.** 화장품 전성분은 함량 내림차순 표기가 원칙이라, RBO 유사도가 이 순서를 씁니다.
 
-### `ingredient_aliases` — 3,967행
+### `ingredient_aliases` — 4,391행
 
 구명칭 → 표준명 매핑. `디메치콘`과 `다이메티콘`을 다른 성분으로 세면 유사도가 실제보다 낮게 나옵니다.
 
@@ -324,7 +324,7 @@ refresh_tokens : id(PK, uuid = gen_random_uuid()) · user_id(FK) · token_hash
 | | 명령 | 하는 일 |
 |---|---|---|
 | 1 | `cd backend && alembic upgrade head` | 테이블 18개 + `pg_trgm` 확장 생성 |
-| 2 | `python scripts/seed_ingredients.py` | 협회 표준화명칭목록·명칭변경목록 → `ingredients` + `ingredient_aliases` |
+| 2 | `python scripts/seed_ingredients.py` | 협회 표준화명칭목록·명칭변경목록 + 오타 교정 CSV → `ingredients` + `ingredient_aliases` |
 | 3 | `python scripts/load_products.py` | 올리브영 CSV 5,000행 → 카테고리 필터 → dedup → 전성분 파싱 → 벌크 삽입 |
 | 4 | `python scripts/apply_category_fixes.py` | 카테고리를 믿을 수 없는 제품 제거 — DB와 v5의 카테고리가 다른 134건 |
 | 5 | `python scripts/backfill_from_v5.py` | v5 기준으로 `products.composition` · `display_name` 채우기 |

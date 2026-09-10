@@ -83,8 +83,11 @@ def test_normalize_removes_all_whitespace():
 
 
 def test_normalize_keeps_parens_that_are_part_of_the_name():
-    """괄호 안에 문자가 있으면 성분명의 일부로 보고 남긴다."""
-    assert normalize("하이드로제네이티드폴리(C6-14올레핀)") == "하이드로제네이티드폴리(C6-14올레핀)"
+    """괄호 안에 문자가 있으면 성분명의 일부로 보고 남긴다.
+
+    조회 키라서 대소문자는 소문자로 통일된다.
+    """
+    assert normalize("하이드로제네이티드폴리(C6-14올레핀)") == "하이드로제네이티드폴리(c6-14올레핀)"
 
 
 @pytest.mark.parametrize("raw", ["", None])
@@ -115,7 +118,7 @@ class TestResidueCleanup:
         [
             ("마그네슘설페이트*(4.75 ppb)", "마그네슘설페이트"),
             ("페러스설페이트*(0.1 ppm)", "페러스설페이트"),
-            ("비타민C(1.5g)", "비타민C"),
+            ("비타민C(1.5g)", "비타민c"),
         ],
     )
     def test_marker_before_amount(self, raw, expected):
@@ -180,7 +183,7 @@ class TestResidueCleanup:
         assert normalize(raw) == expected
 
     @pytest.mark.parametrize(
-        "raw", ["폴리솔베이트40", "소듐아크릴레이트크로스폴리머-2", "비타민C", "1,2-헥산다이올"]
+        "raw", ["폴리솔베이트40", "소듐아크릴레이트크로스폴리머-2", "1,2-헥산다이올", "판테놀"]
     )
     def test_trailing_digits_are_part_of_the_name(self, raw):
         """평범한 숫자는 각주가 아니다. 위첨자만 지운다."""
@@ -366,6 +369,34 @@ class TestResidueCleanup:
         """
         assert normalize(label) == ""
 
+    @pytest.mark.parametrize(
+        "upper,lower",
+        [
+            ("C18-21알케인", "c18-21알케인"),
+            ("4-T-부틸사이클로헥산올", "4-t-부틸사이클로헥산올"),
+            ("T-부틸알코올", "t-부틸알코올"),
+        ],
+    )
+    def test_case_is_folded(self, upper, lower):
+        """조회 키라서 대소문자를 통일한다.
+
+        같은 성분이 'C18-21알케인'과 'c18-21알케인'으로 갈려 별개 행이 돼
+        있었다. 표시용 이름(name_ko)은 원문을 그대로 쓴다.
+        """
+        assert normalize(upper) == normalize(lower)
+
+    def test_invisible_characters_are_stripped(self):
+        """웹에서 복사하면 제로폭 공백이 딸려 온다. 눈에 안 보여 찾기 어렵다."""
+        assert normalize("소듐하이드록사이드​") == "소듐하이드록사이드"
+        assert normalize("글리세린﻿") == "글리세린"
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [("리날룰(", "리날룰"), ("시트랄(", "시트랄"), ("온천수)", "온천수"), ("-헥산다이올", "헥산다이올")],
+    )
+    def test_lone_paren_and_hyphen(self, raw, expected):
+        assert normalize(raw) == expected
+
     def test_cream_is_a_real_ingredient(self):
         """'크림'은 협회 사전에 정식 성분으로 있다. 라벨 목록에서 뺐다."""
         assert normalize("크림") == "크림"
@@ -389,7 +420,7 @@ class TestResidueCleanup:
 
     def test_ci_number_survives_footnote_rule(self):
         """'(CI 77891)'도 '1)'로 끝난다. 괄호 짝이 맞으면 건드리지 않는다."""
-        assert normalize("티타늄디옥사이드(CI 77891)") == "티타늄디옥사이드(CI77891)"
+        assert normalize("티타늄디옥사이드(CI 77891)") == "티타늄디옥사이드(ci77891)"
 
     @pytest.mark.parametrize("junk", ["5)", "[히알루세럼]", "[STEP1]"])
     def test_label_only_token_becomes_empty(self, junk):
