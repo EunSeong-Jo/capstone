@@ -279,7 +279,7 @@ is_active(bool = true) · updated_at
 
 **`exclude_tags`는 전부 빈 배열입니다.** 기피 성분 근거가 아직 없습니다 — `ingredients.is_allergen`도 큐레이션 0건입니다. JSONB라 재배포 없이 채울 수 있습니다.
 
-**`injeolmi`는 이름과 내용이 어긋나 있습니다.** 임상명은 '탄력저하'인데 캐릭터 정의는 '건성·탄력 양호'입니다(`docs/dev_guidelines.md` §2.4). 남은 슬롯이 하나뿐이라 PR #36이 거기 넣은 것으로, 태그를 쓰기 전에 이 의미 차이를 정리해야 합니다.
+**`injeolmi`의 캐릭터 정의를 '탄력 저하, 주름'으로 맞췄습니다.** PR #36이 임상명 '탄력저하'를 여기 넣었는데 기존 캐릭터 정의는 '건성·탄력 양호'라 뜻이 반대였습니다. 태그를 따라가는 쪽으로 정리했고, `docs/dev_guidelines.md` §2.4와 프론트 문구(`frontend/src/data/skinTypes.ts`)도 함께 고쳤습니다.
 
 **아직 추천이 이 규칙을 읽지 않습니다.** `app/services/rag.py`가 태그를 태우는 것은 Task 14입니다. 지금은 데이터만 채워져 있습니다.
 

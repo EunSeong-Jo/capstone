@@ -71,7 +71,7 @@ export const skinTypes: SkinType[] = [
   },
   {
     id: 'injeolmi', label: '말랑말랑인절미', short: '인절미', image: injeolmi, bg: bgInjeolmi,
-    description: '쫀득쫀득 탄력있는 피부, 만지면 기분이 좋아져요!',
+    description: '말랑하게 힘이 풀린 피부, 탄력을 다시 채워줄 때예요!',
     theme: { accent: '#C99A3A', deep: '#A67C24', border: '#EEE0B8', titleShadow: 'rgba(166,124,36,0.26)', cardText: '#574421' },
   },
   {
@@ -203,15 +203,15 @@ export const RESULT_DETAILS: Record<string, ResultDetail> = {
   },
   injeolmi: {
     badge: '말랑말랑 인절미 타입',
-    taglineLead: '탄력 있고 쫀득한 좋은 피부!',
-    taglineRest: '볼륨을 오래 지켜줄 ',
+    taglineLead: '탄력이 조금씩 풀리고 있어요!',
+    taglineRest: '볼륨을 다시 채워줄 ',
     taglineHighlight: '인절미 타입',
     taglineTail: '이에요.',
-    hashtags: [tag('#탄탄탄력', 'amber'), tag('#매끈결', 'green')],
+    hashtags: [tag('#탄력저하', 'amber'), tag('#잔주름', 'green')],
     ingredients: [
-      ing('Peptide', '탄력', '탄력 섬유 생성을 도와 지금의 볼륨을 지켜요.'),
-      ing('Adenosine', '탄력', '잔주름이 자리 잡기 전에 결을 다져줘요.'),
-      ing('Niacinamide', '톤', '고른 톤으로 탄탄한 인상을 오래 유지해요.'),
+      ing('Peptide', '탄력', '느슨해진 탄력 섬유를 다시 채워줘요.'),
+      ing('Adenosine', '주름', '자리 잡은 잔주름을 완만하게 펴줘요.'),
+      ing('Niacinamide', '톤', '고른 톤으로 처져 보이는 인상을 밝혀줘요.'),
     ],
   },
   hwasan: {
