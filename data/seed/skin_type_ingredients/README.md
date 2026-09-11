@@ -57,6 +57,49 @@
 **집계가 딱 맞아떨어지지는 않는다.** `summary.csv`는 미분류 성분을 약 21,195개로
 적지만, 25,923 − 2,592(제외) − 3,223(고유 매칭) = 20,108이다. 참고용으로만 본다.
 
+## 적재
+
+```bash
+python scripts/seed_skin_type_tags.py --dry-run   # 집계만
+python scripts/seed_skin_type_tags.py            # tags · ingredient_tags · skin_type_rules
+```
+
+멱등하다. 적재 경로와 결과 건수는 [docs/db-schema.md](../../../docs/db-schema.md)의
+`tags` · `skin_type_rules` 절에 있다.
+
+### 타입별 CSV를 읽지 않는다
+
+`criteria.csv`의 키워드로 **현재 DB를 다시 조회한다.** 타입별 CSV 8개는 성분
+25,923건 시절의 스냅샷이고, 그 뒤 파서 보강·오타 병합으로 23,634건이 되면서
+일치율이 이렇게 떨어졌다.
+
+| 매칭 방식 | 일치 |
+|---|---:|
+| `id` 기준 | 2,815 / 3,223 (74%) |
+| `norm_name` 기준 | 2,444 / 3,223 (76%) |
+
+**id는 이미 다른 성분을 가리킨다.** 키워드 재조회는 이 문제가 없고, 성분이
+바뀔 때마다 재실행으로 따라간다.
+
+### 함께 쓰는 파일 2개
+
+| 파일 | 내용 |
+|---|---|
+| `tag_map.csv` | 피부타입 → `tags.code` · `tags.label` · 캐릭터 ID |
+| `criteria_overrides.csv` | 협회 표준명과 철자가 다른 키워드 7개 교정 |
+
+`criteria.csv`는 PR #36 원본 그대로 둔다. 교정은 별도 파일에 쌓아 원본과
+무엇이 달라졌는지 한눈에 보이게 한다.
+
+### 태깅 대상은 제품에 실제 쓰이는 성분뿐
+
+성분 마스터 23,634종 중 80.6%는 어떤 제품에도 등장하지 않는 협회 사전 어휘다.
+`ingredient_tags`는 '이 제품의 성분 중 태그 X가 몇 개인가'를 세는 데 쓰이므로
+안 쓰이는 성분을 태깅해도 조인되지 않는다.
+
+위에 적은 **`injeolmi` 1,815건 문제도 여기서 풀린다** — `펩타이드`는 마스터
+1,517종 중 제품에 쓰이는 게 137종(9%)뿐이라, 실제 태깅은 167종이 된다.
+
 ## 재생성
 
 `criteria.csv`의 키워드로 `ingredients`를 조회하면 된다.
@@ -64,11 +107,5 @@
 ```sql
 SELECT id, norm_name, name_ko, name_en, code, ewg_grade, grade, is_allergen
 FROM ingredients
-WHERE norm_name ILIKE ANY (ARRAY['%히알루론%', '%글리세린%', ...]);
+WHERE norm_name ILIKE ANY (ARRAY['%하이알루로%', '%글리세린%', ...]);
 ```
-
-## 아직 적재하지 않았다
-
-담을 테이블이 정해지지 않았다. `skin_type_rules`는 성분이 아니라 태그
-(`tags.code`) 단위이고, 경유해야 할 `tags`·`ingredient_tags`도 0행이다.
-성분을 태그로 환산해 기존 스키마를 채울지, 별도 테이블을 만들지 미정이다.

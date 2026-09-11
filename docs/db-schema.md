@@ -40,14 +40,14 @@
 
 ## 테이블 18개 — 데이터 유무
 
-**데이터가 있는 7개**는 지금 바로 조회할 수 있고, **나머지 12개는 스키마만** 있습니다. 해당 기능이 아직 없어서지 스키마 결함이 아닙니다.
+**데이터가 있는 10개**는 지금 바로 조회할 수 있고, **나머지 8개는 스키마만** 있습니다. 해당 기능이 아직 없어서지 스키마 결함이 아닙니다.
 
 | 도메인 | 데이터 있음 | 스키마만 |
 |---|---|---|
-| 제품·성분 | `products` `ingredients` `product_ingredients` `ingredient_aliases` `brands` `categories` | `tags` `ingredient_tags` |
+| 제품·성분 | `products` `ingredients` `product_ingredients` `ingredient_aliases` `brands` `categories` `tags` `ingredient_tags` | — |
 | 사용자·인증 | — | `users` `profiles` `refresh_tokens` |
 | 진단 | — | `quiz_versions` `quiz_questions` `quiz_options` `diagnoses` `diagnosis_ranks` |
-| 추천 | `similarities` | `skin_type_rules` |
+| 추천 | `similarities` `skin_type_rules` | — |
 
 ---
 
@@ -200,14 +200,37 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `parent_id` 자기참조로 2단계를 담을 수 있지만 지금은 1단계만 씁니다. 스킨케어 소분류(토너·세럼·크림)가 붙을 자리입니다.
 
-### `tags` — 0행 · `ingredient_tags` — 0행
+### `tags` — 8행 · `ingredient_tags` — 476행
 
-효능 태그 마스터와 성분 ↔ 태그 조인. 수동 큐레이션 대상입니다.
+효능 태그 마스터와 성분 ↔ 태그 조인.
 
 ```
-tags              : id(PK) · code(UQ, 예: moisture_balance) · label(예: 균형보습)
+tags              : id(PK) · code(UQ, 예: moisture_balance) · label(예: 유수분 밸런싱)
 ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 ```
+
+원본은 PR #36의 `data/seed/skin_type_ingredients/criteria.csv`입니다 — 피부타입 8종 × 케어 목적 × ILIKE 키워드 × 공인 출처. 태그 코드는 그 `핵심 케어 목적` 컬럼에서 뽑았습니다.
+
+| `code` | `label` | 출처 행 | 성분 |
+|---|---|---|---:|
+| `moisture_balance` | 유수분 밸런싱 | 수부지 | 70 |
+| `sebum_pore_care` | 피지·모공 항염 | 트러블 | 44 |
+| `sebum_control` | 피지 흡착·수렴 | 지성 | 28 |
+| `brightening` | 멜라닌 억제 | 색소침착 | 24 |
+| `soothing_barrier` | 진정·장벽 강화 | 민감성 | 53 |
+| `deep_moisture` | 보습막 형성 | 건성 | 67 |
+| `anti_wrinkle` | 주름·탄력 | 탄력저하 | 167 |
+| `antioxidant` | 항산화 | 건강한 피부 | 23 |
+
+**태그를 타입 ID(`subuji`·`hwasan`)가 아니라 효능명으로 둔 이유**는 `skin_type_rules.include_tags = ['subuji']`가 되면 태그 층이 동어반복이 되기 때문입니다. 효능명이면 나중에 태그를 쪼개거나 축을 더해도 타입 정의를 건드리지 않습니다.
+
+**태깅 대상은 단일제품에 실제 등장하는 성분 3,717종뿐입니다.** 성분 마스터 23,634종의 80.6%는 어떤 제품에도 쓰이지 않는 협회 사전 어휘라, 태그를 붙여도 조인되지 않고 집계만 부풉니다 — `펩타이드`는 마스터 1,517종 중 제품에 쓰이는 게 137종(9%)뿐이라, 마스터 전체를 태깅하면 `anti_wrinkle`만 1,364종이 됩니다.
+
+**PR #36의 타입별 CSV 8개는 읽지 않습니다.** 성분 25,923건 시절의 스냅샷이라 `id` 기준 일치율이 74%(2,815/3,223)까지 떨어졌습니다 — id가 이미 다른 성분을 가리킵니다. 대신 `criteria.csv`의 키워드로 현재 DB를 다시 조회합니다(`scripts/seed_skin_type_tags.py`). 성분이 바뀌면 재실행으로 따라갑니다.
+
+키워드 7개는 협회 표준명과 철자가 달라 `criteria_overrides.csv`에서 교정합니다 (`히알루론`→`하이알루로`, `카모마일`→`캐모마일`, `레티날`→`레틴알`, `트라네사믹`→`트라넥사믹`, `아주렌`→`아줄렌`, `EGF`→`올리고펩타이드-1`, `아젤라익애씨드`는 어떤 철자로도 없어 제외). `criteria.csv` 자체는 PR #36 원본 그대로 둡니다.
+
+태그 성분을 하나라도 가진 단일제품은 **2,434 / 2,489건(97.8%)**입니다.
 
 ---
 
@@ -230,7 +253,7 @@ ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 
 `method`를 PK에 포함해 TF-IDF·Jaccard·RBO 결과를 나란히 두고 비교할 수 있게 했습니다.
 
-### `skin_type_rules` — 0행
+### `skin_type_rules` — 8행
 
 피부타입 8종별 추천·회피 태그. 진단 결과를 제품 필터로 번역하는 규칙입니다.
 
@@ -239,7 +262,26 @@ id(PK) · skin_type(UQ) · include_tags(jsonb) · exclude_tags(jsonb)
 is_active(bool = true) · updated_at
 ```
 
-JSONB로 관리해 재배포 없이 추천 성향을 바꿀 수 있습니다.
+`skin_type`은 `docs/dev_guidelines.md` §2.4의 캐릭터 ID입니다.
+
+| `skin_type` | 표시명 | `include_tags` |
+|---|---|---|
+| `subuji` | 겉바속촉 수부지 | `["moisture_balance"]` |
+| `hwasan` | 울긋불긋 화산 | `["sebum_pore_care"]` |
+| `mulgae` | 반질반질 물개 | `["sebum_control"]` |
+| `memilmuk` | 얼룩덜룩 메밀묵 | `["brightening"]` |
+| `yuriguseul` | 조심조심 유리구슬 | `["soothing_barrier"]` |
+| `samak` | 바스락 사막 | `["deep_moisture"]` |
+| `injeolmi` | 말랑말랑 인절미 | `["anti_wrinkle"]` |
+| `ondalsam` | 수분팡팡 옹달샘 | `["antioxidant"]` |
+
+**타입당 태그 1개로 시작합니다.** `수부지 = moisture_balance + sebum_control`처럼 그럴듯한 조합을 만들 수는 있지만 근거가 `criteria.csv`에 없습니다. 추론으로 넣으면 나중에 왜 그런지 설명할 수 없으므로, 1:1로 두고 Task 14에서 실물 추천 결과를 보며 넓힙니다.
+
+**`exclude_tags`는 전부 빈 배열입니다.** 기피 성분 근거가 아직 없습니다 — `ingredients.is_allergen`도 큐레이션 0건입니다. JSONB라 재배포 없이 채울 수 있습니다.
+
+**`injeolmi`는 이름과 내용이 어긋나 있습니다.** 임상명은 '탄력저하'인데 캐릭터 정의는 '건성·탄력 양호'입니다(`docs/dev_guidelines.md` §2.4). 남은 슬롯이 하나뿐이라 PR #36이 거기 넣은 것으로, 태그를 쓰기 전에 이 의미 차이를 정리해야 합니다.
+
+**아직 추천이 이 규칙을 읽지 않습니다.** `app/services/rag.py`가 태그를 태우는 것은 Task 14입니다. 지금은 데이터만 채워져 있습니다.
 
 ---
 
@@ -332,9 +374,10 @@ refresh_tokens : id(PK, uuid = gen_random_uuid()) · user_id(FK) · token_hash
 | 3 | `python scripts/load_products.py` | 올리브영 CSV 5,000행 → 카테고리 필터 → dedup → 전성분 파싱 → 벌크 삽입 |
 | 4 | `python scripts/apply_category_fixes.py` | 카테고리를 믿을 수 없는 제품 제거 — DB와 v5의 카테고리가 다른 134건 |
 | 5 | `python scripts/backfill_from_v5.py` | v5 기준으로 `products.composition` · `display_name` · 총 내용량 채우기 |
-| 6 | `python scripts/compute_similarities.py` | 단일제품 유사도 계산 → `similarities` |
+| 6 | `python scripts/seed_skin_type_tags.py` | `criteria.csv` 키워드로 `tags` · `ingredient_tags` · `skin_type_rules` 채우기 |
+| 7 | `python scripts/compute_similarities.py` | 단일제품 유사도 계산 → `similarities` |
 
-**3번 뒤에는 4·5번을 반드시 다시 돌려야 합니다.** 현재 적재 기준인 구 CSV에는 교정 전 카테고리가 들어 있고 `처리메모`·`증정기획_정리` 컬럼이 없어서, `load_products.py`가 교정 결과와 정확한 구성 판정을 매번 덮어씁니다. v5를 적재 기준으로 삼으면 4번은 불필요해집니다.
+**3번 뒤에는 4·5·6번을 반드시 다시 돌려야 합니다.** 현재 적재 기준인 구 CSV에는 교정 전 카테고리가 들어 있고 `처리메모`·`증정기획_정리` 컬럼이 없어서, `load_products.py`가 교정 결과와 정확한 구성 판정을 매번 덮어씁니다. 6번은 성분 연결(`product_ingredients`)이 다시 만들어지면 태깅 대상 집합이 달라지므로 함께 돌립니다. v5를 적재 기준으로 삼으면 4번은 불필요해집니다.
 
 4번이 제품을 지우는 이유: v5에서 카테고리가 바뀐 제품이 154건인데 교정 로그에 근거가 적힌 것은 38건뿐입니다. 나머지는 왜 바뀌었는지 검증할 수 없고, 잘못된 카테고리는 "선케어의 대체품이 클렌징"이 되는 결과로 이어지므로 통째로 제외합니다.
 
