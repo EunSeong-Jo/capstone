@@ -114,6 +114,13 @@ class Product(Base, TimestampMixin):
     # 상품정보제공고시 표에서 수집. 형식이 자유로워 길이를 제한하지 않는다
     # (manufacturer는 '제조업자 : X / 책임판매업자 : Y ...' 형태로 최대 435자).
     volume: Mapped[str | None] = mapped_column(Text)
+
+    # 총 내용량. v5의 `내용량_정리`에서 파싱한다. volume(원문)과 달리 계산용이다.
+    # ml과 g를 나눠 두는 이유는 부피와 무게라 직접 비교할 수 없어서다 —
+    # 단가는 `price / volume_ml`처럼 바로 낸다. '10매'짜리는 둘 다 NULL.
+    volume_ml: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    volume_g: Mapped[float | None] = mapped_column(Numeric(10, 2))
+
     country: Mapped[str | None] = mapped_column(Text)
     manufacturer: Mapped[str | None] = mapped_column(Text)
     expiry: Mapped[str | None] = mapped_column(Text)

@@ -98,7 +98,9 @@ erDiagram
 | | `review_count` | int | NULL | |
 | | `image_url` | text | NULL | |
 | | `product_url` | text | NULL | |
-| | `volume` | text | NULL | 상품정보제공고시 |
+| | `volume` | text | NULL | 상품정보제공고시 원문 |
+| | `volume_ml` | numeric(10,2) | NULL | 총 내용량(부피) · 3,151건 |
+| | `volume_g` | numeric(10,2) | NULL | 총 내용량(무게) · 750건 |
 | | `country` | text | NULL | 상품정보제공고시 |
 | | `manufacturer` | text | NULL | 최대 435자라 길이 제한 없음 |
 | | `expiry` | text | NULL | 상품정보제공고시 |
@@ -119,6 +121,8 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 정제명이 원본과 다른 제품은 1,392건이고 **전부 `composition <> 'single'`** 입니다. 기획·증정 문구가 있다는 것 자체가 단일제품이 아니라는 뜻이라, 기본 조회(single만)에서는 두 값이 같습니다.
 
 **`ingredient_count_raw`**는 원본 전성분을 파싱한 성분 개수(중복 포함)로, `product_ingredients` 행수와 다릅니다. 그쪽은 제품 내 중복을 한 번만 세기 때문입니다. **차이가 클수록 `N종 택1` 기획세트일 가능성이 높습니다** — 최대 사례가 원본 1,978개 → 고유 141개입니다.
+
+**`volume_ml` · `volume_g`**는 총 내용량입니다. 원문인 `volume`과 달리 계산용이라 숫자로 담습니다. 부피와 무게는 직접 비교할 수 없어 컬럼을 나눴습니다 — 단가는 `price / volume_ml`처럼 바로 냅니다. 값은 v5의 `내용량_정리`에서 오고, `'+'`로 이어진 구성품별 수량을 단위끼리 합산합니다(`'2ml + 28g'` → ml 2 · g 28, 50건). `'70매'`짜리 시트마스크처럼 ml·g 표기가 없는 166건은 둘 다 NULL이며 대부분 마스크팩입니다.
 
 **`composition`**은 제품 구성입니다. `status`(판매 상태)와는 다른 축이라 '품절된 단일제품'이 성립합니다. `single` 외에는 전성분이 제품 하나에 대응한다고 보장할 수 없어 **유사도 계산에서 빼고 조회 API도 기본으로 숨깁니다**. 판정 규칙은 [`backend/app/utils/composition.py`](../backend/app/utils/composition.py)이고, 값 채우기는 `scripts/backfill_from_v5.py`(v5 정제본 기준)와 `scripts/load_products.py`가 합니다.
 
@@ -327,7 +331,7 @@ refresh_tokens : id(PK, uuid = gen_random_uuid()) · user_id(FK) · token_hash
 | 2 | `python scripts/seed_ingredients.py` | 협회 표준화명칭목록·명칭변경목록 + 오타 교정 CSV → `ingredients` + `ingredient_aliases` |
 | 3 | `python scripts/load_products.py` | 올리브영 CSV 5,000행 → 카테고리 필터 → dedup → 전성분 파싱 → 벌크 삽입 |
 | 4 | `python scripts/apply_category_fixes.py` | 카테고리를 믿을 수 없는 제품 제거 — DB와 v5의 카테고리가 다른 134건 |
-| 5 | `python scripts/backfill_from_v5.py` | v5 기준으로 `products.composition` · `display_name` 채우기 |
+| 5 | `python scripts/backfill_from_v5.py` | v5 기준으로 `products.composition` · `display_name` · 총 내용량 채우기 |
 | 6 | `python scripts/compute_similarities.py` | 단일제품 유사도 계산 → `similarities` |
 
 **3번 뒤에는 4·5번을 반드시 다시 돌려야 합니다.** 현재 적재 기준인 구 CSV에는 교정 전 카테고리가 들어 있고 `처리메모`·`증정기획_정리` 컬럼이 없어서, `load_products.py`가 교정 결과와 정확한 구성 판정을 매번 덮어씁니다. v5를 적재 기준으로 삼으면 4번은 불필요해집니다.
