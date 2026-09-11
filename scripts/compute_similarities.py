@@ -94,14 +94,17 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
     ids: list[int] = []
     docs: list[list[int]] = []
     names: dict[int, str] = {}
+    dropped: list[int] = []
     skipped = {"composition": 0, "bundle": 0, "too_few": 0}
 
     for pid, name, raw_count, ings in rows:
         if not min_ingredients(len(ings)):
             skipped["too_few"] += 1
+            dropped.append(pid)
             continue
         if is_bundle(len(ings), raw_count):
             skipped["bundle"] += 1
+            dropped.append(pid)
             continue
         ids.append(pid)
         docs.append(list(ings))
@@ -120,6 +123,7 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
     return ids, docs, {
         "skipped": skipped,
         "names": names,
+        "dropped": dropped,
         "total": len(rows) + skipped["composition"],
     }
 
@@ -302,6 +306,18 @@ def run_category(cur, category: str, methods, args) -> dict[str, list]:
         )
 
     if not args.dry_run:
+        # 이번 실행에서 제외된 제품의 옛 결과를 먼저 지운다. write()의 DELETE는
+        # 계산 대상(ids)만 훑기 때문에, 기준이 바뀌어 빠진 제품의 행이 그대로
+        # 남는다. 실제로 성분 재파싱 뒤 묶음 판정이 바뀐 제품 1건에서
+        # 3.7시간 전 점수 60행이 살아남아 있었다.
+        if meta["dropped"]:
+            cur.execute(
+                """DELETE FROM similarities
+                    WHERE product_id = ANY(%s) OR similar_id = ANY(%s)""",
+                (meta["dropped"], meta["dropped"]),
+            )
+            if cur.rowcount:
+                print(f"  제외된 제품의 옛 결과 {cur.rowcount:,}행 정리")
         for method, rows in produced.items():
             write(cur, ids, method, rows)
 

@@ -182,6 +182,32 @@ _PLACEHOLDER = re.compile(r"상세\s*페이지|상품\s*상세|별도\s*표기|�
 _GOODS_NO = re.compile(r"goodsNo=([A-Za-z0-9]+)")
 
 
+# 성분 하나로 접힌 파싱 잔해. 사전에도 별칭에도 없는 이름에만 적용하므로
+# (아래 resolve()의 신규 등록 직전), 실재 성분을 지울 여지가 구조적으로 없다.
+#
+#   1) 구분자 잔류    '향료■파파레서피…클렌저50g옥수수전분'
+#   2) 40자 초과      전성분 한 줄이 통째로 한 토큰이 된 것. 진짜 INCI명은
+#                    최장 26자다 (c30-45알킬다이메틸실릴폴리프로필실세스퀴옥세인)
+#   3) 성분 둘 붙음   '참마뿌리추출물슈도알테로모나스발효추출물'
+#                    구분자 없이 '추출물'·'정제수'가 두 번 나오면 접합이다.
+#                    협회 사전 22,498종에 이 꼴은 0건이라 오탐이 없다
+#
+# 쪼개서 살리지 않는 이유: 구분자가 없어 경계를 알 수 없다. 23,000종 사전으로
+# 최장일치를 돌리면 '정제수'가 긴 이름 안쪽에서도 걸려 멀쩡한 성분이 갈린다.
+# 가짜 성분 하나는 DF=1로 남아 IDF를 최대로 받으므로, 두는 쪽이 더 해롭다.
+_RESIDUE_MARK = re.compile(r"[@■<>\[\]]")
+_RESIDUE_GLUE = re.compile(r"^[^,/()\[\]]{12,}(?:정제수|추출물)$")
+
+
+def is_residue(key: str) -> bool:
+    """신규 등록 직전 마지막 관문. True면 그 토큰을 통째로 버린다."""
+    if _RESIDUE_MARK.search(key) or len(key) > 40:
+        return True
+    return bool(_RESIDUE_GLUE.match(key)) and (
+        key.count("추출물") + key.count("정제수")
+    ) >= 2
+
+
 def is_unusable(parts: list[str]) -> bool:
     """전성분을 얻을 수 없는 제품인지 판단.
 
@@ -270,6 +296,17 @@ def main() -> None:
 
     conn = psycopg2.connect(settings.DATABASE_DSN)
     cur = conn.cursor()
+
+    # ── 잔해 성분 정리 ───────────────────────────────────────────
+    # 예전 적재로 이미 등록된 잔해는 아래 resolve()의 신규 등록 경로를 타지
+    # 않는다 — 사전 조회에서 바로 잡히기 때문이다. 사전을 읽기 전에 지워야
+    # is_residue()가 실제로 걸린다. FK가 CASCADE라 연결·유사도도 함께 정리된다.
+    cur.execute("SELECT id, norm_name FROM ingredients WHERE code IS NULL")
+    junk = [i for i, n in cur.fetchall() if is_residue(n)]
+    if junk:
+        cur.execute("DELETE FROM ingredients WHERE id = ANY(%s)", (junk,))
+        conn.commit()
+        print(f"잔해 성분 제거 {len(junk):,}종")
 
     # ── 성분 사전 선로드 ─────────────────────────────────────────
     # 전성분 구분자가 제품마다 달라(쉼표/공백/@) 파서가 사전을 참고해야 한다.
@@ -379,7 +416,7 @@ def main() -> None:
     print(f"제품 적재 {len(pid_of):,}건")
 
     # ── 성분 해석 ────────────────────────────────────────────────
-    stat = {"direct": 0, "alias": 0, "loose": 0, "new": 0}
+    stat = {"direct": 0, "alias": 0, "loose": 0, "new": 0, "residue": 0}
     pending_new: dict[str, str] = {}   # normalized → 원문
 
     def resolve(raw: str) -> str | None:
@@ -397,6 +434,9 @@ def main() -> None:
         if loose and loose in ing_id:
             stat["loose"] += 1
             return loose
+        if is_residue(key):
+            stat["residue"] += 1
+            return None
         if key not in pending_new:
             pending_new[key] = raw.strip()
             stat["new"] += 1
@@ -419,7 +459,7 @@ def main() -> None:
             links.append((gno, key, pos, raw.strip()))
 
     print(f"성분 해석 — 사전직결 {stat['direct']:,} / 별칭 {stat['alias']:,} / "
-          f"완화 {stat['loose']:,} / 신규 {stat['new']:,}")
+          f"완화 {stat['loose']:,} / 신규 {stat['new']:,} / 잔해버림 {stat['residue']:,}")
     print(f"성분 {SIMILARITY_SAFE_MAX}개 초과 {over_threshold}건 "
           f"(적재는 하되 유사도 계산에서 제외 권장)")
 

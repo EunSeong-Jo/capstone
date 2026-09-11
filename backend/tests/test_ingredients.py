@@ -500,3 +500,69 @@ class TestResidueCleanup:
         vocab = {"정제수", "글리세린", "소듐하이알루로네이트"}
         got = parse_ingredients("[울트라 퓨어] 정제수 글리세린 소듐하이알루로네이트", vocab)
         assert got[-2:] == ["글리세린", "소듐하이알루로네이트"]
+
+
+class TestParseResidueCleanup:
+    """PR #36 잔해 정리에서 추가한 규칙들.
+
+    단일제품에 쓰이는 사전 미등록 성분 397종을 전수로 훑어 유형을 나눈 뒤,
+    구조가 분명한 것만 규칙으로 만들었다. 각 규칙은 협회 사전 22,498종에
+    대해 오탐 0건을 확인하고 넣었다 — 그 확인이 이 테스트의 전제다.
+    """
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            # 공백 없이 붙거나 '*'를 끼고 오는 함량 표기
+            ("향료*100,000ppm", "향료"),
+            ("병풀잎추출물0.2%", "병풀잎추출물"),
+            ("토코페롤*40,000ppm", "토코페롤"),
+            # 단위 대문자
+            ("3-0-에틸아스코빅애씨드 (10,000 PPB)", "3-0-에틸아스코빅애씨드"),
+            ("토코페볼(22.65 PPM)", "토코페볼"),
+            # 표 머리글이 첫 성분에 이어 붙은 것
+            ("전성분정제수", "정제수"),
+            ("성분명 : 정제수", "정제수"),
+            # 구명칭 병기 괄호
+            ("어성초추출물(=약모밀추출물,10ppm)", "어성초추출물"),
+            # 제품명이 통째로 붙은 것
+            ("하우스오브비글루타티온페이스필름정제수", "정제수"),
+            # 표기성분 코드
+            ("토코페롤<iln51009>", "토코페롤"),
+            ("청색1호〈iln54376>", "청색1호"),
+        ],
+    )
+    def test_residue_is_stripped(self, raw, expected):
+        assert normalize(raw) == expected
+
+    @pytest.mark.parametrize("junk", ["성분", "전성분명"])
+    def test_label_alone_becomes_empty(self, junk):
+        assert normalize(junk) == ""
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            # 구간 라벨 괄호는 성분 사이 경계다. 지우면 두 성분이 붙는다.
+            ("페녹시에탄올(2제) 정제수, 글리세린", ["페녹시에탄올", "정제수", "글리세린"]),
+            ("황색4호(내용물) 정제수, 향료", ["황색4호", "정제수", "향료"]),
+            (
+                "<스킨1004마다가스카르센텔라라이트클렌징오일200ml>에틸헥실스테아레이트, 향료",
+                ["에틸헥실스테아레이트", "향료"],
+            ),
+        ],
+    )
+    def test_step_paren_splits_ingredients(self, raw, expected):
+        assert parse_ingredients(raw) == expected
+
+    @pytest.mark.parametrize(
+        "keep",
+        [
+            "자작나무수액(10,000ppm)",     # 함량은 떼되 성분은 남는다
+            "하이드로제네이티드폴리(C6-14올레핀)",  # 성분명의 괄호
+            "1,2-헥산다이올",
+            "c10-30알킬아크릴레이트크로스폴리머",
+        ],
+    )
+    def test_real_names_survive(self, keep):
+        """규칙이 넓어졌어도 멀쩡한 이름을 건드리면 안 된다."""
+        assert normalize(keep)
