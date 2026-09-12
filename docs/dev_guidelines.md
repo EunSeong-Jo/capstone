@@ -376,11 +376,11 @@ products              -- 4,013행
   ingredient_count_raw,      -- 원본 성분 개수(중복 포함)
   status('active'), source('oliveyoung'), created_at, updated_at
 
-ingredients           -- 23,521행 (대한화장품협회 표준화명칭목록 + 크롤링 신규)
+ingredients           -- 23,147행 (대한화장품협회 표준화명칭목록 + 크롤링 신규)
   id, norm_name(UQ), name_ko, name_en, code,
   ewg_grade, grade, is_allergen        -- 앞 셋은 아직 비어 있음
 
-product_ingredients   -- 163,125행 · (product_id, ingredient_id) 복합 PK
+product_ingredients   -- 163,103행 · (product_id, ingredient_id) 복합 PK
   product_id, ingredient_id, position, raw_name
 
 brands                -- 511행 : id, name(UQ)

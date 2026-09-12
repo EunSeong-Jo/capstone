@@ -566,3 +566,70 @@ class TestParseResidueCleanup:
     def test_real_names_survive(self, keep):
         """규칙이 넓어졌어도 멀쩡한 이름을 건드리면 안 된다."""
         assert normalize(keep)
+
+
+class TestExcludedCsvFindings:
+    """PR #36의 excluded.csv(2,592건)와 대조해 찾아낸 유형.
+
+    그 목록은 성분 25,923건 시절 스냅샷이라 이름으로 직접 대조하면 380건만
+    남는데, **어떤 모양이 깨지는지**를 알려주는 쪽으로 썼다. '…정제수'로
+    끝나는 이름을 DB에서 훑어 47종의 접합을 찾았고, 그 유형을 규칙으로 만들었다.
+
+    각 규칙은 협회 사전 22,498종에 오탐 0건을 확인하고 넣었다.
+    """
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            # 짧은 접합. 사전에 '정제수'로 끝나는 다른 이름이 없어 꼬리만 남긴다.
+            ("실러정제수", "정제수"),
+            ("정정제수", "정제수"),
+            ("1제(내상)정제수", "정제수"),
+            ("닥터지 더모이스처 배리어 D 인텐스 크림 30ml(구성품) 정제수", "정제수"),
+            # 선두 제형 라벨
+            ('"로션 정제수', "정제수"),
+            ("* 앰플 정제수", "정제수"),
+            ("■ 1호 정제수", "정제수"),
+            # 짝이 없는 닫는 괄호 앞은 구간 라벨이다
+            ("토너)정제수", "정제수"),
+            ("리날룰 수딩에센스)정제수", "정제수"),
+        ],
+    )
+    def test_glued_water_is_reduced(self, raw, expected):
+        assert normalize(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("1) PDRN 클렌징 밀크 정제수, 글리세린", ["PDRN 클렌징 밀크 정제수", "글리세린"]),
+            ("다이소듐이디티에이 2) 펌킨 정제수, 향료", ["다이소듐이디티에이", "펌킨 정제수", "향료"]),
+        ],
+    )
+    def test_numbered_label_splits(self, raw, expected):
+        """맨 번호 구간 라벨이 성분 경계다."""
+        assert parse_ingredients(raw) == expected
+
+    def test_ci_number_survives(self):
+        """색소 번호는 같은 꼴이라 자릿수를 막지 않으면 잘린다.
+
+        '(CI 77891)'의 '77891) '가 구간 라벨과 구분이 안 된다. 두 자리까지만
+        라벨로 보기로 해서 이 케이스가 살아남는다.
+        """
+        got = parse_ingredients("정제수, 티타늄디옥사이드(CI 77891) 정제수, 향료")
+        assert got[1].startswith("티타늄디옥사이드(CI 77891)")
+
+    def test_footnote_numbers_still_work(self):
+        """닫는 괄호 규칙이 각주 번호를 먹으면 성분까지 날아간다.
+
+        '부틸렌글라이콜3)4)5)'는 닫는 괄호가 여는 것보다 많지만 각주다.
+        괄호 뒤에 글자가 올 때만 구간 라벨로 본다.
+        """
+        assert normalize("부틸렌글라이콜3)4)5)") == "부틸렌글라이콜"
+
+    def test_single_char_form_label_is_not_stripped(self):
+        """'밤'은 제형이 아니라 밤나무일 수 있다.
+
+        제형 라벨 목록에서 한 글자짜리(젤·폼·밤·오일)를 뺀 이유다 —
+        자르면 없는 성분('껍질추출물')이 생긴다.
+        """
+        assert normalize("밤 껍질추출물") == "밤껍질추출물"

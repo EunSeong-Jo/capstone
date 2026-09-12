@@ -657,6 +657,22 @@ def main() -> None:
         pi_rows, page_size=5000)
     conn.commit()
 
+    # 아무 제품도 안 쓰는 미등록 성분을 지운다. 파서를 고칠 때마다 예전
+    # 파싱으로 만들어진 이름이 남는데(code=NULL이라 협회 사전 쪽은 아니다),
+    # 참조가 끊긴 뒤에도 테이블에 쌓여 '성분 N종' 집계를 부풀린다.
+    # 별칭이 가리키는 행은 남긴다 — 오타 교정의 도착지다.
+    cur.execute(
+        """DELETE FROM ingredients i
+            WHERE i.code IS NULL
+              AND NOT EXISTS (SELECT 1 FROM product_ingredients x
+                               WHERE x.ingredient_id = i.id)
+              AND NOT EXISTS (SELECT 1 FROM ingredient_aliases a
+                               WHERE a.ingredient_id = i.id)"""
+    )
+    if cur.rowcount:
+        print(f"아무 제품도 안 쓰는 미등록 성분 제거 {cur.rowcount:,}종")
+    conn.commit()
+
     # 성분이 하나도 남지 않은 제품을 지운다. is_unusable()은 파싱 직후를 보므로
     # 토큰이 전부 잔해였던 제품(랑콤 제니피끄 토너처럼 전성분 한 줄이 통짜로
     # 들어온 것)을 놓친다. 성분이 없으면 대체품 추천도 성분 표시도 불가능해
