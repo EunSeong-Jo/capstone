@@ -20,9 +20,9 @@
 
 | 항목 | 값 |
 |---|---:|
-| 제품 `products` | 4,017 |
+| 제품 `products` | 4,102 |
 | 성분 `ingredients` | 23,458 |
-| 제품–성분 연결 `product_ingredients` | 163,484 |
+| 제품–성분 연결 `product_ingredients` | 167,262 |
 | 성분 별칭 `ingredient_aliases` | 4,411 |
 | 브랜드 `brands` | 512 |
 | 표준사전 매칭률 | 97.8% |
@@ -79,7 +79,7 @@ erDiagram
 
 ## 제품 · 성분
 
-### `products` — 4,017행
+### `products` — 4,102행
 
 제품 마스터. **유일키가 `goods_no`인 이유**: 상품명의 77%에 `[7월 올영픽]` 같은 프로모션 접두사가 붙고 55%에 기획/증정 문구가 섞여, 이름 조합으로는 재수집 때마다 같은 제품이 새 행으로 들어옵니다. `goodsNo`가 올리브영의 실제 제품 식별자입니다.
 
@@ -99,8 +99,9 @@ erDiagram
 | | `image_url` | text | NULL | |
 | | `product_url` | text | NULL | |
 | | `volume` | text | NULL | 상품정보제공고시 원문 |
-| | `volume_ml` | numeric(10,2) | NULL | 총 내용량(부피) · 3,151건 |
-| | `volume_g` | numeric(10,2) | NULL | 총 내용량(무게) · 750건 |
+| | `volume_ml` | numeric(10,2) | NULL | 총 내용량(부피) · 3,211건 |
+| | `volume_uncertain` | bool | NOT NULL | `= false` · 총량을 믿을 수 없는 제품 · 114건 |
+| | `volume_g` | numeric(10,2) | NULL | 총 내용량(무게) · 770건 |
 | | `country` | text | NULL | 상품정보제공고시 |
 | | `manufacturer` | text | NULL | 최대 435자라 길이 제한 없음 |
 | | `expiry` | text | NULL | 상품정보제공고시 |
@@ -122,18 +123,20 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 **`ingredient_count_raw`**는 원본 전성분을 파싱한 성분 개수(중복 포함)로, `product_ingredients` 행수와 다릅니다. 그쪽은 제품 내 중복을 한 번만 세기 때문입니다. **차이가 클수록 `N종 택1` 기획세트일 가능성이 높습니다** — 최대 사례가 원본 1,978개 → 고유 141개입니다.
 
-**`volume_ml` · `volume_g`**는 총 내용량입니다. 원문인 `volume`과 달리 계산용이라 숫자로 담습니다. 부피와 무게는 직접 비교할 수 없어 컬럼을 나눴습니다 — 단가는 `price / volume_ml`처럼 바로 냅니다. 값은 v5의 `내용량_정리`에서 오고, `'+'`로 이어진 구성품별 수량을 단위끼리 합산합니다(`'2ml + 28g'` → ml 2 · g 28, 50건). `'70매'`짜리 시트마스크처럼 ml·g 표기가 없는 166건은 둘 다 NULL이며 대부분 마스크팩입니다.
+**`volume_ml` · `volume_g`**는 총 내용량입니다. 원문인 `volume`과 달리 계산용이라 숫자로 담습니다. 부피와 무게는 직접 비교할 수 없어 컬럼을 나눴습니다 — 단가는 `price / volume_ml`처럼 바로 냅니다. 값은 v5의 `내용량_정리`에서 오고, `'+'`로 이어진 구성품별 수량을 단위끼리 합산합니다(`'2ml + 28g'` → ml 2 · g 28, 50건). `'70매'`짜리 시트마스크처럼 ml·g 표기가 없는 제품은 둘 다 NULL이며 대부분 마스크팩입니다.
 
-**`composition`**은 제품 구성입니다. `status`(판매 상태)와는 다른 축이라 '품절된 단일제품'이 성립합니다. `single` 외에는 전성분이 제품 하나에 대응한다고 보장할 수 없어 **유사도 계산에서 빼고 조회 API도 기본으로 숨깁니다**. 판정 규칙은 [`backend/app/utils/composition.py`](../backend/app/utils/composition.py)이고, 값 채우기는 `scripts/backfill_from_v5.py`(v5 정제본 기준)와 `scripts/load_products.py`가 합니다.
+**`volume_uncertain`이 true인 114건은 숫자가 있어도 믿으면 안 됩니다.** v5 정제 작업자가 총량을 하나로 말할 수 없다고 표시한 제품입니다 — `'각 옵션별 용량이 다름'`이거나, `'409ml (6개) + 210매'`처럼 본품과 동봉품의 단위가 섞여 있습니다. 파서는 그중 104건에서 숫자를 뽑아내므로, 단가(`price / volume_ml`)를 낼 때는 이 제품을 빼야 합니다.
+
+**`composition`**은 제품 구성입니다. `status`(판매 상태)와는 다른 축이라 '품절된 단일제품'이 성립합니다. `single` 외에는 전성분이 제품 하나에 대응한다고 보장할 수 없어 **유사도 계산에서 빼고 조회 API도 기본으로 숨깁니다**. 판정 규칙은 [`backend/app/utils/composition.py`](../backend/app/utils/composition.py)이고, `scripts/load_products.py`가 적재하면서 채웁니다. 묶음분리로 한 제품이 여러 행이 된 경우에는 **가장 오염된 판정이 이깁니다** — 하나라도 묶음이면 그 제품은 묶음입니다.
 
 | 값 | 건수 | 설명 |
 |---|---:|---|
-| `single` | 2,489 | 순수 단일제품 |
-| `bonus` | 1,090 | 본품 증량·화장품 증정 (`+50ml`, `1+1`) |
-| `bundle` | 357 | 묶음·N종·세트·키트 |
-| `goods` | 81 | 비화장품 굿즈 동봉 (키링·파우치·브러쉬) |
+| `single` | 2,538 | 순수 단일제품 |
+| `bonus` | 1,119 | 본품 증량·화장품 증정 (`+50ml`, `1+1`) |
+| `bundle` | 363 | 묶음·N종·세트·키트 |
+| `goods` | 82 | 비화장품 굿즈 동봉 (키링·파우치·브러쉬) |
 
-### `ingredients` — 23,458행
+### `ingredients` — 23,521행
 
 성분 마스터. 대한화장품협회 표준화명칭목록 21,910건 + 크롤링에서 새로 발견된 성분입니다.
 
@@ -151,7 +154,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `norm_name`이 `살리실릭애씨드(0.5%)`와 `살리실릭애씨드`를 같은 행으로 모읍니다.
 
-### `product_ingredients` — 163,484행
+### `product_ingredients` — 167,262행
 
 제품 ↔ 성분 N:M.
 
@@ -202,7 +205,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `parent_id` 자기참조로 2단계를 담을 수 있지만 지금은 1단계만 씁니다. 스킨케어 소분류(토너·세럼·크림)가 붙을 자리입니다.
 
-### `tags` — 8행 · `ingredient_tags` — 461행
+### `tags` — 8행 · `ingredient_tags` — 464행
 
 효능 태그 마스터와 성분 ↔ 태그 조인.
 
@@ -217,8 +220,8 @@ ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 |---|---|---|---:|
 | `moisture_balance` | 유수분 밸런싱 | 수부지 | 69 |
 | `sebum_pore_care` | 피지·모공 항염 | 트러블 | 38 |
-| `sebum_control` | 피지 흡착·수렴 | 지성 | 28 |
-| `brightening` | 멜라닌 억제 | 색소침착 | 22 |
+| `sebum_control` | 피지 흡착·수렴 | 지성 | 29 |
+| `brightening` | 멜라닌 억제 | 색소침착 | 24 |
 | `soothing_barrier` | 진정·장벽 강화 | 민감성 | 52 |
 | `deep_moisture` | 보습막 형성 | 건성 | 66 |
 | `anti_wrinkle` | 주름·탄력 | 탄력저하 | 166 |
@@ -226,21 +229,21 @@ ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 
 **태그를 타입 ID(`subuji`·`hwasan`)가 아니라 효능명으로 둔 이유**는 `skin_type_rules.include_tags = ['subuji']`가 되면 태그 층이 동어반복이 되기 때문입니다. 효능명이면 나중에 태그를 쪼개거나 축을 더해도 타입 정의를 건드리지 않습니다.
 
-**태깅 대상은 단일제품에 실제 등장하는 성분 3,643종뿐입니다.** 성분 마스터 23,519종의 80.6%는 어떤 제품에도 쓰이지 않는 협회 사전 어휘라, 태그를 붙여도 조인되지 않고 집계만 부풉니다 — `펩타이드`는 마스터 1,517종 중 제품에 쓰이는 게 137종(9%)뿐이라, 마스터 전체를 태깅하면 `anti_wrinkle`만 1,364종이 됩니다.
+**태깅 대상은 단일제품에 실제 등장하는 성분 3,678종뿐입니다.** 성분 마스터 23,521종의 80.6%는 어떤 제품에도 쓰이지 않는 협회 사전 어휘라, 태그를 붙여도 조인되지 않고 집계만 부풉니다 — `펩타이드`는 마스터 1,517종 중 제품에 쓰이는 게 137종(9%)뿐이라, 마스터 전체를 태깅하면 `anti_wrinkle`만 1,364종이 됩니다.
 
 **PR #36의 타입별 CSV 8개는 읽지 않습니다.** 성분 25,923건 시절의 스냅샷이라 `id` 기준 일치율이 74%(2,815/3,223)까지 떨어졌습니다 — id가 이미 다른 성분을 가리킵니다. 대신 `criteria.csv`의 키워드로 현재 DB를 다시 조회합니다(`scripts/seed_skin_type_tags.py`). 성분이 바뀌면 재실행으로 따라갑니다.
 
 키워드 7개는 협회 표준명과 철자가 달라 `criteria_overrides.csv`에서 교정합니다 (`히알루론`→`하이알루로`, `카모마일`→`캐모마일`, `레티날`→`레틴알`, `트라네사믹`→`트라넥사믹`, `아주렌`→`아줄렌`, `EGF`→`올리고펩타이드-1`, `아젤라익애씨드`는 어떤 철자로도 없어 제외). `criteria.csv` 자체는 PR #36 원본 그대로 둡니다.
 
-태그 성분을 하나라도 가진 단일제품은 **2,434 / 2,489건(97.8%)**입니다.
+태그 성분을 하나라도 가진 단일제품은 **2,484 / 2,538건(97.9%)**입니다.
 
 ---
 
 ## 추천
 
-### `similarities` — 146,940행
+### `similarities` — 149,760행
 
-유사도 배치(Task 3)가 채웁니다. **단일제품(`composition = 'single'`) 2,452건만** 대상이라, 기획세트·굿즈 동봉 제품은 기준으로도 대체품으로도 등장하지 않습니다.
+유사도 배치(Task 3)가 채웁니다. **단일제품(`composition = 'single'`) 2,538건만** 대상이라, 기획세트·굿즈 동봉 제품은 기준으로도 대체품으로도 등장하지 않습니다.
 
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
@@ -373,15 +376,15 @@ refresh_tokens : id(PK, uuid = gen_random_uuid()) · user_id(FK) · token_hash
 |---|---|---|
 | 1 | `cd backend && alembic upgrade head` | 테이블 18개 + `pg_trgm` 확장 생성 |
 | 2 | `python scripts/seed_ingredients.py` | 협회 표준화명칭목록·명칭변경목록 + 오타 교정 CSV → `ingredients` + `ingredient_aliases` |
-| 3 | `python scripts/load_products.py` | 올리브영 CSV 5,000행 → 카테고리 필터 → dedup → 전성분 파싱 → 벌크 삽입 |
-| 4 | `python scripts/apply_category_fixes.py` | 카테고리를 믿을 수 없는 제품 제거 — DB와 v5의 카테고리가 다른 134건 |
-| 5 | `python scripts/backfill_from_v5.py` | v5 기준으로 `products.composition` · `display_name` · 총 내용량 채우기 |
-| 6 | `python scripts/seed_skin_type_tags.py` | `criteria.csv` 키워드로 `tags` · `ingredient_tags` · `skin_type_rules` 채우기 |
-| 7 | `python scripts/compute_similarities.py` | 단일제품 유사도 계산 → `similarities` |
+| 3 | `python scripts/load_products.py` | v5 정제본 5,157행 → 카테고리 교정 → 필터 → dedup → 전성분 파싱 → 벌크 삽입 |
+| 4 | `python scripts/seed_skin_type_tags.py` | `criteria.csv` 키워드로 `tags` · `ingredient_tags` · `skin_type_rules` 채우기 |
+| 5 | `python scripts/compute_similarities.py` | 단일제품 유사도 계산 → `similarities` |
 
-**3번 뒤에는 4·5·6번을 반드시 다시 돌려야 합니다.** 현재 적재 기준인 구 CSV에는 교정 전 카테고리가 들어 있고 `처리메모`·`증정기획_정리` 컬럼이 없어서, `load_products.py`가 교정 결과와 정확한 구성 판정을 매번 덮어씁니다. 6번은 성분 연결(`product_ingredients`)이 다시 만들어지면 태깅 대상 집합이 달라지므로 함께 돌립니다. v5를 적재 기준으로 삼으면 4번은 불필요해집니다.
+**순서 의존이 없습니다.** 예전에는 3번 뒤에 보정 스크립트 둘(`apply_category_fixes.py` · `backfill_from_v5.py`)을 반드시 다시 돌려야 했습니다. 구 CSV를 적재 기준으로 쓰는 동안에는 거기에 교정 전 카테고리가 들어 있고 `처리메모`·`증정기획_정리`·`내용량_정리` 컬럼이 아예 없어서, 로더가 보정 결과를 매번 덮어썼기 때문입니다. **적재 기준을 v5로 옮기면서 두 스크립트를 지웠습니다** — 로더가 카테고리 교정 로그까지 직접 읽어 적재 전에 반영합니다.
 
-4번이 제품을 지우는 이유: v5에서 카테고리가 바뀐 제품이 154건인데 교정 로그에 근거가 적힌 것은 38건뿐입니다. 나머지는 왜 바뀌었는지 검증할 수 없고, 잘못된 카테고리는 "선케어의 대체품이 클렌징"이 되는 결과로 이어지므로 통째로 제외합니다.
+4·5번은 여전히 3번 뒤에 돌려야 합니다. 성분 연결(`product_ingredients`)이 다시 만들어지면 태깅 대상과 유사도 입력이 함께 바뀌기 때문입니다. 다만 이건 *되돌려지는* 것이 아니라 *다시 계산해야 하는* 것이라, 빠뜨리면 값이 낡을 뿐 틀리지는 않습니다.
+
+**카테고리 교정을 믿기로 했습니다.** v5에서 카테고리가 바뀐 제품이 163건입니다. 예전에는 근거를 검증할 수 없다며 전부 제거했지만, v5를 적재 기준으로 삼는 이상 그 카테고리도 신뢰하는 것이 일관됩니다. 얼굴 4종 안에서 이동한 83건(`마스크팩 → 스킨케어` 34건 등)은 교정값으로 유지하고, 4종 밖으로 나간 53건(메이크업·바디케어 등)은 적재 대상에서 빠지며, 4종 안으로 들어온 16건이 새로 들어옵니다.
 
 `scripts/report_parse_residue.py`는 파이프라인이 아니라 읽기 전용 보고서입니다. 파싱 잔해가 어느 제품에 몰려 있는지 세어, 제품 단위 제거가 필요한지 판단할 근거를 냅니다.
 

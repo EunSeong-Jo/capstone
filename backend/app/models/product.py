@@ -121,6 +121,13 @@ class Product(Base, TimestampMixin):
     volume_ml: Mapped[float | None] = mapped_column(Numeric(10, 2))
     volume_g: Mapped[float | None] = mapped_column(Numeric(10, 2))
 
+    # v5의 `내용량_확인필요`. 정제 작업자가 총량을 하나로 말할 수 없다고 표시한
+    # 제품이다 ('각 옵션별 용량이 다름' · '409ml (6개) + 210매'). 위 두 값이
+    # 채워져 있어도 믿을 수 없으므로, 단가를 낼 때는 이 제품을 빼야 한다.
+    volume_uncertain: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+
     country: Mapped[str | None] = mapped_column(Text)
     manufacturer: Mapped[str | None] = mapped_column(Text)
     expiry: Mapped[str | None] = mapped_column(Text)
