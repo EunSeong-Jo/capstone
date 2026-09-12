@@ -25,6 +25,7 @@ from app.db.session import get_db
 from app.models.product import Product
 from app.models.recommendation import Similarity
 from app.schemas.similarity import SimilarListOut, SimilarProductOut
+from app.services.skin_type import apply_exclusions, load_rule
 
 router = APIRouter(prefix="/api/v1/products", tags=["recommendations"])
 
@@ -51,9 +52,17 @@ async def list_similar(
         description="tfidf=IDF 가중 코사인(기본) · jaccard=단순 교집합 · rbo=표기 순서 반영",
     ),
     limit: int = Query(10, ge=1, le=MAX_LIMIT),
+    skin_type: str | None = Query(
+        None, alias="skinType",
+        description="피부타입 ID. 기피 성분이 든 대체품을 뺀다",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> SimilarListOut:
     """유사도 높은 순으로 최대 20개.
+
+    skinType을 주면 `skin_type_rules`의 exclude_tags에 걸리는 대체품을 뺀다.
+    성분이 비슷하다고 다 권할 수 있는 건 아니다 — 민감성 사용자에게
+    착향제가 든 제품을 대체품으로 내밀면 유사도가 높을수록 더 나쁘다.
 
     캐싱을 붙이지 않았다. `core/cache.py`의 버전 키 방식을 쓰려면 배치
     실행과 무효화 시점을 맞춰야 하는데, 지금은 데이터가 부분 적재라
@@ -64,7 +73,8 @@ async def list_similar(
     if exists is None:
         raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
 
-    rows = await db.execute(
+    rule = await load_rule(db, skin_type)
+    stmt = (
         select(Similarity.score, Similarity.shared_ingredients, Product)
         .join(Product, Product.id == Similarity.similar_id)
         .where(
@@ -79,6 +89,7 @@ async def list_similar(
         .order_by(Similarity.score.desc(), Product.id)
         .limit(limit)
     )
+    rows = await db.execute(apply_exclusions(stmt, rule))
 
     items = [
         SimilarProductOut(

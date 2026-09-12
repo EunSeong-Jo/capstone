@@ -305,7 +305,21 @@ is_active(bool = true) · updated_at
 
 **`injeolmi`의 캐릭터 정의를 '탄력 저하, 주름'으로 맞췄습니다.** PR #36이 임상명 '탄력저하'를 여기 넣었는데 기존 캐릭터 정의는 '건성·탄력 양호'라 뜻이 반대였습니다. 태그를 따라가는 쪽으로 정리했고, `docs/dev_guidelines.md` §2.4와 프론트 문구(`frontend/src/data/skinTypes.ts`)도 함께 고쳤습니다.
 
-**아직 추천이 이 규칙을 읽지 않습니다.** `app/services/rag.py`가 태그를 태우는 것은 Task 14입니다. 지금은 데이터만 채워져 있습니다.
+**조회가 이 규칙을 읽습니다.** [`app/services/skin_type.py`](../backend/app/services/skin_type.py)가 규칙을 SQL 조건으로 번역하고, 세 곳이 씁니다.
+
+| 엔드포인트 | 하는 일 |
+|---|---|
+| `GET /products?skinType=` | `exclude_tags` 성분이 든 제품을 뺀다. `sort=skinFit`이면 `include_tags` 성분 수로 정렬 |
+| `GET /products/search?skinType=` | 같은 필터. 목록만 걸러지면 검색으로 우회된다 |
+| `GET /products/{id}/similar?skinType=` | 기피 성분이 든 대체품을 뺀다 |
+
+챗봇(`app/services/rag.py`)도 진단된 타입을 받으면 같은 필터를 겁니다 — 검색 결과가 없을 때의 폴백에도 겁니다. "추천할 게 없다"며 내놓는 제품이 정작 사용자가 피해야 할 것이면 안 되기 때문입니다.
+
+실측 효과 — 단일제품 2,489건 중 민감성(`yuriguseul`) 기준으로 **1,390건(55.8%)**이 남습니다. 향수·애프터쉐이브만 대체품이던 제품은 민감성 기준에서 대체품이 0건이 됩니다.
+
+**모르는 타입에는 404를 내지 않습니다.** 진단 결과가 바뀌거나 규칙을 잠시 꺼 둔 사이에 화면이 통째로 비는 편이 더 나쁘므로, 필터 없이 전체를 냅니다.
+
+**제외는 `EXISTS` 서브쿼리로 겁니다.** `JOIN` + `DISTINCT`로 짜면 기피 성분이 여러 개 걸리는 제품이 중복 행으로 나와 페이지네이션의 `total`이 부풀어 오릅니다.
 
 ---
 

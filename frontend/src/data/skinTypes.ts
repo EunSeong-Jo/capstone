@@ -50,7 +50,7 @@ export const skinTypes: SkinType[] = [
     theme: { accent: '#7C6BB0', deep: '#5E5090', border: '#D6CEEA', titleShadow: 'rgba(94,80,144,0.26)', cardText: '#3A3357' },
   },
   {
-    id: 'ongdalsaem', label: '수분팡팡옹달샘', short: '옹달샘', image: ongdalsaem, bg: bgOngdalsaem,
+    id: 'ondalsam', label: '수분팡팡옹달샘', short: '옹달샘', image: ongdalsaem, bg: bgOngdalsaem,
     description: '맑고 투명한 피부, 속에서부터 수분이 퐁퐁 솟아나요!',
     theme: { accent: '#2F9BD6', deep: '#2178AC', border: '#C4E1F2', titleShadow: 'rgba(33,120,172,0.26)', cardText: '#204A63' },
   },
@@ -149,7 +149,7 @@ export const RESULT_DETAILS: Record<string, ResultDetail> = {
       ing('Allantoin', '진정', '각질 관리로 예민해진 피부를 달래줘요.'),
     ],
   },
-  ongdalsaem: {
+  ondalsam: {
     badge: '수분팡팡 옹달샘 타입',
     taglineLead: '속부터 차오르는 맑은 피부!',
     taglineRest: '이 수분감을 오래 지킬 ',
