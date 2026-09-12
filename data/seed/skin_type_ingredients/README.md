@@ -83,12 +83,20 @@ python scripts/seed_skin_type_tags.py            # tags · ingredient_tags · sk
 **id는 이미 다른 성분을 가리킨다.** 키워드 재조회는 이 문제가 없고, 성분이
 바뀔 때마다 재실행으로 따라간다.
 
-### 함께 쓰는 파일 2개
+### 함께 쓰는 파일 4개
 
 | 파일 | 내용 |
 |---|---|
-| `tag_map.csv` | 피부타입 → `tags.code` · `tags.label` · 캐릭터 ID |
+| `tag_map.csv` | 피부타입 → 추천 `tags.code` · `tags.label` · 캐릭터 ID |
 | `criteria_overrides.csv` | 협회 표준명과 철자가 다른 키워드 7개 교정 |
+| `exclusion_criteria.csv` | 기피 태그 3종 정의 — 매칭 성분과 출처 |
+| `skin_type_exclusions.csv` | 피부타입 → 기피 태그 배정과 근거 |
+
+**기피 태그는 이름이 정확히 일치할 때만 붙입니다.** 추천 태그처럼 부분 일치로
+찾으면 `'알코올'`이 세틸알코올·세테아릴알코올까지 잡는데, 그건 휘발성 알코올이
+아니라 보습제다. 근거가 가장 단단한 것은 `allergen_fragrance`로, 식약처가
+표시를 의무화한 착향제 26종이다 — 그중 협회 사전에 있고 제품에 실제 쓰이는
+23종이 붙는다.
 
 `criteria.csv`는 PR #36 원본 그대로 둔다. 교정은 별도 파일에 쌓아 원본과
 무엇이 달라졌는지 한눈에 보이게 한다.

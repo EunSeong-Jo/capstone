@@ -9,7 +9,9 @@
 입력
   data/seed/skin_type_ingredients/criteria.csv            정본 (PR #36 원본 그대로)
   data/seed/skin_type_ingredients/criteria_overrides.csv  키워드 철자 교정
-  data/seed/skin_type_ingredients/tag_map.csv             타입 → 태그 · 캐릭터 ID
+  data/seed/skin_type_ingredients/tag_map.csv             타입 → 추천 태그 · 캐릭터 ID
+  data/seed/skin_type_ingredients/exclusion_criteria.csv  기피 태그 정의 (출처 포함)
+  data/seed/skin_type_ingredients/skin_type_exclusions.csv 타입 → 기피 태그
 
 왜 타입별 CSV를 읽지 않는가
 ---------------------------
@@ -49,6 +51,8 @@ SEED = REPO / "data/seed/skin_type_ingredients"
 CRITERIA_CSV = SEED / "criteria.csv"
 OVERRIDES_CSV = SEED / "criteria_overrides.csv"
 TAG_MAP_CSV = SEED / "tag_map.csv"
+EXCLUSION_CSV = SEED / "exclusion_criteria.csv"
+TYPE_EXCLUSION_CSV = SEED / "skin_type_exclusions.csv"
 
 
 def bump_cache_version() -> None:
@@ -70,6 +74,48 @@ def bump_cache_version() -> None:
 def read_tag_map() -> list[dict]:
     with open(TAG_MAP_CSV, newline="", encoding="utf-8-sig") as f:
         return list(csv.DictReader(f))
+
+
+def read_exclusions() -> tuple[list[dict], dict[str, list[str]]]:
+    """기피 태그 정의와 타입별 배정.
+
+    추천 태그(criteria.csv)와 달리 **이름이 정확히 일치할 때만** 붙인다.
+    부분 일치로 '알코올'을 찾으면 세틸알코올·세테아릴알코올 같은
+    고급지방알코올까지 걸리는데, 그건 오히려 보습제다.
+    """
+    with open(EXCLUSION_CSV, newline="", encoding="utf-8-sig") as f:
+        defs = list(csv.DictReader(f))
+    by_type: dict[str, list[str]] = defaultdict(list)
+    with open(TYPE_EXCLUSION_CSV, newline="", encoding="utf-8-sig") as f:
+        for r in csv.DictReader(f):
+            by_type[r["skin_type_id"].strip()].append(r["tag_code"].strip())
+    known = {d["tag_code"] for d in defs}
+    for stype, codes in by_type.items():
+        for c in codes:
+            if c not in known:
+                sys.exit(f"skin_type_exclusions.csv의 '{c}'가 exclusion_criteria.csv에 없습니다")
+    return defs, dict(by_type)
+
+
+def collect_exclusions(cur, defs: list[dict]) -> tuple[dict[str, set[int]], list[str]]:
+    """태그 코드 → 성분 id. 추천 태그와 같은 범위(단일제품 사용분)만 본다."""
+    by_tag: dict[str, set[int]] = {}
+    missing: list[str] = []
+    for d in defs:
+        names = [n.strip().lower() for n in d["매칭 성분"].split(",") if n.strip()]
+        cur.execute(
+            """SELECT DISTINCT i.id, i.norm_name
+                 FROM ingredients i
+                 JOIN product_ingredients pi ON pi.ingredient_id = i.id
+                 JOIN products p ON p.id = pi.product_id
+                WHERE p.composition = 'single' AND i.norm_name = ANY(%s)""",
+            (names,),
+        )
+        hits = cur.fetchall()
+        by_tag[d["tag_code"]] = {i for i, _ in hits}
+        found = {n for _, n in hits}
+        missing += [f"{d['tag_code']} / {n}" for n in names if n not in found]
+    return by_tag, missing
 
 
 def read_overrides() -> dict[str, str | None]:
@@ -164,7 +210,8 @@ def main() -> None:
     ap.add_argument("--dry-run", action="store_true", help="적재 없이 집계만 출력")
     args = ap.parse_args()
 
-    for path in (CRITERIA_CSV, OVERRIDES_CSV, TAG_MAP_CSV):
+    for path in (CRITERIA_CSV, OVERRIDES_CSV, TAG_MAP_CSV,
+                 EXCLUSION_CSV, TYPE_EXCLUSION_CSV):
         if not path.exists():
             sys.exit(f"CSV가 없습니다: {path}")
 
@@ -172,12 +219,26 @@ def main() -> None:
     conn = psycopg2.connect(settings.DATABASE_DSN)
     cur = conn.cursor()
 
+    exclusion_defs, exclude_of = read_exclusions()
     by_tag, empty, dropped, residue = collect(cur, tag_map)
+    excl_by_tag, excl_missing = collect_exclusions(cur, exclusion_defs)
+    by_tag.update(excl_by_tag)
 
-    print(f"{'tag':<18}{'피부타입':<10}{'성분':>6}")
+    print(f"{'tag':<20}{'피부타입':<10}{'성분':>6}")
     for row in tag_map:
         code = row["tag_code"]
-        print(f"{code:<18}{row['피부타입']:<10}{len(by_tag[code]):>6}")
+        print(f"{code:<20}{row['피부타입']:<10}{len(by_tag[code]):>6}")
+    print(f"\n{'기피 tag':<20}{'':<10}{'성분':>6}{'단일제품':>10}")
+    for d in exclusion_defs:
+        code = d["tag_code"]
+        ids = by_tag[code]
+        cur.execute(
+            """SELECT count(DISTINCT p.id) FROM products p
+                 JOIN product_ingredients pi ON pi.product_id = p.id
+                WHERE p.composition = 'single' AND pi.ingredient_id = ANY(%s)""",
+            (list(ids),),
+        )
+        print(f"{code:<20}{'':<10}{len(ids):>6}{cur.fetchone()[0]:>10}")
 
     per_ing: dict[int, set[str]] = defaultdict(set)
     for code, ids in by_tag.items():
@@ -200,6 +261,10 @@ def main() -> None:
         print(f"\n한 건도 못 잡은 키워드 {len(empty)}건 — 철자를 확인할 것")
         for e in empty:
             print(f"  {e}")
+    if excl_missing:
+        print(f"\n기피 성분 중 제품에 안 쓰이거나 이름이 다른 것 {len(excl_missing)}건")
+        for m in excl_missing:
+            print(f"  {m}")
 
     if args.dry_run:
         print("\n--dry-run — 적재하지 않았습니다")
@@ -210,12 +275,11 @@ def main() -> None:
         cur,
         """INSERT INTO tags (code, label) VALUES %s
            ON CONFLICT (code) DO UPDATE SET label = EXCLUDED.label""",
-        [(r["tag_code"], r["tag_label"]) for r in tag_map],
+        [(r["tag_code"], r["tag_label"]) for r in tag_map]
+        + [(d["tag_code"], d["tag_label"]) for d in exclusion_defs],
     )
-    cur.execute(
-        "SELECT code, id FROM tags WHERE code = ANY(%s)",
-        ([r["tag_code"] for r in tag_map],),
-    )
+    all_codes = [r["tag_code"] for r in tag_map] + [d["tag_code"] for d in exclusion_defs]
+    cur.execute("SELECT code, id FROM tags WHERE code = ANY(%s)", (all_codes,))
     tag_id = dict(cur.fetchall())
 
     # 업서트가 아니라 지우고 다시 넣는다. 키워드에서 빠진 성분이 남으면
@@ -237,14 +301,32 @@ def main() -> None:
               SET include_tags = EXCLUDED.include_tags,
                   exclude_tags = EXCLUDED.exclude_tags,
                   updated_at   = now()""",
-        # exclude_tags가 빈 배열인 것은 기피 성분 근거가 아직 없기 때문이다.
-        # ingredients.is_allergen도 큐레이션 0건이다. JSONB라 운영 중 고칠 수 있다.
-        [(r["skin_type_id"], json.dumps([r["tag_code"]]), "[]") for r in tag_map],
+        # 배정 근거는 skin_type_exclusions.csv의 `근거` 컬럼에 적어 둔다.
+        # 기피 태그가 없는 타입은 빈 배열이다 — 지성처럼 알코올이 오히려
+        # 선호되는 경우가 있어 일괄 적용하지 않는다.
+        [
+            (
+                r["skin_type_id"],
+                json.dumps([r["tag_code"]], ensure_ascii=False),
+                json.dumps(exclude_of.get(r["skin_type_id"], []), ensure_ascii=False),
+            )
+            for r in tag_map
+        ],
     )
+
+    # 알레르기 유발 착향제는 ingredients.is_allergen에도 표시한다. 성분 단위
+    # 질의(상세 화면의 '알레르기 주의' 배지 등)가 태그 조인 없이 쓰도록.
+    allergen_ids = list(by_tag.get("allergen_fragrance", ()))
+    cur.execute("UPDATE ingredients SET is_allergen = false WHERE is_allergen")
+    if allergen_ids:
+        cur.execute(
+            "UPDATE ingredients SET is_allergen = true WHERE id = ANY(%s)", (allergen_ids,)
+        )
     conn.commit()
 
     print(f"\n적재 완료 — ingredient_tags {links:,}행 (이전 {removed:,}행 교체)")
-    print(f"           skin_type_rules {len(tag_map)}행 · tags {len(tag_map)}행")
+    print(f"           skin_type_rules {len(tag_map)}행 · tags {len(all_codes)}행")
+    print(f"           is_allergen 표시 {len(allergen_ids)}종")
     conn.close()
     bump_cache_version()
 

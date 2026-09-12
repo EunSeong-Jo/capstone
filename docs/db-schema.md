@@ -205,7 +205,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `parent_id` 자기참조로 2단계를 담을 수 있지만 지금은 1단계만 씁니다. 스킨케어 소분류(토너·세럼·크림)가 붙을 자리입니다.
 
-### `tags` — 8행 · `ingredient_tags` — 461행
+### `tags` — 11행 · `ingredient_tags` — 489행
 
 효능 태그 마스터와 성분 ↔ 태그 조인.
 
@@ -226,6 +226,16 @@ ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 | `deep_moisture` | 보습막 형성 | 건성 | 66 |
 | `anti_wrinkle` | 주름·탄력 | 탄력저하 | 166 |
 | `antioxidant` | 항산화 | 건강한 피부 | 20 |
+
+**기피 태그 3종**은 성격이 다릅니다. 추천 태그가 `criteria.csv`의 키워드를 **부분 일치**로 찾는 것과 달리, 이쪽은 **이름이 정확히 일치할 때만** 붙입니다 — `'알코올'`을 부분 일치로 찾으면 세틸알코올·세테아릴알코올 같은 고급지방알코올까지 걸리는데 그건 오히려 보습제입니다. 정의와 출처는 [`exclusion_criteria.csv`](../data/seed/skin_type_ingredients/exclusion_criteria.csv)에 있습니다.
+
+| `code` | `label` | 성분 | 해당 단일제품 | 출처 |
+|---|---|---:|---:|---|
+| `allergen_fragrance` | 알레르기 유발 착향제 | 23 | 542 | 식약처 고시 착향제 26종 (그중 사전에 있고 제품에 쓰이는 23종) |
+| `fragrance` | 향료 | 2 | 777 | `향료`·`조합향료` — 성분을 특정할 수 없는 혼합 착향제 |
+| `drying_alcohol` | 건조 유발 알코올 | 3 | 265 | `변성알코올`·`에탄올`·`알코올` |
+
+`allergen_fragrance`에 해당하는 성분은 `ingredients.is_allergen`에도 `true`로 표시합니다. 성분 단위 질의(상세 화면의 알레르기 주의 표시 등)가 태그 조인 없이 쓰도록 하기 위해서입니다.
 
 **태그를 타입 ID(`subuji`·`hwasan`)가 아니라 효능명으로 둔 이유**는 `skin_type_rules.include_tags = ['subuji']`가 되면 태그 층이 동어반복이 되기 때문입니다. 효능명이면 나중에 태그를 쪼개거나 축을 더해도 타입 정의를 건드리지 않습니다.
 
@@ -282,7 +292,16 @@ is_active(bool = true) · updated_at
 
 **타입당 태그 1개로 시작합니다.** `수부지 = moisture_balance + sebum_control`처럼 그럴듯한 조합을 만들 수는 있지만 근거가 `criteria.csv`에 없습니다. 추론으로 넣으면 나중에 왜 그런지 설명할 수 없으므로, 1:1로 두고 Task 14에서 실물 추천 결과를 보며 넓힙니다.
 
-**`exclude_tags`는 전부 빈 배열입니다.** 기피 성분 근거가 아직 없습니다 — `ingredients.is_allergen`도 큐레이션 0건입니다. JSONB라 재배포 없이 채울 수 있습니다.
+**`exclude_tags`는 4개 타입에만 붙습니다.** 배정 근거는 [`skin_type_exclusions.csv`](../data/seed/skin_type_ingredients/skin_type_exclusions.csv)의 `근거` 컬럼에 한 줄씩 적혀 있습니다. 나머지 4타입은 빈 배열입니다 — 지성(물개)처럼 휘발성 알코올이 오히려 선호되는 경우가 있어 일괄 적용하지 않았습니다.
+
+| `skin_type` | `exclude_tags` |
+|---|---|
+| `yuriguseul` (민감성) | `allergen_fragrance` · `fragrance` · `drying_alcohol` |
+| `hwasan` (트러블) | `allergen_fragrance` · `fragrance` |
+| `samak` (건성) | `drying_alcohol` |
+| `subuji` (수부지) | `drying_alcohol` |
+
+민감성 기준으로 세 태그를 하나도 갖지 않는 단일제품이 **1,390 / 2,489건(55.8%)**이라 필터로 쓸 만한 규모입니다.
 
 **`injeolmi`의 캐릭터 정의를 '탄력 저하, 주름'으로 맞췄습니다.** PR #36이 임상명 '탄력저하'를 여기 넣었는데 기존 캐릭터 정의는 '건성·탄력 양호'라 뜻이 반대였습니다. 태그를 따라가는 쪽으로 정리했고, `docs/dev_guidelines.md` §2.4와 프론트 문구(`frontend/src/data/skinTypes.ts`)도 함께 고쳤습니다.
 
