@@ -2,11 +2,18 @@ import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import SplashScreen from './components/SplashScreen'
 import OnboardingFlow from './components/onboarding/OnboardingFlow'
+import MainScreen from './components/MainScreen'
 
 type Stage = 'splash' | 'onboarding' | 'main'
 
 function App() {
   const [stage, setStage] = useState<Stage>('splash')
+  const [skinTypeId, setSkinTypeId] = useState<string>('yuriguseul')
+
+  const handleOnboardingComplete = (selectedTypeId: string) => {
+    setSkinTypeId(selectedTypeId)
+    setStage('main')
+  }
 
   return (
     <div className="device-frame">
@@ -15,14 +22,10 @@ function App() {
           <SplashScreen key="splash" onComplete={() => setStage('onboarding')} />
         )}
         {stage === 'onboarding' && (
-          <OnboardingFlow key="onboarding" onComplete={() => setStage('main')} />
+          <OnboardingFlow key="onboarding" onComplete={handleOnboardingComplete} />
         )}
       </AnimatePresence>
-      {stage === 'main' && (
-        <div className="flex h-full w-full items-center justify-center bg-white">
-          <p className="text-swappy-green">메인 화면 (연결 예정)</p>
-        </div>
-      )}
+      {stage === 'main' && <MainScreen skinTypeId={skinTypeId} />}
     </div>
   )
 }

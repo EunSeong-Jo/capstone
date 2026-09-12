@@ -14,7 +14,7 @@ export const SKIN_TYPE_META: Record<SkinType, { label: string; emoji: string; su
   subuji:      { label: '겉바속촉 수부지', emoji: '🌊', summary: '속건조 + 겉번들' },
   hwasan:      { label: '울긋불긋 화산',   emoji: '🌋', summary: '트러블·홍조·염증' },
   samak:       { label: '바스락 사막',     emoji: '🏜️', summary: '극건성, 당김' },
-  injeolmi:    { label: '말랑말랑 인절미', emoji: '🍡', summary: '건성·탄력 양호' },
+  injeolmi:    { label: '말랑말랑 인절미', emoji: '🍡', summary: '건성·탄력 저하, 주름' },
   yuriguseul:  { label: '조심조심 유리구슬', emoji: '🫧', summary: '민감성, 자극 반응' },
   memilmuk:    { label: '얼룩덜룩 메밀묵', emoji: '🌑', summary: '색소침착·잡티' },
 };
@@ -44,8 +44,13 @@ export type IngredientGrade = 'key' | 'normal' | 'warn'; // 주요 / 일반 / �
 export interface Ingredient {
   id: number;
   name: string; // '히알루론산'
-  grade: IngredientGrade;
-  ewg?: number; // EWG 등급(선택)
+  /**
+   * 성분 등급. 아직 큐레이션 전이라 API가 주지 않습니다.
+   * DB(ingredients.grade)가 전부 NULL이며, 상위 200종이 전체 출현의
+   * 58%를 덮으므로 그 범위부터 채울 예정입니다.
+   */
+  grade?: IngredientGrade;
+  ewg?: number; // EWG 등급(선택). grade와 같은 이유로 아직 비어 있습니다
   /** 피부타입별 궁합 (good=잘 맞음, caution=주의) */
   skinAffinity?: Partial<Record<SkinType, 'good' | 'caution'>>;
 }
@@ -89,6 +94,8 @@ export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 export interface WeatherInfo {
   condition: WeatherCondition;
   conditionLabel: string; // "Sunny"
+  /** OpenWeatherMap 아이콘 코드 (예: "01d"). https://openweathermap.org/img/wn/{icon}@2x.png */
+  icon: string;
   temperature: number; // 25
   season: Season;
   seasonLabel: string; // "초여름"

@@ -10,46 +10,27 @@ from psycopg2.extras import execute_values
 
 logger = logging.getLogger(__name__)
 
-CREATE_TABLES_SQL = """
-CREATE TABLE IF NOT EXISTS products (
-    id              SERIAL PRIMARY KEY,
-    product_name    TEXT NOT NULL,
-    brand           TEXT,
-    category        TEXT,
-    price           INTEGER,
-    rating          NUMERIC(3,1),
-    review_count    INTEGER,
-    product_url     TEXT,
-    report_no       TEXT,
-    source          TEXT NOT NULL,
-    created_at      TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE (product_name, brand, source)
-);
-
-CREATE TABLE IF NOT EXISTS product_ingredients (
-    id              SERIAL PRIMARY KEY,
-    product_id      INTEGER REFERENCES products(id) ON DELETE CASCADE,
-    ingredient_name TEXT NOT NULL,
-    position        INTEGER,
-    normalized_name TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_products_source ON products(source);
-CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
-CREATE INDEX IF NOT EXISTS idx_ingredients_name ON product_ingredients(ingredient_name);
-"""
-
-
 def get_connection(db_url: str):
     """psycopg2 연결 반환. db_url 예: postgresql://user:pw@host:5432/db"""
     return psycopg2.connect(db_url)
 
 
 def init_tables(conn) -> None:
-    with conn.cursor() as cur:
-        cur.execute(CREATE_TABLES_SQL)
-    conn.commit()
-    logger.info("테이블 초기화 완료")
+    """더 이상 여기서 테이블을 만들지 않는다.
+
+    스키마의 단일 원본은 SQLAlchemy 모델(app/models/)이며,
+    실제 생성은 Alembic이 담당한다:
+
+        cd backend && alembic upgrade head
+
+    이전에는 이 모듈의 CREATE_TABLES_SQL 문자열이 유일한 스키마 정의였는데,
+    그 구조(products.product_name, 성분을 문자열로 저장)는 현재 모델과
+    호환되지 않는다. 남겨두면 어느 쪽이 진짜인지 모호해지므로 제거했다.
+    """
+    logger.warning(
+        "init_tables()는 더 이상 테이블을 생성하지 않습니다. "
+        "스키마는 `alembic upgrade head`로 관리하세요."
+    )
 
 
 def _parse_price(price_str: str) -> int | None:

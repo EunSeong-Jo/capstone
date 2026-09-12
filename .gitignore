@@ -23,6 +23,7 @@
 # 환경 변수
 # ───────────────────────────────
 .env
+".env copy.example"
 .env.local
 .env.*.local
 
@@ -31,6 +32,7 @@
 # ───────────────────────────────
 node_modules/
 frontend/node_modules/
+frontend_flash_demo/node_modules/
 
 # ───────────────────────────────
 # 로그
@@ -61,6 +63,11 @@ Thumbs.db
 *:Zone.Identifier
 
 # ───────────────────────────────
+# 로컬 DB (SQLite 테스트 DB)
+# ───────────────────────────────
+backend/data/
+
+# ───────────────────────────────
 # Python
 # ───────────────────────────────
 __pycache__/
@@ -89,3 +96,33 @@ htmlcov/
 # ───────────────────────────────
 *.tsbuildinfo
 
+# ───────────────────────────────
+# OCR 벤치마크 (사진/라벨/결과물은 개인 테스트 데이터)
+# ───────────────────────────────
+scripts/ocr_benchmark/images/*
+!scripts/ocr_benchmark/images/.gitkeep
+scripts/ocr_benchmark/output/*
+!scripts/ocr_benchmark/output/.gitkeep
+scripts/ocr_benchmark/test/*
+!scripts/ocr_benchmark/test/.gitkeep
+scripts/ocr_benchmark/labels.csv
+
+
+# ───────────────────────────────
+# 크롤러 작업 폴더 (팀원 로컬 작업 공간)
+# 수집 결과는 data/raw/ 에 커밋한다
+# ───────────────────────────────
+crawling/
+
+# ───────────────────────────────
+# 로컬 도구 상태 (커밋 대상 아님)
+# .neon            — Neon CLI(npx) 초기화 마커
+# skills-lock.json — Claude Code 스킬 핀. 개발자마다 다르다
+# ───────────────────────────────
+.neon
+skills-lock.json
+
+# ───────────────────────────────
+# 로컬에서 받은 설치 스크립트 (프로젝트 코드 아님)
+# ───────────────────────────────
+get-docker.sh
