@@ -144,6 +144,7 @@ capstone/
 │   ├── init_db.sh            # PostgreSQL 확장 설치 (Docker 전용)
 │   ├── seed_ingredients.py   # 성분사전 → DB
 │   ├── load_products.py      # v5 정제본 → DB (멱등, 보정 단계 없음)
+│   ├── seed_skin_type_tags.py # 피부타입 성분 태그 → DB (멱등)
 │   ├── compute_similarities.py # 단일제품 유사도 계산 (멱등)
 │   ├── report_parse_residue.py # 파싱 잔해 보고서 (읽기 전용)
 │   ├── find_typo_aliases.py  # 판매자 오타 → 표준명 후보 (읽기 전용)
@@ -171,7 +172,7 @@ capstone/
 
 | 영역 | 상태 |
 |---|---|
-| **DB** | 테이블 18개 · 제품 **4,102** / 성분 **23,521** / 연결 **167,262** · 표준사전 매칭률 98.0% |
+| **DB** | 테이블 18개 · 제품 **4,013** / 성분 **23,521** / 연결 **163,125** · 표준사전 매칭률 98.0% |
 | **데이터 수집** | 올리브영 크롤러 + 협회 성분사전(21,910) 완료. 적재 파이프라인 멱등 |
 | **프론트엔드** | 라우트 31개 · 페이지 15개. **단, API 호출 0건 — 전부 `src/mocks/` 목업** |
 | **백엔드 API** | **엔드포인트 2개뿐** — `POST /api/v1/chat`, `GET /health` |
@@ -179,7 +180,7 @@ capstone/
 | **인증·진단·추천** | 각 도메인 DB 스키마만 준비 |
 | **테스트** | 저장소 전체에 테스트 코드 0건 |
 
-**화면과 데이터가 각각 완성돼 가는데 둘을 잇는 API 층이 비어 있습니다.** 지금 데모를 돌리면 DB에 4,102개 제품이 있어도 화면 15개 중 13개에는 목업이 나옵니다.
+**화면과 데이터가 각각 완성돼 가는데 둘을 잇는 API 층이 비어 있습니다.** 지금 데모를 돌리면 DB에 4,013개 제품이 있어도 화면 15개 중 13개에는 목업이 나옵니다.
 
 ### 태스크
 
@@ -230,7 +231,7 @@ capstone/
 # 팀원 로컬 세팅 — .env에 DATABASE_DSN을 넣은 뒤
 cd backend && alembic upgrade head   # 테이블 18개 + pg_trgm
 python scripts/seed_ingredients.py   # 성분사전 21,910 + 별칭 3,967
-python scripts/load_products.py      # v5 정제본 → 제품 4,102 (멱등)
+python scripts/load_products.py      # v5 정제본 → 제품 4,013 (멱등)
 ```
 
 DSN은 커밋하지 않습니다. Neon 조직 `dmu` 초대로 각자 콘솔에서 확인합니다.

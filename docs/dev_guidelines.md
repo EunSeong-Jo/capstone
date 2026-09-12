@@ -367,7 +367,7 @@ Base URL: `http://localhost:8000` (P0) / `https://api.swappy.com` (P1)
 ### 7.1 제품 · 성분 (데이터 있음)
 
 ```sql
-products              -- 4,102행
+products              -- 4,013행
   id, goods_no(UQ), name,
   brand_id(FK → brands), category_id(FK → categories),
   price, list_price, discount_rate, rating, review_count,
@@ -380,7 +380,7 @@ ingredients           -- 23,521행 (대한화장품협회 표준화명칭목록 
   id, norm_name(UQ), name_ko, name_en, code,
   ewg_grade, grade, is_allergen        -- 앞 셋은 아직 비어 있음
 
-product_ingredients   -- 167,262행 · (product_id, ingredient_id) 복합 PK
+product_ingredients   -- 163,125행 · (product_id, ingredient_id) 복합 PK
   product_id, ingredient_id, position, raw_name
 
 brands                -- 511행 : id, name(UQ)

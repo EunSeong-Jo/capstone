@@ -72,6 +72,20 @@ DEFAULT_CSV = REPO / "data/raw/oliveyoung_products_v5.csv"
 # 적재한 뒤 지우는 것보다 순서 의존이 없다.
 CATEGORY_FIX_CSV = REPO / "data/raw/oliveyoung_v5_category_fix.csv"
 
+# 카테고리가 교정돼 분류를 믿을 수 없는 제품. 판정이 '제외'인 행을 적재에서 뺀다.
+#
+# v5를 적재 기준으로 쓰는 것과 v5의 카테고리를 신뢰하는 것은 별개다. 전성분·
+# 상품명·내용량은 규칙이 분명한 정제라 재현 가능하지만, 카테고리는 사람의
+# 판단이 들어간 재분류다 — 154건이 바뀌었는데 교정 로그에 사유가 적힌 것은
+# 38건뿐이라 나머지를 검증할 방법이 없다. 잘못된 카테고리는 '선케어의
+# 대체품이 클렌징'이 되는 결과로 이어진다.
+#
+# 구 CSV와 v5를 대조해 한 번 만든 목록이다. 매번 다시 대조하지 않는 이유는
+# 어떤 제품이 왜 빠지는지가 저장소에 남아야 하기 때문이다 — 나중에 '패드류
+# 34건은 교정이 맞다'고 판단하면 그 행의 판정만 바꾸면 된다.
+# ingredient_typo_fixes.csv와 같은 방식이다.
+DISTRUST_CSV = REPO / "data/seed/category_distrusted.csv"
+
 # 'N종 택1' 기획세트는 호수별 전성분을 한 셀에 이어 붙여 최대 1,978개까지 나온다.
 # 이런 행은 '모든 성분을 가진 제품'이 되어 무엇과도 유사해지므로 유사도 계산에서
 # 걸러야 하는데, 그 판단은 적재가 아니라 유사도 배치(Task 3)의 몫으로 둔다.
@@ -282,6 +296,18 @@ def parse_volume(text: str | None) -> tuple[float | None, float | None]:
     return ml, g
 
 
+def distrusted_goods() -> set[str]:
+    """카테고리를 믿을 수 없어 적재하지 않는 제품의 goods_no."""
+    if not DISTRUST_CSV.exists():
+        return set()
+    with open(DISTRUST_CSV, newline="", encoding="utf-8-sig") as f:
+        return {
+            r["goods_no"].strip()
+            for r in csv.DictReader(f)
+            if (r.get("판정") or "").strip() == "제외"
+        }
+
+
 def category_overrides(rows: list[dict]) -> dict[str, str]:
     """goods_no → 교정 후 카테고리.
 
@@ -366,16 +392,22 @@ def main() -> None:
     fixed_cat = category_overrides(rows)
     if fixed_cat:
         print(f"카테고리 교정 로그 {len(fixed_cat):,}건 적용")
+    distrusted = distrusted_goods()
+    if distrusted:
+        print(f"카테고리를 믿을 수 없어 제외하는 제품 {len(distrusted):,}건")
 
     by_goods: dict[str, dict] = {}
     cats_seen: dict[str, set[str]] = {}
-    no_goods_no = excluded = 0
+    no_goods_no = excluded = distrust_skipped = 0
     for r in rows:
         m = _GOODS_NO.search(r.get("상품URL", "") or "")
         if not m:
             no_goods_no += 1
             continue
         goods_no = m.group(1)
+        if goods_no in distrusted:
+            distrust_skipped += 1
+            continue
         cat = fixed_cat.get(goods_no) or (r.get("카테고리") or "").strip()
         r["카테고리"] = cat
         if cat not in ALLOWED_CATEGORIES:
@@ -402,7 +434,7 @@ def main() -> None:
             resolved += 1
         row["카테고리"] = chosen
 
-    dup = len(rows) - len(by_goods) - no_goods_no - excluded
+    dup = len(rows) - len(by_goods) - no_goods_no - excluded - distrust_skipped
     print(f"고유 제품 {len(by_goods):,}건 "
           f"(중복 {dup:,} / URL없음 {no_goods_no} / 제외 카테고리 {excluded:,})")
     print(f"복수 카테고리 등재 {multi}건 — 제품명으로 결정 (소속 변경 {resolved}건)")
@@ -525,6 +557,14 @@ def main() -> None:
             updated_at = now()
     """, product_rows, page_size=500)
     conn.commit()
+
+    # 제외 대상이 예전 적재로 DB에 남아 있으면 지운다. upsert만으로는 기준이
+    # 바뀌어 빠진 제품이 영영 남는다. FK가 CASCADE라 연결·유사도도 정리된다.
+    if distrusted:
+        cur.execute("DELETE FROM products WHERE goods_no = ANY(%s)", (list(distrusted),))
+        if cur.rowcount:
+            print(f"  그중 {cur.rowcount:,}건은 예전 적재분이라 DB에서 제거했다")
+        conn.commit()
 
     cur.execute("SELECT goods_no, id FROM products")
     pid_of = dict(cur.fetchall())
