@@ -36,6 +36,10 @@ export interface Product {
   tags?: string[];
   /** 누적 구매 횟수 (자주 구매 목록에서 사용) */
   purchaseCount?: number;
+  /** 단가와 그 기준. 둘은 항상 함께 오거나 함께 없다. 기준은 서버 코드
+   *  (`sheet`·`ml10`·`g10`·`piece`)이고 문구는 lib/unitPrice.ts가 정한다. */
+  unitPrice?: number | null;
+  unitLabel?: string | null;
 }
 
 // ===== 성분 =====

@@ -199,3 +199,65 @@ async def test_detail_includes_notice_fields(client: AsyncClient) -> None:
 async def test_detail_not_found(client: AsyncClient) -> None:
     assert (await client.get(f"{LIST}/99999999")).status_code == 404
     assert (await client.get(f"{LIST}/0")).status_code == 422
+
+
+# ── 단가 ─────────────────────────────────────────────────────
+
+class TestUnitPrice:
+    """단가 표시·정렬 계약.
+
+    마스크팩에 '20매' 같은 대용량이 섞여 있어 총액만으로는 비교가 어긋난다 —
+    80,000원/20매(1매당 4,000원)가 3,000원/1매(1매당 3,000원)보다 27배 비싼
+    것처럼 정렬된다. 여기서 보는 것은 **단가가 실제로 값을 바꾸는가**다.
+    """
+
+    async def test_pair_is_all_or_nothing(self, client: AsyncClient):
+        """unitPrice와 unitLabel은 함께 오거나 함께 없다.
+
+        한쪽만 오면 화면이 'undefined당 3,000원'을 그리거나 단가를 통째로
+        떨어뜨린다. DB 생성 컬럼이 같은 식에서 나오므로 계약으로 못박는다.
+        """
+        for item in await _items(client, size=50):
+            assert (item.get("unitPrice") is None) == (item.get("unitLabel") is None)
+
+    async def test_label_is_known_code(self, client: AsyncClient):
+        """라벨은 화면이 문구로 옮길 수 있는 코드여야 한다."""
+        known = {"sheet", "ml10", "g10", "piece"}
+        for item in await _items(client, size=50):
+            if item.get("unitLabel") is not None:
+                assert item["unitLabel"] in known
+
+    async def test_sort_by_unit_price_is_ascending(self, client: AsyncClient):
+        items = await _items(client, size=30, sort="unitPriceAsc", category="마스크팩")
+        prices = [i["unitPrice"] for i in items]
+        assert prices == sorted(prices)
+
+    async def test_products_without_unit_price_go_last(self, client: AsyncClient):
+        """단가를 못 내는 제품이 '가장 싼 것'의 첫 자리에 서면 안 된다."""
+        assert all(i["unitPrice"] is not None for i in
+                   await _items(client, size=30, sort="unitPriceAsc"))
+
+    async def test_unit_price_sort_differs_from_price_sort(self, client: AsyncClient):
+        """단가순과 가격순이 같으면 이 기능이 아무 일도 안 한 것이다."""
+        by_price = [i["id"] for i in await _items(client, size=10, sort="priceAsc",
+                                                  category="마스크팩")]
+        by_unit = [i["id"] for i in await _items(client, size=10, sort="unitPriceAsc",
+                                                 category="마스크팩")]
+        assert by_price != by_unit
+
+    async def test_multi_sheet_product_uses_sheet_unit(self, client: AsyncClient):
+        """매수가 있으면 매수가 이긴다 — 사용자가 소비하는 단위가 '한 장'이다."""
+        items = await _items(client, size=100, sort="unitPriceAsc", category="마스크팩")
+        sheets = [i for i in items if i["unitLabel"] == "sheet"]
+        assert sheets, "마스크팩 상위에 1매당 단가 제품이 하나도 없다"
+        for i in sheets:
+            # 1매당 단가는 총액을 넘을 수 없다(매수가 1 이상이므로).
+            assert i["unitPrice"] <= i["price"] + 0.01
+
+    async def test_similar_also_carries_unit_price(self, client: AsyncClient):
+        """대체품 카드도 같은 값을 쓴다. 목록만 붙이면 화면마다 기준이 달라진다."""
+        seed = (await _items(client, size=1, category="마스크팩"))[0]["id"]
+        res = await client.get(f"{LIST}/{seed}/similar", params={"limit": 5})
+        assert res.status_code == 200
+        for item in res.json()["items"]:
+            assert (item.get("unitPrice") is None) == (item.get("unitLabel") is None)

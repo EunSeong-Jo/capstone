@@ -101,6 +101,10 @@ erDiagram
 | | `volume` | text | NULL | 상품정보제공고시 원문 |
 | | `volume_ml` | numeric(10,2) | NULL | 총 내용량(부피) · 3,148건 |
 | | `volume_uncertain` | bool | NOT NULL | `= false` · 총량을 믿을 수 없는 제품 · 113건 |
+| | `unit_count` | int | NULL | 매수·개수 · 247건 |
+| | `unit_kind` | text | NULL | sheet(매·장) / piece(개) |
+| | `unit_price` | numeric(12,2) | NULL | **생성 컬럼** · 단가 |
+| | `unit_label` | text | NULL | **생성 컬럼** · sheet / ml10 / g10 / piece |
 | | `volume_g` | numeric(10,2) | NULL | 총 내용량(무게) · 752건 |
 | | `country` | text | NULL | 상품정보제공고시 |
 | | `manufacturer` | text | NULL | 최대 435자라 길이 제한 없음 |
@@ -124,6 +128,24 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 **`ingredient_count_raw`**는 원본 전성분을 파싱한 성분 개수(중복 포함)로, `product_ingredients` 행수와 다릅니다. 그쪽은 제품 내 중복을 한 번만 세기 때문입니다. **차이가 클수록 `N종 택1` 기획세트일 가능성이 높습니다** — 최대 사례가 원본 1,978개 → 고유 141개입니다.
 
 **`volume_ml` · `volume_g`**는 총 내용량입니다. 원문인 `volume`과 달리 계산용이라 숫자로 담습니다. 부피와 무게는 직접 비교할 수 없어 컬럼을 나눴습니다 — 단가는 `price / volume_ml`처럼 바로 냅니다. 값은 v5의 `내용량_정리`에서 오고, `'+'`로 이어진 구성품별 수량을 단위끼리 합산합니다(`'2ml + 28g'` → ml 2 · g 28, 50건). `'70매'`짜리 시트마스크처럼 ml·g 표기가 없는 제품은 둘 다 NULL이며 대부분 마스크팩입니다.
+
+**단가(`unit_price`)는 총액 비교가 어긋나는 것을 막습니다.** 마스크팩에 `20매` 같은 대용량이 섞여 있어, 총액만 보면 80,000원/20매가 3,000원/1매보다 27배 비싼 것처럼 정렬됩니다. 실제로는 1매당 4,000원 대 3,000원이고, **1매당 단가는 대용량이 오히려 절반**입니다(중앙값 1,500원 대 3,000원). 그래서 "1매 제품만 노출"이 아니라 단가를 답으로 택했습니다 — 그렇게 걸렀으면 마스크팩이 575 → 148건으로 무너지고 사용자에게 가장 비싼 선택지만 남습니다.
+
+기준은 `1매당 > 10ml당 > 10g당 > 1개당` 순으로 고릅니다. **매수가 있으면 매수가 이깁니다** — 사용자가 실제로 소비하는 단위가 "한 장"이라서입니다. `sheet`(매·장)와 `piece`(개)를 나누는 것이 이 우선순위를 카테고리 하드코딩 없이 결정합니다. `325ml (2개)` 토너의 "1개당"은 비교에 쓸모가 없지만 `10매` 마스크팩의 "1매당"은 쓸모가 있습니다.
+
+| 기준 | `unit_label` | 단일제품 | 중앙값 |
+|---|---|---:|---:|
+| 1매당 | `sheet` | 240 | 1,500원 |
+| 10ml당 | `ml10` | 1,852 | 2,000원 |
+| 10g당 | `g10` | 379 | 2,083원 |
+| 1개당 | `piece` | 7 | 2,225원 |
+| 없음 | NULL | 11 | — |
+
+**`10` 단위를 쓰는 이유**: `1ml당`이면 대부분 100~300원대가 되어 카드에서 읽히지 않습니다. 10 단위면 중앙값이 2,000원으로 총액과 자릿수가 비슷해집니다.
+
+**생성 컬럼(`GENERATED ALWAYS AS ... STORED`)으로 둔 이유**: 가격·내용량이 바뀌면 자동으로 따라가 어긋날 수 없고, 정렬에 쓸 인덱스를 걸 수 있습니다. 식은 마이그레이션 `b8c9d0e1f2a3`에 있습니다.
+
+**ml과 g가 둘 다 있으면 단가를 내지 않습니다.** 어느 쪽이 본품인지 알 수 없습니다 — `'15ml + 6g'`는 본품이 6g 크림이고 `'2ml + 116g'`는 본품이 116g 겔마스크라, "큰 쪽"이라는 규칙도 통하지 않습니다. 단일제품 4건이라 영향이 작고, 이 제품들은 `piece`로 떨어집니다.
 
 **`volume_uncertain`이 true인 113건은 숫자가 있어도 믿으면 안 됩니다.** v5 정제 작업자가 총량을 하나로 말할 수 없다고 표시한 제품입니다 — `'각 옵션별 용량이 다름'`이거나, `'409ml (6개) + 210매'`처럼 본품과 동봉품의 단위가 섞여 있습니다. 파서는 그중 103건에서 숫자를 뽑아내므로, 단가(`price / volume_ml`)를 낼 때는 이 제품을 빼야 합니다.
 
@@ -391,6 +413,7 @@ refresh_tokens : id(PK, uuid = gen_random_uuid()) · user_id(FK) · token_hash
 | `idx_products_brand` | products | `btree (brand_id)` | 브랜드 필터 |
 | `idx_products_category` | products | `btree (category_id)` | 카테고리 필터 |
 | `idx_products_price` | products | `btree (price)` | 가격 정렬·범위 |
+| `idx_products_unit_price` | products | `btree (unit_price)` | 단가 정렬 |
 | `idx_products_status` | products | `btree (status)` | 품절 제외 |
 | `idx_product_ingredients_ingredient` | product_ingredients | `btree (ingredient_id)` | 성분 → 제품 역방향 |
 | `idx_ingredients_code` | ingredients | `btree (code)` | 사전 갱신 대조 |

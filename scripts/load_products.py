@@ -276,15 +276,27 @@ def _head_amount(text: str) -> tuple[float | None, float | None]:
     return None, n * 1000  # kg
 
 
-def parse_volume(text: str | None) -> tuple[float | None, float | None]:
+# 낱개 기준으로 적은 표기. '1매 기준 0.1g'은 총량이 아니라 한 장 값이다.
+# 총 매수가 상품명에만 있어(6매) 곱할 수가 없으므로 총량을 비운다 —
+# 그대로 두면 6매 마스크의 단가가 10g당 792만원이 된다.
+_PER_UNIT = re.compile(r"\d[\d,]*\s*(?:매|장|개|입|ea)\s*기준", re.I)
+
+
+def parse_volume(
+    text: str | None, raw_volume: str | None = None
+) -> tuple[float | None, float | None]:
     """총 내용량 (volume_ml, volume_g). 부피와 무게는 섞지 않고 각각 합산한다.
 
     '10매'짜리 시트마스크처럼 ml·g 표기가 없으면 (None, None)이다.
     머리가 수량이 아닌 표기('[기획세트 : 500ml+100ml]' 1건)는 앞 구성품을
     통째로 놓치므로 부분 합계를 쓰느니 비워 둔다.
+
+    raw_volume(상품정보제공고시 원문)은 낱개 기준 표기를 걸러내는 데만 쓴다.
     """
     text = (text or "").strip()
     if not _AMOUNT_HEAD.match(text):
+        return None, None
+    if _PER_UNIT.search(raw_volume or ""):
         return None, None
     ml = g = None
     for seg in text.split("+"):
@@ -294,6 +306,59 @@ def parse_volume(text: str | None) -> tuple[float | None, float | None]:
         if b is not None:
             g = (g or 0) + b
     return ml, g
+
+
+# 매수·개수. '매'·'장'은 소비 단위(sheet), '개'는 포장 단위(piece)다.
+#     '100매'          → sheet 100    내용량_정리의 머리
+#     '70매+70매'       → sheet 70     상품정보제공고시 원문
+#     '325ml (2개)'     → piece 2      내용량_정리의 괄호
+_UNIT_HEAD = re.compile(r"^\s*(\d[\d,]*)\s*(?:매|장)")
+_UNIT_SHEET = re.compile(r"(\d[\d,]*)\s*(?:매|장)")
+_UNIT_PIECE = re.compile(r"\((\d+)\s*개\)|^\s*(\d+)\s*개\s*$")
+
+
+def parse_unit(tidy: str | None, raw_volume: str | None) -> tuple[int | None, str | None]:
+    """(unit_count, unit_kind). 없으면 (None, None).
+
+    출처가 셋이고 우선순위가 있다.
+
+      1) 내용량_정리의 머리 'N매'      '100매'      → sheet
+      2) 상품정보제공고시 원문의 'N매'   '70매+70매'   → sheet
+      3) 내용량_정리의 '(N개)'         '325ml (2개)' → piece
+
+    2번이 필요한 이유: v5가 '250ml (10개)'처럼 매수를 ml로 정규화하면서 '매'라는
+    단위를 잃어버린다. 마스크팩 136건이 여기 해당하고, 이들은 1번·3번만으로는
+    '매'인지 '개'인지 구분할 수 없다.
+
+    >>> parse_unit("100매", None)
+    (100, 'sheet')
+    >>> parse_unit("250ml (10개)", "10매")
+    (10, 'sheet')
+    >>> parse_unit("325ml (2개)", "325ml")
+    (2, 'piece')
+    >>> parse_unit("200ml", "200ml")
+    (None, None)
+    """
+    tidy = (tidy or "").strip()
+    # '1매 기준 0.1g'의 '1매'는 총 매수가 아니라 환산 기준이다.
+    raw_volume = "" if _PER_UNIT.search(raw_volume or "") else (raw_volume or "")
+    raw_counts = [int(x.replace(",", "")) for x in _UNIT_SHEET.findall(raw_volume)]
+
+    m = _UNIT_HEAD.match(tidy)
+    if m:
+        n = int(m.group(1).replace(",", ""))
+        # v5가 옵션을 합산해 버린 경우를 거른다 — '4매/80매'(둘 중 택1)가
+        # '84매'로 정리돼 있다. 원문의 어느 개수와도 안 맞으면 합산으로 보고
+        # 원문의 첫 개수를 쓴다. 990원짜리를 84매로 나눠 1매당 11원이 된다.
+        if raw_counts and n not in raw_counts:
+            return raw_counts[0], "sheet"
+        return n, "sheet"
+    if raw_counts:
+        return raw_counts[0], "sheet"
+    m = _UNIT_PIECE.search(tidy)
+    if m:
+        return int(m.group(1) or m.group(2)), "piece"
+    return None, None
 
 
 def distrusted_goods() -> set[str]:
@@ -510,7 +575,9 @@ def main() -> None:
         raw_name = (r.get("상품명_원본") or r.get("상품명") or "").strip()
         display_name = (r.get("상품명") or "").strip() if r.get("상품명_원본") else None
         composition = row_composition(r)
-        volume_ml, volume_g = parse_volume(r.get("내용량_정리"))
+        raw_volume = (r.get("내용량") or "").strip() or None
+        volume_ml, volume_g = parse_volume(r.get("내용량_정리"), raw_volume)
+        unit_count, unit_kind = parse_unit(r.get("내용량_정리"), raw_volume)
         product_rows.append((
             gno,
             raw_name,
@@ -531,6 +598,8 @@ def main() -> None:
             volume_ml,
             volume_g,
             bool((r.get("내용량_확인필요") or "").strip()),
+            unit_count,
+            unit_kind,
         ))
 
     execute_values(cur, """
@@ -538,7 +607,7 @@ def main() -> None:
             (goods_no, name, brand_id, category_id, price, rating, review_count,
              image_url, product_url, volume, country, manufacturer, expiry,
              ingredient_count_raw, composition, display_name,
-             volume_ml, volume_g, volume_uncertain)
+             volume_ml, volume_g, volume_uncertain, unit_count, unit_kind)
         VALUES %s
         ON CONFLICT (goods_no) DO UPDATE SET
             name = EXCLUDED.name, brand_id = EXCLUDED.brand_id,
@@ -554,6 +623,7 @@ def main() -> None:
             display_name = COALESCE(EXCLUDED.display_name, products.display_name),
             volume_ml = EXCLUDED.volume_ml, volume_g = EXCLUDED.volume_g,
             volume_uncertain = EXCLUDED.volume_uncertain,
+            unit_count = EXCLUDED.unit_count, unit_kind = EXCLUDED.unit_kind,
             updated_at = now()
     """, product_rows, page_size=500)
     conn.commit()

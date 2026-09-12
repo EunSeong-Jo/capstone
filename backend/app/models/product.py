@@ -21,6 +21,7 @@ from sqlalchemy import (
     String,
     Text,
 )
+from sqlalchemy import FetchedValue
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -69,6 +70,7 @@ class Product(Base, TimestampMixin):
         Index("idx_products_status", "status"),
         Index("idx_products_composition", "composition"),
         Index("idx_products_price", "price"),
+        Index("idx_products_unit_price", "unit_price"),
         Index("idx_products_rating", "rating"),
         Index("idx_products_review_count", "review_count"),
         # 제품명 퍼지 검색 (pg_trgm). 확장은 첫 마이그레이션에서 설치한다.
@@ -126,6 +128,24 @@ class Product(Base, TimestampMixin):
     # 채워져 있어도 믿을 수 없으므로, 단가를 낼 때는 이 제품을 빼야 한다.
     volume_uncertain: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"
+    )
+
+    # 매수·개수와 그 종류. sheet(매·장)와 piece(개)를 나누는 이유는 매는 소비
+    # 단위고 개는 포장 단위라서다 — '10매' 마스크팩의 "1매당"은 비교에 쓸모가
+    # 있지만 '325ml (2개)' 토너의 "1개당"은 없다. 아래 unit_price의 우선순위가
+    # 이 구분으로 갈린다.
+    unit_count: Mapped[int | None] = mapped_column(Integer)
+    unit_kind: Mapped[str | None] = mapped_column(Text)   # sheet / piece
+
+    # 단가. DB 생성 컬럼이라 여기서는 읽기만 한다 — INSERT에 넣으면 거부된다.
+    # 우선순위는 1매당 > 10ml당 > 10g당 > 1개당이고 식은 마이그레이션
+    # b8c9d0e1f2a3에 있다. 10 단위를 쓰는 이유는 1ml당이면 100~300원대가 되어
+    # 화면에서 읽히지 않기 때문이다.
+    unit_price: Mapped[float | None] = mapped_column(
+        Numeric(12, 2), server_default=FetchedValue(), server_onupdate=FetchedValue()
+    )
+    unit_label: Mapped[str | None] = mapped_column(
+        Text, server_default=FetchedValue(), server_onupdate=FetchedValue()
     )
 
     country: Mapped[str | None] = mapped_column(Text)
