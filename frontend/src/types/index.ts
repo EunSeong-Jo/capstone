@@ -14,7 +14,7 @@ export const SKIN_TYPE_META: Record<SkinType, { label: string; emoji: string; su
   subuji:      { label: '겉바속촉 수부지', emoji: '🌊', summary: '속건조 + 겉번들' },
   hwasan:      { label: '울긋불긋 화산',   emoji: '🌋', summary: '트러블·홍조·염증' },
   samak:       { label: '바스락 사막',     emoji: '🏜️', summary: '극건성, 당김' },
-  injeolmi:    { label: '말랑말랑 인절미', emoji: '🍡', summary: '건성·탄력 양호' },
+  injeolmi:    { label: '말랑말랑 인절미', emoji: '🍡', summary: '건성·탄력 저하, 주름' },
   yuriguseul:  { label: '조심조심 유리구슬', emoji: '🫧', summary: '민감성, 자극 반응' },
   memilmuk:    { label: '얼룩덜룩 메밀묵', emoji: '🌑', summary: '색소침착·잡티' },
 };

@@ -50,7 +50,7 @@ export const skinTypes: SkinType[] = [
     theme: { accent: '#7C6BB0', deep: '#5E5090', border: '#D6CEEA', titleShadow: 'rgba(94,80,144,0.26)', cardText: '#3A3357' },
   },
   {
-    id: 'ongdalsaem', label: '수분팡팡옹달샘', short: '옹달샘', image: ongdalsaem, bg: bgOngdalsaem,
+    id: 'ondalsam', label: '수분팡팡옹달샘', short: '옹달샘', image: ongdalsaem, bg: bgOngdalsaem,
     description: '맑고 투명한 피부, 속에서부터 수분이 퐁퐁 솟아나요!',
     theme: { accent: '#2F9BD6', deep: '#2178AC', border: '#C4E1F2', titleShadow: 'rgba(33,120,172,0.26)', cardText: '#204A63' },
   },
@@ -71,7 +71,7 @@ export const skinTypes: SkinType[] = [
   },
   {
     id: 'injeolmi', label: '말랑말랑인절미', short: '인절미', image: injeolmi, bg: bgInjeolmi,
-    description: '쫀득쫀득 탄력있는 피부, 만지면 기분이 좋아져요!',
+    description: '말랑하게 힘이 풀린 피부, 탄력을 다시 채워줄 때예요!',
     theme: { accent: '#C99A3A', deep: '#A67C24', border: '#EEE0B8', titleShadow: 'rgba(166,124,36,0.26)', cardText: '#574421' },
   },
   {
@@ -149,7 +149,7 @@ export const RESULT_DETAILS: Record<string, ResultDetail> = {
       ing('Allantoin', '진정', '각질 관리로 예민해진 피부를 달래줘요.'),
     ],
   },
-  ongdalsaem: {
+  ondalsam: {
     badge: '수분팡팡 옹달샘 타입',
     taglineLead: '속부터 차오르는 맑은 피부!',
     taglineRest: '이 수분감을 오래 지킬 ',
@@ -203,15 +203,15 @@ export const RESULT_DETAILS: Record<string, ResultDetail> = {
   },
   injeolmi: {
     badge: '말랑말랑 인절미 타입',
-    taglineLead: '탄력 있고 쫀득한 좋은 피부!',
-    taglineRest: '볼륨을 오래 지켜줄 ',
+    taglineLead: '탄력이 조금씩 풀리고 있어요!',
+    taglineRest: '볼륨을 다시 채워줄 ',
     taglineHighlight: '인절미 타입',
     taglineTail: '이에요.',
-    hashtags: [tag('#탄탄탄력', 'amber'), tag('#매끈결', 'green')],
+    hashtags: [tag('#탄력저하', 'amber'), tag('#잔주름', 'green')],
     ingredients: [
-      ing('Peptide', '탄력', '탄력 섬유 생성을 도와 지금의 볼륨을 지켜요.'),
-      ing('Adenosine', '탄력', '잔주름이 자리 잡기 전에 결을 다져줘요.'),
-      ing('Niacinamide', '톤', '고른 톤으로 탄탄한 인상을 오래 유지해요.'),
+      ing('Peptide', '탄력', '느슨해진 탄력 섬유를 다시 채워줘요.'),
+      ing('Adenosine', '주름', '자리 잡은 잔주름을 완만하게 펴줘요.'),
+      ing('Niacinamide', '톤', '고른 톤으로 처져 보이는 인상을 밝혀줘요.'),
     ],
   },
   hwasan: {

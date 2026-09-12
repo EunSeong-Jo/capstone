@@ -67,8 +67,15 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
 
     성분 순서를 유지해야 rbo가 의미를 갖는다.
     """
-    where = "WHERE c.code = %s" if category else ""
-    args = (category,) if category else ()
+    # 단일제품만 계산한다. 증정·굿즈·묶음은 전성분이 제품 하나에 대응한다고
+    # 보장할 수 없다 — 특히 묶음은 여러 제품의 전성분이 한 셀에 뭉쳐 있어
+    # 무엇과도 비슷해진다. 판정은 products.composition(app/utils/composition.py).
+    conds = ["p.composition = 'single'"]
+    args: tuple = ()
+    if category:
+        conds.append("c.code = %s")
+        args = (category,)
+    where = "WHERE " + " AND ".join(conds)
     cur.execute(
         f"""
         SELECT p.id, p.name, p.ingredient_count_raw,
@@ -87,20 +94,38 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
     ids: list[int] = []
     docs: list[list[int]] = []
     names: dict[int, str] = {}
-    skipped = {"bundle": 0, "too_few": 0}
+    dropped: list[int] = []
+    skipped = {"composition": 0, "bundle": 0, "too_few": 0}
 
     for pid, name, raw_count, ings in rows:
         if not min_ingredients(len(ings)):
             skipped["too_few"] += 1
+            dropped.append(pid)
             continue
         if is_bundle(len(ings), raw_count):
             skipped["bundle"] += 1
+            dropped.append(pid)
             continue
         ids.append(pid)
         docs.append(list(ings))
         names[pid] = name
 
-    return ids, docs, {"skipped": skipped, "names": names, "total": len(rows)}
+    # composition으로 걸러진 건수는 위 SQL이 애초에 안 가져오므로 따로 센다.
+    # 보고에서 '전체 N건 중 M건 제외'가 말이 되게 하려는 것뿐이다.
+    cur.execute(
+        f"""SELECT count(*) FROM products p
+              LEFT JOIN categories c ON c.id = p.category_id
+             WHERE p.composition <> 'single'{' AND c.code = %s' if category else ''}""",
+        (category,) if category else (),
+    )
+    skipped["composition"] = cur.fetchone()[0]
+
+    return ids, docs, {
+        "skipped": skipped,
+        "names": names,
+        "dropped": dropped,
+        "total": len(rows) + skipped["composition"],
+    }
 
 
 def ingredient_names(cur, docs: list[list[int]]) -> dict[int, str]:
@@ -185,6 +210,10 @@ def write(cur, product_ids: list[int], method: str, rows: list[tuple]) -> None:
         "DELETE FROM similarities WHERE method = %s AND product_id = ANY(%s)",
         (method, product_ids),
     )
+    # 성분 집합이 완전히 같으면 점수가 1.0인데 부동소수점 반올림으로
+    # 1.0000000000000004가 나온다. 저장 계약이 0~1이라 여기서 자른다 —
+    # 세 방식이 각자 점수를 만들므로 쓰기 직전 한 곳에서 막는 편이 확실하다.
+    rows = [(a, b, m, min(1.0, max(0.0, s)), j) for a, b, m, s, j in rows]
     if rows:
         execute_values(
             cur,
@@ -235,7 +264,8 @@ def run_category(cur, category: str, methods, args) -> dict[str, list]:
     sk = meta["skipped"]
     print(
         f"\n[{category}] 제품 {len(ids):,}건 (전체 {meta['total']:,} — "
-        f"묶음 제외 {sk['bundle']} / 성분부족 제외 {sk['too_few']})"
+        f"단일제품 아님 {sk['composition']} / 묶음 제외 {sk['bundle']} / "
+        f"성분부족 제외 {sk['too_few']})"
     )
     if len(ids) < 2:
         print("  비교할 제품이 2건 미만이라 건너뜁니다.")
@@ -276,6 +306,18 @@ def run_category(cur, category: str, methods, args) -> dict[str, list]:
         )
 
     if not args.dry_run:
+        # 이번 실행에서 제외된 제품의 옛 결과를 먼저 지운다. write()의 DELETE는
+        # 계산 대상(ids)만 훑기 때문에, 기준이 바뀌어 빠진 제품의 행이 그대로
+        # 남는다. 실제로 성분 재파싱 뒤 묶음 판정이 바뀐 제품 1건에서
+        # 3.7시간 전 점수 60행이 살아남아 있었다.
+        if meta["dropped"]:
+            cur.execute(
+                """DELETE FROM similarities
+                    WHERE product_id = ANY(%s) OR similar_id = ANY(%s)""",
+                (meta["dropped"], meta["dropped"]),
+            )
+            if cur.rowcount:
+                print(f"  제외된 제품의 옛 결과 {cur.rowcount:,}행 정리")
         for method, rows in produced.items():
             write(cur, ids, method, rows)
 

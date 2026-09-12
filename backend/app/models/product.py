@@ -67,6 +67,7 @@ class Product(Base, TimestampMixin):
         Index("idx_products_brand", "brand_id"),
         Index("idx_products_category", "category_id"),
         Index("idx_products_status", "status"),
+        Index("idx_products_composition", "composition"),
         Index("idx_products_price", "price"),
         Index("idx_products_rating", "rating"),
         Index("idx_products_review_count", "review_count"),
@@ -77,11 +78,22 @@ class Product(Base, TimestampMixin):
             postgresql_using="gin",
             postgresql_ops={"name": "gin_trgm_ops"},
         ),
+        Index(
+            "idx_products_display_name_trgm",
+            "display_name",
+            postgresql_using="gin",
+            postgresql_ops={"display_name": "gin_trgm_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     goods_no: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+
+    # name은 정제 전 원본이다. '기획'·'N종 택1'·'+50ml' 같은 문구가
+    # composition 판정(app/utils/composition.py)의 입력이라 지우면 분류가 깨진다.
+    # 화면에는 display_name을 쓴다 — 없으면 name으로 떨어진다.
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str | None] = mapped_column(Text)
 
     brand_id: Mapped[int | None] = mapped_column(
         ForeignKey("brands.id", ondelete="SET NULL")
@@ -102,6 +114,20 @@ class Product(Base, TimestampMixin):
     # 상품정보제공고시 표에서 수집. 형식이 자유로워 길이를 제한하지 않는다
     # (manufacturer는 '제조업자 : X / 책임판매업자 : Y ...' 형태로 최대 435자).
     volume: Mapped[str | None] = mapped_column(Text)
+
+    # 총 내용량. v5의 `내용량_정리`에서 파싱한다. volume(원문)과 달리 계산용이다.
+    # ml과 g를 나눠 두는 이유는 부피와 무게라 직접 비교할 수 없어서다 —
+    # 단가는 `price / volume_ml`처럼 바로 낸다. '10매'짜리는 둘 다 NULL.
+    volume_ml: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    volume_g: Mapped[float | None] = mapped_column(Numeric(10, 2))
+
+    # v5의 `내용량_확인필요`. 정제 작업자가 총량을 하나로 말할 수 없다고 표시한
+    # 제품이다 ('각 옵션별 용량이 다름' · '409ml (6개) + 210매'). 위 두 값이
+    # 채워져 있어도 믿을 수 없으므로, 단가를 낼 때는 이 제품을 빼야 한다.
+    volume_uncertain: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+
     country: Mapped[str | None] = mapped_column(Text)
     manufacturer: Mapped[str | None] = mapped_column(Text)
     expiry: Mapped[str | None] = mapped_column(Text)
@@ -120,6 +146,13 @@ class Product(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="active"
     )  # active / soldout / discontinued
+
+    # 제품 구성. status(판매 상태)와는 다른 축이다 — '품절된 단일제품'이 성립한다.
+    # single 외에는 전성분이 제품 하나에 대응한다고 보장할 수 없어 유사도 계산에서
+    # 빼고 앱에도 노출하지 않는다. 판정 규칙은 app/utils/composition.py.
+    composition: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="single"
+    )  # single / bonus / goods / bundle
     source: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="oliveyoung"
     )
