@@ -21,7 +21,7 @@
 | 항목 | 값 |
 |---|---:|
 | 제품 `products` | 4,102 |
-| 성분 `ingredients` | 23,458 |
+| 성분 `ingredients` | 23,521 |
 | 제품–성분 연결 `product_ingredients` | 167,262 |
 | 성분 별칭 `ingredient_aliases` | 4,411 |
 | 브랜드 `brands` | 512 |
