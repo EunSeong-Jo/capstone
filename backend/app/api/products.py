@@ -16,7 +16,7 @@ import json
 from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -29,6 +29,7 @@ from app.models.product import (
     Product,
     ProductIngredient,
 )
+from app.services.skin_type import SkinRule, apply_exclusions, fit_score, load_rule
 from app.schemas.product import (
     IngredientOut,
     ProductDetailOut,
@@ -74,11 +75,41 @@ class SortBy(str, Enum):
 
     popular = "popular"        # 리뷰 수 내림차순
     price_asc = "priceAsc"
+    # 단가 오름차순. price_asc와 따로 두는 이유는 '내가 낼 돈'과 '가성비'가
+    # 다른 질문이기 때문이다 — 80,000원짜리 20매가 단가로는 가장 싸다.
+    unit_price_asc = "unitPriceAsc"
     price_desc = "priceDesc"
     rating = "rating"
+    # 추천 성분이 많은 순. skinType을 함께 주지 않으면 popular와 같다.
+    skin_fit = "skinFit"
 
 
-def _apply_sort(stmt: Select, sort: SortBy) -> Select:
+class CompositionFilter(str, Enum):
+    """제품 구성 필터.
+
+    기본값이 single인 이유: 기획세트·굿즈 동봉 제품은 전성분이 제품 하나에
+    대응한다고 보장할 수 없어 대체품 추천이 어긋난다. 앱에는 단일제품만
+    노출하고, 나머지는 데이터로만 들고 있는다.
+
+    all·bundle 등은 분류 검증과 디버깅용이다. bonus(증량·화장품 증정)를
+    다시 포함할지는 1차 결과를 보고 정하기로 했고, 그때 기본값만 바꾸면
+    되도록 파라미터로 열어 둔다.
+    """
+
+    single = "single"
+    bonus = "bonus"
+    goods = "goods"
+    bundle = "bundle"
+    all = "all"
+
+
+def _apply_composition(stmt: Select, composition: CompositionFilter) -> Select:
+    if composition is CompositionFilter.all:
+        return stmt
+    return stmt.where(Product.composition == composition.value)
+
+
+def _apply_sort(stmt: Select, sort: SortBy, rule: SkinRule | None = None) -> Select:
     # NULL을 뒤로 보낸다. rating·review_count에 결측이 69건(1.7%) 있어,
     # 기본값 없이 정렬하면 PostgreSQL이 NULL을 최대값으로 취급해 앞에 세운다.
     if sort is SortBy.price_asc:
@@ -87,20 +118,39 @@ def _apply_sort(stmt: Select, sort: SortBy) -> Select:
         return stmt.order_by(Product.price.desc(), Product.id.asc())
     if sort is SortBy.rating:
         return stmt.order_by(Product.rating.desc().nullslast(), Product.id.asc())
+    if sort is SortBy.unit_price_asc:
+        # 단가를 못 내는 제품(11건)은 뒤로 보낸다. NULL을 앞에 세우면
+        # '가장 싼 것'을 물었는데 값이 없는 제품이 먼저 나온다.
+        return stmt.order_by(Product.unit_price.asc().nullslast(), Product.id.asc())
+    if sort is SortBy.skin_fit:
+        # 같은 점수 안에서는 인기순으로 갈린다 — 태그가 0~3개라 동점이 많다.
+        return stmt.order_by(
+            fit_score(rule).desc(),
+            Product.review_count.desc().nullslast(),
+            Product.id.asc(),
+        )
     return stmt.order_by(Product.review_count.desc().nullslast(), Product.id.asc())
 
 
 def _to_out(p: Product) -> ProductOut:
-    """ORM → 응답 DTO. brand·category를 문자열로 편다."""
+    """ORM → 응답 DTO. brand·category를 문자열로 편다.
+
+    name은 정제명(display_name)을 우선한다. DB의 products.name은 '기획'·'N종
+    택1' 같은 문구가 붙은 원본이라 화면에 그대로 내보내면 지저분하다. 원본은
+    composition 판정에 쓰이므로 DB에는 남겨 둔다.
+    """
     return ProductOut(
         id=p.id,
-        name=p.name,
+        name=p.display_name or p.name,
         brand=p.brand.name if p.brand else "",
         category=p.category.code if p.category else "",
         price=p.price or 0,
         image_url=p.image_url,
         rating=float(p.rating) if p.rating is not None else None,
         review_count=p.review_count,
+        composition=p.composition,
+        unit_price=float(p.unit_price) if p.unit_price is not None else None,
+        unit_label=p.unit_label,
     )
 
 
@@ -154,18 +204,32 @@ async def list_products(
     min_price: int | None = Query(None, ge=0, alias="minPrice"),
     max_price: int | None = Query(None, ge=0, alias="maxPrice"),
     sort: SortBy = Query(SortBy.popular),
+    composition: CompositionFilter = Query(
+        CompositionFilter.single,
+        description="제품 구성. 기본은 단일제품만, all이면 전부",
+    ),
+    skin_type: str | None = Query(
+        None, alias="skinType",
+        description="피부타입 ID (subuji · hwasan · mulgae 등). 기피 성분이 든 제품을 뺀다",
+    ),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=MAX_PAGE_SIZE),
 ) -> ProductListOut | Response:
     """조건에 맞는 제품을 정렬해 반환한다.
 
     품절·단종은 기본으로 제외한다(status='active').
+    기획세트·굿즈 동봉도 기본으로 제외한다(composition='single').
+
+    skinType을 주면 `skin_type_rules`의 exclude_tags에 걸리는 제품을 뺀다.
+    모르는 타입이면 필터 없이 그냥 전체를 낸다 — 진단 결과가 바뀌거나
+    규칙을 잠시 꺼 둔 사이에 화면이 통째로 비는 편이 더 나쁘다.
     """
     version = await get_cache_version()
     key = _cache_key(
         "list", version,
         category=category, brand=brand, min_price=min_price,
-        max_price=max_price, sort=sort.value, page=page, size=size,
+        max_price=max_price, sort=sort.value, composition=composition.value,
+        skin_type=skin_type, page=page, size=size,
     )
     cached = await cache_get(key)
     if cached is not None:
@@ -174,7 +238,13 @@ async def list_products(
             headers={"Cache-Control": "public, max-age=60", "X-Cache": "HIT"},
         )
 
-    stmt = select(Product).where(Product.status == "active")
+    rule = await load_rule(db, skin_type)
+    stmt = apply_exclusions(
+        _apply_composition(
+            select(Product).where(Product.status == "active"), composition
+        ),
+        rule,
+    )
 
     if category:
         stmt = stmt.join(Category, Product.category_id == Category.id).where(
@@ -189,7 +259,7 @@ async def list_products(
     if max_price is not None:
         stmt = stmt.where(Product.price <= max_price)
 
-    result = await _paginate(db, _apply_sort(stmt, sort), page, size)
+    result = await _paginate(db, _apply_sort(stmt, sort, rule), page, size)
 
     await cache_set(key, result.model_dump_json(by_alias=True), LIST_CACHE_TTL)
     response.headers["Cache-Control"] = "public, max-age=60"
@@ -203,6 +273,14 @@ async def search_products(
     db: AsyncSession = Depends(get_db),
     q: str = Query(..., min_length=2, description="검색어 (2자 이상)"),
     sort: SortBy = Query(SortBy.popular),
+    composition: CompositionFilter = Query(
+        CompositionFilter.single,
+        description="제품 구성. 기본은 단일제품만, all이면 전부",
+    ),
+    skin_type: str | None = Query(
+        None, alias="skinType",
+        description="피부타입 ID. 기피 성분이 든 제품을 뺀다",
+    ),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=MAX_PAGE_SIZE),
 ) -> ProductListOut | Response:
@@ -215,7 +293,10 @@ async def search_products(
     해석되면 엉뚱한 결과가 나온다.
     """
     version = await get_cache_version()
-    key = _cache_key("search", version, q=q, sort=sort.value, page=page, size=size)
+    key = _cache_key(
+        "search", version, q=q, sort=sort.value,
+        composition=composition.value, skin_type=skin_type, page=page, size=size,
+    )
     cached = await cache_get(key)
     if cached is not None:
         return Response(
@@ -224,12 +305,25 @@ async def search_products(
         )
 
     escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    stmt = (
+    # 정제명과 원본명 둘 다 본다. 정제 과정에서 '기획'·'더블' 같은 단어가
+    # 지워지므로, 정제명만 보면 그 단어로 검색한 사용자가 아무것도 못 찾는다.
+    # 반대로 원본명만 보면 정제 후 바뀐 표기를 놓친다.
+    pattern = f"%{escaped}%"
+    rule = await load_rule(db, skin_type)
+    stmt = _apply_composition(
         select(Product)
         .where(Product.status == "active")
-        .where(Product.name.ilike(f"%{escaped}%", escape="\\"))
+        .where(
+            or_(
+                Product.name.ilike(pattern, escape="\\"),
+                Product.display_name.ilike(pattern, escape="\\"),
+            )
+        ),
+        composition,
     )
-    result = await _paginate(db, _apply_sort(stmt, sort), page, size)
+    result = await _paginate(
+        db, _apply_sort(apply_exclusions(stmt, rule), sort, rule), page, size
+    )
 
     await cache_set(key, result.model_dump_json(by_alias=True), LIST_CACHE_TTL)
     response.headers["Cache-Control"] = "public, max-age=60"

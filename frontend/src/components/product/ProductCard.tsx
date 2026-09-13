@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Product } from '../../types';
 import { useLikedProducts } from '../../context/LikedProductsContext';
+import { formatUnitPrice } from '../../utils/unitPrice';
 
 const CARD_BG = [
   'from-green-50 to-emerald-100',
@@ -17,6 +18,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
+  const unitPrice = formatUnitPrice(product.unitPrice, product.unitLabel);
   const navigate = useNavigate();
   const { isLiked, toggleLike } = useLikedProducts();
   const liked = isLiked(product.id);
@@ -90,6 +92,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
             </span>
           )}
         </div>
+        {unitPrice && <div className="mt-0.5 text-xs text-gray-50">{unitPrice}</div>}
       </div>
     </div>
   );

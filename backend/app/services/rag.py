@@ -1,12 +1,10 @@
 """
 RAG 서비스 — Neon(PostgreSQL) 제품 DB에서 검색해 LLM 컨텍스트를 구성한다.
 
-⚠️ 현재 한계 (2026-09 기준):
-  tags / ingredient_tags / skin_type_rules 테이블이 아직 비어 있다
-  (효능·피부타입 큐레이션이 미착수 — models/recommendation.py 참고).
-  따라서 지금은 제품명 · 브랜드명 · 성분명 매칭만으로 검색하고,
-  피부타입에 따른 필터링/효능 태그 표시는 하지 않는다.
-  위 테이블에 데이터가 채워지면 스코어링에 태그 매칭을 추가해야 한다.
+검색은 제품명 · 브랜드명 · 성분명 매칭으로 하고, 피부타입을 받으면
+`skin_type_rules`의 exclude_tags에 걸리는 제품을 뺀다
+(services/skin_type.py). 추천 태그를 가점으로 쓰는 스코어링은 아직 없다 —
+지금은 평점·리뷰 수 순이다.
 
 이전 버전(rag_seed.py의 SQLite 임시 시드)은 더 이상 쓰지 않는다.
 """
@@ -17,11 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.models.product import Brand, Ingredient, Product, ProductIngredient
+from app.services.skin_type import SkinRule, apply_exclusions, load_rule
 
+# 키는 캐릭터 ID(docs/dev_guidelines.md §2.4)이고 skin_type_rules.skin_type과
+# 같은 값이어야 한다 — 다르면 규칙 조회가 조용히 빗나간다.
 _SKIN_TYPE_LABEL: dict[str, str] = {
     "mulgae": "반질반질물개",
     "memilmuk": "얼룩덜룩메밀묵",
-    "ongdalsaem": "수분팡팡옹달샘",
+    "ondalsam": "수분팡팡옹달샘",
     "samak": "바스락사막",
     "subuji": "겉바속촉수부지",
     "yuriguseul": "조심조심유리구슬",
@@ -73,13 +74,16 @@ async def search_products(
 ) -> list[dict]:
     """
     query: 사용자 자연어 질문
-    skin_type_id: 진단된 피부 타입 ID (현재는 프롬프트 표시용으로만 쓰고,
-                  DB 필터링에는 아직 못 씀 — 위 모듈 docstring 참고)
+    skin_type_id: 진단된 피부 타입 ID. 규칙이 있으면 기피 성분이 든 제품을
+                  뺀다. 모르는 타입이면 필터 없이 검색한다
     top_k: 반환할 최대 제품 수
 
     제품명 · 브랜드명 · 성분명 중 하나라도 검색어와 겹치는 제품을 찾는다.
-    아무것도 안 걸리면 평점 상위 제품으로 대체한다.
+    아무것도 안 걸리면 평점 상위 제품으로 대체하는데, 그 폴백에도 같은
+    기피 필터를 건다 — 챗봇이 "추천할 게 없다"며 내놓는 제품이 정작
+    사용자가 피해야 할 것이면 안 되기 때문이다.
     """
+    rule = await load_rule(db, skin_type_id)
     pattern = f"%{_escape_like(query)}%"
     ingredient_patterns = [f"%{_escape_like(p)}%" for p in _expand_ingredient_patterns(query)]
 
@@ -101,20 +105,19 @@ async def search_products(
         .order_by(Product.rating.desc().nullslast(), Product.review_count.desc().nullslast())
         .limit(top_k)
     )
-    products = (await db.execute(stmt)).scalars().all()
+    products = (await db.execute(apply_exclusions(stmt, rule))).scalars().all()
 
     if not products:
-        products = await _fallback_top_rated(db, top_k)
+        products = await _fallback_top_rated(db, top_k, rule)
         ingredient_patterns = []  # 폴백은 검색어 매칭이 아니므로 강제 포함할 성분이 없다
 
     return [await _to_dict(db, p, ingredient_patterns) for p in products]
 
 
-async def _fallback_top_rated(db: AsyncSession, top_k: int) -> list[Product]:
-    """검색어에 안 걸리면 평점 상위 제품을 보여준다.
-
-    피부타입 필터가 아직 없어(skin_type_rules 비어있음) 지금은 전체 중 상위다.
-    """
+async def _fallback_top_rated(
+    db: AsyncSession, top_k: int, rule: SkinRule | None = None
+) -> list[Product]:
+    """검색어에 안 걸리면 평점 상위 제품을 보여준다. 기피 필터는 그대로 건다."""
     stmt = (
         select(Product)
         .where(Product.status == "active")
@@ -122,7 +125,7 @@ async def _fallback_top_rated(db: AsyncSession, top_k: int) -> list[Product]:
         .order_by(Product.rating.desc().nullslast(), Product.review_count.desc().nullslast())
         .limit(top_k)
     )
-    return list((await db.execute(stmt)).scalars().all())
+    return list((await db.execute(apply_exclusions(stmt, rule))).scalars().all())
 
 
 async def _to_dict(

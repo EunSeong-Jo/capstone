@@ -25,7 +25,7 @@ interface CharacterConfig {
 const CHARACTERS: CharacterConfig[] = [
   { id: 'mulgae', src: mulgae, alt: '반질반질물개 타입', group: 'squish', startAngleDeg: 270 },
   { id: 'memilmuk', src: memilmuk, alt: '얼룩덜룩메밀묵 타입', group: 'pop', startAngleDeg: 315 },
-  { id: 'ongdalsaem', src: ongdalsaem, alt: '수분팡팡옹달샘 타입', group: 'squish', startAngleDeg: 0 },
+  { id: 'ondalsam', src: ongdalsaem, alt: '수분팡팡옹달샘 타입', group: 'squish', startAngleDeg: 0 },
   { id: 'samak', src: samak, alt: '바스락사막 타입', group: 'pop', startAngleDeg: 45 },
   { id: 'subuji', src: subuji, alt: '겉바속촉수부지 타입', group: 'squish', startAngleDeg: 90 },
   { id: 'yuriguseul', src: yuriguseul, alt: '조심조심유리구슬 타입', group: 'pop', startAngleDeg: 135 },

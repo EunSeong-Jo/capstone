@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Alternative } from '../../types';
 import { Badge } from '../ui/Badge';
 import { ReasonTags } from './ReasonTags';
+import { formatUnitPrice } from '../../utils/unitPrice';
 
 interface AlternativeCardProps {
   alt: Alternative;
@@ -14,6 +15,7 @@ interface AlternativeCardProps {
 
 /** 가로 리스트형 대체품 카드 — 결과화면/상품상세 공용 */
 export function AlternativeCard({ alt, showSeedDelta = true, maxReasons = 3, onClick }: AlternativeCardProps) {
+  const unitPrice = formatUnitPrice(alt.unitPrice, alt.unitLabel);
   const navigate = useNavigate();
   const handle = onClick ?? (() => navigate(`/detail/${alt.id}`));
   const saving = showSeedDelta && alt.priceDelta != null && alt.priceDelta < 0;
@@ -40,6 +42,7 @@ export function AlternativeCard({ alt, showSeedDelta = true, maxReasons = 3, onC
             <span className="text-xs font-bold text-accent">{alt.priceDelta!.toLocaleString()}원</span>
           )}
         </div>
+        {unitPrice && <p className="text-xs text-gray-50">{unitPrice}</p>}
         {alt.reasonTags && alt.reasonTags.length > 0 && (
           <div className="mt-1.5">
             <ReasonTags reasons={alt.reasonTags} max={maxReasons} />

@@ -14,7 +14,7 @@ export const SKIN_TYPE_META: Record<SkinType, { label: string; emoji: string; su
   subuji:      { label: '겉바속촉 수부지', emoji: '🌊', summary: '속건조 + 겉번들' },
   hwasan:      { label: '울긋불긋 화산',   emoji: '🌋', summary: '트러블·홍조·염증' },
   samak:       { label: '바스락 사막',     emoji: '🏜️', summary: '극건성, 당김' },
-  injeolmi:    { label: '말랑말랑 인절미', emoji: '🍡', summary: '건성·탄력 양호' },
+  injeolmi:    { label: '말랑말랑 인절미', emoji: '🍡', summary: '건성·탄력 저하, 주름' },
   yuriguseul:  { label: '조심조심 유리구슬', emoji: '🫧', summary: '민감성, 자극 반응' },
   memilmuk:    { label: '얼룩덜룩 메밀묵', emoji: '🌑', summary: '색소침착·잡티' },
 };
@@ -36,6 +36,10 @@ export interface Product {
   tags?: string[];
   /** 누적 구매 횟수 (자주 구매 목록에서 사용) */
   purchaseCount?: number;
+  /** 단가와 그 기준. 둘은 항상 함께 오거나 함께 없다. 기준은 서버 코드
+   *  (`sheet`·`ml10`·`g10`·`piece`)이고 문구는 lib/unitPrice.ts가 정한다. */
+  unitPrice?: number | null;
+  unitLabel?: string | null;
 }
 
 // ===== 성분 =====

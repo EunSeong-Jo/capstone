@@ -105,7 +105,7 @@
 | `subuji` | 겉바속촉 수부지 | 🌊 | 속건조 + 겉번들 |
 | `hwasan` | 울긋불긋 화산 | 🌋 | 트러블·홍조·염증 |
 | `samak` | 바스락 사막 | 🏜️ | 극건성, 당김 |
-| `injeolmi` | 말랑말랑 인절미 | 🍡 | 건성·탄력 양호 |
+| `injeolmi` | 말랑말랑 인절미 | 🍡 | 건성·탄력 저하, 주름 |
 | `yuriguseul` | 조심조심 유리구슬 | 🫧 | 민감성, 자극 반응 |
 | `memilmuk` | 얼룩덜룩 메밀묵 | 🌑 | 색소침착·잡티 |
 
@@ -367,7 +367,7 @@ Base URL: `http://localhost:8000` (P0) / `https://api.swappy.com` (P1)
 ### 7.1 제품 · 성분 (데이터 있음)
 
 ```sql
-products              -- 4,150행
+products              -- 4,013행
   id, goods_no(UQ), name,
   brand_id(FK → brands), category_id(FK → categories),
   price, list_price, discount_rate, rating, review_count,
@@ -376,11 +376,11 @@ products              -- 4,150행
   ingredient_count_raw,      -- 원본 성분 개수(중복 포함)
   status('active'), source('oliveyoung'), created_at, updated_at
 
-ingredients           -- 25,923행 (대한화장품협회 표준화명칭목록)
+ingredients           -- 23,147행 (대한화장품협회 표준화명칭목록 + 크롤링 신규)
   id, norm_name(UQ), name_ko, name_en, code,
   ewg_grade, grade, is_allergen        -- 앞 셋은 아직 비어 있음
 
-product_ingredients   -- 171,334행 · (product_id, ingredient_id) 복합 PK
+product_ingredients   -- 163,103행 · (product_id, ingredient_id) 복합 PK
   product_id, ingredient_id, position, raw_name
 
 brands                -- 511행 : id, name(UQ)

@@ -132,6 +132,10 @@ def topk_cosine(
     # 점수 0 이하(겹치는 성분이 하나도 없음)는 대체품이 아니다.
     idx_out[score_out <= 0.0] = -1
     score_out[score_out <= 0.0] = 0.0
+    # 성분 집합이 완전히 같으면 코사인이 1.0인데, 부동소수점 반올림으로
+    # 1.0000000000000004가 나온다. 저장 계약이 0~1이고 화면에서 백분율로
+    # 바꾸면 100.00000000000001%가 되므로 여기서 자른다.
+    np.clip(score_out, 0.0, 1.0, out=score_out)
     return idx_out, score_out
 
 

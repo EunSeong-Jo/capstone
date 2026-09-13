@@ -3,10 +3,10 @@
 계산 로직은 test_similarity.py가 DB 없이 검증한다. 여기서는 **엔드포인트가
 지켜야 할 약속**만 본다.
 
-similarities는 아직 일부 카테고리만 적재돼 있다. 그래서 이 파일은
-"결과가 몇 개 나온다"에 기대지 않는다 — 대신 **비어 있어도 200이고 모양이
-같다**는 쪽을 못박는다. 프론트가 그 계약에 기대어 '준비 중' 자리표시자를
-띄우기 때문이다.
+similarities는 단일제품(composition='single')에만 적재된다. 기획세트·굿즈
+동봉 제품에는 영영 대체품이 없다. 그래서 이 파일은 "결과가 몇 개 나온다"에
+기대지 않는다 — 대신 **비어 있어도 200이고 모양이 같다**는 쪽을 못박는다.
+프론트가 그 계약에 기대어 '준비 중' 자리표시자를 띄우기 때문이다.
 """
 from __future__ import annotations
 
@@ -33,10 +33,11 @@ async def seed(client: AsyncClient) -> int:
     세션 스코프인 이유: 공용 Neon에 붙어 있어 왕복 하나가 비싸다. 테스트마다
     후보를 다시 찾으면 파일 전체가 분 단위로 늘어진다.
 
-    배치가 선케어만 적재한 상태라 거기서 찾는다. 못 찾으면 유사도를 요구하는
-    테스트만 건너뛴다 — 배치를 안 돌린 팀원의 로컬에서도 나머지는 돌아야 한다.
+    기본 조회가 단일제품만 내주므로 카테고리를 가리지 않고 상위에서 찾는다.
+    못 찾으면 유사도를 요구하는 테스트만 건너뛴다 — 배치를 안 돌린 팀원의
+    로컬에서도 나머지는 돌아야 한다.
     """
-    res = await client.get(LIST, params={"category": "선케어", "size": 8})
+    res = await client.get(LIST, params={"size": 8})
     for item in res.json()["items"]:
         got = await client.get(_url(item["id"]))
         if got.status_code == 200 and got.json()["items"]:
@@ -61,11 +62,18 @@ async def test_envelope(client: AsyncClient) -> None:
 async def test_empty_result_is_200_not_404(client: AsyncClient) -> None:
     """제품은 있는데 유사도만 없는 경우 — 404를 내면 화면이 오류로 뜬다.
 
-    아직 계산하지 않은 카테고리가 있어 이 경로는 실제로 자주 밟힌다.
+    기획세트·굿즈 동봉 제품(composition != 'single')이 이 경우다. 배치가
+    단일제품만 계산하므로 이들에게는 대체품이 영영 없지만, 제품 자체는
+    존재하므로 404가 아니라 빈 배열이어야 한다.
+
+    예전에는 "아직 계산하지 않은 카테고리"로 이 경로를 밟았는데, 4종을
+    모두 적재하면서 그 전제가 사라졌다.
     """
-    res = await client.get(LIST, params={"category": "마스크팩", "size": 1})
-    product_id = res.json()["items"][0]["id"]
-    got = await client.get(_url(product_id))
+    res = await client.get(LIST, params={"composition": "bundle", "size": 1})
+    items = res.json()["items"]
+    if not items:
+        pytest.skip("composition='bundle' 제품이 없습니다")
+    got = await client.get(_url(items[0]["id"]))
     assert got.status_code == 200
     assert got.json()["items"] == []
 

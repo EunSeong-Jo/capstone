@@ -21,6 +21,7 @@ from sqlalchemy import (
     String,
     Text,
 )
+from sqlalchemy import FetchedValue
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -67,7 +68,9 @@ class Product(Base, TimestampMixin):
         Index("idx_products_brand", "brand_id"),
         Index("idx_products_category", "category_id"),
         Index("idx_products_status", "status"),
+        Index("idx_products_composition", "composition"),
         Index("idx_products_price", "price"),
+        Index("idx_products_unit_price", "unit_price"),
         Index("idx_products_rating", "rating"),
         Index("idx_products_review_count", "review_count"),
         # 제품명 퍼지 검색 (pg_trgm). 확장은 첫 마이그레이션에서 설치한다.
@@ -77,11 +80,22 @@ class Product(Base, TimestampMixin):
             postgresql_using="gin",
             postgresql_ops={"name": "gin_trgm_ops"},
         ),
+        Index(
+            "idx_products_display_name_trgm",
+            "display_name",
+            postgresql_using="gin",
+            postgresql_ops={"display_name": "gin_trgm_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     goods_no: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+
+    # name은 정제 전 원본이다. '기획'·'N종 택1'·'+50ml' 같은 문구가
+    # composition 판정(app/utils/composition.py)의 입력이라 지우면 분류가 깨진다.
+    # 화면에는 display_name을 쓴다 — 없으면 name으로 떨어진다.
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str | None] = mapped_column(Text)
 
     brand_id: Mapped[int | None] = mapped_column(
         ForeignKey("brands.id", ondelete="SET NULL")
@@ -102,6 +116,38 @@ class Product(Base, TimestampMixin):
     # 상품정보제공고시 표에서 수집. 형식이 자유로워 길이를 제한하지 않는다
     # (manufacturer는 '제조업자 : X / 책임판매업자 : Y ...' 형태로 최대 435자).
     volume: Mapped[str | None] = mapped_column(Text)
+
+    # 총 내용량. v5의 `내용량_정리`에서 파싱한다. volume(원문)과 달리 계산용이다.
+    # ml과 g를 나눠 두는 이유는 부피와 무게라 직접 비교할 수 없어서다 —
+    # 단가는 `price / volume_ml`처럼 바로 낸다. '10매'짜리는 둘 다 NULL.
+    volume_ml: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    volume_g: Mapped[float | None] = mapped_column(Numeric(10, 2))
+
+    # v5의 `내용량_확인필요`. 정제 작업자가 총량을 하나로 말할 수 없다고 표시한
+    # 제품이다 ('각 옵션별 용량이 다름' · '409ml (6개) + 210매'). 위 두 값이
+    # 채워져 있어도 믿을 수 없으므로, 단가를 낼 때는 이 제품을 빼야 한다.
+    volume_uncertain: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+
+    # 매수·개수와 그 종류. sheet(매·장)와 piece(개)를 나누는 이유는 매는 소비
+    # 단위고 개는 포장 단위라서다 — '10매' 마스크팩의 "1매당"은 비교에 쓸모가
+    # 있지만 '325ml (2개)' 토너의 "1개당"은 없다. 아래 unit_price의 우선순위가
+    # 이 구분으로 갈린다.
+    unit_count: Mapped[int | None] = mapped_column(Integer)
+    unit_kind: Mapped[str | None] = mapped_column(Text)   # sheet / piece
+
+    # 단가. DB 생성 컬럼이라 여기서는 읽기만 한다 — INSERT에 넣으면 거부된다.
+    # 우선순위는 1매당 > 10ml당 > 10g당 > 1개당이고 식은 마이그레이션
+    # b8c9d0e1f2a3에 있다. 10 단위를 쓰는 이유는 1ml당이면 100~300원대가 되어
+    # 화면에서 읽히지 않기 때문이다.
+    unit_price: Mapped[float | None] = mapped_column(
+        Numeric(12, 2), server_default=FetchedValue(), server_onupdate=FetchedValue()
+    )
+    unit_label: Mapped[str | None] = mapped_column(
+        Text, server_default=FetchedValue(), server_onupdate=FetchedValue()
+    )
+
     country: Mapped[str | None] = mapped_column(Text)
     manufacturer: Mapped[str | None] = mapped_column(Text)
     expiry: Mapped[str | None] = mapped_column(Text)
@@ -120,6 +166,13 @@ class Product(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="active"
     )  # active / soldout / discontinued
+
+    # 제품 구성. status(판매 상태)와는 다른 축이다 — '품절된 단일제품'이 성립한다.
+    # single 외에는 전성분이 제품 하나에 대응한다고 보장할 수 없어 유사도 계산에서
+    # 빼고 앱에도 노출하지 않는다. 판정 규칙은 app/utils/composition.py.
+    composition: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="single"
+    )  # single / bonus / goods / bundle
     source: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="oliveyoung"
     )

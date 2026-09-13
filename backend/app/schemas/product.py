@@ -44,6 +44,20 @@ class ProductOut(_CamelModel):
     image_url: str | None = None
     rating: float | None = None
     review_count: int | None = None
+    # single / bonus / goods / bundle. 기본 조회는 single만 내보내므로 늘
+    # "single"이지만, ?composition= 로 분류를 검증할 때 값이 보여야 한다.
+    composition: str = "single"
+
+    # 단가. 마스크팩에 '20매' 같은 대용량이 섞여 있어 총액만으로는 비교가
+    # 어긋난다 — 80,000원/20매가 3,000원/1매보다 27배 비싼 것처럼 정렬된다.
+    #
+    # 라벨을 '1매당'이 아니라 코드로 내는 이유: 문구는 화면이 정한다. 서버가
+    # 한국어를 내면 문구를 바꿀 때마다 서버를 고쳐야 한다.
+    #
+    # 둘은 항상 함께 있거나 함께 없다(DB 생성 컬럼이 같은 식에서 나온다).
+    # 한쪽만 오면 화면이 'None당 3,000원'을 그린다.
+    unit_price: float | None = None      # 1매당 / 10ml당 / 10g당 / 1개당 금액
+    unit_label: str | None = None        # sheet / ml10 / g10 / piece
 
 
 class IngredientOut(_CamelModel):
