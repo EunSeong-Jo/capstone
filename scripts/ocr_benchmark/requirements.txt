@@ -1,0 +1,24 @@
+# OCR engines
+pytesseract==0.3.13
+easyocr==1.7.2
+# engines.py의 _extract_paddleocr_fragments()는 2.x(ocr.ocr())와 3.x(ocr.predict())
+# 반환 형식을 모두 지원하도록 만들어 뒀지만, PaddleOCR() 생성자 인자는 버전별로 달라서
+# (예: use_angle_cls -> use_textline_orientation, show_log 제거 등) 3.x로 올릴 경우
+# engines.py의 build_engines() 생성자 호출부도 같이 검증해야 한다. 직접 설치해서
+# 검증하지 못했으므로 일단 안전하게 2.x로 고정.
+paddleocr==2.9.1
+paddlepaddle==2.6.2
+
+# Preprocessing / imaging
+opencv-python==4.10.0.84
+pillow==10.4.0
+numpy<2.0
+
+# Metrics / data
+pandas==2.2.3
+rapidfuzz==3.10.1
+tabulate==0.9.0
+
+# UX / output
+tqdm==4.67.1
+matplotlib==3.9.2

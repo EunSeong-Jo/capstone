@@ -1,0 +1,40 @@
+"""API 연동 전 개발/테스트용 샘플 데이터"""
+
+SAMPLE_PRODUCTS = [
+    {
+        "product_name": "닥터지 레드 블레미쉬 수딩 크림",
+        "brand": "닥터지",
+        "category": "skincare",
+        "price": "18000",
+        "rating": "4.7",
+        "review_count": "12453",
+        "product_url": "",
+        "report_no": "20220100001",
+        "ingredients_raw": "정제수, 나이아신아마이드, 부틸렌글라이콜, 글리세린, 판테놀, 병풀추출물, 세라마이드NP",
+        "source": "mfds",
+    },
+    {
+        "product_name": "코스알엑스 달팽이 수면팩",
+        "brand": "코스알엑스",
+        "category": "skincare",
+        "price": "25000",
+        "rating": "4.8",
+        "review_count": "9821",
+        "product_url": "",
+        "report_no": "20220100002",
+        "ingredients_raw": "Water, Snail Secretion Filtrate, Niacinamide, Glycerin, Butylene Glycol",
+        "source": "oliveyoung",
+    },
+    {
+        "product_name": "라운드랩 독도 크림",
+        "brand": "라운드랩",
+        "category": "skincare",
+        "price": "16000",
+        "rating": "4.6",
+        "review_count": "7634",
+        "product_url": "",
+        "report_no": "20220100003",
+        "ingredients_raw": "Aqua, Glycerin, Niacinamide, Ceramide NP, Panthenol, Centella Asiatica Extract",
+        "source": "oliveyoung",
+    },
+]

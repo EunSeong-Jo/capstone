@@ -1,0 +1,104 @@
+services:
+  # ── PostgreSQL 16 ────────────────────────────────────────
+  # 팀 공용 DB는 Neon이라 기본 기동에서는 뜨지 않는다.
+  # 로컬 DB가 필요하면:  docker compose --profile local-db up
+  # 단, 이 컨테이너는 빈 DB다. alembic upgrade head + 시드 스크립트를 따로 돌려야 한다.
+  postgres:
+    profiles: ["local-db"]
+    image: postgres:16-alpine
+    container_name: swappy_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-swappy}
+      POSTGRES_USER: ${POSTGRES_USER:-swappy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-swappy_dev}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sh:/docker-entrypoint-initdb.d/init_db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-swappy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - swappy_net
+    restart: unless-stopped
+
+  # ── Redis 7 ──────────────────────────────────────────────
+  # 제품 조회 API 캐시(backend/app/core/cache.py)가 사용한다.
+  # postgres와 달리 profile로 분리하지 않는다 — Neon처럼 대체 가능한
+  # 원격 서비스가 없고, 이 캐싱 기능 자체의 유일한 구현체이기 때문이다.
+  redis:
+    image: redis:7-alpine
+    container_name: swappy_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - swappy_net
+    restart: unless-stopped
+
+  # ── FastAPI 백엔드 ────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: swappy_backend
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+    volumes:
+      - ./backend:/app
+    # postgres는 profile로 분리돼 있어 여전히 depends_on에 넣지 않는다
+    # (Compose가 프로파일을 무시하고 함께 띄워 분리가 무의미해진다).
+    # redis는 더 이상 profile에 묶여 있지 않으므로, 캐시 경로가 붙기 전
+    # 초반 요청들이 연결 실패 로그를 반복해서 남기지 않도록 여기서만 대기한다.
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - swappy_net
+    restart: unless-stopped
+
+  # ── React 프론트엔드 (개발 서버) ──────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: swappy_frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      # 컨테이너 안에서 백엔드는 'backend' 호스트다. localhost는 자기 자신이라
+      # .env의 VITE_API_BASE_URL(로컬 npm run dev 전용)이 새어들면 프록시가 깨진다.
+      # 치환을 쓰지 않고 고정하는 이유가 이것이다.
+      VITE_API_BASE_URL: http://backend:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - swappy_net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  swappy_net:
+    driver: bridge
