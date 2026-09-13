@@ -75,6 +75,9 @@ class SortBy(str, Enum):
 
     popular = "popular"        # 리뷰 수 내림차순
     price_asc = "priceAsc"
+    # 단가 오름차순. price_asc와 따로 두는 이유는 '내가 낼 돈'과 '가성비'가
+    # 다른 질문이기 때문이다 — 80,000원짜리 20매가 단가로는 가장 싸다.
+    unit_price_asc = "unitPriceAsc"
     price_desc = "priceDesc"
     rating = "rating"
     # 추천 성분이 많은 순. skinType을 함께 주지 않으면 popular와 같다.
@@ -115,6 +118,10 @@ def _apply_sort(stmt: Select, sort: SortBy, rule: SkinRule | None = None) -> Sel
         return stmt.order_by(Product.price.desc(), Product.id.asc())
     if sort is SortBy.rating:
         return stmt.order_by(Product.rating.desc().nullslast(), Product.id.asc())
+    if sort is SortBy.unit_price_asc:
+        # 단가를 못 내는 제품(11건)은 뒤로 보낸다. NULL을 앞에 세우면
+        # '가장 싼 것'을 물었는데 값이 없는 제품이 먼저 나온다.
+        return stmt.order_by(Product.unit_price.asc().nullslast(), Product.id.asc())
     if sort is SortBy.skin_fit:
         # 같은 점수 안에서는 인기순으로 갈린다 — 태그가 0~3개라 동점이 많다.
         return stmt.order_by(
@@ -142,6 +149,8 @@ def _to_out(p: Product) -> ProductOut:
         rating=float(p.rating) if p.rating is not None else None,
         review_count=p.review_count,
         composition=p.composition,
+        unit_price=float(p.unit_price) if p.unit_price is not None else None,
+        unit_label=p.unit_label,
     )
 
 
