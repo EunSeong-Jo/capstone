@@ -68,12 +68,11 @@ export default function ChatSupportPage() {
       const botReply: Message = { id: nextId.current++, role: 'bot', text: reply };
       setMessages((prev) => [...prev, botReply]);
     } catch (err) {
-      const detail = err instanceof ApiError ? err.message : '잠시 후 다시 시도해 주세요.';
-      const botReply: Message = {
-        id: nextId.current++,
-        role: 'bot',
-        text: `죄송해요, 답변을 가져오지 못했어요.\n${detail}`,
-      };
+      // 백엔드 detail은 이미 사용자에게 보여줄 수 있게 다듬어진 문구다
+      // (내부 예외 텍스트는 서버 로그에만 남고 여기까지 오지 않는다).
+      const text =
+        err instanceof ApiError ? err.message : '죄송해요, 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.';
+      const botReply: Message = { id: nextId.current++, role: 'bot', text };
       setMessages((prev) => [...prev, botReply]);
     } finally {
       setIsSending(false);
