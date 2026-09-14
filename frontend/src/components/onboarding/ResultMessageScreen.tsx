@@ -3,22 +3,21 @@ import baseResult from '../../assets/base/base-result.png';
 import MascotStage from './MascotStage';
 import MessageBox from './MessageBox';
 
+// 프레젠테이션 컴포넌트로 유지 — 닉네임은 페이지가 Context에서 읽어 내려준다.
 export default function ResultMessageScreen({
+  nickname,
   typeLabel,
   onAdvance,
 }: {
+  nickname: string;
   typeLabel: string;
   onAdvance: () => void;
 }) {
   return (
     <motion.div
-      className="absolute inset-0 overflow-hidden"
+      className="absolute inset-0 overflow-hidden bg-ob-bg"
       style={{
-        background: '#f5f6f3',
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
-        paddingLeft: 'env(safe-area-inset-left)',
-        paddingRight: 'env(safe-area-inset-right)',
+        paddingBottom: 'var(--safe-bottom)',
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -27,7 +26,7 @@ export default function ResultMessageScreen({
     >
       <div className="flex h-full w-full flex-col items-center justify-center gap-[1.5cqmin]">
         <MascotStage src={baseResult} alt="결론 기본 캐릭터" />
-        <MessageBox text={`OO님의 타입은 ${typeLabel}타입이에요!!`} onAdvance={onAdvance} />
+        <MessageBox text={`${nickname}님의 타입은 ${typeLabel}타입이에요!!`} onAdvance={onAdvance} />
       </div>
     </motion.div>
   );

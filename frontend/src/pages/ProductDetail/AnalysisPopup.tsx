@@ -52,8 +52,8 @@ export function AnalysisPopup({ skinType, matchPercent, onClose }: AnalysisPopup
         {/* 매칭 요약 카드 */}
         <div className="rounded-[15px] bg-white p-4 text-center">
           <p className="text-[11px] font-medium tracking-wide text-gray-100">{skinType}타입의 매칭율</p>
-          <p className="mt-1 text-2xl font-medium text-[#2d7a4f]">{matchPercent}%</p>
-          <span className="inline-block mt-1.5 px-3 py-1 rounded-full bg-[#2d7a4f]/[0.13] text-[8px] text-gray-100">
+          <p className="mt-1 text-2xl font-medium text-ob-green-deep">{matchPercent}%</p>
+          <span className="inline-block mt-1.5 px-3 py-1 rounded-full bg-ob-green-deep/[0.13] text-[8px] text-gray-100">
             추천등급 | 매우 좋음
           </span>
         </div>
@@ -65,11 +65,11 @@ export function AnalysisPopup({ skinType, matchPercent, onClose }: AnalysisPopup
             <div key={row.label}>
               <div className="flex items-center justify-between">
                 <span className="text-[11px] tracking-wide text-gray-100">{row.label}</span>
-                <span className="text-xs font-medium text-[#2d7a4f]">{row.percent}%</span>
+                <span className="text-xs font-medium text-ob-green-deep">{row.percent}%</span>
               </div>
               <div className="mt-1.5 h-1 rounded bg-[#d9d9d9]">
                 <div
-                  className={`h-1 rounded ${row.highlight ? 'bg-[#f5c2c7]' : 'bg-[#2d7a4f]/60'}`}
+                  className={`h-1 rounded ${row.highlight ? 'bg-[#f5c2c7]' : 'bg-ob-green-deep/60'}`}
                   style={{ width: `${row.percent}%` }}
                 />
               </div>
@@ -88,7 +88,7 @@ export function AnalysisPopup({ skinType, matchPercent, onClose }: AnalysisPopup
               </div>
               <span
                 className={`px-2.5 py-0.5 rounded-full text-[8px] ${
-                  row.badge === '추천' ? 'bg-[#2d7a4f]/[0.13] text-[#2d7a4f]' : 'bg-[#f5c2c7]/30 text-[#f88893]'
+                  row.badge === '추천' ? 'bg-ob-green-deep/[0.13] text-ob-green-deep' : 'bg-[#f5c2c7]/30 text-[#f88893]'
                 }`}
               >
                 {row.badge}

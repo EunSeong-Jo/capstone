@@ -19,7 +19,7 @@ import bgHwasan from '../assets/bg/hwasan.png';
 // 결과창 카드의 타입별 색상 테마.
 // accent = 배지 pill 배경 / "OO 피부" 제목 / 태그라인 강조("OO 타입") — 타입 색조의 쨍한 톤,
 // deep = 버튼·닫기, border = 카드 테두리, titleShadow = 제목 그림자, cardText = 카드 안 본문 색.
-// (subuji는 Figma "수부지" 실측값 그대로: accent #40A140 / deep #00916D. 나머지 7종은 같은 방식으로 각 색조에 맞춰 지정.)
+// (subuji는 Figma "수부지" 실측값 그대로: accent #40A140 / deep ob-green. 나머지 7종은 같은 방식으로 각 색조에 맞춰 지정.)
 export interface ResultTheme {
   accent: string;
   deep: string;
@@ -62,7 +62,7 @@ export const skinTypes: SkinType[] = [
   {
     id: 'subuji', label: '겉바속촉수부지', short: '수부지', image: subuji, bg: bgSubuji,
     description: '속은 촉촉, 겉은 번들, 종잡을 수 없는 피부예요!',
-    theme: { accent: '#40A140', deep: '#00916D', border: '#B1D8B1', titleShadow: 'rgba(45,110,55,0.28)', cardText: '#223322' },
+    theme: { accent: '#40A140', deep: 'var(--ob-green)', border: '#B1D8B1', titleShadow: 'rgba(45,110,55,0.28)', cardText: '#223322' },
   },
   {
     id: 'yuriguseul', label: '조심조심유리구슬', short: '유리구슬', image: yuriguseul, bg: bgYuriguseul,

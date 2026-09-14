@@ -35,7 +35,7 @@ export default function ScanPage() {
       />
 
       {/* 상단 바 */}
-      <div className="relative z-10 px-5" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 22px)' }}>
+      <div className="relative z-10 px-5" style={{ paddingTop: 'calc(var(--safe-top) + 22px)' }}>
         <div className="flex h-[52px] items-center justify-between py-2">
           <button
             onClick={() => navigate(-1)}
@@ -134,7 +134,7 @@ export default function ScanPage() {
       </div>
 
       {/* 최근 스캔 바텀시트 */}
-      <div className="relative z-10 rounded-t-3xl bg-white px-5 pt-3.5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 26px)' }}>
+      <div className="relative z-10 rounded-t-3xl bg-white px-5 pt-3.5" style={{ paddingBottom: 'calc(var(--safe-bottom) + 26px)' }}>
         <div className="mx-auto mb-2.5 h-1 w-9 rounded-full bg-gray-20" />
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-extrabold text-gray-100">최근 스캔</h3>

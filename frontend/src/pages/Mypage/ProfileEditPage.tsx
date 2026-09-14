@@ -3,15 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Button } from '../../components/ui/Button';
-import { MOCK_PROFILE } from '../../mocks/home';
+import { useUserProfile } from '../../context/userProfile';
 
-const USER_EMAIL = 'user@email.com';
 const MAX_LEN = 12;
 
-// TODO: 프로필 수정 API 연동 전까지 로컬 상태만. 저장 시 이전 화면으로 복귀.
+// TODO: 프로필 수정 API 연동 전까지 Context(localStorage)에만 저장. 저장 시 이전 화면으로 복귀.
 export default function ProfileEditPage() {
   const navigate = useNavigate();
-  const [nickname, setNickname] = useState(MOCK_PROFILE.nickname);
+  const { profile, updateProfile } = useUserProfile();
+  const [nickname, setNickname] = useState(profile.nickname);
   const trimmed = nickname.trim();
   const valid = trimmed.length >= 2 && trimmed.length <= MAX_LEN;
 
@@ -49,15 +49,16 @@ export default function ProfileEditPage() {
 
         <label className="mt-6 block text-[13px] font-bold text-gray-100">이메일</label>
         <div className="mt-2 flex h-12 items-center rounded-xl bg-surface-warm px-3.5 text-[14px] text-gray-50">
-          {USER_EMAIL}
+          {profile.email}
         </div>
 
-        <div className="mt-auto pt-8">
+        {/* 하단 네비가 없는 페이지라 PageWrapper가 하단 인셋을 넣지 않는다. 홈 인디케이터에 가리지 않도록 직접 확보 */}
+        <div className="mt-auto pt-8 pb-[var(--safe-bottom)]">
           <Button
             variant="next"
             disabled={!valid}
             onClick={() => {
-              MOCK_PROFILE.nickname = trimmed;
+              updateProfile({ nickname: trimmed });
               navigate(-1);
             }}
           >

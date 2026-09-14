@@ -9,10 +9,7 @@ export default function LoginPage() {
   const [pw, setPw] = useState('');
 
   return (
-    <div
-      className="flex min-h-dvh flex-col px-7"
-      style={{ background: '#F5F6F3' }}
-    >
+    <div className="flex min-h-dvh flex-col bg-ob-bg px-7">
       {/* 위 여백 — 콘텐츠 그룹을 화면 중앙보다 조금 아래에 둔다 */}
       <div className="flex-[5]" />
 
@@ -23,7 +20,7 @@ export default function LoginPage() {
           style={{ fontFamily: "'Rubik Doodle Shadow', system-ui, sans-serif" }}
         >
           <span style={{ color: '#ef969f' }}>S</span>
-          <span style={{ color: '#2d7a4f' }}>wappy</span>
+          <span className="text-ob-green-deep">wappy</span>
         </p>
         <p className="mt-3 text-[13px] text-gray-50">AI 화장품 성분 분석 &amp; 대체품 매칭</p>
       </div>
@@ -55,8 +52,7 @@ export default function LoginPage() {
         />
         <button
           type="submit"
-          className="mt-1 h-[52px] rounded-xl text-[15px] font-semibold text-white transition-transform active:scale-[.97]"
-          style={{ background: '#00916D' }}
+          className="mt-1 h-[52px] rounded-xl bg-ob-green text-[15px] font-semibold text-white transition-transform active:scale-[.97]"
         >
           로그인하고 피부타입 진단하기
         </button>

@@ -5,7 +5,8 @@ import { OyFloatingActions } from '../../components/home/oy/OyFloatingActions';
 import { ProfileDashboard } from '../../components/home/oy/sections/ProfileDashboard';
 import { ProductCarousel } from '../../components/home/oy/sections/ProductCarousel';
 import { AlternativeCarousel } from '../../components/home/oy/sections/AlternativeCarousel';
-import { MOCK_CHARACTER, MOCK_PROFILE, MOCK_REGISTRY } from '../../mocks/home';
+import { MOCK_CHARACTER, MOCK_REGISTRY } from '../../mocks/home';
+import { useUserProfile } from '../../context/userProfile';
 import { MOCK_ALTERNATIVES_FOR_REGISTRY, MOCK_CHEAPER_ALTERNATIVES } from '../../mocks/alternatives';
 import { SKIN_TYPE_META, SkinType } from '../../types';
 import { useProducts } from '../../hooks/useProducts';
@@ -68,6 +69,7 @@ export default function HomePage() {
   //   profiles·similarities가 채워지면 추천 API로 교체한다.
   const { products, loading, error, reload } = useProducts({ size: 12 });
   const { weather } = useWeather();
+  const { profile } = useUserProfile();
   // weather가 아직 null(로딩 중)이어도 케어 문구 조회는 막지 않는다 — 서버가
   // "오늘 날씨"를 알아서 판단하므로 condition은 실패 시 정적 폴백에만 쓰인다.
   const { tip: careTip } = useCareTip(userSkinType, weather?.condition ?? 'sunny');
@@ -83,7 +85,7 @@ export default function HomePage() {
 
       <main>
         {/* 개인 대시보드: 날씨 + 마스코트(탭→옷장) + 경험치 */}
-        <ProfileDashboard weather={weather} careTip={careTip} character={MOCK_CHARACTER} user={MOCK_PROFILE} registry={MOCK_REGISTRY} />
+        <ProfileDashboard weather={weather} careTip={careTip} character={MOCK_CHARACTER} user={profile} registry={MOCK_REGISTRY} />
         <Divider />
 
         {/* 피부타입 맞춤 추천 */}

@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { SKIN_TYPE_META } from '../../types';
-import { MOCK_PROFILE, MOCK_CHARACTER } from '../../mocks/home';
+import { MOCK_CHARACTER } from '../../mocks/home';
+import { useUserProfile } from '../../context/userProfile';
 
 // TODO: 실제 사용자 통계 API 연동 전까지 목데이터
 const CUMULATIVE = { saved: 128400, scans: 21, swaps: 9 };
-const USER_EMAIL = 'user@email.com';
 
 const ScanIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
@@ -81,7 +81,8 @@ function GroupCard({ title, items }: { title: string; items: MenuItem[] }) {
 export default function MypagePage() {
   const navigate = useNavigate();
   const [expOpen, setExpOpen] = useState(true);
-  const skinMeta = SKIN_TYPE_META[MOCK_PROFILE.skinType];
+  const { profile } = useUserProfile();
+  const skinMeta = SKIN_TYPE_META[profile.skinType];
   const { level, exp, nextLevelExp, title } = MOCK_CHARACTER;
   const expPct = Math.min(100, Math.round((exp / nextLevelExp) * 100));
 
@@ -135,12 +136,12 @@ export default function MypagePage() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <p className="text-[19px] font-extrabold tracking-[-0.3px] text-gray-100">{MOCK_PROFILE.nickname}</p>
+              <p className="text-[19px] font-extrabold tracking-[-0.3px] text-gray-100">{profile.nickname}</p>
               <span className="inline-flex items-center h-5 px-2 rounded-full bg-primary-light text-[10px] font-extrabold text-primary-dark">
                 Lv.{level} {title}
               </span>
             </div>
-            <p className="mt-0.5 text-xs text-gray-50">{USER_EMAIL}</p>
+            <p className="mt-0.5 text-xs text-gray-50">{profile.email}</p>
           </div>
           <button onClick={() => navigate('/mypage/settings')} aria-label="설정" className="active:scale-90 transition-transform">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A8F98" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -157,7 +158,7 @@ export default function MypagePage() {
               <span className="text-[22px]">{skinMeta.emoji}</span>
               <div>
                 <p className="text-[15px] font-extrabold text-gray-100">{skinMeta.label}</p>
-                <p className="mt-px text-[11px] text-gray-50">{skinMeta.summary.split(',')[0]} · {MOCK_PROFILE.memberSince} 진단</p>
+                <p className="mt-px text-[11px] text-gray-50">{skinMeta.summary.split(',')[0]} · {profile.memberSince} 진단</p>
               </div>
             </div>
             <button onClick={() => navigate('/qna')} className="inline-flex items-center h-[30px] px-[13px] rounded-full bg-primary-dark text-[11px] font-extrabold text-white active:scale-95 transition-transform">

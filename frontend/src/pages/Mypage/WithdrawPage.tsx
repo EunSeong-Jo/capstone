@@ -46,7 +46,8 @@ export default function WithdrawPage() {
           <span className="text-[13px] text-gray-100">안내 사항을 모두 확인했으며 이에 동의합니다.</span>
         </label>
 
-        <div className="mt-auto space-y-2.5 pt-8">
+        {/* 하단 네비가 없는 페이지라 PageWrapper가 하단 인셋을 넣지 않는다. 홈 인디케이터에 가리지 않도록 직접 확보 */}
+        <div className="mt-auto space-y-2.5 pt-8 pb-[var(--safe-bottom)]">
           <Button
             variant="next"
             disabled={!agree}

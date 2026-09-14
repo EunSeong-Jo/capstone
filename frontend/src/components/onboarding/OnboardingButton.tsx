@@ -7,7 +7,7 @@ interface OnboardingButtonProps {
   variant?: 'primary' | 'secondary';
 }
 
-// Figma "2. Greeting": primary bg #00916d / 텍스트 #f4e9d8, secondary bg #8fcfb7 / 텍스트 #2d7a4f.
+// Figma "2. Greeting": primary bg ob-green / 텍스트 ob-cream, secondary bg ob-green-soft / 텍스트 ob-green-deep.
 export default function OnboardingButton({
   children,
   onClick,
@@ -15,16 +15,15 @@ export default function OnboardingButton({
 }: OnboardingButtonProps) {
   const colors =
     variant === 'primary'
-      ? { background: '#00916d', color: '#f4e9d8' }
-      : { background: '#8fcfb7', color: '#2d7a4f' };
+      ? 'bg-ob-green text-ob-cream'
+      : 'bg-ob-green-soft text-ob-green-deep';
 
   return (
     <motion.button
       type="button"
       onClick={onClick}
       whileTap={{ scale: 0.95 }}
-      className="rounded-full px-[6cqmin] py-[2.2cqmin] text-[clamp(0.85rem,3.6cqmin,1.05rem)]"
-      style={colors}
+      className={`rounded-full px-[6cqmin] py-[2.2cqmin] text-[clamp(0.85rem,3.6cqmin,1.05rem)] ${colors}`}
     >
       {children}
     </motion.button>

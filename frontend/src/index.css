@@ -32,6 +32,24 @@
     --text: var(--gray100);
     --text-sub: var(--gray70);
 
+    /* 온보딩·스플래시·로그인 전용 (Figma capstone_frame 실측) — 전역 토큰과 분리.
+       색 확정(이슈 #8 "더 연한 초록") 시 이 블록만 고치면 전체가 따라옵니다.
+       Tailwind의 ob.* 네임스페이스가 이 변수를 참조하므로 값 정의는 여기 한 곳뿐입니다.
+       투명도 modifier(bg-ob-green/60)를 쓰려면 채널 형태가 필요해 -rgb를 함께 둡니다. */
+    --ob-green-rgb: 0 145 109; /* #00916D */
+    --ob-green-deep-rgb: 45 122 79; /* #2D7A4F */
+    --ob-green-soft-rgb: 143 207 183; /* #8FCFB7 */
+    --ob-surface-rgb: 231 245 240; /* #E7F5F0 */
+    --ob-cream-rgb: 244 233 216; /* #F4E9D8 */
+    --ob-bg-rgb: 245 246 243; /* #F5F6F3 */
+
+    --ob-green: rgb(var(--ob-green-rgb));
+    --ob-green-deep: rgb(var(--ob-green-deep-rgb));
+    --ob-green-soft: rgb(var(--ob-green-soft-rgb));
+    --ob-surface: rgb(var(--ob-surface-rgb));
+    --ob-cream: rgb(var(--ob-cream-rgb));
+    --ob-bg: rgb(var(--ob-bg-rgb));
+
     /* Typography */
     --t-xs: 11px;
     --t-sm: 12px;
