@@ -49,8 +49,10 @@ export default function App() {
           <Route path="/"           element={<SplashPage />} />
           <Route path="/login"      element={<LoginPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
-          {/* 마이페이지 '피부타입 재진단'은 질문창부터 시작 */}
-          <Route path="/qna"        element={<OnboardingPage initialStep="question" />} />
+          {/* 마이페이지 '피부타입 재진단'은 질문창부터 시작.
+              replace로 /qna 엔트리를 소진해야 Q1에서 뒤로가기가 마이페이지로 간다.
+              또 OnboardingPage를 렌더하는 <Route>가 하나로 유지돼 리마운트가 없다. */}
+          <Route path="/qna"        element={<Navigate to="/onboarding?step=question&q=0" replace />} />
           <Route path="/result"     element={<Navigate to="/onboarding" replace />} />
           <Route path="/popup"      element={<PopupPage />} />
           <Route path="/home"       element={<HomePage />} />

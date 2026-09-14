@@ -3,12 +3,7 @@ import baseDefault from '../../assets/base/base-default.png';
 import MascotStage from './MascotStage';
 import MessageBox from './MessageBox';
 import OnboardingButton from './OnboardingButton';
-
-const GREETING_MESSAGES = [
-  '안녕하세요 Swappy에 오신 여러분 환영합니다!!',
-  '저는 여러분을 도와드릴 위피에요',
-  '일단 여러분의 피부타입을 알기위해 몇가지 질문을 드릴께요~ 이미 피부 타입을 알고 계신가요?',
-];
+import { GREETING_MESSAGES, GREETING_COUNT } from '../../data/onboarding';
 
 interface GreetingScreenProps {
   greetingIndex: number;
@@ -23,7 +18,7 @@ export default function GreetingScreen({
   onKnow,
   onDontKnow,
 }: GreetingScreenProps) {
-  const isLastMessage = greetingIndex === GREETING_MESSAGES.length - 1;
+  const isLastMessage = greetingIndex === GREETING_COUNT - 1;
 
   return (
     <motion.div
