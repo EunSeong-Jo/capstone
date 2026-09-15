@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OyAppBar } from '../../components/home/oy/OyAppBar';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
@@ -8,6 +9,7 @@ import { AlternativeCarousel } from '../../components/home/oy/sections/Alternati
 import { MOCK_CHARACTER, MOCK_PROFILE, MOCK_REGISTRY } from '../../mocks/home';
 import { MOCK_ALTERNATIVES_FOR_REGISTRY, MOCK_CHEAPER_ALTERNATIVES } from '../../mocks/alternatives';
 import {
+  Alternative,
   CharacterState,
   ProfileUser,
   RegistrySummary,
@@ -74,6 +76,20 @@ export default function HomePage() {
   const { tip: careTip } = useCareTip(skinType, weather?.condition ?? 'sunny');
 
   const registrySeedId = closetItems[0]?.id ?? MOCK_ALTERNATIVES_FOR_REGISTRY[0]?.seedId ?? 6;
+
+  // 화장대에 등록한 제품과 같은 카테고리 위주로 골라 "화장대와 비슷한 추천"을 실제로 반영한다.
+  // 화장대가 비어있으면(신규 게스트 등) 기존 고정 목업으로 대체.
+  const registryAlternatives: Alternative[] = useMemo(() => {
+    if (closetItems.length === 0) return MOCK_ALTERNATIVES_FOR_REGISTRY;
+    const closetCategories = new Set(closetItems.map((c) => c.category));
+    const related = forYou.filter((p) => closetCategories.has(p.category));
+    const pool = (related.length > 0 ? related : forYou).slice(0, 6);
+    return pool.map((p, i) => ({
+      ...p,
+      similarityScore: Math.max(60, 92 - i * 6),
+      seedId: closetItems[0]?.id,
+    }));
+  }, [closetItems, forYou]);
 
   // 로그인 시 페르소나/진단/화장대에서 대시보드 값 구성, 게스트는 목업 유지
   const dashUser: ProfileUser = isUser && persona
@@ -173,7 +189,7 @@ export default function HomePage() {
         {/* 대체품 추천 (핵심): 내 화장대 성분 기반 */}
         <AlternativeCarousel
           title="🧴 내 화장대와 비슷한 추천"
-          alternatives={MOCK_ALTERNATIVES_FOR_REGISTRY}
+          alternatives={registryAlternatives}
           onMore={() => navigate(`/alternatives?seed=${registrySeedId}&from=home`)}
         />
         <Divider />

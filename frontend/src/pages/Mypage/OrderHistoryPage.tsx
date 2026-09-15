@@ -68,6 +68,7 @@ export default function OrderHistoryPage() {
         price: l.price.toLocaleString(),
         bg: 'bg-primary-light',
         emoji: '🧴',
+        imageUrl: l.imageUrl,
       })),
     })),
     ...seedOrders,
@@ -144,9 +145,17 @@ export default function OrderHistoryPage() {
             {order.items.map((item, i) => (
               <div key={item.id} className={`bg-white ${i > 0 ? 'border-t border-gray-10' : ''}`}>
                 <div className="flex gap-3 p-4">
-                  <div className={`w-20 h-20 rounded-[10px] flex items-center justify-center text-4xl border border-gray-10 shrink-0 ${item.bg}`}>
-                    {item.emoji}
-                  </div>
+                  {item.imageUrl ? (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      className="w-20 h-20 rounded-[10px] object-cover border border-gray-10 shrink-0"
+                    />
+                  ) : (
+                    <div className={`w-20 h-20 rounded-[10px] flex items-center justify-center text-4xl border border-gray-10 shrink-0 ${item.bg}`}>
+                      {item.emoji}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-100 leading-snug mb-1">{item.name}</p>
                     <p className="text-xs text-gray-50 mb-0.5">{item.option}</p>

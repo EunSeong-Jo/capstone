@@ -210,7 +210,7 @@ export const RESULT_DETAILS: Record<string, ResultDetail> = {
     hashtags: [tag('#탄력저하', 'amber'), tag('#잔주름', 'green')],
     ingredients: [
       ing('Peptide', '탄력', '느슨해진 탄력 섬유를 다시 채워줘요.'),
-      ing('Adenosine', '주름', '자리 잡은 잔주름을 완만하게 펴줘요.'),
+      ing('Adenosine', '탄력', '자리 잡은 잔주름을 완만하게 펴줘요.'),
       ing('Niacinamide', '톤', '고른 톤으로 처져 보이는 인상을 밝혀줘요.'),
     ],
   },

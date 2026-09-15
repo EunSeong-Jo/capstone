@@ -13,7 +13,7 @@
 ```bash
 cd frontend
 npm install
-npm run dev          # http://localhost:5173
+npm run dev          # http://localhost:3000
 ```
 
 상태(로그인·진단·화장대·장바구니·주문)는 전부 브라우저 `localStorage`에 저장된다

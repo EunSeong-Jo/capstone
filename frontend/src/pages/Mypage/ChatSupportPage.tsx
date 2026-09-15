@@ -5,6 +5,8 @@ import { PageWrapper } from '../../components/layout/PageWrapper';
 import { sendChatMessage } from '../../api/chat';
 import { ApiError } from '../../api/client';
 import { useCloset } from '../../context/ClosetContext';
+import { useAuth } from '../../context/AuthContext';
+import { useDiagnosis } from '../../context/DiagnosisContext';
 
 /**
  * AI 챗봇 UI — backend POST /api/v1/chat(RAG) 연동.
@@ -12,7 +14,6 @@ import { useCloset } from '../../context/ClosetContext';
  *
  * "화장품 등록" 미니플로우: 사용자가 등록을 요청하면 다음 한 줄("브랜드 제품명")을
  * 화장대(ClosetContext)에 담는다. 이 구간은 서버 호출 없이 로컬에서 처리한다.
- * TODO: 사용자 피부타입/날씨 정보 연동은 별도 작업으로 진행 예정. 지금은 skin_type 미전달.
  */
 
 interface Message {
@@ -45,6 +46,9 @@ const REGISTER_INTENT = /(화장품|제품).*(등록|추가)|등록.*(화장품|
 export default function ChatSupportPage() {
   const navigate = useNavigate();
   const { addItem } = useCloset();
+  const { user: persona } = useAuth();
+  const { skinType: diagType } = useDiagnosis();
+  const skinType = diagType ?? persona?.skinType;
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [registerMode, setRegisterMode] = useState(false);
@@ -123,7 +127,7 @@ export default function ChatSupportPage() {
       .map((m) => ({ role: m.role === 'bot' ? ('assistant' as const) : ('user' as const), content: m.text! }));
 
     try {
-      const { reply } = await sendChatMessage({ message: userText, history });
+      const { reply } = await sendChatMessage({ message: userText, skin_type: skinType, history });
       const botReply: Message = { id: nextId.current++, role: 'bot', text: reply };
       setMessages((prev) => [...prev, botReply]);
     } catch (err) {
