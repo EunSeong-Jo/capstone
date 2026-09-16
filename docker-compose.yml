@@ -86,6 +86,11 @@ services:
       # .env의 VITE_API_BASE_URL(로컬 npm run dev 전용)이 새어들면 프록시가 깨진다.
       # 치환을 쓰지 않고 고정하는 이유가 이것이다.
       VITE_API_BASE_URL: http://backend:8000
+      # 도커에는 backend가 함께 떠 있다. 여기서의 조회 실패는 감출 것이 아니라
+      # 드러나야 할 고장이므로 목업 폴백을 끈다. 이 값이 없으면 useProducts는
+      # import.meta.env.DEV로 떨어지는데, 위 Dockerfile의 CMD가 `npm run dev`라
+      # 컨테이너 안에서도 DEV가 true다 — 그래서 명시로 꺼야 한다.
+      VITE_MOCK_FALLBACK: "false"
     volumes:
       - ./frontend:/app
       - /app/node_modules

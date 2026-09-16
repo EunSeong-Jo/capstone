@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RECENT_SCANS } from '../../mocks/search';
+import { nextOcrResult, OcrResult } from '../../data/ocrFixtures';
+import { useCloset } from '../../context/ClosetContext';
 
 type ScanMode = 'barcode' | 'label' | 'product';
 
@@ -12,16 +14,45 @@ const MODES: [ScanMode, string][] = [
 
 /**
  * 성분 스캔 화면 (디자인 3c) — 성분표 OCR 카메라.
- * 검색바 카메라 / 마스코트 스캔 배너 / 하단 네비 스캔 버튼의 공통 목적지.
- * TODO: Task 4 이미지 인식 모듈(Tesseract/EasyOCR) 연동 — 현재는 카메라 UI 목업.
+ * Task 4(Tesseract/EasyOCR) 연동 전까지는 data/ocrFixtures.ts의 준비된 결과를
+ * "인식된 것처럼" 보여준다. 결과 시트에서 '화장대에 추가'하면 ClosetContext에 담긴다.
  */
 export default function ScanPage() {
   const navigate = useNavigate();
+  const { addItem } = useCloset();
   const [mode, setMode] = useState<ScanMode>('label');
+  const [phase, setPhase] = useState<'idle' | 'scanning' | 'result'>('idle');
+  const [result, setResult] = useState<OcrResult | null>(null);
+  const seq = useRef(0);
 
   const handleCapture = () => {
-    // TODO: Task 4 OCR 연동 후 촬영 → 전성분 인식 → 결과 화면 이동
-    alert('성분 인식은 준비 중이에요 (OCR 연동 예정)');
+    if (phase === 'scanning') return;
+    setPhase('scanning');
+    // OCR 처리 시간 흉내
+    setTimeout(() => {
+      setResult(nextOcrResult(seq.current++));
+      setPhase('result');
+    }, 1400);
+  };
+
+  const addToCloset = () => {
+    if (!result) return;
+    addItem({
+      id: result.id,
+      brand: result.brand,
+      name: result.name,
+      category: result.category,
+      price: result.price,
+      keyIngredients: result.ingredients.slice(0, 6),
+      addedVia: 'scan',
+      status: 'scanned',
+    });
+    navigate('/closet');
+  };
+
+  const reset = () => {
+    setResult(null);
+    setPhase('idle');
   };
 
   return (
@@ -66,11 +97,11 @@ export default function ScanPage() {
           <span className="absolute bottom-0 left-0 h-11 w-11 rounded-bl-[14px] border-b-[3.5px] border-l-[3.5px] border-[#4CC38A]" />
           <span className="absolute bottom-0 right-0 h-11 w-11 rounded-br-[14px] border-b-[3.5px] border-r-[3.5px] border-[#4CC38A]" />
           <span
-            className="absolute left-3 right-3 top-[46%] h-0.5"
+            className={`absolute left-3 right-3 top-[46%] h-0.5 ${phase === 'scanning' ? 'animate-pulse' : ''}`}
             style={{ background: 'linear-gradient(90deg,rgba(76,195,138,0),#4CC38A,rgba(76,195,138,0))' }}
           />
           <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-semibold text-white/75">
-            전성분 표를 프레임에 맞춰 주세요
+            {phase === 'scanning' ? '성분을 읽는 중…' : '전성분 표를 프레임에 맞춰 주세요'}
           </span>
         </div>
 
@@ -114,7 +145,8 @@ export default function ScanPage() {
           <button
             onClick={handleCapture}
             aria-label="촬영"
-            className="flex h-[70px] w-[70px] items-center justify-center rounded-full border-[4.5px] border-white bg-white/25 active:scale-95 transition-transform"
+            disabled={phase === 'scanning'}
+            className="flex h-[70px] w-[70px] items-center justify-center rounded-full border-[4.5px] border-white bg-white/25 active:scale-95 transition-transform disabled:opacity-60"
           >
             <span className="h-[54px] w-[54px] rounded-full bg-white" />
           </button>
@@ -170,6 +202,61 @@ export default function ScanPage() {
           </button>
         ))}
       </div>
+
+      {/* 인식 결과 시트 */}
+      {phase === 'result' && result && (
+        <div className="absolute inset-0 z-30 flex flex-col justify-end bg-black/50" onClick={reset}>
+          <div
+            className="rounded-t-3xl bg-white px-5 pb-8 pt-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-gray-20" />
+            <p className="text-[11px] font-bold text-primary">성분표 인식 완료</p>
+            <p className="mt-1 text-[10px] font-bold text-gray-50">{result.brand}</p>
+            <h3 className="text-[15px] font-extrabold text-gray-100">{result.name}</h3>
+
+            <div className="mt-2 flex gap-2">
+              <span className="inline-flex h-[22px] items-center rounded-full bg-primary-light px-2 text-[10px] font-extrabold text-primary-dark">
+                안전 {result.safeCount}
+              </span>
+              {result.cautionCount > 0 && (
+                <span className="inline-flex h-[22px] items-center rounded-full bg-[#FFF4E5] px-2 text-[10px] font-extrabold text-warning">
+                  주의 {result.cautionCount}
+                </span>
+              )}
+              <span className="inline-flex h-[22px] items-center rounded-full bg-gray-10 px-2 text-[10px] font-extrabold text-gray-70">
+                성분 {result.ingredients.length}개
+              </span>
+            </div>
+
+            <div className="mt-3 max-h-[128px] overflow-y-auto rounded-xl bg-surface-warm p-3">
+              <div className="flex flex-wrap gap-1.5">
+                {result.ingredients.map((ing) => (
+                  <span key={ing} className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-gray-70">
+                    {ing}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={reset}
+                className="h-[48px] flex-1 rounded-xl border border-gray-20 text-[13px] font-bold text-gray-70 active:scale-[.98] transition-transform"
+              >
+                다시 스캔
+              </button>
+              <button
+                onClick={addToCloset}
+                className="h-[48px] flex-[2] rounded-xl text-[13px] font-bold text-white active:scale-[.98] transition-transform"
+                style={{ background: '#00916D' }}
+              >
+                화장대에 추가
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

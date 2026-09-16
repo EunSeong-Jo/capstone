@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { skinTypes, RESULT_TYPE_ID } from '../../data/skinTypes';
+import { skinTypes } from '../../data/skinTypes';
 import type { SkinType } from '../../data/skinTypes';
+// data/skinTypes의 SkinType은 화면에 그릴 객체({id,label,…}), types의 SkinType은
+// 그 id의 문자열 유니온이다. 이름이 겹치므로 후자에 별칭을 준다.
+import type { SkinType as SkinTypeId } from '../../types';
 import { GREETING_COUNT, QUESTION_COUNT } from '../../data/onboarding';
+import { computeDiagnosis } from '../../data/skinTypeScoring';
 import { useUserProfile } from '../../context/userProfile';
+import { useDiagnosis } from '../../context/DiagnosisContext';
 import GreetingScreen from '../../components/onboarding/GreetingScreen';
 import TypeGridScreen from '../../components/onboarding/TypeGridScreen';
 import QuestionScreen from '../../components/onboarding/QuestionScreen';
@@ -45,6 +50,7 @@ export default function OnboardingPage() {
   const location = useLocation();
   const [params, setParams] = useSearchParams();
   const { profile } = useUserProfile();
+  const { saveDiagnosis } = useDiagnosis();
 
   const rawStep = params.get('step');
   // 결과 화면은 type을 URL에 담아 자기 완결적으로 만든다. 카드 → ✕ → /home → 뒤로가기는
@@ -62,6 +68,17 @@ export default function OnboardingPage() {
   const [answers, setAnswers] = useState<(number | null)[]>(() =>
     Array(QUESTION_COUNT).fill(null),
   );
+
+  // answers를 handleLoadingComplete의 deps에 넣으면 그 identity가 바뀌고, 그러면
+  // LoadingScreen의 [onComplete] effect가 2200ms 타이머를 재시작한다. ref로 읽어
+  // identity를 고정한다. saveDiagnosis도 DiagnosisContext에서 [scope] 의존이라
+  // 로그인 전환 시 바뀌는데, 같은 이유로 여기서 ref 경유가 안전하다.
+  const answersRef = useRef(answers);
+  const saveRef = useRef(saveDiagnosis);
+  useEffect(() => {
+    answersRef.current = answers;
+    saveRef.current = saveDiagnosis;
+  }, [answers, saveDiagnosis]);
 
   // 진입 가드는 마운트 1회만(deps []). 세션 내 뒤/앞으로가기는 리마운트가 아니라
   // 재발동하지 않으므로, loading이 '현재' 엔트리일 때는 정상 렌더된다.
@@ -82,11 +99,14 @@ export default function OnboardingPage() {
     location.key === 'default' ? setParams({}, { replace: true }) : navigate(-1);
 
   // LoadingScreen의 [onComplete] effect가 무관한 리렌더에 2200ms 타이머를 재시작하지
-  // 않도록 identity를 고정한다. replace라 loading 엔트리가 소진돼 뒤로가기 덫이 없다.
-  const handleLoadingComplete = useCallback(
-    () => setParams({ step: 'result-msg', type: RESULT_TYPE_ID }, { replace: true }),
-    [setParams],
-  );
+  // 않도록 identity를 고정한다(deps는 setParams뿐 — 나머지는 ref로 읽는다).
+  // replace라 loading 엔트리가 소진돼 뒤로가기 덫이 없다.
+  const handleLoadingComplete = useCallback(() => {
+    const picked = answersRef.current;
+    const computed = computeDiagnosis(picked);
+    saveRef.current({ ...computed, answers: picked, source: 'quiz' });
+    setParams({ step: 'result-msg', type: computed.skinType }, { replace: true });
+  }, [setParams]);
 
   return (
     <div
@@ -110,7 +130,17 @@ export default function OnboardingPage() {
             key="grid"
             selectedType={selectedType}
             onSelect={setSelectedType}
-            onConfirm={() => go({ step: 'result-card', type: selectedType.id })}
+            onConfirm={() => {
+              // '알아요' 경로: 문답을 건너뛰었으므로 5축은 중립(5), 1순위만 채운다.
+              const id = selectedType.id as SkinTypeId;
+              saveDiagnosis({
+                skinType: id,
+                scores: { moisture: 5, oil: 5, sensitivity: 5, pigmentation: 5, trouble: 5 },
+                ranks: [{ rank: 1, skinType: id, score: 1 }],
+                source: 'preset',
+              });
+              go({ step: 'result-card', type: id });
+            }}
           />
         )}
         {step === 'question' && (

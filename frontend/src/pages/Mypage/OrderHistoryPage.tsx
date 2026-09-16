@@ -2,8 +2,34 @@ import { useState } from 'react';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Icon } from '../../components/category/Icon';
+import { useCart } from '../../context/CartContext';
 
-const orders = [
+const fmtDate = (ts: number) =>
+  new Date(ts).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\.$/, '');
+
+// 예시 주문에는 상품 이미지가 없고 이모지 자리표시를 쓴다. 장바구니에서 만들어진
+// 실제 주문(useCart)은 imageUrl을 갖고 있어, 두 목록을 합치려면 선택 필드여야 한다.
+interface OrderItem {
+  id: number;
+  name: string;
+  option: string;
+  qty: number;
+  price: string;
+  bg: string;
+  emoji: string;
+  imageUrl?: string;
+}
+
+interface OrderEntry {
+  id: string;
+  date: string;
+  status: string;
+  statusBg: string;
+  statusColor: string;
+  items: OrderItem[];
+}
+
+const seedOrders: OrderEntry[] = [
   {
     id: 'ORD-2026041101',
     date: '2026.04.11',
@@ -42,10 +68,33 @@ const purchaseTypes = ['온라인몰 구매', '매장 구매'];
 const statusTypes = ['전체 상태', '주문접수', '결제완료', '배송준비중', '배송중', '배송완료'];
 
 export default function OrderHistoryPage() {
+  const { orders: myOrders } = useCart();
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState(purchaseTypes[0]);
   const [selectedStatus, setSelectedStatus] = useState(statusTypes[0]);
+
+  // 데모에서 방금 구매한 주문을 앞에, 예시 주문은 뒤에 붙인다
+  const orders = [
+    ...myOrders.map((o) => ({
+      id: o.id,
+      date: fmtDate(o.placedAt),
+      status: o.status,
+      statusBg: 'bg-primary',
+      statusColor: 'text-white',
+      items: o.lines.map((l) => ({
+        id: l.id,
+        name: l.name,
+        option: `옵션 : 기본 · ${l.brand}`,
+        qty: l.qty,
+        price: l.price.toLocaleString(),
+        bg: 'bg-primary-light',
+        emoji: '🧴',
+        imageUrl: l.imageUrl,
+      })),
+    })),
+    ...seedOrders,
+  ];
 
   return (
     <PageWrapper>
@@ -118,9 +167,17 @@ export default function OrderHistoryPage() {
             {order.items.map((item, i) => (
               <div key={item.id} className={`bg-white ${i > 0 ? 'border-t border-gray-10' : ''}`}>
                 <div className="flex gap-3 p-4">
-                  <div className={`w-20 h-20 rounded-[10px] flex items-center justify-center text-4xl border border-gray-10 shrink-0 ${item.bg}`}>
-                    {item.emoji}
-                  </div>
+                  {item.imageUrl ? (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      className="w-20 h-20 rounded-[10px] object-cover border border-gray-10 shrink-0"
+                    />
+                  ) : (
+                    <div className={`w-20 h-20 rounded-[10px] flex items-center justify-center text-4xl border border-gray-10 shrink-0 ${item.bg}`}>
+                      {item.emoji}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-100 leading-snug mb-1">{item.name}</p>
                     <p className="text-xs text-gray-50 mb-0.5">{item.option}</p>

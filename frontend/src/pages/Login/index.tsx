@@ -1,17 +1,35 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { PERSONAS } from '../../data/personas';
 
-// 데모 로그인 화면. 인증 API가 아직 없어 입력값과 무관하게 온보딩(진단)으로 바로 진입한다.
+// 데모 로그인 화면. 인증 API가 없어 personas.json과의 이메일·비밀번호 대조로 로그인한다.
 // (스플래시 → 로그인 → 위피 인삿말(/onboarding) 순서)
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login, loginAs, continueAsGuest } = useAuth();
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const r = login(email, pw);
+    if (r.ok) {
+      navigate('/onboarding');
+    } else {
+      setError(r.error ?? '로그인에 실패했어요.');
+    }
+  };
+
+  const quickLogin = (id: string) => {
+    if (loginAs(id).ok) navigate('/onboarding');
+  };
 
   return (
     <div className="flex min-h-dvh flex-col bg-ob-bg px-7">
       {/* 위 여백 — 콘텐츠 그룹을 화면 중앙보다 조금 아래에 둔다 */}
-      <div className="flex-[5]" />
+      <div className="flex-[4]" />
 
       {/* 로고 */}
       <div className="mt-2.5 flex flex-col items-center">
@@ -28,10 +46,7 @@ export default function LoginPage() {
       {/* 입력 — 로고 아래 40px */}
       <form
         className="mt-10 flex flex-col gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          navigate('/onboarding');
-        }}
+        onSubmit={submit}
       >
         <input
           type="email"
@@ -39,7 +54,10 @@ export default function LoginPage() {
           autoComplete="email"
           placeholder="이메일"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setError(null);
+          }}
           className="h-[52px] rounded-xl border border-gray-20 bg-white px-4 text-[14px] text-gray-100 outline-none focus:border-primary"
         />
         <input
@@ -47,9 +65,13 @@ export default function LoginPage() {
           autoComplete="current-password"
           placeholder="비밀번호"
           value={pw}
-          onChange={(e) => setPw(e.target.value)}
+          onChange={(e) => {
+            setPw(e.target.value);
+            setError(null);
+          }}
           className="h-[52px] rounded-xl border border-gray-20 bg-white px-4 text-[14px] text-gray-100 outline-none focus:border-primary"
         />
+        {error && <p className="text-[12px] font-semibold text-[#D64545]">{error}</p>}
         <button
           type="submit"
           className="mt-1 h-[52px] rounded-xl bg-ob-green text-[15px] font-semibold text-white transition-transform active:scale-[.97]"
@@ -65,35 +87,34 @@ export default function LoginPage() {
         <button type="button" onClick={() => alert('준비 중이에요')}>비밀번호 찾기</button>
       </div>
 
-      {/* 소셜 로그인 (데모) */}
-      <div className="mt-6 flex items-center gap-3">
-        <span className="h-px flex-1 bg-gray-20" />
-        <span className="text-[11px] text-gray-50">간편 로그인</span>
-        <span className="h-px flex-1 bg-gray-20" />
-      </div>
-      <div className="mt-4 flex justify-center gap-4">
-        {[
-          { k: 'kakao', bg: '#FEE500', fg: '#191600', t: 'K' },
-          { k: 'naver', bg: '#03C75A', fg: '#fff', t: 'N' },
-          { k: 'google', bg: '#fff', fg: '#4285F4', t: 'G' },
-        ].map((s) => (
-          <button
-            key={s.k}
-            type="button"
-            onClick={() => alert('준비 중이에요')}
-            aria-label={`${s.k} 로그인`}
-            className="grid h-12 w-12 place-items-center rounded-full border border-gray-20 text-[16px] font-bold active:scale-95 transition-transform"
-            style={{ background: s.bg, color: s.fg }}
-          >
-            {s.t}
-          </button>
-        ))}
+      {/* 데모 계정 빠른 로그인 — 시연·테스트용. 실제 로그인 UI가 아니다 */}
+      <div className="mt-6 rounded-2xl border border-dashed border-[#C9CFC5] bg-white/60 p-3">
+        <p className="mb-2 text-center text-[11px] font-bold text-gray-50">데모 계정으로 바로 로그인 (팀원 6종 — 게스트 포함)</p>
+        <div className="grid grid-cols-3 gap-2">
+          {PERSONAS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => quickLogin(p.id)}
+              className="rounded-lg border border-[#DCE8E1] bg-white px-2 py-2 text-left active:scale-95 transition-transform"
+            >
+              <span className="block text-[11px] font-semibold text-primary-dark">{p.nickname}</span>
+              <span className="block text-[9px] text-gray-50">{p.role}</span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-center text-[10px] text-gray-50">
+          비밀번호는 전부 swappy1234 (예: donggyun@swappy.app)
+        </p>
       </div>
 
       <button
         type="button"
-        onClick={() => navigate('/home')}
-        className="mt-7 text-center text-[13px] font-medium text-gray-50 underline underline-offset-2"
+        onClick={() => {
+          continueAsGuest();
+          navigate('/home');
+        }}
+        className="mt-6 text-center text-[13px] font-medium text-gray-50 underline underline-offset-2"
       >
         로그인 없이 둘러보기
       </button>

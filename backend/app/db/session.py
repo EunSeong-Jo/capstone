@@ -5,6 +5,7 @@ FastAPI 핸들러는 get_db()를 의존성으로 받아 쓴다.
 from __future__ import annotations
 
 import asyncio
+import ssl
 from collections.abc import AsyncGenerator
 
 import structlog
@@ -21,7 +22,19 @@ log = structlog.get_logger()
 
 # Neon 등 관리형 DB는 SSL이 필수인데, asyncpg는 URL의 sslmode를 읽지 못한다.
 # config.DATABASE_URL이 해당 파라미터를 떼어내므로 여기서 별도로 넘긴다.
-_connect_args: dict = {"ssl": "require"} if settings.DB_REQUIRES_SSL else {}
+#
+# connect_args에 문자열 "ssl": "require"를 그대로 넘기면 asyncpg가 libpq 기본값을
+# 따라 `~/.postgresql/root.crt`(사용자 홈 디렉터리)를 루트 인증서로 열어보려 한다.
+# Windows에서 사용자 폴더명에 비ASCII 문자가 있으면(예: 한글 계정명) 그 경로를
+# 여는 과정에서 `OSError: [Errno 42] Illegal byte sequence`로 죽는다 — sslmode=require는
+# 애초에 인증서 검증이 필요 없으므로, 검증을 아예 끈 SSLContext를 직접 만들어
+# 이 자동 탐색 경로를 건너뛴다. (Linux/Docker에서도 동일하게 동작 — 동작 자체는 그대로다.)
+_ssl_ctx: ssl.SSLContext | None = None
+if settings.DB_REQUIRES_SSL:
+    _ssl_ctx = ssl.create_default_context()
+    _ssl_ctx.check_hostname = False
+    _ssl_ctx.verify_mode = ssl.CERT_NONE
+_connect_args: dict = {"ssl": _ssl_ctx} if _ssl_ctx else {}
 
 engine = create_async_engine(
     settings.DATABASE_URL,
