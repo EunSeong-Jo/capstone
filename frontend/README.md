@@ -128,7 +128,7 @@ frontend/
 │  │  ├─ layout/      # PageWrapper, Header, BottomNav
 │  │  └─ {feature}/   # 기능별 묶음 (product/, skin/ 등)
 │  ├─ types/index.ts  # 공용 타입 (SkinType, Product, Alternative …)
-│  ├─ mocks/          # 목업 데이터 (API 연동 전)
+│  ├─ mocks/          # 목업 데이터 (API 연동 전) + products.fixture.json(실제 API 캡처본)
 │  ├─ App.tsx         # 라우트 정의
 │  └─ index.css       # CSS 변수 + Tailwind + 커스텀 유틸(.glass, .scrollbar-hide)
 ```
@@ -144,7 +144,20 @@ frontend/
 
 - **디자인 토큰만 사용, 색상 하드코딩 금지** — Tailwind 토큰(`primary`, `gray-*`, `oy-*`, `surface-warm`) 또는 CSS 변수(`var(--primary)`)를 쓰고 `#3D8F6F`·`#F5F6F2` 같은 직접 값 지양. 토큰 정의: `tailwind.config.ts`, `index.css`
 - **아이콘은 인라인 SVG** (아이콘 라이브러리 추가 금지)
-- **API 미연동 데이터는 `mocks/`에 모으고 `// TODO` 마커**를 남깁니다
+- **API 미연동 데이터는 `mocks/`에 모으고 `// TODO` 마커**를 남깁니다. 화면을 API에
+  붙일 때 해당 목업은 유지가 아니라 **삭제** 대상입니다
+- **목업 폴백은 손으로 적지 않습니다** — 백엔드 없이 `npm run dev`만 띄웠을 때
+  `useProducts`가 화면을 채우는 데 쓰는 `mocks/products.fixture.json`은 실제 API
+  응답 캡처본입니다. 스키마가 바뀌면 백엔드를 띄운 뒤 다시 받으세요:
+
+  ```bash
+  npm run fixture:products                        # localhost:8000
+  API_BASE=http://backend:8000 npm run fixture:products
+  ```
+
+  이 폴백은 **로컬에서만** 동작합니다. 도커 compose는 `VITE_MOCK_FALLBACK=false`라
+  조회가 실패하면 목업으로 덮지 않고 에러를 그대로 노출합니다 — 시연 환경에서
+  백엔드 고장이 화면에 드러나지 않으면 연동이 끊긴 걸 알 방법이 없기 때문입니다
 - **safe-area**: 고정 요소는 `var(--safe-top/bottom)` 사용 (모바일 노치 대응)
 - 모바일 폭 기준 `max-w-[430px]`, 터치 피드백 `active:scale-*`
 

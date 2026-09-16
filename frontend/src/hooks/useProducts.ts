@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchProducts, ProductQuery } from '../api/products';
 import { Product } from '../types';
-import { OY_PRODUCTS } from '../mocks/oliveyoung';
+import productsFixture from '../mocks/products.fixture.json';
 
 interface UseProductsResult {
   products: Product[];
@@ -42,8 +42,15 @@ const MOCK_FALLBACK =
     ? import.meta.env.VITE_MOCK_FALLBACK === 'true'
     : import.meta.env.DEV;
 
+/**
+ * 실제 API 응답을 받아 저장한 폴백 풀(scripts/update-products-fixture.mjs).
+ * 손으로 적은 목업이 아니라 캡처본이라, 스키마가 바뀌면 스크립트를 다시
+ * 돌리면 됩니다 — `npm run fixture:products`.
+ */
+const FIXTURE_PRODUCTS = productsFixture.items as Product[];
+
 function mockSlice(query: ProductQuery): Product[] {
-  let list = [...OY_PRODUCTS];
+  let list = [...FIXTURE_PRODUCTS];
   if (query.category) list = list.filter((p) => p.category === query.category);
   if (query.brand) list = list.filter((p) => p.brand === query.brand);
   switch (query.sort) {
