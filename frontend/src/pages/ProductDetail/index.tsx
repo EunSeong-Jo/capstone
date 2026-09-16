@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '../../components/category/Icon';
 import { OySectionHeader } from '../../components/home/oy/OySectionHeader';
 import { useLikedProducts } from '../../context/LikedProductsContext';
+import { useCart } from '../../context/CartContext';
 import { useProduct } from '../../hooks/useProduct';
 import { useRecentlyViewed } from '../../hooks/useRecentlyViewed';
 import { Product } from '../../types';
@@ -105,6 +106,7 @@ export default function ProductDetailPage() {
 
   const { addRecentlyViewed } = useRecentlyViewed();
   const { isLiked, toggleLike } = useLikedProducts();
+  const { addToCart, inCart } = useCart();
   const [showAll, setShowAll] = useState(false);
 
   // 전성분은 라벨을 분리해 묶음으로 만든다. 기획세트가 아니면 묶음 1개다.
@@ -342,20 +344,36 @@ export default function ProductDetailPage() {
         >
           <button
             type="button"
-            disabled
-            title="준비 중입니다"
-            className="h-[46px] flex-1 rounded-xl border border-oy-line text-sm font-bold text-oy-sub disabled:opacity-60"
+            onClick={() => {
+              addToCart({
+                id: product.id,
+                name: product.name,
+                brand: product.brand,
+                price: product.price,
+                imageUrl: product.imageUrl,
+              });
+              navigate('/cart');
+            }}
+            className="h-[46px] flex-1 rounded-xl border border-primary text-sm font-bold text-primary active:scale-[.98]"
           >
-            장바구니
+            {inCart(product.id) ? '장바구니에 담김' : '장바구니'}
           </button>
-          <a
-            href={product.productUrl ?? undefined}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => {
+              addToCart({
+                id: product.id,
+                name: product.name,
+                brand: product.brand,
+                price: product.price,
+                imageUrl: product.imageUrl,
+              });
+              navigate('/cart');
+            }}
             className="flex h-[46px] flex-[2] items-center justify-center rounded-xl bg-primary text-sm font-bold text-white active:scale-[.98]"
           >
-            올리브영에서 보기
-          </a>
+            바로 구매
+          </button>
         </div>
       )}
     </div>

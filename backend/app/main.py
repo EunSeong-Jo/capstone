@@ -1,6 +1,14 @@
 import asyncio
 import contextlib
+import sys
 from urllib.parse import urlsplit
+
+# Windows 기본 ProactorEventLoop는 asyncpg의 DNS 조회에서
+# "OSError: [Errno 42] Illegal byte sequence"를 일으킨다 (Neon 같은 원격 호스트 접속 시).
+# 팀은 평소 Docker(Linux 컨테이너)로 백엔드를 띄워서 이 문제를 겪지 않았을 뿐이다.
+# 로컬 Windows에서 맨몸으로 uvicorn을 띄울 때만 필요한 우회.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import sentry_sdk
 import structlog
@@ -78,7 +86,7 @@ async def _check_db() -> None:
         if not settings.DATABASE_DSN:
             print(
                 "\n" + "=" * 68
-                + "\n  DB에 연결할 수 없습니다 — DATABASE_DSN이 비어 있습니다."
+                + "\n  DB에 연결할 수 없습니다 - DATABASE_DSN이 비어 있습니다."
                 "\n"
                 "\n  리포 루트의 .env에 Neon 연결 문자열을 넣어 주세요."
                 "\n      cp .env.example .env"
@@ -92,7 +100,7 @@ async def _check_db() -> None:
         else:
             print(
                 "\n" + "=" * 68
-                + "\n  DB에 연결할 수 없습니다 — DATABASE_DSN은 설정돼 있습니다."
+                + "\n  DB에 연결할 수 없습니다 - DATABASE_DSN은 설정돼 있습니다."
                 "\n"
                 f"\n  오류: {str(exc)[:160]}"
                 "\n"

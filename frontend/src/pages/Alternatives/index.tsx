@@ -4,6 +4,12 @@ import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Header } from '../../components/layout/Header';
 import { AlternativeCard } from '../../components/alternatives/AlternativeCard';
 import { SEED_PRODUCTS, MOCK_ALTERNATIVES } from '../../mocks/alternatives';
+import { useCloset } from '../../context/ClosetContext';
+import type { Alternative, Product } from '../../types';
+
+/** 목업 seed 데이터에 없는 기준제품(OCR·챗봇으로 직접 등록한 화장품 등)을 위한 대체품 풀.
+ *  전체 목업 대체품을 카테고리로 필터링해 "그럴듯한" 결과를 채운다. */
+const FALLBACK_POOL: Alternative[] = Object.values(MOCK_ALTERNATIVES).flat();
 
 type SortKey = 'similarity' | 'price' | 'skin';
 
@@ -17,8 +23,33 @@ const SORTS: { key: SortKey; label: string }[] = [
 export default function AlternativesPage() {
   const [params] = useSearchParams();
   const seedId = Number(params.get('seed')) || 1;
-  const seed = SEED_PRODUCTS[seedId];
-  const base = MOCK_ALTERNATIVES[seedId] ?? [];
+  const { items: closetItems } = useCloset();
+  const closetMatch = closetItems.find((c) => c.id === seedId);
+
+  // 목업 seed 목록(1/5/6/8)에 없으면(예: 화장대에 직접 등록한 화장품) 화장대 항목으로 헤더를 채운다
+  const seed: Product | undefined =
+    SEED_PRODUCTS[seedId] ??
+    (closetMatch
+      ? {
+          id: closetMatch.id,
+          brand: closetMatch.brand,
+          name: closetMatch.name,
+          category: closetMatch.category,
+          imageUrl: closetMatch.imageUrl,
+          price: closetMatch.price ?? 0,
+        }
+      : undefined);
+
+  // 마찬가지로 목업 대체품이 없으면, 같은 카테고리의 목업 대체품 풀에서 채운다(빈 화면 방지)
+  const base =
+    MOCK_ALTERNATIVES[seedId] ??
+    (closetMatch
+      ? (FALLBACK_POOL.filter((a) => a.category === closetMatch.category).length > 0
+          ? FALLBACK_POOL.filter((a) => a.category === closetMatch.category)
+          : FALLBACK_POOL
+        ).slice(0, 4)
+      : []);
+  const isFallback = !MOCK_ALTERNATIVES[seedId] && !!closetMatch;
 
   const [sort, setSort] = useState<SortKey>('similarity');
 
@@ -40,7 +71,9 @@ export default function AlternativesPage() {
       {/* 기준제품 헤더 */}
       {seed && (
         <div className="px-4 pt-3">
-          <p className="text-xs text-gray-70 mb-2">이 제품을 대신할 만한 추천이에요</p>
+          <p className="text-xs text-gray-70 mb-2">
+            {isFallback ? '등록하신 화장품과 비슷한 카테고리의 추천이에요' : '이 제품을 대신할 만한 추천이에요'}
+          </p>
           <div className="flex items-center gap-3 p-3 rounded-xl bg-primary-light/60 border border-primary/15">
             <div className="w-14 h-14 rounded-lg overflow-hidden bg-white flex items-center justify-center shrink-0">
               {seed.imageUrl ? (

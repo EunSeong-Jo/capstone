@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OY_VERTICALS } from '../../../mocks/oliveyoung';
+import { useCart } from '../../../context/CartContext';
 
 interface OyAppBarProps {
+  /** 미지정 시 장바구니 컨텍스트의 담긴 수량을 쓴다 */
   cartCount?: number;
   /** 현재 선택된 도메인 id (기본 화장품) */
   vertical?: string;
@@ -19,8 +21,10 @@ function Chevron() {
 }
 
 /** 올리브영식 상단 앱바 — 로고(swappy) + 도메인 전환 시트(상단에서 내려옴) */
-export function OyAppBar({ cartCount = 0, vertical = 'cosmetics', onChangeVertical }: OyAppBarProps) {
+export function OyAppBar({ cartCount, vertical = 'cosmetics', onChangeVertical }: OyAppBarProps) {
   const navigate = useNavigate();
+  const { count: cartCtxCount } = useCart();
+  const badge = cartCount ?? cartCtxCount;
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(vertical);
 
@@ -70,17 +74,21 @@ export function OyAppBar({ cartCount = 0, vertical = 'cosmetics', onChangeVertic
               <path d="M16.5 16.5L21 21" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           </button>
-          <button aria-label="장바구니" className="relative active:scale-90 transition-transform">
+          <button
+            aria-label="장바구니"
+            onClick={() => navigate('/cart')}
+            className="relative active:scale-90 transition-transform"
+          >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            {cartCount > 0 && (
+            {badge > 0 && (
               <span
                 className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-white text-[10px] font-bold leading-none flex items-center justify-center"
                 style={{ backgroundColor: '#F8174A' }}
               >
-                {cartCount > 99 ? '99+' : cartCount}
+                {badge > 99 ? '99+' : badge}
               </span>
             )}
           </button>
