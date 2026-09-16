@@ -26,6 +26,15 @@ conda activate ocr_bench
 pip install -r scripts/ocr_benchmark/requirements.txt
 ```
 
+`easyocr`이 자체 의존성으로 `opencv-python-headless`를 강제로 함께 설치하기 때문에,
+requirements.txt의 `opencv-contrib-python`과 같은 `cv2` 네임스페이스를 두고 충돌해
+`cv2.dnn_superres`(초해상도 업스케일에 사용, `region_detection.py` 참고)가 빈 모듈이
+되는 문제가 있다. 설치 직후 한 번 더 덮어써서 정리한다:
+
+```bash
+pip install --force-reinstall --no-deps opencv-contrib-python==4.10.0.84
+```
+
 ## 3. 테스트 이미지 준비
 
 보유 중인 화장품 패키지 사진(50장 이상 권장)을 `scripts/ocr_benchmark/images/`에 넣습니다.

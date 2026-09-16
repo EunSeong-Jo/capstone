@@ -12,8 +12,14 @@ BENCHMARK_REPORT.md 실패 원인 분석 1~3번(엉뚱한 영역 인식, 배경 
 (4방향 회전 보정을 시도했으나, 180도 회전은 박스 가로세로 비율이 그대로 유지돼 정방향과
 구별이 안 되고 실제로 정상 사진을 뒤집는 역효과가 확인되어 제외했다.)
 """
+from pathlib import Path
+
 import numpy as np
 import cv2
+
+_FSRCNN_MODEL_PATH = Path(__file__).parent / "models" / "FSRCNN_x2.pb"
+_superres = None
+_superres_load_failed = False
 
 
 def build_detector():
@@ -21,6 +27,27 @@ def build_detector():
     import easyocr
 
     return easyocr.Reader(["ko", "en"], gpu=False)
+
+
+def _get_superres():
+    """FSRCNN(x2) 초해상도 업스케일러를 1회 로딩해 재사용한다.
+
+    cv2.resize의 cubic 보간 대신 학습된 초해상도 모델을 쓰면 작은/흐릿한 텍스트의
+    실제 획 디테일을 복원해준다 (cubic은 픽셀을 매끄럽게만 늘릴 뿐 디테일을 만들어내지
+    못함) - 연구에서 문서 OCR 정확도를 최대 21%p 개선한 것으로 보고된 기법. 모델 파일이
+    없거나 로딩에 실패하면 None을 반환해 호출부가 기존 cubic으로 폴백하게 한다.
+    """
+    global _superres, _superres_load_failed
+    if _superres is not None or _superres_load_failed:
+        return _superres
+    try:
+        sr = cv2.dnn_superres.DnnSuperResImpl_create()
+        sr.readModel(str(_FSRCNN_MODEL_PATH))
+        sr.setModel("fsrcnn", 2)
+        _superres = sr
+    except Exception:
+        _superres_load_failed = True
+    return _superres
 
 
 def _boxes_from_detect_result(result) -> list[list[float]]:
@@ -131,9 +158,13 @@ def detect_candidate_regions(
         if crop.size == 0:
             continue
         if min(crop.shape[:2]) < upscale_if_smaller_than:
-            crop = cv2.resize(
-                crop, None, fx=upscale_factor, fy=upscale_factor, interpolation=cv2.INTER_CUBIC
-            )
+            superres = _get_superres() if upscale_factor == 2.0 else None
+            if superres is not None:
+                crop = superres.upsample(crop)
+            else:
+                crop = cv2.resize(
+                    crop, None, fx=upscale_factor, fy=upscale_factor, interpolation=cv2.INTER_CUBIC
+                )
         crops.append(crop)
 
     if include_full_image or not crops:
