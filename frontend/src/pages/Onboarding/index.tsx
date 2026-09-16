@@ -74,9 +74,11 @@ export default function OnboardingPage() {
   // identity를 고정한다. saveDiagnosis도 DiagnosisContext에서 [scope] 의존이라
   // 로그인 전환 시 바뀌는데, 같은 이유로 여기서 ref 경유가 안전하다.
   const answersRef = useRef(answers);
-  answersRef.current = answers;
   const saveRef = useRef(saveDiagnosis);
-  saveRef.current = saveDiagnosis;
+  useEffect(() => {
+    answersRef.current = answers;
+    saveRef.current = saveDiagnosis;
+  }, [answers, saveDiagnosis]);
 
   // 진입 가드는 마운트 1회만(deps []). 세션 내 뒤/앞으로가기는 리마운트가 아니라
   // 재발동하지 않으므로, loading이 '현재' 엔트리일 때는 정상 렌더된다.
