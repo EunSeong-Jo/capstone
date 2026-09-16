@@ -107,6 +107,8 @@ export default function HomePage() {
     products: seasonalPool,
     loading,
     isMock: seasonalIsMock,
+    error: seasonalError,
+    reload: seasonalReload,
   } = useProducts({ size: 12, sort: 'rating' });
   const seasonal = seasonalPool.slice(0, 6);
 
@@ -249,7 +251,10 @@ export default function HomePage() {
           title={`🌤 ${weather?.seasonLabel ?? '요즘'} 맞춤, 수분 집중 추천`}
           products={seasonal}
         />
-        {loading && <CarouselSkeleton />}
+        {loading && seasonal.length === 0 && <CarouselSkeleton />}
+        {seasonalError && seasonal.length === 0 && (
+          <CarouselError message={seasonalError} onRetry={seasonalReload} />
+        )}
         <Divider />
 
         {/* 더 저렴한 대체품 (가격절약 축) */}
