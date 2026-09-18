@@ -3,6 +3,7 @@ import { Alternative } from '../../types';
 import { Badge } from '../ui/Badge';
 import { ReasonTags } from './ReasonTags';
 import { formatUnitPrice } from '../../utils/unitPrice';
+import { similarityBadgeType } from '../../utils/alternatives';
 
 interface AlternativeCardProps {
   alt: Alternative;
@@ -50,7 +51,7 @@ export function AlternativeCard({ alt, showSeedDelta = true, maxReasons = 3, onC
         )}
       </div>
 
-      <Badge type={alt.similarityScore >= 80 ? 'sim-high' : 'sim-mid'} label={`${alt.similarityScore}%`} />
+      <Badge type={similarityBadgeType(alt.similarityScore)} label={`${alt.similarityScore}%`} />
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { OySectionHeader } from '../../components/home/oy/OySectionHeader';
 import { useLikedProducts } from '../../context/LikedProductsContext';
 import { useCart } from '../../context/CartContext';
 import { useProduct } from '../../hooks/useProduct';
+import { useSimilarProducts } from '../../hooks/useSimilarProducts';
+import { AlternativeCarousel } from '../../components/home/oy/sections/AlternativeCarousel';
 import { useRecentlyViewed } from '../../hooks/useRecentlyViewed';
 import { Product } from '../../types';
 import { countIngredients, groupIngredients } from '../../utils/ingredients';
@@ -103,6 +105,9 @@ export default function ProductDetailPage() {
   const { id } = useParams();
   const productId = Number(id);
   const { product, loading, error, notFound, reload } = useProduct(productId);
+  // 대체품. useProduct와 같은 렌더에서 함께 나가므로 순차 대기가 없다.
+  // 기준제품이 도착하면 절약액이 뒤이어 계산된다(재요청 없음).
+  const similar = useSimilarProducts(productId, { limit: 10, seedProduct: product });
 
   const { addRecentlyViewed } = useRecentlyViewed();
   const { isLiked, toggleLike } = useLikedProducts();
@@ -319,10 +324,27 @@ export default function ProductDetailPage() {
 
           <Divider />
 
-          <ComingSoon
-            title="성분이 비슷한 제품"
-            reason="성분 유사도 분석이 끝나면 이 자리에 대체품이 표시됩니다."
-          />
+          {/* 성분이 비슷한 제품.
+              로딩 중에는 그리지 않는다 — 페이지가 이미 DetailSkeleton을 거쳐
+              왔고, 여기서 또 자리를 잡았다 놓으면 레이아웃이 뛴다. */}
+          {!similar.loading &&
+            (similar.alternatives.length > 0 ? (
+              <AlternativeCarousel
+                title="성분이 비슷한 제품"
+                subtitle="전성분을 비교해 골랐어요"
+                alternatives={similar.alternatives}
+                onMore={() => navigate(`/alternatives?seed=${product.id}&from=detail`)}
+              />
+            ) : (
+              <ComingSoon
+                title="성분이 비슷한 제품"
+                reason={
+                  similar.error
+                    ? '대체품을 불러오지 못했습니다.'
+                    : '이 제품은 아직 성분 유사도 분석 전입니다.'
+                }
+              />
+            ))}
           <Divider />
           <ComingSoon
             title="내 피부와의 궁합"

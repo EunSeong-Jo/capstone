@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Alternative } from '../../types';
 import { ReasonTags } from './ReasonTags';
+import { similarityBadgeType } from '../../utils/alternatives';
 
 interface AlternativeCardVProps {
   alt: Alternative;
@@ -23,7 +24,12 @@ export function AlternativeCardV({ alt, width = 'w-[160px]' }: AlternativeCardVP
         {/* 유사도 뱃지 */}
         <span
           className="absolute top-1.5 right-1.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
-          style={{ backgroundColor: alt.similarityScore >= 80 ? 'var(--primary)' : 'var(--warning)' }}
+          style={{
+            backgroundColor:
+              similarityBadgeType(alt.similarityScore) === 'sim-high'
+                ? 'var(--primary)'
+                : 'var(--warning)',
+          }}
         >
           유사도 {alt.similarityScore}%
         </span>
