@@ -19,6 +19,7 @@ import {
 } from '../../types';
 import { useProducts } from '../../hooks/useProducts';
 import { useRecommendations } from '../../hooks/useRecommendations';
+import { useSimilarProducts } from '../../hooks/useSimilarProducts';
 import { useWeather } from '../../hooks/useWeather';
 import { useCareTip } from '../../hooks/useCareTip';
 import { useAuth } from '../../context/AuthContext';
@@ -123,10 +124,28 @@ export default function HomePage() {
 
   const registrySeedId = closetItems[0]?.id ?? MOCK_ALTERNATIVES_FOR_REGISTRY[0]?.seedId ?? 6;
 
+  // 화장대 첫 항목의 실제 성분 유사도. 화장대 id가 카탈로그 id가 된 뒤로
+  // 여기서 진짜 점수를 쓸 수 있다.
+  const registrySeed = closetItems[0];
+  const registrySimilar = useSimilarProducts(
+    closetItems.length > 0 ? registrySeedId : undefined,
+    {
+      limit: 6,
+      seedProduct: registrySeed
+        ? { id: registrySeed.id, price: registrySeed.price ?? 0 }
+        : null,
+    },
+  );
+
   // 화장대에 등록한 제품과 같은 카테고리 위주로 골라 "화장대와 비슷한 추천"을 실제로 반영한다.
   // 화장대가 비어있으면(신규 게스트 등) 기존 고정 목업으로 대체.
   const registryAlternatives: Alternative[] = useMemo(() => {
     if (closetItems.length === 0) return MOCK_ALTERNATIVES_FOR_REGISTRY;
+    // 성분 유사도가 있으면 그걸 쓴다 — 점수·절약액·공통성분이 전부 실제 값이다.
+    if (registrySimilar.alternatives.length > 0) return registrySimilar.alternatives;
+    // 없을 때만 피부타입 추천으로 대신한다. 이 경로의 similarityScore는
+    // 성분을 비교한 값이 아니라 자리를 채우는 숫자다 — 유사도 배치가
+    // 이 제품까지 돌면 위쪽 분기로 넘어간다.
     const closetCategories = new Set(closetItems.map((c) => c.category));
     const related = forYou.filter((p) => closetCategories.has(p.category));
     const pool = (related.length > 0 ? related : forYou).slice(0, 6);
@@ -135,7 +154,7 @@ export default function HomePage() {
       similarityScore: Math.max(60, 92 - i * 6),
       seedId: closetItems[0]?.id,
     }));
-  }, [closetItems, forYou]);
+  }, [closetItems, forYou, registrySimilar.alternatives]);
 
   // 로그인 시 페르소나/진단/화장대에서 대시보드 값 구성, 게스트는 목업 유지
   const dashUser: ProfileUser = isUser && persona

@@ -60,7 +60,8 @@
 
 ## 작업 규칙
 
-- 브랜치는 `dev`에서 분기하고 PR의 base도 항상 `dev`입니다 (`main` 아님)
+- 브랜치는 `dev`에서 분기하고 PR의 base도 항상 `dev`입니다 (`main` 아님).
+  이름은 `기능_작업자이니셜` (`unitprice_es`, `category_yb`) — 자세한 내용은 [frontend/README.md](frontend/README.md) 8절
 - DB 스키마 원본은 `backend/app/models/`이고, 변경은 **Alembic 마이그레이션으로만** 합니다.
   `alembic revision --autogenerate`는 **rename을 감지하지 못해 DROP + CREATE를 만듭니다.** 테이블·컬럼 이름을 바꿀 때는 마이그레이션을 직접 작성하세요 — 자세한 내용은 [backend/README.md](backend/README.md)
 - `.env`는 커밋하지 않습니다. Neon 조직 `dmu` 초대로 각자 DSN을 받습니다

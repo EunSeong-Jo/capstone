@@ -180,8 +180,10 @@ frontend/
 
 ## 8. 협업 규칙 (브랜치 · PR · 커밋)
 
-- **브랜치**: 통합 브랜치는 `dev`. 작업은 `dev`에서 분기한 **feature 브랜치**에서.
-  - 예: `feat/search-image`, `fix/home-exp-bar`, `docs/...`
+- **브랜치**: 통합 브랜치는 `dev`. 작업은 `dev`에서 분기한 작업 브랜치에서.
+  - 이름은 **`기능_작업자이니셜`**. 예: `unitprice_es`, `category_yb`, `search_jw`, `history_misong`
+  - 이니셜은 `es` · `yb` · `jw` · `dg` · `misong`
+  - 초기에 만든 `feature/...` · `fix/...` 형식이 네 개 남아 있지만 현행 규칙은 위쪽입니다
 - **PR**: base는 항상 **`dev`** (절대 `main` 직접 X). 작게 자주 올립니다. 안정화되면 `dev` → `main`.
 - **커밋 메시지**: `타입(scope): 한글 요약`
   - 타입: `feat` / `fix` / `chore` / `docs` / `refactor` / `style`

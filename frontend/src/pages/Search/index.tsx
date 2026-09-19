@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { ProductCard } from '../../components/product/ProductCard';
-import { SEED_PRODUCTS } from '../../mocks/alternatives';
 import {
   POPULAR_SEARCH_FILTERS,
   POPULAR_SEARCH_RANKING,
@@ -13,9 +12,7 @@ import {
 import { useRecentSearches } from '../../hooks/useRecentSearches';
 import { useMyIngredients } from '../../hooks/useMyIngredients';
 import { useSearchProducts } from '../../hooks/useSearchProducts';
-
-// 내 화장대(등록·분석한 제품) — 대체품 찾기 기준제품
-const MY_SHELF = Object.values(SEED_PRODUCTS);
+import { useCloset } from '../../context/ClosetContext';
 
 type MainTab = 'general' | 'ingredient';
 type IngredientSubTab = 'dict' | 'my';
@@ -98,6 +95,11 @@ export default function SearchPage() {
     error: searchError,
     reload: reloadSearch,
   } = useSearchProducts(searchQuery);
+
+  // 내 화장대(등록·분석한 제품) — 대체품 찾기 기준제품.
+  // 예전에는 mocks/alternatives의 SEED_PRODUCTS를 썼는데, 그 id는 실제
+  // 카탈로그와 무관해서 '대체품 찾기'가 엉뚱한 제품으로 갔다.
+  const { items: myShelf } = useCloset();
 
   const handleSearch = (q: string) => {
     setQuery(q);
@@ -200,14 +202,14 @@ export default function SearchPage() {
           ) : (
             <>
               {/* 내 화장대에서 대체품 찾기 (핵심 차별화) */}
-              {MY_SHELF.length > 0 && (
+              {myShelf.length > 0 && (
                 <div className="mb-[22px] rounded-2xl bg-primary-light p-3.5">
                   <div className="flex items-center justify-between mb-2.5">
                     <span className="text-sm font-extrabold text-primary-dark">내 화장대에서 대체품 찾기</span>
-                    <span className="text-xs font-semibold text-primary">전체 {MY_SHELF.length}개</span>
+                    <span className="text-xs font-semibold text-primary">전체 {myShelf.length}개</span>
                   </div>
                   <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-3.5 px-3.5">
-                    {MY_SHELF.map((p) => (
+                    {myShelf.map((p) => (
                       <div
                         key={p.id}
                         className="shrink-0 w-32 rounded-xl bg-white p-2.5 shadow-[0_1px_4px_rgba(43,107,82,.08)]"
