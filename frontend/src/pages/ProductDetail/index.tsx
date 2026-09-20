@@ -2,17 +2,42 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '../../components/category/Icon';
 import { OySectionHeader } from '../../components/home/oy/OySectionHeader';
-import { useLikedProducts } from '../../context/LikedProductsContext';
-import { useCart } from '../../context/CartContext';
+import { useLikedProducts } from '../../context/liked';
+import { useCart } from '../../context/cart';
 import { useProduct } from '../../hooks/useProduct';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
 import { AlternativeCarousel } from '../../components/home/oy/sections/AlternativeCarousel';
 import { useRecentlyViewed } from '../../hooks/useRecentlyViewed';
 import { Product } from '../../types';
 import { countIngredients, groupIngredients } from '../../utils/ingredients';
+import type { ProductIngredient } from '../../api/products';
 
 /** 처음에 펼쳐 보여줄 성분 개수. 제품당 중앙값이 37개라 20개면 절반쯤 보입니다. */
 const PREVIEW_COUNT = 20;
+
+/**
+ * 성분 칩 색.
+ *
+ * grade가 없는 성분은 **중립**으로 둡니다. 분류 근거가 없다는 뜻이지
+ * 안전하다는 뜻이 아니므로, 초록으로 칠해 안심시키면 안 됩니다.
+ */
+function chipClass(grade: ProductIngredient['grade']): string {
+  if (grade === 'warn') return 'warn';
+  if (grade === 'key') return '';
+  return 'neutral';
+}
+
+/** 칩에 마우스를 올렸을 때의 설명. 등급이 무엇을 뜻하는지 밝힙니다. */
+function chipTitle(ing: ProductIngredient): string {
+  const parts: string[] = [];
+  if (ing.nameEn) parts.push(ing.nameEn);
+  if (ing.grade === 'key') parts.push('피부타입 추천 성분');
+  else if (ing.grade === 'warn') parts.push('기피 성분 (착향제·향료·건조 유발 알코올)');
+  else if (ing.grade === 'normal') parts.push('일반 성분');
+  else parts.push('분류 미정');
+  if (ing.isAllergen) parts.push('식약처 표시 의무 알레르기 유발 착향제');
+  return parts.join(' · ');
+}
 
 /** 섹션 사이 굵은 구분 띠 — 홈과 같은 리듬 */
 function Divider() {
@@ -121,6 +146,16 @@ export default function ProductDetailPage() {
   );
   const total = countIngredients(groups);
   const hasLabels = groups.some((g) => g.label !== null);
+
+  // 등급별 개수. 근거가 있는 것만 세고, 분류 미정은 세지 않는다.
+  const gradeCount = useMemo(() => {
+    const all = groups.flatMap((g) => g.items);
+    return {
+      key: all.filter((i) => i.grade === 'key').length,
+      warn: all.filter((i) => i.grade === 'warn').length,
+      allergen: all.filter((i) => i.isAllergen).length,
+    };
+  }, [groups]);
 
   // 찜·최근 본 상품은 목록 카드와 같은 Product 모양을 요구한다.
   const asProduct: Product | null = useMemo(
@@ -236,10 +271,27 @@ export default function ProductDetailPage() {
           {/* ── 전성분 (핵심 섹션) ───────────────────── */}
           <Section>
             <OySectionHeader title={`전성분 ${total}개`} />
-            <p className="-mt-1 mb-4 text-xs text-oy-sub">
+            <p className="-mt-1 mb-3 text-xs text-oy-sub">
               화장품 전성분은 함량이 많은 순서로 표기됩니다.
               {hasLabels && ' 이 상품은 구성품별로 나뉘어 있어요.'}
             </p>
+
+            {(gradeCount.key > 0 || gradeCount.warn > 0) && (
+              <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                {gradeCount.key > 0 && (
+                  <span className="text-primary">추천 성분 {gradeCount.key}개</span>
+                )}
+                {gradeCount.warn > 0 && (
+                  <span className="text-accent">
+                    기피 성분 {gradeCount.warn}개
+                    {gradeCount.allergen > 0 && ` (알레르기 유발 착향제 ${gradeCount.allergen}개)`}
+                  </span>
+                )}
+                <span className="text-oy-sub">
+                  피부타입 규칙(skin_type_rules) 기준이에요
+                </span>
+              </div>
+            )}
 
             {total === 0 ? (
               <p className="rounded-xl bg-white px-4 py-6 text-center text-sm text-oy-sub">
@@ -267,10 +319,11 @@ export default function ProductDetailPage() {
                             // 한 원본 항목이 라벨 기준으로 둘로 쪼개지면 id·position이
                             // 겹치므로 인덱스를 함께 쓴다.
                             key={`${gi}-${ii}-${ing.id}`}
-                            className="igr-chip neutral"
-                            title={ing.nameEn ?? undefined}
+                            className={`igr-chip ${chipClass(ing.grade)}`}
+                            title={chipTitle(ing)}
                           >
                             {ing.name}
+                            {ing.isAllergen && <span className="ml-1">⚠</span>}
                           </li>
                         ))}
                       </ul>

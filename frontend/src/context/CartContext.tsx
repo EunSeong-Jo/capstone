@@ -1,131 +1,258 @@
 import {
-  createContext,
   ReactNode,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
-import { useAuth } from './AuthContext';
-import { readJSON, writeJSON } from './storage';
+import {
+  CartDto,
+  addCartItem,
+  fetchCart,
+  fetchOrders,
+  placeOrder,
+  removeCartItem,
+  setCartQty,
+} from '../api/personal';
+import {
+  CartContext,
+  CartContextValue,
+  CartLine,
+  CartProductInput,
+  Order,
+} from './cart';
+import { useAuth } from './auth';
+import { readJSON, removeKey, writeJSON } from './storage';
 
 /**
  * 장바구니 + 주문내역.
  *
- * 결제 PG 연동은 범위 밖이라 `checkout()`은 장바구니를 주문내역으로 옮기는 것으로
- * "구매 완료"를 흉내낸다. 주문은 `swappy:orders:v1:<scope>`에 쌓이고
- * 마이페이지 주문내역 화면이 이를 읽는다.
+ * 로그인 상태면 **서버가 정본**이다(`/api/v1/me/cart`, `/api/v1/orders`).
+ * 비회원은 localStorage를 쓰고, 로그인하면 담아 둔 것이 서버로 한 번 옮겨간다.
+ *
+ * 결제 PG 연동은 범위 밖이라 `checkout()`은 결제를 흉내낸다. 그래도 주문은
+ * 진짜 `orders` 테이블에 남는다 — 주문내역·후기·포인트·'자주 구매'가 전부
+ * 그 기록에서 파생되기 때문이다. 예전에는 그 화면들이 각자 하드코딩된
+ * 예시를 들고 있었다.
  */
 
-const cartKey = (scope: string) => `swappy:cart:v1:${scope}`;
-const ordersKey = (scope: string) => `swappy:orders:v1:${scope}`;
+const GUEST_CART = 'swappy:cart:v1:guest';
 
-export interface CartLine {
-  id: number;
-  name: string;
-  brand: string;
-  price: number;
-  imageUrl?: string;
-  qty: number;
+function toLines(dto: CartDto): CartLine[] {
+  return dto.lines.map((l) => ({
+    id: l.product.id,
+    name: l.product.name,
+    brand: l.product.brand,
+    price: l.product.price,
+    imageUrl: l.product.imageUrl,
+    qty: l.qty,
+  }));
 }
-
-export interface Order {
-  id: string;
-  lines: CartLine[];
-  total: number;
-  placedAt: number;
-  status: '결제완료' | '배송중' | '배송완료';
-}
-
-export type CartProductInput = Omit<CartLine, 'qty'>;
-
-interface CartContextValue {
-  lines: CartLine[];
-  count: number;
-  subtotal: number;
-  orders: Order[];
-  inCart: (id: number) => boolean;
-  addToCart: (product: CartProductInput, qty?: number) => void;
-  setQty: (id: number, qty: number) => void;
-  removeLine: (id: number) => void;
-  clearCart: () => void;
-  checkout: () => Order | null;
-}
-
-const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const { scope } = useAuth();
-  const [lines, setLines] = useState<CartLine[]>(() => readJSON<CartLine[]>(cartKey(scope), []));
-  const [orders, setOrders] = useState<Order[]>(() => readJSON<Order[]>(ordersKey(scope), []));
-  const lastScope = useRef(scope);
+  const { scope, isUser, loading: authLoading } = useAuth();
 
-  useEffect(() => {
-    if (lastScope.current === scope) return;
-    lastScope.current = scope;
-    setLines(readJSON<CartLine[]>(cartKey(scope), []));
-    setOrders(readJSON<Order[]>(ordersKey(scope), []));
-  }, [scope]);
+  /**
+   * 장바구니 + 주문 + 그것이 **어느 계정의 것인지**.
+   *
+   * 계정이 바뀌면 이전 내용은 남의 것이다. 따로 두면 새 계정 데이터가
+   * 도착하기 전 한 프레임 동안 이전 계정 장바구니가 보인다.
+   */
+  const [store, setStore] = useState<{
+    scope: string;
+    lines: CartLine[];
+    orders: Order[];
+  }>(() => ({ scope, lines: readJSON<CartLine[]>(GUEST_CART, []), orders: [] }));
 
-  useEffect(() => {
-    writeJSON(cartKey(scope), lines);
-  }, [lines, scope]);
-
-  useEffect(() => {
-    writeJSON(ordersKey(scope), orders);
-  }, [orders, scope]);
-
-  const addToCart = useCallback((product: CartProductInput, qty = 1) => {
-    setLines((prev) => {
-      const existing = prev.find((l) => l.id === product.id);
-      if (existing) {
-        return prev.map((l) => (l.id === product.id ? { ...l, qty: l.qty + qty } : l));
-      }
-      return [{ ...product, qty }, ...prev];
+  /**
+   * 계정이 바뀌면 **렌더 중에** 갈아끼운다. effect에서 하면 렌더가 한 번 더
+   * 도는데(react-hooks/set-state-in-effect), 렌더 중 setState는 React가
+   * 권하는 "props 변화에 맞춰 상태 조정" 패턴이다.
+   *
+   * 주문은 계정에 묶인 기록이라 비회원에게는 항상 빈 배열이다.
+   */
+  if (store.scope !== scope) {
+    setStore({
+      scope,
+      lines: isUser ? [] : readJSON<CartLine[]>(GUEST_CART, []),
+      orders: [],
     });
-  }, []);
+  }
 
-  const setQty = useCallback((id: number, qty: number) => {
-    setLines((prev) =>
-      qty <= 0
-        ? prev.filter((l) => l.id !== id)
-        : prev.map((l) => (l.id === id ? { ...l, qty } : l)),
+  const { lines, orders } = store;
+  const setLines = useCallback(
+    (next: CartLine[] | ((prev: CartLine[]) => CartLine[])) => {
+      setStore((prev) => ({
+        ...prev,
+        lines: typeof next === 'function' ? next(prev.lines) : next,
+      }));
+    },
+    [],
+  );
+  const setOrders = useCallback(
+    (next: Order[]) => setStore((prev) => ({ ...prev, orders: next })),
+    [],
+  );
+
+  const [loading, setLoading] = useState(false);
+
+  const persistGuest = useCallback(
+    (next: CartLine[]) => {
+      if (!isUser) writeJSON(GUEST_CART, next);
+    },
+    [isUser],
+  );
+
+  const reloadOrders = useCallback(async () => {
+    const dto = await fetchOrders();
+    setOrders(
+      dto.map((o) => ({
+        id: o.id,
+        total: o.total,
+        placedAt: new Date(o.placedAt).getTime(),
+        status: o.status,
+        lines: o.items.map((i) => ({
+          id: i.productId ?? 0,
+          name: i.productName,
+          brand: i.brandName ?? '',
+          price: i.unitPrice,
+          qty: i.qty,
+        })),
+      })),
     );
-  }, []);
+  }, [setOrders]);
 
-  const removeLine = useCallback((id: number) => {
-    setLines((prev) => prev.filter((l) => l.id !== id));
-  }, []);
+  useEffect(() => {
+    // 게스트 장바구니는 위에서 이미 읽었다. 서버 조회만 여기서 한다.
+    if (authLoading || !isUser) return;
 
-  const clearCart = useCallback(() => setLines([]), []);
+    let alive = true;
 
-  const subtotal = useMemo(() => lines.reduce((s, l) => s + l.price * l.qty, 0), [lines]);
-  const count = useMemo(() => lines.reduce((s, l) => s + l.qty, 0), [lines]);
+    (async () => {
+      const pending = readJSON<CartLine[]>(GUEST_CART, []);
+      if (pending.length > 0) {
+        await Promise.allSettled(pending.map((l) => addCartItem(l.id, l.qty)));
+        removeKey(GUEST_CART);
+      }
+      const cart = await fetchCart();
+      if (alive) setLines(toLines(cart));
+      await reloadOrders();
+    })()
+      .catch(() => {
+        if (alive) {
+          setLines([]);
+          setOrders([]);
+        }
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
 
-  const checkout = useCallback((): Order | null => {
-    if (lines.length === 0) return null;
-    const order: Order = {
-      id: `OD${Date.now()}`,
-      lines,
-      total: lines.reduce((s, l) => s + l.price * l.qty, 0),
-      placedAt: Date.now(),
-      status: '결제완료',
+    return () => {
+      alive = false;
     };
-    setOrders((prev) => [order, ...prev]);
-    setLines([]);
-    return order;
-  }, [lines]);
+  }, [scope, isUser, authLoading, reloadOrders, setLines, setOrders]);
 
   const inCart = useCallback((id: number) => lines.some((l) => l.id === id), [lines]);
+
+  const addToCart = useCallback(
+    (product: CartProductInput, qty = 1) => {
+      setLines((prev) => {
+        const existing = prev.find((l) => l.id === product.id);
+        const next = existing
+          ? prev.map((l) => (l.id === product.id ? { ...l, qty: l.qty + qty } : l))
+          : [{ ...product, qty }, ...prev];
+        persistGuest(next);
+        return next;
+      });
+
+      if (!isUser) return;
+      addCartItem(product.id, qty)
+        .then((dto) => setLines(toLines(dto)))
+        .catch(() => {
+          // 서버가 거부하면(없는 제품 등) 화면도 되돌린다.
+          setLines((prev) => prev.filter((l) => l.id !== product.id));
+        });
+    },
+    [isUser, persistGuest, setLines],
+  );
+
+  const setQty = useCallback(
+    (id: number, qty: number) => {
+      setLines((prev) => {
+        const next = qty <= 0 ? prev.filter((l) => l.id !== id) : prev.map((l) => (l.id === id ? { ...l, qty } : l));
+        persistGuest(next);
+        return next;
+      });
+      if (isUser) {
+        setCartQty(id, Math.max(0, qty))
+          .then((dto) => setLines(toLines(dto)))
+          .catch(() => undefined);
+      }
+    },
+    [isUser, persistGuest, setLines],
+  );
+
+  const removeLine = useCallback(
+    (id: number) => {
+      setLines((prev) => {
+        const next = prev.filter((l) => l.id !== id);
+        persistGuest(next);
+        return next;
+      });
+      if (isUser) {
+        removeCartItem(id)
+          .then((dto) => setLines(toLines(dto)))
+          .catch(() => undefined);
+      }
+    },
+    [isUser, persistGuest, setLines],
+  );
+
+  const clearCart = useCallback(() => {
+    const snapshot = lines;
+    setLines([]);
+    if (!isUser) {
+      removeKey(GUEST_CART);
+      return;
+    }
+    Promise.allSettled(snapshot.map((l) => removeCartItem(l.id))).then(() => undefined);
+  }, [lines, isUser, setLines]);
+
+  const checkout = useCallback(async (): Promise<Order | null> => {
+    // 주문은 계정에 묶인다. 비회원은 결제할 수 없다 — 예전에는 게스트도
+    // localStorage에 '주문'을 쌓을 수 있었는데, 그 기록은 아무데도 없었다.
+    if (!isUser || lines.length === 0) return null;
+
+    try {
+      const dto = await placeOrder();
+      setLines([]);
+      await reloadOrders();
+      return {
+        id: dto.id,
+        total: dto.total,
+        placedAt: new Date(dto.placedAt).getTime(),
+        status: dto.status,
+        lines: dto.items.map((i) => ({
+          id: i.productId ?? 0,
+          name: i.productName,
+          brand: i.brandName ?? '',
+          price: i.unitPrice,
+          qty: i.qty,
+        })),
+      };
+    } catch {
+      return null;
+    }
+  }, [isUser, lines.length, reloadOrders, setLines]);
 
   const value = useMemo<CartContextValue>(
     () => ({
       lines,
-      count,
-      subtotal,
+      count: lines.reduce((sum, l) => sum + l.qty, 0),
+      subtotal: lines.reduce((sum, l) => sum + l.price * l.qty, 0),
       orders,
+      loading,
       inCart,
       addToCart,
       setQty,
@@ -133,14 +260,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       clearCart,
       checkout,
     }),
-    [lines, count, subtotal, orders, inCart, addToCart, setQty, removeLine, clearCart, checkout],
+    [lines, orders, loading, inCart, addToCart, setQty, removeLine, clearCart, checkout],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
-}
-
-export function useCart() {
-  const ctx = useContext(CartContext);
-  if (!ctx) throw new Error('useCart must be used within a CartProvider');
-  return ctx;
 }

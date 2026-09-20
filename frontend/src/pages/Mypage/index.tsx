@@ -1,37 +1,14 @@
-import { useState, ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { SKIN_TYPE_META } from '../../types';
-import { MOCK_CHARACTER } from '../../mocks/home';
 import { useUserProfile } from '../../context/userProfile';
+import { useCloset } from '../../context/closet';
+import { useLikedProducts } from '../../context/liked';
+import { useStats } from '../../hooks/useStats';
 
-// TODO: 실제 사용자 통계 API 연동 전까지 목데이터
-const CUMULATIVE = { saved: 128400, scans: 21, swaps: 9 };
 
-const ScanIcon = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2" />
-    <circle cx="12" cy="12" r="3.2" />
-  </svg>
-);
-const StarIcon = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" />
-  </svg>
-);
-const BoxIconGreen = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" />
-    <path d="M4 8l8 4 8-4M12 12v8" />
-  </svg>
-);
-
-const EXP_GUIDE: { icon: ReactNode; label: string; exp: number }[] = [
-  { icon: ScanIcon, label: '성분 스캔 1회', exp: 10 },
-  { icon: StarIcon, label: '후기 작성', exp: 20 },
-  { icon: BoxIconGreen, label: '제품 주문', exp: 50 },
-];
 
 interface MenuItem {
   icon: ReactNode;
@@ -80,22 +57,26 @@ function GroupCard({ title, items }: { title: string; items: MenuItem[] }) {
 
 export default function MypagePage() {
   const navigate = useNavigate();
-  const [expOpen, setExpOpen] = useState(true);
   const { profile } = useUserProfile();
   const skinMeta = SKIN_TYPE_META[profile.skinType];
-  const { level, exp, nextLevelExp, title } = MOCK_CHARACTER;
-  const expPct = Math.min(100, Math.round((exp / nextLevelExp) * 100));
+  // 서버가 실제 행에서 센 값. 비회원은 null이라 로컬 개수로 대신한다.
+  // 레벨·경험치는 무엇으로 오르는지 정한 적이 없어 그리지 않는다.
+  const { stats } = useStats();
+  const { count: closetCount } = useCloset();
+  const { likedProducts } = useLikedProducts();
 
+  // 취소·반품·배송지·재입고·선물함은 뺐다. 실제 결제와 배송이 없어
+  // 화면에 채울 근거가 아예 없는 항목들이고, 지금까지는 각자 하드코딩된
+  // 예시를 들고 있었다.
   const shopping: MenuItem[] = [
-    { icon: <LineIcon><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" /><path d="M4 8l8 4 8-4M12 12v8" /></LineIcon>, label: '주문내역', onClick: () => navigate('/mypage/order-history') },
-    { icon: <LineIcon><path d="M4 12a8 8 0 108-8" /><path d="M4 4v5h5" /></LineIcon>, label: '취소 · 반품 · 교환', onClick: () => navigate('/mypage/cancel-return') },
-    { icon: <LineIcon><path d="M12 21s-7-5.5-7-11a7 7 0 1114 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></LineIcon>, label: '배송지 관리', onClick: () => navigate('/mypage/shipping') },
-    { icon: <LineIcon><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" /></LineIcon>, label: '재입고 알림', right: '2', onClick: () => navigate('/mypage/restock') },
+    { icon: <LineIcon><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" /><path d="M4 8l8 4 8-4M12 12v8" /></LineIcon>, label: '주문내역', right: stats ? `${stats.orderCount}건` : undefined, onClick: () => navigate('/mypage/order-history') },
+    { icon: <LineIcon><rect x="3" y="8" width="18" height="12.5" rx="1.5" /><path d="M3 12h18M12 8v12.5" /></LineIcon>, label: '장바구니', right: stats ? `${stats.cartCount}개` : undefined, onClick: () => navigate('/cart') },
+    { icon: <LineIcon><path d="M12 21s-7-5.5-7-11a7 7 0 1114 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></LineIcon>, label: '내 화장대', right: `${stats?.closetCount ?? closetCount}개`, onClick: () => navigate('/closet') },
   ];
 
   const benefits: MenuItem[] = [
-    { icon: <LineIcon><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" /></LineIcon>, label: '후기', right: '1,200P', onClick: () => navigate('/mypage/reviews') },
-    { icon: <LineIcon><rect x="3" y="8" width="18" height="12.5" rx="1.5" /><path d="M3 12h18M12 8v12.5" /><path d="M12 8c-1-2.5-2.6-4-4-3s-.4 3 4 3zM12 8c1-2.5 2.6-4 4-3s.4 3-4 3z" /></LineIcon>, label: '선물함', onClick: () => navigate('/mypage/giftbox') },
+    { icon: <LineIcon><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" /></LineIcon>, label: '후기', onClick: () => navigate('/mypage/reviews') },
+    { icon: <LineIcon><circle cx="12" cy="12" r="8" /><path d="M9.5 10.5h5M9.5 13.5h5" /></LineIcon>, label: '포인트', right: stats ? `${stats.pointBalance.toLocaleString()}P` : undefined, onClick: () => navigate('/mypage/points') },
     { icon: <LineIcon><path d="M5 13a7 7 0 0114 0" /><rect x="4" y="13" width="3.5" height="6" rx="1.5" /><rect x="16.5" y="13" width="3.5" height="6" rx="1.5" /></LineIcon>, label: '고객센터', onClick: () => navigate('/mypage/customer-service') },
   ];
 
@@ -135,12 +116,7 @@ export default function MypagePage() {
             <img src="/mascot/base_face_neutral.png" alt="프로필" className="h-[84%] w-[84%] object-contain" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="text-[19px] font-extrabold tracking-[-0.3px] text-gray-100">{profile.nickname}</p>
-              <span className="inline-flex items-center h-5 px-2 rounded-full bg-primary-light text-[10px] font-extrabold text-primary-dark">
-                Lv.{level} {title}
-              </span>
-            </div>
+            <p className="text-[19px] font-extrabold tracking-[-0.3px] text-gray-100">{profile.nickname}</p>
             <p className="mt-0.5 text-xs text-gray-50">{profile.email}</p>
           </div>
           <button onClick={() => navigate('/mypage/settings')} aria-label="설정" className="active:scale-90 transition-transform">
@@ -165,48 +141,18 @@ export default function MypagePage() {
               재진단
             </button>
           </div>
-
-          {/* 레벨 진행 + 자세히보기 */}
-          <div className="mt-3 pt-3 flex items-center gap-2.5 border-t border-surface-warm">
-            <span className="whitespace-nowrap text-[11px] font-bold text-gray-50">Lv.{level}</span>
-            <div className="h-[5px] flex-1 overflow-hidden rounded-full bg-[#F0F1F3]">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${expPct}%` }} />
-            </div>
-            <span className="whitespace-nowrap text-[10px] text-gray-50">{exp}/{nextLevelExp}</span>
-            <button
-              onClick={() => setExpOpen((v) => !v)}
-              className="inline-flex items-center gap-0.5 h-6 px-2.5 rounded-full border border-[#DCE8E1] text-[10px] font-extrabold text-primary-dark"
-            >
-              자세히보기
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" className={`transition-transform ${expOpen ? '' : 'rotate-180'}`}>
-                <path d="M6 9l6 6 6-6" stroke="#2B6B52" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          </div>
-
-          {/* 경험치 가이드 */}
-          {expOpen && (
-            <div className="mt-2.5 rounded-xl bg-surface-warm px-3">
-              {EXP_GUIDE.map((g, i) => (
-                <div
-                  key={g.label}
-                  className={`flex items-center gap-2.5 py-2.5 ${i < EXP_GUIDE.length - 1 ? 'border-b border-[#EAECE6]' : ''}`}
-                >
-                  {g.icon}
-                  <span className="flex-1 text-xs font-medium text-gray-70">{g.label}</span>
-                  <span className="text-xs font-extrabold text-primary-dark">+{g.exp} EXP</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
-        {/* 통계 바 (누적 절약 / 성분 스캔 / 교체 성공) */}
+        {/* 통계 바. 서버 통계(GET /me/stats)가 없으므로 지금 실제로 셀 수
+            있는 것만 센다 — 누적 절약·스캔 횟수는 근거가 없어 빼 두었다. */}
         <div className="mt-3 flex rounded-[20px] bg-primary-dark">
           {[
-            [`${CUMULATIVE.saved.toLocaleString()}원`, '누적 절약'],
-            [`${CUMULATIVE.scans}회`, '성분 스캔'],
-            [`${CUMULATIVE.swaps}회`, '교체 성공'],
+            [`${(stats?.closetCount ?? closetCount).toLocaleString()}개`, '내 화장대'],
+            [`${(stats?.likeCount ?? likedProducts.length).toLocaleString()}개`, '찜한 제품'],
+            [
+              stats ? `${stats.pointBalance.toLocaleString()}P` : '—',
+              '포인트',
+            ],
           ].map(([value, label], i) => (
             <div key={label} className="relative flex flex-1 flex-col items-center py-[15px]">
               {i > 0 && <span className="absolute left-0 top-[13px] bottom-[13px] w-px bg-white/[0.14]" />}

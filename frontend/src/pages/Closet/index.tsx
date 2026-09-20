@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { RecentTab, LikedTab, FrequentTab } from '../History';
-import { useCloset, ClosetItem, ClosetStatus } from '../../context/ClosetContext';
+import { useCloset, ClosetItem, ClosetStatus } from '../../context/closet';
 
 type ClosetTab = 'vanity' | 'recent' | 'liked' | 'frequent';
 

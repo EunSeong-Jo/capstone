@@ -69,27 +69,42 @@ function mockSlice(query: ProductQuery): Product[] {
   return query.size ? list.slice(0, query.size) : list;
 }
 
+/**
+ * 조회 결과 한 벌.
+ *
+ * `key`를 함께 담는 이유: 이 결과가 **어떤 요청의 것인지** 알아야 로딩을
+ * 파생할 수 있다. effect 본문에서 `setLoading(true)`를 부르면 렌더가 한 번
+ * 더 도는데(react-hooks/set-state-in-effect), 지금 필요한 키와 저장된 키를
+ * 비교하면 그 왕복이 없어진다. 늦게 도착한 응답이 새 조회의 결과인 척하는
+ * 문제도 같이 사라진다.
+ */
+interface Loaded {
+  key: string;
+  products: Product[];
+  total: number;
+  error: string | null;
+  isMock: boolean;
+}
+
 export function useProducts(query: ProductQuery = {}): UseProductsResult {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isMock, setIsMock] = useState(false);
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [nonce, setNonce] = useState(0);
 
   const queryKey = JSON.stringify(query);
+  const key = `${queryKey}#${nonce}`;
 
   useEffect(() => {
     const controller = new AbortController();
 
-    setLoading(true);
-    setError(null);
-
     fetchProducts(JSON.parse(queryKey) as ProductQuery, controller.signal)
       .then((res) => {
-        setProducts(res.items);
-        setTotal(res.total);
-        setIsMock(false);
+        setLoaded({
+          key,
+          products: res.items,
+          total: res.total,
+          error: null,
+          isMock: false,
+        });
       })
       .catch((err: unknown) => {
         // 언마운트·재요청으로 인한 취소는 오류가 아닙니다.
@@ -97,25 +112,37 @@ export function useProducts(query: ProductQuery = {}): UseProductsResult {
         if (MOCK_FALLBACK) {
           // 로컬 데모 — 서버가 없으면 목업으로 화면을 채운다
           const fallback = mockSlice(JSON.parse(queryKey) as ProductQuery);
-          setProducts(fallback);
-          setTotal(fallback.length);
-          setIsMock(true);
-          setError(null);
+          setLoaded({
+            key,
+            products: fallback,
+            total: fallback.length,
+            error: null,
+            isMock: true,
+          });
           return;
         }
-        setProducts([]);
-        setTotal(0);
-        setIsMock(false);
-        setError(err instanceof Error ? err.message : '제품을 불러오지 못했습니다.');
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        setLoaded({
+          key,
+          products: [],
+          total: 0,
+          isMock: false,
+          error: err instanceof Error ? err.message : '제품을 불러오지 못했습니다.',
+        });
       });
 
     return () => controller.abort();
-  }, [queryKey, nonce]);
+  }, [key, queryKey]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  return { products, total, loading, error, isMock, reload };
+  const current = loaded?.key === key ? loaded : null;
+
+  return {
+    products: current?.products ?? [],
+    total: current?.total ?? 0,
+    loading: current === null,
+    error: current?.error ?? null,
+    isMock: current?.isMock ?? false,
+    reload,
+  };
 }

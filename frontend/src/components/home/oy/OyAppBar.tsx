@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OY_VERTICALS } from '../../../mocks/oliveyoung';
-import { useCart } from '../../../context/CartContext';
+import { useCart } from '../../../context/cart';
 
 interface OyAppBarProps {
   /** 미지정 시 장바구니 컨텍스트의 담긴 수량을 쓴다 */

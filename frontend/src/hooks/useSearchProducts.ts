@@ -23,64 +23,80 @@ interface UseSearchProductsResult {
  *  - 최소 글자수 게이트: 2자 미만이면 API를 호출하지 않는다(백엔드가 422를 낸다).
  *    이 경우 디바운스 지연 없이 즉시 빈 결과로 되돌린다.
  */
+/** 조회 결과 한 벌. key로 "어떤 검색어의 결과인지"를 함께 들고 있다. */
+interface Loaded {
+  key: string;
+  products: Product[];
+  total: number;
+  error: string | null;
+}
+
 export function useSearchProducts(
   q: string,
   query: Omit<ProductQuery, 'category' | 'brand'> = {},
 ): UseSearchProductsResult {
   const trimmed = q.trim();
   const [debouncedQ, setDebouncedQ] = useState(trimmed);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [nonce, setNonce] = useState(0);
 
   const queryKey = JSON.stringify(query);
 
+  /**
+   * 디바운스. 짧은 입력은 기다리지 않고 바로 반영합니다 — 어차피 조회하지
+   * 않으므로(MIN_QUERY_LENGTH 미만) 지연시킬 이유가 없습니다.
+   *
+   * setState를 타이머 콜백에서만 부르므로 effect 본문에는 동기 호출이 없습니다.
+   */
   useEffect(() => {
     if (trimmed.length < MIN_QUERY_LENGTH) {
-      setDebouncedQ(trimmed);
-      return;
+      const immediate = window.setTimeout(() => setDebouncedQ(trimmed), 0);
+      return () => window.clearTimeout(immediate);
     }
     const timer = window.setTimeout(() => setDebouncedQ(trimmed), DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [trimmed]);
 
+  const key = `${debouncedQ}:${queryKey}#${nonce}`;
+  // 두 글자 미만은 조회하지 않습니다. 결과는 아래에서 파생합니다.
+  const tooShort = debouncedQ.length < MIN_QUERY_LENGTH;
+
   useEffect(() => {
-    if (debouncedQ.length < MIN_QUERY_LENGTH) {
-      setProducts([]);
-      setTotal(0);
-      setLoading(false);
-      setError(null);
-      return;
-    }
+    if (tooShort) return;
 
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
 
     searchProducts(debouncedQ, JSON.parse(queryKey) as ProductQuery, controller.signal)
       .then((res) => {
-        setProducts(res.items);
-        setTotal(res.total);
+        setLoaded({ key, products: res.items, total: res.total, error: null });
       })
       .catch((err: unknown) => {
         // 언마운트·재요청으로 인한 취소는 오류가 아닙니다.
         if (err instanceof DOMException && err.name === 'AbortError') return;
-        setProducts([]);
-        setTotal(0);
-        setError(
-          err instanceof Error ? err.message : '검색 결과를 불러오지 못했습니다.',
-        );
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        setLoaded({
+          key,
+          products: [],
+          total: 0,
+          error: err instanceof Error ? err.message : '검색 결과를 불러오지 못했습니다.',
+        });
       });
 
     return () => controller.abort();
-  }, [debouncedQ, queryKey, nonce]);
+  }, [key, debouncedQ, queryKey, tooShort]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  return { products, total, loading, error, reload };
+  if (tooShort) {
+    return { products: [], total: 0, loading: false, error: null, reload };
+  }
+
+  const current = loaded?.key === key ? loaded : null;
+
+  return {
+    products: current?.products ?? [],
+    total: current?.total ?? 0,
+    loading: current === null,
+    error: current?.error ?? null,
+    reload,
+  };
 }

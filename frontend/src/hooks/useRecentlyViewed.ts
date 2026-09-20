@@ -1,51 +1,112 @@
 import { useCallback, useEffect, useState } from 'react';
+import {
+  clearRecentlyViewed as apiClear,
+  fetchRecentlyViewed,
+  touchRecentlyViewed,
+} from '../api/personal';
+import { useAuth } from '../context/auth';
+import { readJSON, removeKey, writeJSON } from '../context/storage';
 import { Product } from '../types';
 
-const STORAGE_KEY = 'dcmy:recentlyViewed:v1';
-const MAX_ITEMS = 50;
+/**
+ * 최근 본 제품.
+ *
+ * 로그인 상태면 서버가 정본(`/api/v1/me/recently-viewed`, 최신 30개).
+ * 비회원은 localStorage.
+ *
+ * 예전에는 `dcmy:recentlyViewed:v1` 한 키를 계정 구분 없이 썼다.
+ */
+const GUEST_KEY = 'swappy:recent:v1:guest';
+const MAX_ITEMS = 30;
 
 export type RecentlyViewedItem = Product & { viewedAt: number };
 
-function readStorage(): RecentlyViewedItem[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as RecentlyViewedItem[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeStorage(items: RecentlyViewedItem[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  } catch {
-    // localStorage 사용 불가(프라이빗 모드, 용량 초과 등) 시 조용히 무시
-  }
-}
-
-/** 최근 본 제품 목록 (localStorage 기반, 최대 50개, 최신순, id 중복 시 갱신) */
 export function useRecentlyViewed() {
-  const [items, setItems] = useState<RecentlyViewedItem[]>(() => readStorage());
+  const { scope, isUser, loading: authLoading } = useAuth();
+
+  /** 목록 + 그것이 어느 계정의 것인지. 계정이 바뀌면 이전 목록은 남의 것이다. */
+  const [store, setStore] = useState<{ scope: string; items: RecentlyViewedItem[] }>(
+    () => ({ scope, items: readJSON<RecentlyViewedItem[]>(GUEST_KEY, []) }),
+  );
+
+  // 계정 전환은 렌더 중에 반영한다 — effect에서 하면 렌더가 한 번 더 돈다.
+  if (store.scope !== scope) {
+    setStore({
+      scope,
+      items: isUser ? [] : readJSON<RecentlyViewedItem[]>(GUEST_KEY, []),
+    });
+  }
+
+  const items = store.items;
+  const setItems = useCallback(
+    (next: RecentlyViewedItem[] | ((prev: RecentlyViewedItem[]) => RecentlyViewedItem[])) => {
+      setStore((prev) => ({
+        scope: prev.scope,
+        items: typeof next === 'function' ? next(prev.items) : next,
+      }));
+    },
+    [],
+  );
 
   useEffect(() => {
-    writeStorage(items);
-  }, [items]);
+    // 게스트 목록은 위에서 이미 읽었다. 서버 조회만 여기서 한다.
+    if (authLoading || !isUser) return;
 
-  const addRecentlyViewed = useCallback((product: Product) => {
-    setItems((prev) => {
-      const rest = prev.filter((p) => p.id !== product.id);
-      const next = [{ ...product, viewedAt: Date.now() }, ...rest];
-      return next.slice(0, MAX_ITEMS);
+    let alive = true;
+    (async () => {
+      const pending = readJSON<RecentlyViewedItem[]>(GUEST_KEY, []);
+      if (pending.length > 0) {
+        // 오래된 것부터 보내야 서버의 최신순이 뒤집히지 않는다.
+        for (const p of [...pending].reverse()) {
+          await touchRecentlyViewed(p.id).catch(() => undefined);
+        }
+        removeKey(GUEST_KEY);
+      }
+      const server = await fetchRecentlyViewed();
+      if (alive) setItems(server.map((p) => ({ ...p, viewedAt: Date.now() })));
+    })().catch(() => {
+      if (alive) setItems([]);
     });
-  }, []);
 
-  const removeRecentlyViewed = useCallback((id: number) => {
-    setItems((prev) => prev.filter((p) => p.id !== id));
-  }, []);
+    return () => {
+      alive = false;
+    };
+  }, [scope, isUser, authLoading, setItems]);
+
+  const addRecentlyViewed = useCallback(
+    (product: Product) => {
+      setItems((prev) => {
+        const rest = prev.filter((p) => p.id !== product.id);
+        const next = [{ ...product, viewedAt: Date.now() }, ...rest].slice(0, MAX_ITEMS);
+        if (!isUser) writeJSON(GUEST_KEY, next);
+        return next;
+      });
+      if (isUser) void touchRecentlyViewed(product.id).catch(() => undefined);
+    },
+    [isUser, setItems],
+  );
+
+  const removeRecentlyViewed = useCallback(
+    (id: number) => {
+      // 서버에 단건 삭제 엔드포인트를 두지 않았다. 화면에서만 감추고,
+      // 다음 조회에서 서버 목록으로 돌아온다 — 전체삭제가 실제 동작이다.
+      setItems((prev) => {
+        const next = prev.filter((p) => p.id !== id);
+        if (!isUser) writeJSON(GUEST_KEY, next);
+        return next;
+      });
+    },
+    [isUser, setItems],
+  );
 
   const clearRecentlyViewed = useCallback(() => {
     setItems([]);
-  }, []);
+    if (!isUser) {
+      removeKey(GUEST_KEY);
+      return;
+    }
+    void apiClear().catch(() => undefined);
+  }, [isUser, setItems]);
 
   return { items, addRecentlyViewed, removeRecentlyViewed, clearRecentlyViewed };
 }

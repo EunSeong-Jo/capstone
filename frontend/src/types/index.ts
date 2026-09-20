@@ -125,9 +125,11 @@ export type FaceExpression = 'neutral' | 'laugh' | 'thinking' | 'pout';
 export interface CharacterState {
   skinType: SkinType; // 캐릭터가 대표하는 피부타입
   expression: FaceExpression; // 사용 표정 (현재 'neutral' 고정)
-  level: number; // 현재 레벨
-  exp: number; // 현재 레벨 내 누적 경험치
-  nextLevelExp: number; // 다음 레벨까지 필요한 경험치 (분모)
+  // 레벨·경험치는 서버에 근거가 없다(GET /me/stats 미구현). 값이 없으면
+  // 대시보드가 그 줄을 통째로 숨긴다 — 고정 목업 숫자를 그리지 않기 위해서다.
+  level?: number;
+  exp?: number;
+  nextLevelExp?: number;
   title?: string; // "꼼꼼 분석가" 같은 칭호
 }
 
@@ -143,7 +145,11 @@ export interface RegistryItem {
 /** ID 카드용 등록물품 요약 */
 export interface RegistrySummary {
   count: number; // 등록물품 개수
-  totalSavings: number; // 대체품으로 이번 달 절약 가능 금액(원)
+  /**
+   * 대체품으로 절약 가능한 금액(원). 화장대 제품들의 실제 유사도 조회
+   * 결과에서 합산한다 — 고정값이 아니라 후보가 없으면 undefined다.
+   */
+  totalSavings?: number;
   recent?: RegistryItem[]; // 카드 썸네일용 (선택)
 }
 
@@ -161,5 +167,4 @@ export interface ProfileUser {
   skinType: SkinType;
   email?: string;
   memberSince?: string; // 발급일 컨셉 "2026.03"
-  idNo?: string; // 더미 식별번호 "960101-OY1****"
 }

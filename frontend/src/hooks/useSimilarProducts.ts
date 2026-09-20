@@ -38,6 +38,23 @@ interface UseSimilarProductsResult {
   reload: () => void;
 }
 
+/** 조회 결과 한 벌. key로 "어떤 요청의 결과인지"를 함께 들고 있다. */
+interface Loaded {
+  key: string;
+  items: SimilarItem[];
+  method: string | null;
+  error: string | null;
+  notFound: boolean;
+}
+
+/**
+ * 결과가 없을 때 돌려줄 고정 배열.
+ *
+ * 매번 `[]`를 새로 만들면 아래 useMemo가 참조 변화로 재계산된다 —
+ * 값은 같은데 파생만 다시 도는 셈이다.
+ */
+const EMPTY_ITEMS: SimilarItem[] = [];
+
 /**
  * 성분이 비슷한 제품.
  *
@@ -54,11 +71,7 @@ export function useSimilarProducts(
 ): UseSimilarProductsResult {
   const { method, limit, skinType, seedProduct = null } = options;
 
-  const [items, setItems] = useState<SimilarItem[]>([]);
-  const [appliedMethod, setAppliedMethod] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [nonce, setNonce] = useState(0);
 
   // 요청에 영향을 주는 값만 키에 넣습니다. seedProduct는 병행 요청의 결과라
@@ -66,19 +79,15 @@ export function useSimilarProducts(
   // 순간 /similar가 한 번 더 나갑니다. 파생은 아래 useMemo가 따로 합니다.
   const queryKey = JSON.stringify({ method, limit, skinType });
 
+  const key = `${seedId}:${queryKey}#${nonce}`;
+  // 잘못된 id로 들어오는 경로가 실제로 있습니다(seed 없는 진입, 목업 링크).
+  // 조회할 것이 없으므로 effect를 돌리지 않고 아래에서 바로 notFound를 냅니다.
+  const invalid = seedId === undefined || Number.isNaN(seedId) || seedId <= 0;
+
   useEffect(() => {
-    // 잘못된 id로 들어오는 경로가 실제로 있습니다(seed 없는 진입, 목업 링크).
-    if (seedId === undefined || Number.isNaN(seedId) || seedId <= 0) {
-      setItems([]);
-      setLoading(false);
-      setNotFound(true);
-      return;
-    }
+    if (invalid) return;
 
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-    setNotFound(false);
 
     fetchSimilarProducts(
       seedId,
@@ -86,27 +95,35 @@ export function useSimilarProducts(
       controller.signal,
     )
       .then((res) => {
-        setItems(res.items);
-        setAppliedMethod(res.method);
+        setLoaded({
+          key,
+          items: res.items,
+          method: res.method,
+          error: null,
+          notFound: false,
+        });
       })
       .catch((err: unknown) => {
         // 언마운트·재요청으로 인한 취소는 오류가 아닙니다.
         if (err instanceof DOMException && err.name === 'AbortError') return;
-        setItems([]);
         if (err instanceof ApiError && err.status === 404) {
-          setNotFound(true);
+          setLoaded({ key, items: [], method: null, error: null, notFound: true });
         } else {
-          setError(
-            err instanceof Error ? err.message : '대체품을 불러오지 못했습니다.',
-          );
+          setLoaded({
+            key,
+            items: [],
+            method: null,
+            notFound: false,
+            error: err instanceof Error ? err.message : '대체품을 불러오지 못했습니다.',
+          });
         }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
       });
 
     return () => controller.abort();
-  }, [seedId, queryKey, nonce]);
+  }, [key, seedId, queryKey, invalid]);
+
+  const current = loaded?.key === key ? loaded : null;
+  const items = current?.items ?? EMPTY_ITEMS;
 
   // 기준제품이 늦게 도착해도 재요청 없이 절약액만 다시 계산됩니다.
   const { alternatives, variants } = useMemo(() => {
@@ -116,13 +133,25 @@ export function useSimilarProducts(
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
+  if (invalid) {
+    return {
+      alternatives: [],
+      variants: [],
+      method: null,
+      loading: false,
+      error: null,
+      notFound: true,
+      reload,
+    };
+  }
+
   return {
     alternatives,
     variants,
-    method: appliedMethod,
-    loading,
-    error,
-    notFound,
+    method: current?.method ?? null,
+    loading: current === null,
+    error: current?.error ?? null,
+    notFound: current?.notFound ?? false,
     reload,
   };
 }

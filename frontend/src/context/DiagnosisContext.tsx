@@ -1,87 +1,139 @@
 import {
-  createContext,
   ReactNode,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
-import type { SkinType } from '../types';
-import type { AxisScores, DiagnosisRank } from '../data/personas';
-import { findPersonaById } from '../data/personas';
-import { useAuth } from './AuthContext';
+import {
+  DiagnosisDto,
+  claimDiagnosis,
+  fetchLatestDiagnosis,
+  submitDiagnosis,
+} from '../api/diagnosis';
+import type { AxisScores } from '../data/personas';
+import {
+  DiagnosisContext,
+  DiagnosisContextValue,
+  DiagnosisResult,
+} from './diagnosis';
+import { useAuth } from './auth';
 import { readJSON, removeKey, writeJSON } from './storage';
 
 /**
- * 피부타입 진단 결과 보관.
+ * 피부타입 진단 결과.
  *
- * 범위(scope)별로 따로 저장한다: 게스트가 진단하면 `swappy:diag:v1:guest`에 쌓이고,
- * 로그인하면 그 게스트 결과를 로그인 계정으로 "승계"한다 — 백엔드 diagnosis.py의
- * guest_token → user_id 승계(Soft-gate)를 데모에서 재현한 것이다.
+ * 로그인 상태면 **서버가 정본**이다(`/api/v1/profile/skin-quiz`). 비회원은
+ * `swappy:diag:v1:guest`에 쌓이고, 게스트 토큰으로 서버에도 한 벌 남는다 —
+ * 로그인하면 그 토큰으로 찾아 계정에 붙인다(Soft-gate).
+ *
+ * 클라이언트 채점(`data/skinTypeScoring.ts`)은 지우지 않았다. 서버가 없거나
+ * 느릴 때도 진단이 끝나야 하고, 그게 Soft-gate의 전제이기 때문이다. 화면은
+ * 로컬 결과를 먼저 보여주고 서버 응답이 오면 그것으로 덮는다.
  */
 
 const keyOf = (scope: string) => `swappy:diag:v1:${scope}`;
 
-export interface DiagnosisResult {
-  skinType: SkinType;
-  scores: AxisScores;
-  ranks: DiagnosisRank[];
-  answers?: (number | null)[];
-  /** quiz=문답 진단 / persona=시드 계정 기본값 / preset=수동 선택 */
-  source: 'quiz' | 'persona' | 'preset';
-  ts: number;
-  /** 게스트 진단이 이 계정으로 승계돼 들어왔는지 */
-  succeededFromGuest?: boolean;
+/**
+ * 비회원 진단을 나중에 계정에 붙이기 위한 토큰.
+ *
+ * 브라우저마다 하나면 충분하고, 승계에 성공하면 지운다.
+ */
+const GUEST_TOKEN_KEY = 'swappy:diag:guestToken:v1';
+
+function guestToken(): string {
+  let token = readJSON<string | null>(GUEST_TOKEN_KEY, null);
+  if (!token) {
+    token = crypto.randomUUID().replace(/-/g, '');
+    writeJSON(GUEST_TOKEN_KEY, token);
+  }
+  return token;
 }
 
-interface DiagnosisContextValue {
-  result: DiagnosisResult | null;
-  /** 진단 완료(또는 페르소나 기본값)로 확정된 피부타입. 없으면 null */
-  skinType: SkinType | null;
-  hasDiagnosis: boolean;
-  /** 직전 로그인에서 게스트 진단이 승계됐다 — 배너 1회 노출용 */
-  justSucceeded: boolean;
-  saveDiagnosis: (r: Omit<DiagnosisResult, 'ts'>) => void;
-  clearDiagnosis: () => void;
-  acknowledgeSuccession: () => void;
+/** 서버 응답 → 화면이 쓰는 모양 */
+function toResult(dto: DiagnosisDto, succeeded: boolean): DiagnosisResult {
+  return {
+    skinType: dto.skinType,
+    scores: dto.scores as unknown as AxisScores,
+    ranks: dto.ranks.map((r) => ({
+      rank: r.rank,
+      skinType: r.skinType,
+      score: r.score,
+    })),
+    source: 'quiz',
+    ts: new Date(dto.createdAt).getTime(),
+    succeededFromGuest: succeeded || undefined,
+  };
 }
-
-const DiagnosisContext = createContext<DiagnosisContextValue | null>(null);
 
 export function DiagnosisProvider({ children }: { children: ReactNode }) {
-  const { scope, status } = useAuth();
-  const [result, setResult] = useState<DiagnosisResult | null>(() =>
-    readJSON<DiagnosisResult | null>(keyOf(scope), null),
+  const { scope, status, user: account } = useAuth();
+
+  /** 진단 결과 + 그것이 어느 계정의 것인지. 계정이 바뀌면 이전 결과는 남의 것이다. */
+  const [store, setStore] = useState<{ scope: string; result: DiagnosisResult | null }>(
+    () => ({ scope, result: readJSON<DiagnosisResult | null>(keyOf(scope), null) }),
   );
+
+  /**
+   * 계정 전환은 **렌더 중에** 반영한다. effect에서 하면 렌더가 한 번 더 돈다.
+   *
+   * 로컬 사본을 먼저 넣는 이유: 새로고침 직후 피부타입이 비어 보이면 홈이
+   * 기본 타입(옹달샘)으로 렌더됐다가 서버 응답에 맞춰 다시 그려진다.
+   */
+  if (store.scope !== scope) {
+    setStore({
+      scope,
+      result: readJSON<DiagnosisResult | null>(
+        keyOf(status === 'user' ? scope : 'guest'),
+        null,
+      ),
+    });
+  }
+
+  const result = store.result;
+  const setResult = useCallback(
+    (next: DiagnosisResult | null) =>
+      setStore((prev) => ({ scope: prev.scope, result: next })),
+    [],
+  );
+
   const [justSucceeded, setJustSucceeded] = useState(false);
-  const lastScope = useRef(scope);
 
-  // 범위 전환 처리 — 로그인/로그아웃/게스트 전환 시
+  // 로그인 계정의 서버 진단 조회 — 게스트 결과는 위에서 이미 읽었다.
   useEffect(() => {
-    if (lastScope.current === scope) return;
-    const from = lastScope.current;
-    lastScope.current = scope;
+    if (status !== 'user') return;
 
-    let next = readJSON<DiagnosisResult | null>(keyOf(scope), null);
-
-    // 게스트 → 로그인 계정 승계: 계정에 결과가 없고 게스트 결과가 있으면 옮긴다
-    if (status === 'user' && from === 'guest' && !next) {
-      const guest = readJSON<DiagnosisResult | null>(keyOf('guest'), null);
-      if (guest) {
-        next = { ...guest, succeededFromGuest: true, ts: Date.now() };
-        writeJSON(keyOf(scope), next);
-        removeKey(keyOf('guest')); // 승계 후 게스트 사본은 비운다
-        setJustSucceeded(true);
+    let alive = true;
+    (async () => {
+      // 비회원으로 한 진단이 서버에 있으면 계정에 붙인다(Soft-gate).
+      const token = readJSON<string | null>(GUEST_TOKEN_KEY, null);
+      if (token) {
+        const claimed = await claimDiagnosis(token).catch(() => null);
+        if (claimed && alive) {
+          const next = toResult(claimed, true);
+          writeJSON(keyOf(scope), next);
+          removeKey(keyOf('guest'));
+          removeKey(GUEST_TOKEN_KEY);
+          setResult(next);
+          setJustSucceeded(true);
+          return;
+        }
       }
-    }
 
-    // 승계할 게 없으면 시드 계정 기본 피부타입을 초기값으로
-    if (status === 'user' && !next) {
-      const persona = scope !== 'guest' ? findPersonaById(scope) : undefined;
+      const latest = await fetchLatestDiagnosis().catch(() => null);
+      if (!alive) return;
+
+      if (latest) {
+        const next = toResult(latest, false);
+        writeJSON(keyOf(scope), next);
+        setResult(next);
+        return;
+      }
+
+      // 서버에 진단 기록이 없는 계정. 데모 계정이면 시드 값으로 채운다.
+      const persona = account?.persona ?? null;
       if (persona) {
-        next = {
+        const next: DiagnosisResult = {
           skinType: persona.skinType,
           scores: persona.scores,
           ranks: persona.ranks,
@@ -89,25 +141,56 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
           ts: Date.now(),
         };
         writeJSON(keyOf(scope), next);
+        setResult(next);
       }
-    }
+    })().catch(() => undefined);
 
-    setResult(next);
-  }, [scope, status]);
+    return () => {
+      alive = false;
+    };
+  }, [scope, status, account, setResult]);
 
+  /**
+   * 진단 결과 저장.
+   *
+   * 로컬에 먼저 쓰고 서버에 보낸다. 서버가 돌려준 값으로 덮는 이유는
+   * 순위 계산이 미묘하게 다를 수 있기 때문이다 — 같은 로직이지만 원본은
+   * 서버이고, 화면이 보는 값과 DB에 남은 값이 어긋나면 안 된다.
+   *
+   * answers(문항별 선택 인덱스)가 있을 때만 서버에 보낸다. 수동 선택
+   * ('타입 미리 정하기')은 진단이 아니므로 diagnoses에 남기지 않는다.
+   */
   const saveDiagnosis = useCallback(
     (r: Omit<DiagnosisResult, 'ts'>) => {
       const full: DiagnosisResult = { ...r, ts: Date.now() };
       setResult(full);
       writeJSON(keyOf(scope), full);
+
+      if (r.source !== 'quiz' || !r.answers) return;
+
+      const answers: Record<string, number> = {};
+      r.answers.forEach((choice, i) => {
+        if (choice !== null) answers[`q${i + 1}`] = choice;
+      });
+      if (Object.keys(answers).length === 0) return;
+
+      submitDiagnosis(answers, status === 'user' ? undefined : guestToken())
+        .then((dto) => {
+          const next = toResult(dto, false);
+          writeJSON(keyOf(scope), next);
+          setResult(next);
+        })
+        .catch(() => {
+          // 서버 저장에 실패해도 화면은 로컬 결과로 계속 간다.
+        });
     },
-    [scope],
+    [scope, status, setResult],
   );
 
   const clearDiagnosis = useCallback(() => {
     setResult(null);
     removeKey(keyOf(scope));
-  }, [scope]);
+  }, [scope, setResult]);
 
   const acknowledgeSuccession = useCallback(() => setJustSucceeded(false), []);
 
@@ -125,10 +208,4 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
   );
 
   return <DiagnosisContext.Provider value={value}>{children}</DiagnosisContext.Provider>;
-}
-
-export function useDiagnosis() {
-  const ctx = useContext(DiagnosisContext);
-  if (!ctx) throw new Error('useDiagnosis must be used within a DiagnosisProvider');
-  return ctx;
 }
