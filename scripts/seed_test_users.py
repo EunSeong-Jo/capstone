@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""데모/테스트용 사용자 시드 — personas.json → users / profiles / diagnoses / diagnosis_ranks
+"""데모/테스트용 사용자 시드 — personas.json → users / profiles / diagnoses / diagnosis_ranks / closet_items
 
     python scripts/seed_test_users.py
     python scripts/seed_test_users.py --dry-run     # 적재 없이 계획만 출력
@@ -22,7 +22,7 @@ import json
 import sys
 from pathlib import Path
 
-# psycopg2 / passlib 는 백엔드 의존성이다. --dry-run 은 DB 없이도 돌 수 있도록
+# psycopg2 / bcrypt 는 백엔드 의존성이다. --dry-run 은 DB 없이도 돌 수 있도록
 # 실제 적재 직전에 지연 import 한다.
 
 REPO = Path(__file__).resolve().parents[1]
@@ -34,15 +34,15 @@ PERSONAS_JSON = REPO / "frontend" / "src" / "data" / "personas.json"
 
 
 def hash_password(raw: str) -> str:
-    """백엔드 인증 스택과 동일하게 bcrypt. passlib 우선, 없으면 bcrypt 직접."""
-    try:
-        from passlib.context import CryptContext
+    """백엔드 인증 스택(app/core/security.py)과 같은 방식 — bcrypt 직접.
 
-        return CryptContext(schemes=["bcrypt"], deprecated="auto").hash(raw)
-    except ImportError:
-        import bcrypt
+    passlib을 쓰지 않는다. 1.7.4가 bcrypt 5.x와 맞지 않아 백엔드 탐지
+    단계에서 72바이트를 넘는 프로브를 넣고 ValueError로 죽는다. 해시 형식은
+    표준 bcrypt라 어느 쪽으로 만들어도 서로 검증된다.
+    """
+    import bcrypt
 
-        return bcrypt.hashpw(raw.encode(), bcrypt.gensalt()).decode()
+    return bcrypt.hashpw(raw.encode(), bcrypt.gensalt()).decode()
 
 
 def load_personas() -> tuple[str, list[dict]]:
@@ -125,6 +125,37 @@ def replace_diagnosis(cur, Json, user_id: str, version_id: int, persona: dict) -
     return diag_id
 
 
+def replace_closet(cur, user_id: str, persona: dict) -> int:
+    """보유 화장품을 화장대에 넣는다.
+
+    `ownedCosmetics[].id`는 실제 카탈로그 id다(커밋 3ca7afa에서 교체됐다).
+    없는 id가 섞이면 FK가 막으므로, 그런 행만 건너뛰고 나머지는 넣는다 —
+    한 건 때문에 전체가 실패하면 시드가 쓸모없어진다.
+
+    프론트도 로그인 시 화장대가 비어 있으면 같은 시드를 넣는다. 여기서
+    먼저 넣어 두는 이유는 **브라우저를 열지 않아도 데모 계정이 완성된
+    상태**여야 하기 때문이다. 둘 다 UNIQUE(user_id, product_id)에 걸려
+    중복되지 않는다.
+    """
+    cur.execute("DELETE FROM closet_items WHERE user_id = %s", (user_id,))
+    inserted = 0
+    for item in persona["ownedCosmetics"]:
+        cur.execute("SELECT 1 FROM products WHERE id = %s", (item["id"],))
+        if cur.fetchone() is None:
+            print(f"    ! 카탈로그에 없는 제품 id={item['id']} ({item['name'][:24]}) — 건너뜀")
+            continue
+        cur.execute(
+            """
+            INSERT INTO closet_items (user_id, product_id, status, added_via)
+            VALUES (%s, %s, 'owned', 'seed')
+            ON CONFLICT (user_id, product_id) DO NOTHING
+            """,
+            (user_id, item["id"]),
+        )
+        inserted += cur.rowcount
+    return inserted
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true", help="적재 없이 계획만 출력")
@@ -155,7 +186,10 @@ def main() -> None:
             user_id = upsert_user(cur, p)
             upsert_profile(cur, Json, user_id, p)
             diag_id = replace_diagnosis(cur, Json, user_id, version_id, p)
-            print(f"✓ {p['nickname']} → user={user_id} diagnosis={diag_id}")
+            closet = replace_closet(cur, user_id, p)
+            print(
+                f"✓ {p['nickname']} → user={user_id} diagnosis={diag_id} closet={closet}개"
+            )
         conn.commit()
 
     print(f"\n완료 — {len(personas)}명 적재 (quiz_versions.id={version_id})")

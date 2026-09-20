@@ -185,8 +185,20 @@ async def test_detail_returns_ingredients_in_order(client: AsyncClient) -> None:
     positions = [x["position"] for x in ingredients]
     assert positions == sorted(positions)
     assert all(x["name"] for x in ingredients)
-    # 큐레이션 전이라 등급은 응답에 없어야 한다
-    assert "grade" not in ingredients[0]
+
+    # grade는 scripts/seed_skin_type_tags.py가 ingredient_tags에서 도출한다.
+    # 값이 정해진 넷 중 하나이거나(근거 있음) None(분류 미정)이어야 한다 —
+    # 화면이 이 값으로 칩 색을 정하므로 임의 문자열이 새면 조용히 중립으로
+    # 그려진다.
+    assert all(x["grade"] in (None, "key", "normal", "warn") for x in ingredients)
+
+    # EWG 등급은 절대 내지 않는다. 컬럼은 있지만 출처를 검증할 수 없어
+    # 비워 둔 값이고, 응답에 새면 화면이 근거 없는 안전 등급을 주장하게 된다.
+    assert "ewgGrade" not in ingredients[0]
+    assert "ewg_grade" not in ingredients[0]
+
+    # 알레르겐 표시는 불리언이다(식약처 표시 의무 착향제 26종).
+    assert all(isinstance(x["isAllergen"], bool) for x in ingredients)
 
 
 async def test_detail_includes_notice_fields(client: AsyncClient) -> None:

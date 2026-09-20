@@ -359,7 +359,7 @@ async def get_product(
 
     rows = await db.execute(
         select(Ingredient.id, Ingredient.name_ko, Ingredient.name_en,
-               ProductIngredient.position)
+               ProductIngredient.position, Ingredient.grade, Ingredient.is_allergen)
         .join(ProductIngredient, ProductIngredient.ingredient_id == Ingredient.id)
         .where(ProductIngredient.product_id == product_id)
         .order_by(ProductIngredient.position)
@@ -376,8 +376,11 @@ async def get_product(
         report_no=product.report_no,
         ingredient_count_raw=product.ingredient_count_raw,
         ingredients=[
-            IngredientOut(id=i, name=ko, name_en=en, position=pos)
-            for i, ko, en, pos in rows.all()
+            IngredientOut(
+                id=i, name=ko, name_en=en, position=pos,
+                grade=grade, is_allergen=allergen,
+            )
+            for i, ko, en, pos, grade, allergen in rows.all()
         ],
     )
 

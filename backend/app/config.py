@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     SECRET_KEY: str = "dev-secret-key-change-in-production"
 
+    # 인증 (Task 12)
+    #
+    # 액세스 토큰을 30분으로 짧게 두고 리프레시를 14일로 잡는다. 액세스는
+    # 무효화할 방법이 없으므로(서명만 검증한다) 짧아야 하고, 리프레시는
+    # refresh_tokens 테이블에 해시로 남아 revoked_at으로 즉시 끊을 수 있다.
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 14
+
     # DB
     # DATABASE_DSN이 있으면 그쪽이 우선한다 (Neon 등 관리형 DB).
     # 비어 있으면 아래 POSTGRES_* 를 조립한다 (Docker·로컬 설치).

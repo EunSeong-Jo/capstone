@@ -1,0 +1,134 @@
+"""내 계정·프로필 (Task 12.5).
+
+    GET   /api/v1/me            계정 기본 정보
+    PATCH /api/v1/me            닉네임 수정
+    GET   /api/v1/me/profile    피부타입·예산·관심 도메인
+    PATCH /api/v1/me/profile    부분 수정
+
+프로필을 `users`와 나눠 둔 이유는 모델 주석에 있다 — `profiles.skin_type`은
+최신 진단 1순위를 복사해 둔 비정규화 캐시이고, 원본은 `diagnosis_ranks`다.
+그래서 여기서 skin_type을 직접 고칠 수 있게 두었다: 진단을 다시 받지 않고
+"내 타입은 이미 안다"고 지정하는 경로(GitHub 이슈 #8의 '타입 미리 정하기')가
+필요하기 때문이다.
+"""
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.deps import get_current_user
+from app.db.session import get_db
+from app.models.user import Profile, User
+from app.schemas.user import MeIn, ProfileIn, ProfileOut, UserOut
+
+router = APIRouter(prefix="/api/v1/me", tags=["me"])
+
+# 진단 8타입. 아무 문자열이나 받으면 화면이 모르는 코드로 캐릭터를 찾다가
+# 깨지므로 여기서 막는다. skin_type_rules의 skin_type과 같은 집합이다.
+SKIN_TYPES = frozenset(
+    {
+        "ondalsam",
+        "mulgae",
+        "subuji",
+        "hwasan",
+        "samak",
+        "injeolmi",
+        "yuriguseul",
+        "memilmuk",
+    }
+)
+
+
+def _to_user_out(user: User) -> UserOut:
+    return UserOut(
+        id=user.id,
+        email=user.email,
+        nickname=user.nickname,
+        provider=user.provider,
+        created_at=user.created_at,
+        skin_type=user.profile.skin_type if user.profile else None,
+    )
+
+
+async def _get_or_create_profile(db: AsyncSession, user: User) -> Profile:
+    """가입 경로가 여럿이라(시드 스크립트 포함) 프로필이 없을 수 있다."""
+    profile = await db.scalar(select(Profile).where(Profile.user_id == user.id))
+    if profile is None:
+        profile = Profile(user_id=user.id)
+        db.add(profile)
+        await db.flush()
+    return profile
+
+
+@router.get("", response_model=UserOut, summary="내 계정")
+async def read_me(user: User = Depends(get_current_user)) -> UserOut:
+    return _to_user_out(user)
+
+
+@router.patch("", response_model=UserOut, summary="닉네임 수정")
+async def update_me(
+    body: MeIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserOut:
+    if body.nickname is not None:
+        nickname = body.nickname.strip()
+        if not nickname:
+            raise HTTPException(status_code=422, detail="닉네임을 입력해 주세요")
+        user.nickname = nickname
+    await db.commit()
+    await db.refresh(user, ["profile"])
+    return _to_user_out(user)
+
+
+@router.get("/profile", response_model=ProfileOut, summary="내 프로필")
+async def read_profile(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ProfileOut:
+    profile = await _get_or_create_profile(db, user)
+    await db.commit()
+    return ProfileOut(
+        skin_type=profile.skin_type,
+        scores=profile.scores,
+        budget_min=profile.budget_min,
+        budget_max=profile.budget_max,
+        domains=profile.domains,
+    )
+
+
+@router.patch("/profile", response_model=ProfileOut, summary="프로필 수정")
+async def update_profile(
+    body: ProfileIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ProfileOut:
+    profile = await _get_or_create_profile(db, user)
+
+    if body.skin_type is not None:
+        if body.skin_type not in SKIN_TYPES:
+            raise HTTPException(status_code=422, detail="알 수 없는 피부타입입니다")
+        profile.skin_type = body.skin_type
+
+    if body.budget_min is not None:
+        profile.budget_min = body.budget_min
+    if body.budget_max is not None:
+        profile.budget_max = body.budget_max
+
+    # 예산 범위가 뒤집히면 구매 가이드(Task 15)가 빈 결과만 낸다. 저장 시점에 막는다.
+    lo, hi = profile.budget_min, profile.budget_max
+    if lo is not None and hi is not None and lo > hi:
+        raise HTTPException(status_code=422, detail="최소 예산이 최대 예산보다 큽니다")
+
+    if body.domains is not None:
+        profile.domains = body.domains
+
+    await db.commit()
+    return ProfileOut(
+        skin_type=profile.skin_type,
+        scores=profile.scores,
+        budget_min=profile.budget_min,
+        budget_max=profile.budget_max,
+        domains=profile.domains,
+    )
