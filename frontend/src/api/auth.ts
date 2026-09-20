@@ -4,7 +4,7 @@
  * 토큰 보관은 `tokenStore.ts`가 맡고, 헤더 주입과 401 재시도는 `client.ts`가
  * 합니다. 이 파일은 요청 모양만 정의합니다.
  */
-import { postJson, request } from './client';
+import { patchJson, postJson, request } from './client';
 import { SkinType } from '../types';
 
 export interface AuthUser {
@@ -60,6 +60,11 @@ export function logout(refreshToken: string): Promise<void> {
 
 export function fetchMe(): Promise<AuthUser> {
   return request<AuthUser>('/api/v1/me');
+}
+
+/** 닉네임 수정. 서버가 정본이고, UserProfileContext는 그 값을 비춥니다. */
+export function updateMe(nickname: string): Promise<AuthUser> {
+  return patchJson<AuthUser>('/api/v1/me', { nickname });
 }
 
 export function fetchMyProfile(): Promise<UserProfileOut> {
