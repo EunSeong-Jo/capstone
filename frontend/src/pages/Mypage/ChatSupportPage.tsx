@@ -7,6 +7,12 @@ import { ApiError } from '../../api/client';
 import { useCloset } from '../../context/ClosetContext';
 import { useAuth } from '../../context/AuthContext';
 import { useDiagnosis } from '../../context/DiagnosisContext';
+import type { SkinType } from '../../types';
+
+// Home/index.tsx와 동일한 기본값. 로그인·진단 모두 없는 게스트가 챗봇을 열면
+// 여기 폴백이 없어서 skinType이 undefined로 넘어가 "미확인"으로 표시되던 버그가 있었다 —
+// 앱 다른 화면과 동작을 맞춘다.
+const DEFAULT_SKIN: SkinType = 'ondalsam';
 
 /**
  * AI 챗봇 UI — backend POST /api/v1/chat(RAG) 연동.
@@ -48,7 +54,7 @@ export default function ChatSupportPage() {
   const { addItem } = useCloset();
   const { user: persona } = useAuth();
   const { skinType: diagType } = useDiagnosis();
-  const skinType = diagType ?? persona?.skinType;
+  const skinType = diagType ?? persona?.skinType ?? DEFAULT_SKIN;
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [registerMode, setRegisterMode] = useState(false);
