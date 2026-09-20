@@ -12,3 +12,7 @@ tabulate
 # 환경변수 / 진행률
 python-dotenv
 tqdm
+
+# DB 텍스트 대조(pg_trgm) / 제품 이미지 대조(pHash) — extract_product_name.py --search
+psycopg2-binary
+imagehash
