@@ -68,6 +68,18 @@ class IngredientOut(_CamelModel):
     name_en: str | None = None
     position: int
 
+    # 성분 분류. `scripts/seed_skin_type_tags.py`가 ingredient_tags에서 도출한다.
+    #
+    #   key     추천 태그(보습·진정·항산화 등)가 붙은 성분
+    #   warn    기피 태그(표시 의무 착향제·향료·건조 유발 알코올)
+    #   normal  제품에 쓰이지만 어느 쪽도 아닌 성분
+    #   None    분류 근거가 없는 성분 — 화면은 '등급 미정'으로 중립 표시한다
+    #
+    # ewg_grade는 내지 않는다. 컬럼은 있지만 비어 있고, 출처를 검증할 수 없는
+    # 숫자를 채우면 화면이 근거 없는 안전 등급을 주장하게 된다.
+    grade: str | None = None
+    is_allergen: bool = False
+
 
 class ProductDetailOut(ProductOut):
     """상세용. 상품정보제공고시 항목과 전성분이 붙는다."""

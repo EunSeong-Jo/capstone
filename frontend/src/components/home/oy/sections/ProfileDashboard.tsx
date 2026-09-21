@@ -42,7 +42,15 @@ export function ProfileDashboard({ weather, careTip, character, user, registry }
   // "수분팡팡 옹달샘" → "옹달샘" (칩용 짧은 피부명)
   const skinWords = meta.label.split(' ');
   const shortSkinName = skinWords[skinWords.length - 1] || meta.label;
-  const expPct = Math.min(100, Math.round((character.exp / character.nextLevelExp) * 100));
+  // 레벨·경험치는 /me/stats가 붙기 전까지 근거가 없다. 값이 없으면 줄을 숨긴다.
+  const hasLevel =
+    character.level !== undefined &&
+    character.exp !== undefined &&
+    character.nextLevelExp !== undefined &&
+    character.nextLevelExp > 0;
+  const expPct = hasLevel
+    ? Math.min(100, Math.round((character.exp! / character.nextLevelExp!) * 100))
+    : 0;
 
   return (
     <section className="px-4 pt-3 pb-4">
@@ -119,20 +127,22 @@ export function ProfileDashboard({ weather, careTip, character, user, registry }
 
             {/* 레벨/칭호 · 진행바 · 경험치. 닉네임은 제거하되, 레벨 자체는 기존
                 보조 텍스트 스타일 그대로 — 위 말풍선과 폭(컬럼)만 맞춘다 */}
-            <div className="shrink-0 flex items-center gap-3">
-              <span className="shrink-0 whitespace-nowrap text-[11px] font-bold text-gray-50">
-                Lv.{character.level} {character.title}
-              </span>
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-10">
-                <div
-                  className="h-full rounded-full bg-primary transition-all duration-500"
-                  style={{ width: `${expPct}%` }}
-                />
+            {hasLevel && (
+              <div className="shrink-0 flex items-center gap-3">
+                <span className="shrink-0 whitespace-nowrap text-[11px] font-bold text-gray-50">
+                  Lv.{character.level} {character.title}
+                </span>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-10">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    style={{ width: `${expPct}%` }}
+                  />
+                </div>
+                <span className="shrink-0 whitespace-nowrap text-[10px] text-gray-50">
+                  {character.exp}/{character.nextLevelExp}
+                </span>
               </div>
-              <span className="shrink-0 whitespace-nowrap text-[10px] text-gray-50">
-                {character.exp}/{character.nextLevelExp}
-              </span>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -148,10 +158,23 @@ export function ProfileDashboard({ weather, careTip, character, user, registry }
           </svg>
         </span>
         <p className="flex-1 text-[13px] leading-snug text-primary-dark">
-          <span className="font-extrabold">이번 달 {registry.totalSavings.toLocaleString()}원 절약 가능</span>
-          {' — 내 화장대 '}
-          {registry.count}
-          개 제품의 대체품을 찾았어요
+          {registry.totalSavings !== undefined ? (
+            <>
+              <span className="font-extrabold">
+                {registry.totalSavings.toLocaleString()}원 절약 가능
+              </span>
+              {' — 내 화장대 '}
+              {registry.count}
+              개 제품의 대체품을 찾았어요
+            </>
+          ) : (
+            <>
+              <span className="font-extrabold">내 화장대 대체품 찾기</span>
+              {registry.count > 0
+                ? ` — 등록한 ${registry.count}개 제품의 성분을 비교해요`
+                : ' — 쓰는 제품을 등록하면 비교해 드려요'}
+            </>
+          )}
         </p>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="shrink-0">
           <path d="M9 18l6-6-6-6" stroke="#3D8F6F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

@@ -5,7 +5,7 @@ import { Header } from '../../components/layout/Header';
 import { AlternativeCard } from '../../components/alternatives/AlternativeCard';
 import { ProductCard } from '../../components/product/ProductCard';
 import { toSimilarMethod } from '../../api/similar';
-import { useCloset } from '../../context/ClosetContext';
+import { useCloset } from '../../context/closet';
 import { useProduct } from '../../hooks/useProduct';
 import { useProducts } from '../../hooks/useProducts';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';

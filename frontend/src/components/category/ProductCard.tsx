@@ -5,8 +5,8 @@ import type { CategoryProduct } from './types';
 
 interface ProductCardProps {
   product: CategoryProduct;
-  onToggleFavorite?: (id: string) => void;
-  onAddToCart?: (id: string) => void;
+  onToggleFavorite?: (id: number) => void;
+  onAddToCart?: (id: number) => void;
 }
 
 /** 그리드 상품 카드: 사진 / 제목 / 가격 / 찜·장바구니 아이콘(가로) */

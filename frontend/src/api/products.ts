@@ -27,6 +27,20 @@ export interface ProductIngredient {
   name: string;
   nameEn?: string;
   position: number;
+  /**
+   * 성분 분류. `scripts/seed_skin_type_tags.py`가 ingredient_tags에서 도출합니다.
+   *
+   *   key     추천 태그(보습·진정·항산화 등)가 붙은 성분
+   *   warn    기피 태그(식약처 표시 의무 착향제·향료·건조 유발 알코올)
+   *   normal  제품에 쓰이지만 어느 쪽도 아닌 성분
+   *   null    분류 근거가 없는 성분 — 화면은 중립으로 그립니다
+   *
+   * EWG 등급은 오지 않습니다. 컬럼은 있지만 비어 있고, 출처를 검증할 수 없는
+   * 숫자를 채우면 화면이 근거 없는 안전 등급을 주장하게 됩니다.
+   */
+  grade?: 'key' | 'normal' | 'warn' | null;
+  /** 식약처 표시 의무 알레르기 유발 착향제 26종 여부 */
+  isAllergen?: boolean;
 }
 
 export interface ProductDetail extends Product {

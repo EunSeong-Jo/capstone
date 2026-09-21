@@ -6,13 +6,13 @@ import { ProductCard } from '../../components/product/ProductCard';
 import {
   POPULAR_SEARCH_FILTERS,
   POPULAR_SEARCH_RANKING,
-  REALTIME_BEST,
   INGREDIENT_DICTIONARY,
 } from '../../mocks/search';
 import { useRecentSearches } from '../../hooks/useRecentSearches';
 import { useMyIngredients } from '../../hooks/useMyIngredients';
 import { useSearchProducts } from '../../hooks/useSearchProducts';
-import { useCloset } from '../../context/ClosetContext';
+import { useProducts } from '../../hooks/useProducts';
+import { useCloset } from '../../context/closet';
 
 type MainTab = 'general' | 'ingredient';
 type IngredientSubTab = 'dict' | 'my';
@@ -100,6 +100,9 @@ export default function SearchPage() {
   // 예전에는 mocks/alternatives의 SEED_PRODUCTS를 썼는데, 그 id는 실제
   // 카탈로그와 무관해서 '대체품 찾기'가 엉뚱한 제품으로 갔다.
   const { items: myShelf } = useCloset();
+  // 인기 1위 한 건만. 예전 REALTIME_BEST 목업을 대체한다.
+  const { products: popular } = useProducts({ sort: 'popular', size: 1 });
+  const popularTop = popular[0];
 
   const handleSearch = (q: string) => {
     setQuery(q);
@@ -293,29 +296,34 @@ export default function SearchPage() {
                 </span>
               </button>
 
-              {/* 실시간 판매 BEST */}
-              <div>
-                <div className="flex items-center gap-1 mb-3">
-                  <h3 className="text-[15px] font-extrabold text-gray-100">실시간 판매 BEST</h3>
-                  <span className="text-xs text-gray-50">ⓘ {REALTIME_BEST.updatedAt}</span>
-                </div>
-                <button
-                  onClick={() => navigate(`/detail/${REALTIME_BEST.product.id}`)}
-                  className="w-full flex items-center gap-3 p-3 rounded-[14px] border border-gray-10 active:scale-[.98] transition-transform"
-                >
-                  <span className="text-[17px] font-black italic text-primary shrink-0">{REALTIME_BEST.product.rank}</span>
-                  <span className="w-12 h-12 rounded-[10px] bg-gray-10 flex items-center justify-center text-xl shrink-0">💧</span>
-                  <span className="flex-1 min-w-0 text-left">
-                    <span className="block text-xs text-gray-50">{REALTIME_BEST.product.brand}</span>
-                    <span className="block text-sm font-medium text-gray-100 truncate">{REALTIME_BEST.product.name}</span>
-                    <span className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-xs text-star">⭐ {REALTIME_BEST.product.rating}</span>
-                      <span className="text-xs font-bold text-accent">{REALTIME_BEST.product.discountRate}%</span>
-                      <span className="text-xs font-semibold text-gray-100">{REALTIME_BEST.product.price.toLocaleString()}원</span>
+              {/* 실시간 판매 BEST — 리뷰수 기준 1위. 예전에는 갱신 시각과
+                  할인율까지 하드코딩돼 있었는데, 그 값들은 수집 시점의
+                  스냅샷일 뿐 실시간이 아니다. */}
+              {popularTop && (
+                <div>
+                  <h3 className="text-[15px] font-extrabold text-gray-100 mb-3">인기 1위 제품</h3>
+                  <button
+                    onClick={() => navigate(`/detail/${popularTop.id}`)}
+                    className="w-full flex items-center gap-3 p-3 rounded-[14px] border border-gray-10 active:scale-[.98] transition-transform"
+                  >
+                    <span className="text-[17px] font-black italic text-primary shrink-0">1</span>
+                    <span className="w-12 h-12 rounded-[10px] bg-gray-10 overflow-hidden shrink-0">
+                      {popularTop.imageUrl && (
+                        <img src={popularTop.imageUrl} alt="" className="h-full w-full object-cover" />
+                      )}
                     </span>
-                  </span>
-                </button>
-              </div>
+                    <span className="flex-1 min-w-0 text-left">
+                      <span className="block text-xs text-gray-50">{popularTop.brand}</span>
+                      <span className="block text-sm font-medium text-gray-100 truncate">{popularTop.name}</span>
+                      <span className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-xs text-star">⭐ {popularTop.rating}</span>
+                        <span className="text-xs text-gray-50">리뷰 {popularTop.reviewCount?.toLocaleString()}</span>
+                        <span className="text-xs font-semibold text-gray-100">{popularTop.price.toLocaleString()}원</span>
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              )}
             </>
           )
         ) : (

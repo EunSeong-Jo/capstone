@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
-import { useCart, Order } from '../../context/CartContext';
+import { useAuth } from '../../context/auth';
+import { useCart, Order } from '../../context/cart';
 
 /**
  * 장바구니 → 구매.
@@ -13,7 +14,11 @@ import { useCart, Order } from '../../context/CartContext';
 export default function CartPage() {
   const navigate = useNavigate();
   const { lines, subtotal, count, setQty, removeLine, checkout } = useCart();
+  const { isUser } = useAuth();
   const [placed, setPlaced] = useState<Order | null>(null);
+  // 서버 왕복이 생겼다. 중복 제출을 막고 실패를 화면에 드러낸다.
+  const [buying, setBuying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const shipping = subtotal > 0 && subtotal < 30000 ? 3000 : 0;
 
@@ -134,15 +139,25 @@ export default function CartPage() {
             style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}
           >
             <button
-              onClick={() => {
-                const order = checkout();
+              disabled={buying}
+              onClick={async () => {
+                if (buying) return;
+                setBuying(true);
+                setError(null);
+                const order = await checkout();
+                setBuying(false);
                 if (order) setPlaced(order);
+                else if (!isUser) setError('주문하려면 로그인이 필요해요.');
+                else setError('주문에 실패했어요. 잠시 후 다시 시도해 주세요.');
               }}
-              className="h-[50px] w-full rounded-xl text-[15px] font-bold text-white active:scale-[.98] transition-transform"
+              className="h-[50px] w-full rounded-xl text-[15px] font-bold text-white active:scale-[.98] transition-transform disabled:opacity-60"
               style={{ background: '#00916D' }}
             >
-              {(subtotal + shipping).toLocaleString()}원 구매하기
+              {buying ? '주문 중…' : `${(subtotal + shipping).toLocaleString()}원 구매하기`}
             </button>
+            {error && (
+              <p className="mt-2 text-center text-[12px] text-accent">{error}</p>
+            )}
           </div>
         </>
       )}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/auth';
 import { PERSONAS } from '../../data/personas';
 
 // 데모 로그인 화면. 인증 API가 없어 personas.json과의 이메일·비밀번호 대조로 로그인한다.
@@ -11,19 +11,28 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // 서버 왕복이 생겼으므로 중복 제출을 막고 진행 중임을 알린다.
+  const [busy, setBusy] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const r = login(email, pw);
-    if (r.ok) {
-      navigate('/onboarding');
-    } else {
-      setError(r.error ?? '로그인에 실패했어요.');
-    }
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const r = await login(email, pw);
+    setBusy(false);
+    if (r.ok) navigate('/onboarding');
+    else setError(r.error ?? '로그인에 실패했어요.');
   };
 
-  const quickLogin = (id: string) => {
-    if (loginAs(id).ok) navigate('/onboarding');
+  const quickLogin = async (id: string) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const r = await loginAs(id);
+    setBusy(false);
+    if (r.ok) navigate('/onboarding');
+    else setError(r.error ?? '로그인에 실패했어요.');
   };
 
   return (

@@ -1,18 +1,15 @@
-import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { BottomNav } from '../../components/layout/BottomNav';
 import { ProductCard } from '../../components/product/ProductCard';
 import { HistoryListCard } from '../../components/history/HistoryListCard';
-import { AiInsightBanner } from '../../components/history/AiInsightBanner';
 import { useRecentlyViewed } from '../../hooks/useRecentlyViewed';
-import { useLikedProducts } from '../../context/LikedProductsContext';
-import { AI_INSIGHT, RECENT_INTEREST_RECOMMENDATIONS, LIKED_ALSO_RECOMMENDATIONS } from '../../mocks/history';
-import {
-  FREQUENT_PURCHASE_CATEGORIES,
-  FREQUENTLY_BOUGHT_PRODUCTS,
-  FREQUENT_PURCHASE_RECOMMENDATIONS,
-} from '../../mocks/frequentlyBought';
+import { useLikedProducts } from '../../context/liked';
+import { useSimilarProducts } from '../../hooks/useSimilarProducts';
+import { FrequentItemDto, fetchFrequent } from '../../api/personal';
+import { useAuth } from '../../context/auth';
+import { useCart } from '../../context/cart';
 
 type HistoryTab = 'recent' | 'liked' | 'frequent';
 
@@ -21,6 +18,47 @@ const TABS: [HistoryTab, string][] = [
   ['liked', '좋아요 상품'],
   ['frequent', '자주 구매'],
 ];
+
+/**
+ * 기준 제품의 성분 유사 제품. 예전에는 이 자리에 mocks/history.ts의
+ * 고정 목업(id 401~506)이 있었는데, 그 id가 실재 카탈로그 id와 겹쳐
+ * 카드를 탭하면 전혀 다른 제품이 열렸다.
+ *
+ * 기준이 없거나(목록이 비었거나) 유사도가 아직 없으면 섹션을 그리지 않는다.
+ */
+function SimilarSection({
+  title,
+  seedId,
+  layout = 'scroll',
+}: {
+  title: string;
+  seedId: number | undefined;
+  layout?: 'scroll' | 'grid';
+}) {
+  const { alternatives } = useSimilarProducts(seedId, { limit: 6 });
+  if (!seedId || alternatives.length === 0) return null;
+
+  return (
+    <section>
+      <h2 className="text-base font-bold text-gray-100 mb-3">{title}</h2>
+      {layout === 'grid' ? (
+        <div className="grid grid-cols-2 gap-3">
+          {alternatives.map((p, i) => (
+            <ProductCard key={p.id} product={p} index={i} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4">
+          {alternatives.map((p, i) => (
+            <div key={p.id} className="w-[140px] shrink-0">
+              <ProductCard product={p} index={i} />
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 function EmptyState({ emoji, title, subtitle }: { emoji: string; title: string; subtitle: string }) {
   return (
@@ -33,18 +71,12 @@ function EmptyState({ emoji, title, subtitle }: { emoji: string; title: string; 
 }
 
 export function RecentTab() {
-  const { addedIds, toggleAdded } = useCart();
+  const { inCart, addToCart } = useCart();
   const { items: recentlyViewed, clearRecentlyViewed } = useRecentlyViewed();
   const { isLiked, toggleLike } = useLikedProducts();
 
   return (
     <div className="px-4 py-4">
-      <AiInsightBanner
-        headline={AI_INSIGHT.headline}
-        subtext={AI_INSIGHT.subtext}
-        onAnalyze={() => alert('준비 중이에요')}
-      />
-
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-bold text-gray-100">최근 본 상품</h2>
         {recentlyViewed.length > 0 && (
@@ -62,33 +94,32 @@ export function RecentTab() {
               product={p}
               liked={isLiked(p.id)}
               onToggleLike={() => toggleLike(p)}
-              added={addedIds.has(p.id)}
-              onAddToCart={() => toggleAdded(p.id)}
+              added={inCart(p.id)}
+              onAddToCart={() =>
+                addToCart({
+                  id: p.id,
+                  name: p.name,
+                  brand: p.brand,
+                  price: p.price,
+                  imageUrl: p.imageUrl,
+                })
+              }
             />
           ))}
         </div>
       )}
 
-      <section>
-        <div className="flex items-center gap-1.5 mb-3">
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white bg-primary">AI추천</span>
-          <h2 className="text-base font-bold text-gray-100">최근 관심 기반 추천</h2>
-        </div>
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4">
-          {RECENT_INTEREST_RECOMMENDATIONS.map((p, i) => (
-            <div key={p.id} className="w-[140px] shrink-0">
-              <ProductCard product={p} index={i} />
-            </div>
-          ))}
-        </div>
-      </section>
+      <SimilarSection
+        title="최근 본 제품과 성분이 비슷한 제품"
+        seedId={recentlyViewed[0]?.id}
+      />
     </div>
   );
 }
 
 export function LikedTab() {
   const { likedProducts, isLiked, toggleLike, clearLikedProducts } = useLikedProducts();
-  const { addedIds, toggleAdded } = useCart();
+  const { inCart, addToCart } = useCart();
   const [category, setCategory] = useState('전체');
   const [discountOnly, setDiscountOnly] = useState(false);
 
@@ -144,109 +175,110 @@ export function LikedTab() {
                 product={p}
                 liked={isLiked(p.id)}
                 onToggleLike={() => toggleLike(p)}
-                added={addedIds.has(p.id)}
-                onAddToCart={() => toggleAdded(p.id)}
+                added={inCart(p.id)}
+                onAddToCart={() =>
+                  addToCart({
+                    id: p.id,
+                    name: p.name,
+                    brand: p.brand,
+                    price: p.price,
+                    imageUrl: p.imageUrl,
+                  })
+                }
               />
             ))}
           </div>
         </>
       )}
 
-      <section>
-        <h2 className="text-base font-bold text-gray-100 mb-3">이런 상품도 있어요!</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {LIKED_ALSO_RECOMMENDATIONS.map((p, i) => (
-            <ProductCard key={p.id} product={p} index={i} />
-          ))}
-        </div>
-      </section>
+      <SimilarSection
+        title="찜한 제품과 성분이 비슷한 제품"
+        seedId={likedProducts[0]?.id}
+        layout="grid"
+      />
     </div>
   );
 }
 
 export function FrequentTab() {
+  // 실제 주문 기록에서 집계한다(GET /me/orders/frequent). 예전에는 이 탭
+  // 전체가 mocks/frequentlyBought.ts의 고정 목업이었는데, id 201~303이 실재
+  // 카탈로그 id와 겹쳐 "3회 구매"라고 적힌 카드를 탭하면 처음 보는 제품이
+  // 열렸다.
+  const { isUser, loading: authLoading } = useAuth();
   const { isLiked, toggleLike } = useLikedProducts();
-  const { addedIds, toggleAdded } = useCart();
-  const [category, setCategory] = useState(FREQUENT_PURCHASE_CATEGORIES[0]);
-  const [sort, setSort] = useState<'purchase' | 'recent'>('purchase');
+  const { inCart, addToCart } = useCart();
+  const [rows, setRows] = useState<FrequentItemDto[] | null>(null);
 
-  const filtered = (
-    category === '전체' ? FREQUENTLY_BOUGHT_PRODUCTS : FREQUENTLY_BOUGHT_PRODUCTS.filter((p) => p.category === category)
-  ).slice();
+  useEffect(() => {
+    // 비회원은 조회하지 않는다. 주문 기록은 계정에 묶여 있다.
+    if (authLoading || !isUser) return;
+    fetchFrequent()
+      .then(setRows)
+      .catch(() => setRows([]));
+  }, [isUser, authLoading]);
 
-  if (sort === 'purchase') {
-    filtered.sort((a, b) => (b.purchaseCount ?? 0) - (a.purchaseCount ?? 0));
+  // rows가 null이면 아직 응답이 오지 않은 것이다. 비회원은 조회 자체를
+  // 하지 않으므로 로딩이 아니라 바로 빈 상태로 간다.
+  const loading = isUser && rows === null;
+
+  if (loading) {
+    return (
+      <div className="animate-pulse space-y-3 px-4 py-4">
+        {Array.from({ length: 3 }, (_, i) => (
+          <div key={i} className="h-24 rounded-xl bg-white" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!rows || rows.length === 0) {
+    return (
+      <div className="px-4 py-4">
+        <EmptyState
+          emoji="🧾"
+          title={isUser ? '아직 구매 기록이 없어요' : '로그인하면 볼 수 있어요'}
+          subtitle="주문하면 자주 사는 제품을 여기 모아드려요"
+        />
+      </div>
+    );
   }
 
   return (
     <div className="px-4 py-4">
-      <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-hide">
-        {FREQUENT_PURCHASE_CATEGORIES.map((c) => (
-          <button
-            key={c}
-            onClick={() => setCategory(c)}
-            className={`shrink-0 px-3.5 py-1.5 rounded-full border text-sm font-medium transition-colors ${
-              category === c ? 'border-primary bg-primary text-white' : 'border-gray-20 text-gray-70 bg-white'
-            }`}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-gray-70">총 {filtered.length}개</span>
-        <button
-          onClick={() => setSort((s) => (s === 'purchase' ? 'recent' : 'purchase'))}
-          className="text-sm text-gray-70"
-        >
-          {sort === 'purchase' ? '구매 많은순' : '최근 구매순'}
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-3 mb-8">
-        {filtered.map((p) => (
+      <div className="mb-3 text-sm text-gray-70">총 {rows.length}개</div>
+      <div className="mb-8 flex flex-col gap-3">
+        {rows.map((r) => (
           <HistoryListCard
-            key={p.id}
-            product={p}
-            liked={isLiked(p.id)}
-            onToggleLike={() => toggleLike(p)}
-            added={addedIds.has(p.id)}
-            onAddToCart={() => toggleAdded(p.id)}
-            extraBadge={p.purchaseCount !== undefined ? `${p.purchaseCount}회 구매` : undefined}
+            key={r.product.id}
+            product={r.product}
+            liked={isLiked(r.product.id)}
+            onToggleLike={() => toggleLike(r.product)}
+            added={inCart(r.product.id)}
+            onAddToCart={() =>
+              addToCart({
+                id: r.product.id,
+                name: r.product.name,
+                brand: r.product.brand,
+                price: r.product.price,
+                imageUrl: r.product.imageUrl,
+              })
+            }
+            extraBadge={`${r.purchaseCount}회 구매`}
           />
         ))}
       </div>
 
-      <section>
-        <h2 className="text-base font-bold text-gray-100 mb-3">재구매가 많은 다른 상품도 있어요!</h2>
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4">
-          {FREQUENT_PURCHASE_RECOMMENDATIONS.map((p, i) => (
-            <div key={p.id} className="w-[140px] shrink-0">
-              <ProductCard product={p} index={i} />
-            </div>
-          ))}
-        </div>
-      </section>
+      <SimilarSection
+        title="자주 사는 제품과 성분이 비슷한 제품"
+        seedId={rows[0]?.product.id}
+      />
     </div>
   );
 }
 
-// 장바구니 백엔드가 없어 세션 내에서만 "담김" 표시를 유지하는 임시 상태
-function useCart() {
-  const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
-  const toggleAdded = (id: number) => {
-    setAddedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-  return { addedIds, toggleAdded };
-}
-
 export default function HistoryPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = (searchParams.get('tab') as HistoryTab) || 'recent';
 
@@ -255,7 +287,7 @@ export default function HistoryPage() {
       <div className="sticky top-0 z-10 bg-surface-warm border-b border-gray-20">
         <div className="flex items-center justify-between h-14 px-4">
           <h1 className="text-lg font-bold text-gray-100">History</h1>
-          <button onClick={() => alert('준비 중이에요')} aria-label="장바구니" className="active:scale-90 transition-transform">
+          <button onClick={() => navigate('/cart')} aria-label="장바구니" className="active:scale-90 transition-transform">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path d="M6 8h12l-1 12H7L6 8z" stroke="var(--gray100)" strokeWidth="1.6" strokeLinejoin="round" />
               <path d="M9 8V6a3 3 0 016 0v2" stroke="var(--gray100)" strokeWidth="1.6" strokeLinecap="round" />

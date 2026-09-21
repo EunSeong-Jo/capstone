@@ -1,70 +1,63 @@
-import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../../components/category/Icon';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
-import placeholderImage from '../../assets/placeholderImage';
+import { CATEGORIES, CategoryDef } from '../../data/categories';
+import { useProducts } from '../../hooks/useProducts';
 
-const SIDEBAR_TABS = ['스킨케어', '마스크팩', '클렌징', '선케어', '메이크업', '바디케어', '헤어케어'];
-
-interface CategoryGroup {
-  id: string;
-  name: string;
-  subItems: string[];
-}
-
-// TODO: 실제 API 연동 전까지 목데이터, 카테고리 아이콘도 실제 이미지로 교체 필요
-const CATEGORY_GROUPS: CategoryGroup[] = [
-  { id: '스킨케어', name: '스킨케어', subItems: ['스킨/토너', '에센스/세럼/앰플', '크림', '로션', '미스트/오일', '스킨케어세트'] },
-  { id: '마스크팩', name: '마스크팩', subItems: ['시트팩', '패드', '페이셜팩', '코팩', '패치'] },
-  { id: '클렌징', name: '클랜징', subItems: ['클렌징폼/젤', '패드', '페이셜팩', '코팩', '패치'] },
-  { id: '선케어', name: '선케어', subItems: ['선크림', '선스틱', '선쿠션', '선스프레이/선패치'] },
-  { id: '메이크업', name: '메이크업', subItems: ['립메이크업', '베이스메이크업', '아이메이크업'] },
-];
+/**
+ * 카테고리 메인 — DB에 실제로 있는 4종만.
+ *
+ * 예전에는 메이크업·바디케어·헤어케어를 포함한 7개 그룹과 그 아래
+ * 소분류를 그렸는데, 전부 하드코딩이었고 수집기가 얼굴용 4종만 적재하므로
+ * (`scripts/load_products.py`의 ALLOWED_CATEGORIES) 눌러도 빈 목록이었다.
+ * 아이콘도 전부 같은 /placeholder.png였다.
+ *
+ * 지금은 카테고리마다 실제 제품 수와 대표 이미지를 API에서 가져온다.
+ */
 
 const NAV_HEIGHT = 52;
 
+/**
+ * 카테고리 한 칸. 훅을 쓰기 위해 컴포넌트로 뗐다 — 반복문 안에서
+ * useProducts를 부를 수는 없다.
+ */
+function CategoryRow({ category }: { category: CategoryDef }) {
+  const navigate = useNavigate();
+  // size=1이면 total과 대표 이미지 하나만 받아온다. 목록은 상세 화면에서.
+  const { products, total, loading } = useProducts({
+    category: category.label,
+    sort: 'popular',
+    size: 1,
+  });
+  const cover = products[0];
+
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(`/category/${category.slug}`)}
+      className="flex w-full items-center gap-3 rounded-2xl border border-gray-10 bg-white p-3 text-left active:scale-[.99] transition-transform"
+    >
+      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-10">
+        {cover?.imageUrl && (
+          <img src={cover.imageUrl} alt="" className="h-full w-full object-cover" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-extrabold text-gray-100">{category.label}</p>
+        <p className="mt-0.5 text-xs text-gray-50">
+          {loading ? '불러오는 중…' : `${total.toLocaleString()}개 제품`}
+        </p>
+      </div>
+      <Icon name="arrow_forward_ios" size={14} />
+    </button>
+  );
+}
+
 export default function CategoryMainPage() {
   const navigate = useNavigate();
-  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
-  const [activeTab, setActiveTab] = useState(SIDEBAR_TABS[0]);
-  const isClickScrolling = useRef(false);
-
-  const goToList = () => navigate('/category/skincare');
-
-  const scrollToTab = (tab: string) => {
-    const el = sectionRefs.current[tab];
-    if (!el) return;
-    isClickScrolling.current = true;
-    setActiveTab(tab);
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    window.setTimeout(() => { isClickScrolling.current = false; }, 600);
-  };
-
-  // 스크롤 위치에 따라 왼쪽 탭이 자동으로 활성화되도록 추적
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (isClickScrolling.current) return;
-        const visible = entries.find((entry) => entry.isIntersecting);
-        if (visible) {
-          const id = visible.target.getAttribute('data-group-id');
-          if (id) setActiveTab(id);
-        }
-      },
-      { rootMargin: `-${NAV_HEIGHT}px 0px -70% 0px`, threshold: 0 }
-    );
-
-    CATEGORY_GROUPS.forEach((group) => {
-      const el = sectionRefs.current[group.id];
-      if (el) observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <div className="min-h-dvh bg-surface-warm">
-      {/* 2b 헤더 — 타이틀(좌) + 검색·장바구니(우) */}
       <header
         className="sticky top-0 z-10 flex items-center justify-between bg-surface-warm px-4"
         style={{ height: NAV_HEIGHT }}
@@ -82,7 +75,12 @@ export default function CategoryMainPage() {
               <path d="M16.5 16.5L21 21" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           </button>
-          <button type="button" aria-label="장바구니" className="active:scale-90 transition-transform">
+          <button
+            type="button"
+            onClick={() => navigate('/cart')}
+            aria-label="장바구니"
+            className="active:scale-90 transition-transform"
+          >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -91,68 +89,18 @@ export default function CategoryMainPage() {
         </div>
       </header>
 
-      <div className="flex items-start">
-        {/* 좌측 사이드바 — 밀도 정리(46px) + 활성 그린 바 */}
-        <aside
-          className="sticky flex-shrink-0 w-[110px] flex flex-col overflow-y-auto bg-gray-10"
-          style={{ top: NAV_HEIGHT, height: `calc(100dvh - ${NAV_HEIGHT}px)` }}
-        >
-          {SIDEBAR_TABS.map((tabLabel) => {
-            const isActive = tabLabel === activeTab;
-            return (
-              <button
-                key={tabLabel}
-                type="button"
-                onClick={() => scrollToTab(tabLabel)}
-                className={`relative h-[46px] px-4 flex items-center text-[13px] text-left flex-shrink-0 ${
-                  isActive ? 'bg-white text-primary-dark font-extrabold' : 'text-gray-50 font-medium'
-                }`}
-              >
-                {isActive && (
-                  <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-[3px] bg-primary" />
-                )}
-                {tabLabel}
-              </button>
-            );
-          })}
-          <div className="flex-1" />
-        </aside>
+      <div
+        className="flex flex-col gap-2.5 px-4 pt-2"
+        style={{ paddingBottom: 'calc(var(--bottom-nav-h) + var(--safe-bottom) + 24px)' }}
+      >
+        {CATEGORIES.map((c) => (
+          <CategoryRow key={c.slug} category={c} />
+        ))}
 
-        {/* 우측 그룹 목록 — 2단 그리드 서브카테고리 */}
-        <div className="flex-1 flex flex-col gap-7 py-[18px] pb-[calc(var(--bottom-nav-h)+var(--safe-bottom)+24px)]">
-          {CATEGORY_GROUPS.map((group) => (
-            <section
-              key={group.id}
-              data-group-id={group.id}
-              ref={(el) => { sectionRefs.current[group.id] = el; }}
-              className="px-4"
-            >
-              <button type="button" onClick={goToList} className="flex items-center gap-2.5 w-full">
-                <div className="w-9 h-9 rounded-xl overflow-hidden bg-gray-10 flex-shrink-0">
-                  <img src={placeholderImage} alt="" className="w-full h-full object-cover" />
-                </div>
-                <span className="flex-1 text-[15px] font-extrabold text-gray-100 text-left">{group.name}</span>
-                <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-gray-50">
-                  전체
-                  <Icon name="arrow_forward_ios" size={13} />
-                </span>
-              </button>
-
-              <div className="grid grid-cols-2 gap-x-3 mt-2">
-                {group.subItems.map((sub) => (
-                  <button
-                    key={sub}
-                    type="button"
-                    onClick={goToList}
-                    className="py-[11px] px-0.5 text-left text-[13px] text-gray-70 border-b border-gray-5"
-                  >
-                    {sub}
-                  </button>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+        <p className="mt-3 px-1 text-[11px] leading-relaxed text-gray-50">
+          지금은 얼굴용 4종만 다뤄요. 피부타입 진단이 얼굴 기준이라
+          바디·헤어 제품은 추천 근거를 만들 수 없어 수집하지 않았어요.
+        </p>
       </div>
 
       <OyBottomNav />

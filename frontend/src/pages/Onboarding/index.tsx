@@ -9,7 +9,7 @@ import type { SkinType as SkinTypeId } from '../../types';
 import { GREETING_COUNT, QUESTION_COUNT } from '../../data/onboarding';
 import { computeDiagnosis } from '../../data/skinTypeScoring';
 import { useUserProfile } from '../../context/userProfile';
-import { useDiagnosis } from '../../context/DiagnosisContext';
+import { useDiagnosis } from '../../context/diagnosis';
 import GreetingScreen from '../../components/onboarding/GreetingScreen';
 import TypeGridScreen from '../../components/onboarding/TypeGridScreen';
 import QuestionScreen from '../../components/onboarding/QuestionScreen';

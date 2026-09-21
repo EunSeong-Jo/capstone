@@ -18,9 +18,14 @@ from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import text
 
 from app.api.care_tip import router as care_tip_router
+from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
+from app.api.diagnosis import router as diagnosis_router
+from app.api.me import router as me_router
+from app.api.personal import orders_router, router as personal_router
 from app.api.products import router as products_router
 from app.api.recommendations import router as recommendations_router
+from app.api.recommendations_main import router as reco_main_router
 from app.api.weather import router as weather_router
 from app.config import settings
 from app.db.session import engine, keepalive_loop
@@ -63,9 +68,15 @@ app.add_middleware(
 )
 
 
+app.include_router(auth_router)
+app.include_router(me_router)
+app.include_router(diagnosis_router)
+app.include_router(personal_router)
+app.include_router(orders_router)
 app.include_router(chat_router)
 app.include_router(products_router)
 app.include_router(recommendations_router)
+app.include_router(reco_main_router)
 app.include_router(weather_router)
 app.include_router(care_tip_router)
 

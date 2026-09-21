@@ -1,54 +1,30 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  fetchMainRecommendations,
+  fetchRecommendationSet,
+} from '../api/recommendations';
 import type { Product, SkinType } from '../types';
-import { useProducts } from './useProducts';
 
 /**
- * 피부타입 + 보유 화장품을 반영한 홈 추천.
+ * 피부타입 맞춤 추천 (`/api/v1/recommendations/main`, `/set`).
  *
- * 백엔드에 피부타입 추천 API가 없어, 여기서는 상품 풀(useProducts)에 대해
- * 피부타입 선호 키워드 점수를 매기고 보유 화장품을 제외하는 방식으로
- * "개인화된 것처럼" 보이게 한다. Task 14가 붙으면 추천 API 호출로 교체한다.
+ * 예전에는 이 계산이 여기서 일어났다 — 제품 40개를 받아 제품명에 키워드가
+ * 들어 있는지로 점수를 매겼다. 두 가지가 문제였다.
  *
- * 성분 유사도와는 별개다. 그쪽은 `/api/v1/products/{id}/similar`가 이미
- * 동작하고(useSimilarProducts), "이 제품 대신 쓸 것"을 찾는다. 이 훅은
- * "내 피부에 맞을 것"을 찾는 것이라 기준이 다르다.
+ *   1. 40개 안에서만 골랐다. 단일제품 2,489개 중 1.6%다.
+ *   2. 근거가 제품명 문자열이었다. 성분을 보지 않았다.
+ *
+ * 서버는 `ingredient_tags`를 쓴다. 제품 3,974/4,013에 태그가 붙은 성분이
+ * 하나 이상 있어 실제로 갈린다. 계산식은 `app/api/recommendations_main.py`
+ * 한 곳에 있다.
+ *
+ * 보유 화장품 제외는 서버에 넘기지 않는다. 화장대는 이제 서버에 있지만
+ * (`/me/closet`), 추천을 계정별로 캐싱하면 적중률이 0이 되기 때문이다.
+ * 대신 받아 온 목록에서 걸러낸다.
  */
 
 interface OwnedRef {
   id: number;
-  brand: string;
-  name: string;
-}
-
-/** 타입별 선호 키워드(제품명 매칭용)와 선호 카테고리 */
-const PREF: Record<SkinType, { keywords: string[]; categories: string[] }> = {
-  ondalsam:   { keywords: ['수분', '히알루', '토너', '가벼운', '젤'], categories: ['토너', '스킨케어'] },
-  mulgae:     { keywords: ['피지', '모공', '살리실', '산뜻', 'BHA', '클렌징'], categories: ['토너', '클렌징'] },
-  subuji:     { keywords: ['수분', '히알루', '세라마이드', '판테놀', '밸런싱'], categories: ['토너', '세럼', '크림'] },
-  hwasan:     { keywords: ['진정', '시카', '트러블', '판테놀', '어성초', '노스카나'], categories: ['세럼', '앰플', '크림'] },
-  samak:      { keywords: ['세라마이드', '시어', '밤', '고보습', '아토', '오일'], categories: ['크림', '밤', '로션'] },
-  injeolmi:   { keywords: ['탄력', '펩타이드', '주름', '아데노신', '콜라겐'], categories: ['앰플', '크림'] },
-  yuriguseul: { keywords: ['저자극', '진정', '시카', '민감', '무향', '판테놀'], categories: ['크림', '밤', '토너'] },
-  memilmuk:   { keywords: ['나이아신', '비타민', '잡티', '미백', '톤', '흉터'], categories: ['세럼', '앰플'] },
-};
-
-const firstWord = (s: string) => s.trim().split(/\s+/)[0] ?? '';
-
-function isOwned(p: Product, owned: OwnedRef[]): boolean {
-  return owned.some(
-    (o) =>
-      o.id === p.id ||
-      (o.brand && p.brand === o.brand && p.name.includes(firstWord(o.name))),
-  );
-}
-
-function scoreFor(p: Product, skinType: SkinType): number {
-  const pref = PREF[skinType];
-  let s = 0;
-  for (const kw of pref.keywords) if (p.name.includes(kw)) s += 2;
-  if (pref.categories.includes(p.category)) s += 1;
-  s += (p.rating ?? 0) * 0.1;
-  return s;
 }
 
 export interface RecommendationSet {
@@ -57,53 +33,78 @@ export interface RecommendationSet {
   rationale: string;
 }
 
-export interface UseRecommendationsResult {
+interface UseRecommendationsResult {
   forYou: Product[];
   set: RecommendationSet;
-  isMock: boolean;
   loading: boolean;
-  /** 상품 풀 조회 실패 메시지. 목업 폴백이 꺼진 환경에서만 채워진다 */
+  /** 사용자에게 보여줄 오류 문구. 정상이면 null */
   error: string | null;
-  /** 실패한 조회 재시도 */
   reload: () => void;
+}
+
+const EMPTY_SET: RecommendationSet = { items: [], total: 0, rationale: '' };
+
+/** 조회 결과 한 벌. key로 "어떤 피부타입의 결과인지"를 함께 들고 있다. */
+interface Loaded {
+  key: string;
+  forYou: Product[];
+  set: Product[];
+  error: string | null;
 }
 
 export function useRecommendations(
   skinType: SkinType,
   owned: OwnedRef[],
 ): UseRecommendationsResult {
-  const { products, isMock, loading, error, reload } = useProducts({ size: 40 });
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [nonce, setNonce] = useState(0);
 
-  return useMemo(() => {
-    const ranked = products
-      .filter((p) => !isOwned(p, owned))
-      .map((p) => ({ p, score: scoreFor(p, skinType) }))
-      .sort((a, b) => b.score - a.score)
-      .map((x) => x.p);
+  const key = `${skinType}#${nonce}`;
 
-    const forYou = ranked.slice(0, 8);
+  useEffect(() => {
+    const controller = new AbortController();
 
-    // 추천 세트 — 서로 다른 카테고리에서 하나씩, 최대 3개
-    const set: Product[] = [];
-    const usedCat = new Set<string>();
-    for (const p of ranked) {
-      if (usedCat.has(p.category)) continue;
-      usedCat.add(p.category);
-      set.push(p);
-      if (set.length === 3) break;
-    }
+    Promise.all([
+      fetchMainRecommendations(skinType, 12, controller.signal),
+      fetchRecommendationSet(skinType, controller.signal),
+    ])
+      .then(([main, set]) => {
+        setLoaded({ key, forYou: main.items, set, error: null });
+      })
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        setLoaded({
+          key,
+          forYou: [],
+          set: [],
+          error: err instanceof Error ? err.message : '추천을 불러오지 못했습니다.',
+        });
+      });
 
-    return {
-      forYou,
-      set: {
-        items: set,
-        total: set.reduce((s, p) => s + p.price, 0),
-        rationale: `${skinType} 피부에 잘 맞는 성분 위주로 골랐어요`,
-      },
-      isMock,
-      loading,
-      error,
-      reload,
-    };
-  }, [products, owned, skinType, isMock, loading, error, reload]);
+    return () => controller.abort();
+  }, [key, skinType]);
+
+  const reload = useCallback(() => setNonce((n) => n + 1), []);
+
+  const current = loaded?.key === key ? loaded : null;
+
+  // 이미 쓰고 있는 제품을 다시 추천하지 않는다.
+  const ownedIds = new Set(owned.map((o) => o.id));
+  const filtered = (current?.forYou ?? []).filter((p) => !ownedIds.has(p.id)).slice(0, 8);
+  const filteredSet = (current?.set ?? []).filter((p) => !ownedIds.has(p.id));
+
+  return {
+    forYou: filtered,
+    set:
+      filteredSet.length > 0
+        ? {
+            items: filteredSet,
+            total: filteredSet.reduce((sum, p) => sum + p.price, 0),
+            rationale: '성분 태그가 피부타입 규칙에 맞는 제품으로 골랐어요',
+          }
+        : EMPTY_SET,
+    loading: current === null,
+    error: current?.error ?? null,
+    reload,
+  };
 }

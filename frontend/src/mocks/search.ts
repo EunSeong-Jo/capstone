@@ -1,38 +1,17 @@
-// 검색 화면 목업 데이터 (jw 디자인 design_ver2.html 기준)
-// TODO: 실제 검색/성분 API 연동 전까지 목데이터
-
-const img = (seed: string, s = 96) => `https://picsum.photos/seed/${seed}/${s}/${s}`;
+/**
+ * 검색 화면의 **정적 콘텐츠**.
+ *
+ * 인기 검색어와 성분 사전 카테고리는 집계 근거(검색 로그)가 없어 고정 문구다.
+ * 제품 id를 담지 않으므로 탭해도 엉뚱한 상세로 가지 않는다 —
+ * 실제 제품은 전부 /api/v1/products 계열에서 온다.
+ */
 
 export const POPULAR_SEARCH_FILTERS = ['급상승', '성분', '브랜드'] as const;
 
 export const POPULAR_SEARCH_RANKING = [
   '메디큐브', '셀리맥스', '클리오 쿠션', '제로이드', '식물나라',
   '마데카소사이드', '바이오던스', 'PDRN 세럼', '아누아', '퓌 립앤치크',
-];
-
-export const SEARCH_AD_BANNER = {
-  label: 'swappy AD',
-  title: '단종템 대체 1등 제품,',
-  subtitle: '최저가로 만나보세요',
-};
-
-export const REALTIME_BEST = {
-  updatedAt: '2026.06.23 18시 기준',
-  product: {
-    // 상세로 이동하려면 실제 제품 id가 필요합니다. rank(1,2,3…)를 넘기면
-    // 엉뚱한 제품이 열립니다. 아래 id는 DB에 있는 실제 토리든 세럼입니다.
-    // TODO(Task 6): 이 블록 전체를 /products?sort=popular&size=1 결과로 교체
-    id: 216,
-    rank: 1,
-    brand: '토리든',
-    name: '다이브인 저분자 히알루론산 세럼 100ml (+수딩크림)',
-    rating: 4.6,
-    discountRate: 35,
-    price: 28500,
-  },
-};
-
-export interface IngredientCategory {
+];export interface IngredientCategory {
   id: string;
   emoji: string;
   label: string;
@@ -55,8 +34,3 @@ export interface RecentScan {
   safeCount: number;
   cautionCount?: number;
 }
-
-export const RECENT_SCANS: RecentScan[] = [
-  { seedId: 8, name: '시카플라스트 밤 B5+ 40ml', brand: '라로슈포제', imageUrl: img('seed8'), ingredientCount: 32, when: '어제', safeCount: 30, cautionCount: 2 },
-  { seedId: 1, name: '수분 밸런싱 토너 200ml', brand: '이니스프리', imageUrl: img('seed1'), ingredientCount: 24, when: '3일 전', safeCount: 24 },
-];

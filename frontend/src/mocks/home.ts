@@ -1,18 +1,11 @@
-import {
-  WeatherInfo,
-  WeatherCondition,
-  SkinType,
-  SkinCareTipMap,
-  CharacterState,
-  RegistrySummary,
-  ProfileUser,
-  QuickAction,
-} from '../types';
+import { WeatherInfo, WeatherCondition, SkinType, SkinCareTipMap } from '../types';
 
-// 홈 메인 대시보드 목업 데이터 (날씨 · 캐릭터 · 등록물품 · ID 카드)
-// TODO: 사용자 store/API 연동 시 교체
-
-const img = (seed: string, s = 80) => `https://picsum.photos/seed/${seed}/${s}/${s}`;
+/**
+ * 날씨·케어문구의 **오프라인 폴백**.
+ *
+ * 제품 목업이 아니다. useWeather·useCareTip이 API 실패 시에만 쓰고,
+ * 제품 id를 담지 않으므로 화면이 엉뚱한 상세로 이동할 위험이 없다.
+ */
 
 // ===== 날씨 =====
 export const MOCK_WEATHER: WeatherInfo = {
@@ -78,40 +71,3 @@ export function getSkinCareTip(skinType: SkinType, condition: WeatherCondition):
     '오늘도 기본 보습과 자외선 차단 잊지 마세요!'
   );
 }
-
-// ===== 내 캐릭터 (마스코트 / 경험치) =====
-export const MOCK_CHARACTER: CharacterState = {
-  skinType: 'ondalsam',
-  expression: 'neutral',
-  level: 4,
-  exp: 320,
-  nextLevelExp: 500,
-  title: '꼼꼼 분석가',
-};
-
-// ===== 등록물품 =====
-export const MOCK_REGISTRY: RegistrySummary = {
-  count: 12,
-  totalSavings: 74500,
-  recent: [
-    { id: 1, name: '아토베리어365 크림', brand: '에스트라', category: '크림', imageUrl: img('reg1') },
-    { id: 2, name: '하이드라비오 토너', brand: '바이오더마', category: '토너', imageUrl: img('reg2') },
-    { id: 3, name: '시카플라스트 밤', brand: '라로슈포제', category: '밤', imageUrl: img('reg3') },
-  ],
-};
-
-// ===== ID 카드 프로필 =====
-export const MOCK_PROFILE: ProfileUser = {
-  nickname: '대체러',
-  skinType: 'ondalsam',
-  email: 'user@email.com',
-  memberSince: '2026.03',
-  idNo: '960101-OY1****',
-};
-
-// ===== ID 카드 편의기능 바로가기 =====
-export const PROFILE_QUICK_ACTIONS: QuickAction[] = [
-  { id: 'analysis', label: '성분 분석', icon: '🔬', path: '/search' },
-  { id: 'history', label: '분석 기록', icon: '📑', path: '/history' },
-  { id: 'mypage', label: '내 정보', icon: '👤', path: '/mypage' },
-];

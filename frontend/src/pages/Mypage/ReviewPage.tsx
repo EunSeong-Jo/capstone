@@ -1,142 +1,170 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
-import { Icon } from '../../components/category/Icon';
+import { OrderDto, fetchOrders, writeReview } from '../../api/personal';
+import { useAuth } from '../../context/auth';
 
-type MainTab = '작성 가능한 후기' | '작성한 후기' | '체험단 신청';
-type SubTab = '온라인 구매' | '오프라인 구매';
+/**
+ * 후기.
+ *
+ * '작성 가능'은 주문했지만 아직 후기를 안 쓴 항목이고, '작성한 후기'는
+ * 반대다. 둘 다 `GET /api/v1/me/orders` 하나에서 나온다 — 서버가 항목마다
+ * `reviewed`를 내려주기 때문이다.
+ *
+ * 산 제품에만 쓸 수 있다는 규칙은 화면이 아니라 DB가 강제한다
+ * (`reviews.order_item_id` FK). 예전에는 작성 가능 목록 자체가 하드코딩이라
+ * 사지도 않은 제품에 후기를 쓸 수 있는 것처럼 보였다.
+ */
 
-const writableItems = [
-  { id: 1, maxPoint: 500, brand: '이니스프리', name: '수분 밸런싱 토너 200ml', option: '기본 · 200ml', date: '2026.06.05 구매확정', bg: 'bg-primary-light', emoji: '🧴' },
-  { id: 2, maxPoint: 800, brand: '닥터자르트', name: '세라마이드 수분 크림 60ml', option: '기본 · 60ml', date: '2026.06.05 구매확정', bg: 'bg-rose-100', emoji: '🫙' },
-  { id: 3, maxPoint: 400, brand: '코스알엑스', name: '히알루론산 에센스 50ml', option: '기본 · 50ml', date: '2026.05.28 구매확정', bg: 'bg-sky-100', emoji: '💧' },
-  { id: 4, maxPoint: 600, brand: '마녀공장', name: '순식물성 클렌징 오일 200ml', option: '기본 · 200ml', date: '2026.05.28 구매확정', bg: 'bg-yellow-50', emoji: '🫧' },
-];
+type Tab = 'writable' | 'written';
 
-const writtenItems = [
-  { id: 101, brand: '라운드랩', name: '독도 토너 200ml', option: '기본 · 200ml', date: '2026.03.15 구매확정', bg: 'bg-primary-light', emoji: '🧴', rating: 5, reviewDate: '2026.03.20' },
-  { id: 102, brand: '아토팜', name: 'MLE 크림 65ml', option: '기본 · 65ml', date: '2026.03.01 구매확정', bg: 'bg-sky-100', emoji: '🫙', rating: 4, reviewDate: '2026.03.08' },
-];
+interface Row {
+  orderItemId: number;
+  productName: string;
+  brandName: string | null;
+  placedAt: string;
+}
 
-function StarRating({ rating }: { rating: number }) {
-  return <span className="text-xs tracking-wide">{'⭐'.repeat(rating)}{'☆'.repeat(5 - rating)}</span>;
+const fmtDate = (iso: string) =>
+  new Date(iso)
+    .toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+    .replace(/\.$/, '');
+
+function collect(orders: OrderDto[], reviewed: boolean): Row[] {
+  return orders.flatMap((o) =>
+    o.items
+      .filter((i) => i.reviewed === reviewed && i.productId !== null)
+      .map((i) => ({
+        orderItemId: i.id,
+        productName: i.productName,
+        brandName: i.brandName,
+        placedAt: o.placedAt,
+      })),
+  );
 }
 
 export default function ReviewPage() {
-  const [mainTab, setMainTab] = useState<MainTab>('작성 가능한 후기');
-  const [subTab, setSubTab] = useState<SubTab>('온라인 구매');
-  const mainTabs: MainTab[] = ['작성 가능한 후기', '작성한 후기', '체험단 신청'];
+  const navigate = useNavigate();
+  const { isUser, loading: authLoading } = useAuth();
+  const [tab, setTab] = useState<Tab>('writable');
+  const [orders, setOrders] = useState<OrderDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [rating, setRating] = useState<Record<number, number>>({});
+  const [saving, setSaving] = useState<number | null>(null);
+
+  const reload = () =>
+    fetchOrders()
+      .then(setOrders)
+      .catch(() => setOrders([]))
+      .finally(() => setLoading(false));
+
+  useEffect(() => {
+    // 비회원은 조회하지 않는다. 아래 로그인 안내 화면으로 빠지므로
+    // loading을 되돌릴 필요가 없다.
+    if (authLoading || !isUser) return;
+    reload();
+  }, [isUser, authLoading]);
+
+  const submit = async (orderItemId: number) => {
+    setSaving(orderItemId);
+    await writeReview(orderItemId, rating[orderItemId] ?? 5).catch(() => undefined);
+    setSaving(null);
+    reload();
+  };
+
+  if (!authLoading && !isUser) {
+    return (
+      <PageWrapper>
+        <Header showBack title="후기" />
+        <div className="px-4 py-20 text-center">
+          <p className="text-sm text-gray-70">후기는 로그인 후에 쓸 수 있어요.</p>
+          <button
+            onClick={() => navigate('/login')}
+            className="mt-4 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white active:scale-95"
+          >
+            로그인
+          </button>
+        </div>
+      </PageWrapper>
+    );
+  }
+
+  const rows = collect(orders, tab === 'written');
 
   return (
     <PageWrapper>
       <Header showBack title="후기" />
 
-      <div className="flex-1">
-        <div className="px-4 pt-5 pb-3">
-          <div className="flex items-baseline gap-1.5 mb-1.5">
-            <span className="text-base font-semibold text-gray-100">적립가능 금액</span>
-            <span className="text-xl font-extrabold text-sky-600">19,000원</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] text-gray-50">나의 후기 9개 · 도움돼요 0개</span>
-            <button className="text-[13px] font-semibold text-gray-70">작성 안내</button>
-          </div>
-        </div>
-
-        <div className="px-4 pb-4">
-          <button className="w-full flex items-center justify-between px-4 py-3.5 rounded-[10px] border-[1.5px] border-gray-20">
-            <span className="text-sm font-bold text-gray-100">100만원 적립금의 후기왕에 도전해보세요!</span>
-            <Icon name="arrow_forward_ios" size={16} className="text-gray-50" />
+      <div className="flex border-b border-gray-20 bg-white px-4">
+        {(
+          [
+            ['writable', '작성 가능'],
+            ['written', '작성한 후기'],
+          ] as [Tab, string][]
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`px-3 py-3 text-sm border-b-2 ${
+              tab === key
+                ? 'border-primary font-bold text-primary'
+                : 'border-transparent text-gray-50'
+            }`}
+          >
+            {label} {collect(orders, key === 'written').length}
           </button>
-        </div>
+        ))}
+      </div>
 
-        <div className="flex items-end gap-5 border-b border-gray-20 px-4">
-          {mainTabs.map((t) => (
-            <div key={t} className="relative pb-2.5">
-              <button
-                onClick={() => setMainTab(t)}
-                className={`flex items-center gap-1 text-sm font-bold whitespace-nowrap ${mainTab === t ? 'text-gray-100' : 'text-gray-50'}`}
-              >
-                {t}
-                {t === '작성 가능한 후기' && <span> 14</span>}
-                {t === '작성한 후기' && <span> 9</span>}
-              </button>
-              {mainTab === t && <div className="absolute -bottom-px left-0 right-0 h-0.5 bg-gray-100" />}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex bg-gray-5 border-b border-gray-20">
-          {(['온라인 구매', '오프라인 구매'] as SubTab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setSubTab(t)}
-              className={`px-5 py-2.5 text-[13px] border-b-2 ${
-                subTab === t ? 'font-bold text-gray-100 border-gray-100 bg-white' : 'text-gray-50 border-transparent'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        {mainTab === '작성 가능한 후기' &&
-          writableItems.map((item) => (
-            <div key={item.id} className="border-b border-gray-10">
-              <div className="flex gap-3 px-4 pt-4 pb-2.5">
-                <div className={`w-20 h-20 rounded-[10px] flex items-center justify-center text-4xl border border-gray-10 shrink-0 ${item.bg}`}>
-                  {item.emoji}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <span className="text-[11px] text-gray-50">최대적립금</span>
-                    <span className="text-[13px] font-bold text-sky-600">{item.maxPoint.toLocaleString()}원</span>
-                  </div>
-                  <p className="text-xs text-gray-50 mb-0.5">{item.brand}</p>
-                  <p className="text-[13px] font-semibold text-gray-100 leading-snug mb-1 line-clamp-2">{item.name}</p>
-                  <p className="text-[11px] text-gray-50">{item.option} | {item.date}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 px-4 pb-4">
-                {['후기 작성', '스타일 후기 작성'].map((label) => (
-                  <button key={label} className="py-2.5 rounded-lg border border-gray-20 text-[13px] font-semibold text-gray-100">
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-
-        {mainTab === '작성한 후기' &&
-          writtenItems.map((item) => (
-            <div key={item.id} className="border-b border-gray-10">
-              <div className="flex gap-3 px-4 pt-4 pb-2.5">
-                <div className={`w-20 h-20 rounded-[10px] flex items-center justify-center text-4xl border border-gray-10 shrink-0 ${item.bg}`}>
-                  {item.emoji}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <StarRating rating={item.rating} />
-                    <span className="text-[11px] text-gray-50 ml-1">{item.reviewDate} 작성</span>
-                  </div>
-                  <p className="text-xs text-gray-50 mb-0.5">{item.brand}</p>
-                  <p className="text-[13px] font-semibold text-gray-100 leading-snug mb-1">{item.name}</p>
-                  <p className="text-[11px] text-gray-50">{item.option} | {item.date}</p>
-                </div>
-              </div>
-              <div className="px-4 pb-4">
-                <button className="w-full py-2.5 rounded-lg border border-gray-20 text-[13px] font-semibold text-gray-100">
-                  후기 수정
-                </button>
-              </div>
-            </div>
-          ))}
-
-        {mainTab === '체험단 신청' && (
-          <div className="flex flex-col items-center justify-center gap-2 py-16 text-gray-50">
-            <span className="text-3xl">📝</span>
-            <p className="text-sm">진행 중인 체험단이 없습니다.</p>
+      <div className="flex-1 bg-surface">
+        {loading ? (
+          <div className="animate-pulse space-y-2 p-4">
+            {Array.from({ length: 2 }, (_, i) => (
+              <div key={i} className="h-24 rounded-xl bg-white" />
+            ))}
           </div>
+        ) : rows.length === 0 ? (
+          <div className="px-4 py-20 text-center">
+            <span className="text-5xl">✍️</span>
+            <p className="mt-3 text-base font-semibold text-gray-100">
+              {tab === 'writable' ? '쓸 수 있는 후기가 없어요' : '작성한 후기가 없어요'}
+            </p>
+            <p className="mt-1 text-sm text-gray-50">주문한 제품에만 후기를 쓸 수 있어요</p>
+          </div>
+        ) : (
+          rows.map((row) => (
+            <div key={row.orderItemId} className="mb-2 bg-white p-4">
+              <p className="text-sm font-semibold text-gray-100">{row.productName}</p>
+              <p className="mt-0.5 text-xs text-gray-50">
+                {row.brandName} · {fmtDate(row.placedAt)} 주문
+              </p>
+
+              {tab === 'writable' && (
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setRating((r) => ({ ...r, [row.orderItemId]: n }))}
+                        aria-label={`${n}점`}
+                        className="text-[20px] leading-none"
+                      >
+                        {(rating[row.orderItemId] ?? 5) >= n ? '★' : '☆'}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    disabled={saving === row.orderItemId}
+                    onClick={() => submit(row.orderItemId)}
+                    className="ml-auto rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white active:scale-95 disabled:opacity-50"
+                  >
+                    {saving === row.orderItemId ? '저장 중…' : '후기 쓰기 (+100P)'}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))
         )}
       </div>
     </PageWrapper>

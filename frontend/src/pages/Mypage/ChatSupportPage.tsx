@@ -2,11 +2,12 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
+import { searchProducts } from '../../api/products';
 import { sendChatMessage } from '../../api/chat';
 import { ApiError } from '../../api/client';
-import { useCloset } from '../../context/ClosetContext';
-import { useAuth } from '../../context/AuthContext';
-import { useDiagnosis } from '../../context/DiagnosisContext';
+import { useCloset } from '../../context/closet';
+import { useAuth } from '../../context/auth';
+import { useDiagnosis } from '../../context/diagnosis';
 import type { SkinType } from '../../types';
 
 // Home/index.tsx와 동일한 기본값. 로그인·진단 모두 없는 게스트가 챗봇을 열면
@@ -65,26 +66,52 @@ export default function ChatSupportPage() {
   ]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(3);
-  const nextClosetId = useRef(960001);
 
   const pushBot = (text: string) =>
     setMessages((prev) => [...prev, { id: nextId.current++, role: 'bot', text }]);
 
-  /** "브랜드 제품명" 한 줄을 화장대 항목으로 만든다 (첫 어절=브랜드) */
-  const registerCosmetic = (line: string) => {
-    const trimmed = line.trim();
-    const sp = trimmed.indexOf(' ');
-    const brand = sp > 0 ? trimmed.slice(0, sp) : '직접 등록';
-    const name = sp > 0 ? trimmed.slice(sp + 1) : trimmed;
+  /**
+   * 입력한 제품명을 카탈로그에서 찾아 화장대에 담는다.
+   *
+   * 예전에는 입력 문자열을 그대로 항목으로 만들고 id를 960001부터 붙였다.
+   * 카탈로그에 없는 번호라 그 제품은 유사도 조회가 404로 떨어졌고,
+   * 대체품을 영영 못 받았다 — 화장대에 담는 목적 자체가 대체품을 받는
+   * 것인데 그게 안 됐다.
+   *
+   * 못 찾으면 담지 않고 다시 물어본다. 지어낸 제품을 담는 것보다 낫다.
+   */
+  const registerCosmetic = async (line: string) => {
+    const keyword = line.trim();
+    if (keyword.length < 2) {
+      pushBot('제품명을 두 글자 이상 알려주세요.');
+      setRegisterMode(true);
+      return;
+    }
+
+    const found = await searchProducts(keyword, { size: 1 }).catch(() => null);
+    const product = found?.items[0];
+
+    if (!product) {
+      pushBot(
+        `'${keyword}'을(를) 찾지 못했어요.\n브랜드와 제품명을 함께 적어 주시면 더 잘 찾아요.\nex) 라운드랩 1025 독도 토너`,
+      );
+      setRegisterMode(true);
+      return;
+    }
+
     addItem({
-      id: nextClosetId.current++,
-      brand,
-      name,
-      category: '스킨케어',
+      id: product.id,
+      brand: product.brand,
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      imageUrl: product.imageUrl,
       addedVia: 'chatbot',
       status: 'owned',
     });
-    pushBot(`'${name}'을(를) 화장대에 추가했어요! 🧴\n내 화장대에서 대체품 추천을 확인해 보세요.`);
+    pushBot(
+      `'${product.brand} ${product.name}'을(를) 화장대에 추가했어요! 🧴\n내 화장대에서 대체품 추천을 확인해 보세요.`,
+    );
     setRegisteredCount((n) => n + 1);
   };
 
@@ -115,7 +142,7 @@ export default function ChatSupportPage() {
 
     // 화장품 등록 미니플로우 — 서버 호출 없이 로컬 처리
     if (registerMode) {
-      registerCosmetic(userText);
+      void registerCosmetic(userText);
       setRegisterMode(false);
       return;
     }

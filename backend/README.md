@@ -19,7 +19,7 @@ pip install -r backend/requirements.txt
 cp .env.example .env
 #    DATABASE_DSN 에 Neon 콘솔의 연결 문자열을 넣는다
 
-# 2. 스키마 생성 (테이블 18개 + pg_trgm 확장)
+# 2. 스키마 생성 (테이블 27개 + pg_trgm 확장)
 cd backend && alembic upgrade head
 
 # 3. 성분 사전 → DB (21,910 + 별칭 3,967)
@@ -31,6 +31,14 @@ python scripts/load_products.py
 
 **두 스크립트 모두 멱등합니다.** 몇 번을 돌려도 행수가 변하지 않으니 안심하고 재실행하세요.
 DB에는 이미 적재돼 있어서 3·4번을 건너뛰어도 바로 쓸 수 있습니다.
+
+> ⚠️ **2026-09-20 이후 처음 받는다면 컨테이너를 다시 빌드하세요.**
+> ```bash
+> docker compose build backend && docker compose up -d
+> ```
+> `requirements.txt`가 바뀌었습니다 — `email-validator`가 추가되고(인증 스키마가 씁니다)
+> `passlib`이 빠졌습니다(bcrypt 5.x와 호환되지 않아 `bcrypt`를 직접 씁니다).
+> 다시 빌드하지 않으면 `from app.schemas.user import ...`가 ImportError로 죽습니다.
 
 DSN은 커밋하지 않습니다. Neon 조직 `dmu` 초대를 수락하면 각자 콘솔에서 확인할 수 있습니다.
 
@@ -119,8 +127,18 @@ f075ce1f838f  initial schema (phase 1)      테이블 18개 + pg_trgm
 92851da8889b  products.ingredient_count_raw
 a1b2c3d4e5f6  테이블·컬럼명 단순화            테이블 6 · 컬럼 14 rename
 b2c3d4e5f6a7  유일 제약 옛 이름 정리
-c3d4e5f6a7b8  similarities 컬럼명 + FK 제약   ← head
+c3d4e5f6a7b8  similarities 컬럼명 + FK 제약
+1795ba669ae7  products.rating/review_count 인덱스
+d4e5f6a7b8c9  products.composition
+e5f6a7b8c9d0  products.display_name
+f6a7b8c9d0e1  products.volume_ml / volume_g
+a7b8c9d0e1f2  products.volume_uncertain
+b8c9d0e1f2a3  products.unit_count/unit_kind/unit_price/unit_label
+d07012ddaaa9  Phase 2 개인 데이터 테이블 9개   ← head
 ```
+
+`d07012ddaaa9`는 신규 테이블만 만듭니다. 기존 18개를 건드리지 않으므로
+`downgrade`로 정확히 되돌아갑니다.
 
 ---
 
@@ -173,12 +191,43 @@ cd backend && uvicorn app.main:app --reload
 
 ---
 
-## 다음 작업 — Task 6
+## 인증 (Task 12)
 
-모델과 데이터는 준비됐는데 이를 노출하는 API가 없습니다. 우선순위가 높은 것부터:
+`app/core/security.py` — bcrypt 해싱 + JWT. 액세스 30분 / 리프레시 14일이고,
+리프레시는 갱신할 때마다 **회전**합니다(쓴 토큰은 즉시 폐기). `refresh_tokens`에는
+SHA-256 해시만 남습니다.
 
-1. `GET /api/v1/products` — 목록·필터(카테고리·브랜드·가격)·정렬
-2. `GET /api/v1/products/{id}` — 상세 + 전성분(`position` 순)
-3. `GET /api/v1/products/search` — `idx_products_name_trgm` 활용 부분일치
+**passlib을 쓰지 않습니다.** `requirements.txt`에 있던 passlib 1.7.4가 bcrypt 5.x와
+맞지 않아 해싱 자체가 `ValueError`로 죽습니다(백엔드 탐지 프로브가 72바이트를 넘습니다).
+2020년 이후 릴리스가 없어 bcrypt를 직접 씁니다. 해시 형식은 표준 bcrypt라
+`scripts/seed_test_users.py`가 만든 것과 서로 검증됩니다.
 
-이 3개만 있어도 프론트엔드가 `src/mocks/`를 벗고 실제 데이터로 붙습니다.
+### 데모 계정
+
+```bash
+python scripts/seed_test_users.py     # personas.json의 5명 → users/profiles/diagnoses
+python scripts/seed_quiz.py           # 진단 문항 6개 → quiz_versions/questions/options
+```
+
+비밀번호는 전원 `swappy1234`입니다. 프론트 로그인 화면의 퀵 로그인 버튼이
+이 계정들을 그대로 씁니다 — **서버 인증을 우회하지 않으므로** 시드를 안 돌리면
+로그인도 실패합니다.
+
+---
+
+## 테스트
+
+```bash
+docker exec swappy_backend python -m pytest --ignore=tests/test_volume_parsing.py -q
+```
+
+`test_volume_parsing.py`는 `scripts/load_products.py`를 import하는데 컨테이너에
+`scripts/`가 마운트되지 않아 수집 단계에서 실패합니다. 호스트에서는 그냥 `pytest`로 돕니다.
+
+**쓰기 테스트가 생겼습니다** (`test_auth.py`·`test_personal.py`·`test_diagnosis.py`).
+`conftest.py`가 적어 둔 "공용 Neon에 읽기 전용" 전제를 깨는 것이라, 이 파일들은
+매번 `pytest-<uuid>@example.com` 계정을 새로 만들고 픽스처가 끝날 때 지웁니다.
+개인 데이터는 전부 `user_id` FK에 ON DELETE CASCADE라 계정 하나만 지우면 함께 사라집니다.
+
+**시드 계정(`eunseong@swappy.app` 등)은 읽기만 합니다.** 그쪽 비밀번호나 진단을
+바꾸는 테스트를 넣으면 다른 팀원의 로컬 로그인이 깨집니다.

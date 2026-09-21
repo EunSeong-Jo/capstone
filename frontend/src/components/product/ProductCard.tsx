@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Product } from '../../types';
-import { useLikedProducts } from '../../context/LikedProductsContext';
+import { useLikedProducts } from '../../context/liked';
 import { formatUnitPrice } from '../../utils/unitPrice';
 
 const CARD_BG = [

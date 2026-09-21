@@ -96,6 +96,7 @@ npm run dev            # 개발 서버 실행 (vite --host)
 | `npm run build` | 타입체크(`tsc -b`) + 프로덕션 빌드 |
 | `npm run preview` | 빌드 결과 로컬 미리보기 |
 | `npm run lint` | ESLint 검사 |
+| `npm run check:dummy` | 더미 제품 데이터 잔존 검사 (7-2 참고) |
 
 ---
 
@@ -107,10 +108,11 @@ npm run dev            # 개발 서버 실행 (vite --host)
 npx tsc --noEmit     # ① 타입 에러 0 확인
 npm run build        # ② 빌드 성공 확인 (타입체크 포함)
 npm run lint         # ③ 린트 통과 확인
-npm run dev          # ④ 브라우저에서 실제 동작 수동 확인
+npm run check:dummy  # ④ 더미 제품 데이터 없음 확인
+npm run dev          # ⑤ 브라우저에서 실제 동작 수동 확인
 ```
 
-PR 체크리스트: **위 ①②③ 통과 + 변경 화면 수동 확인**.
+PR 체크리스트: **위 ①②③④ 통과 + 변경 화면 수동 확인**.
 
 > 향후 자동화 테스트가 필요해지면 **Vitest + React Testing Library** 도입을 권장합니다(현재 P0 범위 밖).
 
@@ -127,8 +129,11 @@ frontend/
 │  │  ├─ ui/          # 원자 단위: Button, Chip, Badge
 │  │  ├─ layout/      # PageWrapper, Header, BottomNav
 │  │  └─ {feature}/   # 기능별 묶음 (product/, skin/ 등)
+│  ├─ api/            # HTTP 클라이언트. client.ts가 토큰 주입·401 재시도를 전담
+│  ├─ context/        # 전역 상태. 로그인 시 서버, 비회원은 localStorage
+│  ├─ hooks/          # 조회 훅 (useProducts, useSimilarProducts, useSwapSuggestion …)
 │  ├─ types/index.ts  # 공용 타입 (SkinType, Product, Alternative …)
-│  ├─ mocks/          # 목업 데이터 (API 연동 전) + products.fixture.json(실제 API 캡처본)
+│  ├─ mocks/          # 제품 id를 담지 않는 정적 문구 + 오프라인 폴백만 (7-2절)
 │  ├─ App.tsx         # 라우트 정의
 │  └─ index.css       # CSS 변수 + Tailwind + 커스텀 유틸(.glass, .scrollbar-hide)
 ```
@@ -175,6 +180,33 @@ frontend/
 
 - 신규 레이아웃 토큰: `--bottom-nav-h`(56px)·`--header-h`(52px)·`--surface-warm`(#F5F6F2) — `index.css`/`tailwind.config.ts`.
 - 페이지 폭이 콘텐츠 높이에 따라 흔들리지 않도록 `html`에 `scrollbar-gutter: stable`을 적용해 뒀습니다(임의 해제 금지).
+
+---
+
+### 7-2. 목업 제품 데이터 금지 ⭐
+
+**제품 id를 직접 적은 목업 상수를 만들지 마세요.**
+
+2026-09에 홈 화면의 목업 대체품 카드를 탭하면 전혀 다른 제품이 열리는 버그가 있었습니다.
+`mocks/alternatives.ts`가 가짜 제품에 `id: 102`를 붙였는데, 카탈로그의 실제 102번이
+**디오디너리 레티놀**이었기 때문입니다.
+
+| id | 카드에 적힌 제품 | 실제로 열린 제품 |
+|---|---|---|
+| 102 | 코스알엑스 히알루론산 토너 EX | 디오디너리 레티놀 0.2% 인 스쿠알란 |
+| 105 | 라운드랩 1025 독도 토너 | 라로슈포제 멜라B3 세럼 |
+
+**id가 없으면 404가 나서 드러나는데, 겹치면 조용히 틀립니다.** 그래서 눈으로는 안 잡힙니다.
+
+지켜야 할 것:
+
+- 제품은 **항상** `src/api/`를 거쳐 받습니다 (`useProducts`, `useProduct`, `useSearchProducts`, `useSimilarProducts`)
+- 화면이 빌 것 같으면 목업으로 채우지 말고 **빈 상태 UI**를 그립니다
+- 이미지는 `products.image_url`을 씁니다. DB의 4,013건 전부 실제 올리브영 CDN 주소이므로 난수 이미지(picsum 등)가 필요 없습니다
+- 오프라인 폴백이 꼭 필요하면 손으로 적지 말고 실제 응답을 캡처합니다 — `npm run fixture:products`
+
+`npm run check:dummy`가 이 규칙을 검사합니다. 허용 목록은 `scripts/check-no-dummy.mjs` 상단에 있고,
+제품 id를 담지 않는 정적 문구(인기 검색어·도메인 드롭다운)와 날씨·케어문구 폴백만 들어 있습니다.
 
 ---
 
