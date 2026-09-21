@@ -1,0 +1,38 @@
+# Auto detect text files and normalize line endings to LF in the repo
+* text=auto eol=lf
+
+# Explicit text types
+*.md text
+*.txt text
+*.json text
+*.yml text
+*.yaml text
+*.py text
+*.ts text
+*.tsx text
+*.js text
+*.jsx text
+*.css text
+*.html text
+*.sh text
+*.env.example text
+
+# 데이터 파일
+# data/ 아래 CSV는 평문으로 커밋한다. git이 blob을 zlib으로 팩하므로 미리
+# gzip해 둬도 저장소 크기가 같은데(실측 2.12MB로 동일), 평문이면 PR에서
+# 무엇이 바뀌었는지 diff로 볼 수 있고 버전이 쌓이면 델타 압축도 걸린다.
+*.csv text
+*.gz binary
+
+# Binary files should not be touched
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.zip binary
+*.pdf binary

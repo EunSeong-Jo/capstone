@@ -1,0 +1,27 @@
+# OCR engines
+pytesseract==0.3.13
+easyocr==1.7.2
+# 3.x(PP-OCRv5)로 업그레이드 완료 - build_engines()의 생성자 호출부도 함께 수정됨
+# (use_angle_cls -> use_textline_orientation, show_log 제거, enable_mkldnn=False 추가).
+paddleocr==3.7.0
+paddlepaddle==3.3.1
+
+# Preprocessing / imaging
+# opencv-python 대신 opencv-contrib-python 사용 - 초해상도 업스케일(region_detection.py의
+# cv2.dnn_superres, models/FSRCNN_x2.pb)에 필요한 extra 모듈은 contrib 빌드에만 있다.
+# 이 둘과 opencv-python-headless(paddleocr/easyocr 의존성이 끌고 옴)를 동시에 설치하면
+# 같은 cv2 네임스페이스를 놓고 충돌해서 dnn_superres가 빈 모듈이 되는 문제를 실제로 겪었다 -
+# opencv-contrib-python 하나만 설치하면 opencv-python의 기능을 전부 포함하므로 다른 두
+# 패키지는 설치하지 않는다.
+opencv-contrib-python==4.10.0.84
+pillow==10.4.0
+numpy<2.0
+
+# Metrics / data
+pandas==2.2.3
+rapidfuzz==3.10.1
+tabulate==0.9.0
+
+# UX / output
+tqdm==4.67.1
+matplotlib==3.9.2

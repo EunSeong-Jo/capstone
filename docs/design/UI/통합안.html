@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+body{margin:0;background:#E7EAEE;font-family:'Pretendard Variable',Pretendard,-apple-system,'Noto Sans KR',sans-serif;}
+a{color:#3D8F6F;text-decoration:none;} a:hover{color:#2B6B52;}
+.phone-scroll::-webkit-scrollbar,.hscroll::-webkit-scrollbar{display:none;}
+</style>
+</helmet>
+<section style="padding:56px 64px 96px 64px;display:flex;flex-direction:column;gap:28px;min-width:1900px;">
+  <header style="display:flex;flex-direction:column;gap:10px;max-width:900px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:12px;font-weight:700;">TURN 4</span>
+      <span style="font-size:13px;font-weight:600;color:#6B7280;">정식 IA 통합안 — 5탭 (홈 · 카테고리 · 검색 · 화장대 · 마이)</span>
+    </div>
+    <h1 style="margin:0;font-size:30px;font-weight:800;color:#17171C;letter-spacing:-0.5px;">기존 탭 구조 + 제로베이스 디자인 언어 통합</h1>
+    <p style="margin:0;font-size:14px;line-height:1.7;color:#4B5563;">중앙 스캔 FAB 대신 원래 5탭으로 복귀하되 히스토리를 <b>화장대</b>로 교체. 홈(<a href="#8a">8a</a>)은 스캔 아이콘·절약 수치·상품 캐러셀·추천세트 + 1a/1b 혼합 날씨 카드, 챗봇은 축소. 카테고리(<a href="#8b">8b</a>)는 추천 칩 제거·검색 아이콘은 검색 탭(<a href="#8c">8c</a>, 3b 구조)으로 연결. 화장대(<a href="#8d">8d</a>)는 4c+4b 통합, 마이(<a href="#8e">8e</a>)는 5c 상단+레벨 상세+5b 그룹 메뉴(화장대 카드 제거).</p>
+  </header>
+  <div style="display:flex;gap:56px;align-items:flex-start;flex-wrap:wrap;">
+
+    <div id="8a" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">8a</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">홈 — 스캔 아이콘 · 절약 수치 · 상품 · 추천세트 · 작은 챗봇</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;position:relative;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-size:21px;font-weight:900;font-style:italic;letter-spacing:-0.7px;color:#17171C;">대체뭐야</span>
+              <div style="display:flex;align-items:center;gap:14px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"></path><circle cx="12" cy="12" r="3.2"></circle></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#17171C" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#17171C" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                <span style="position:relative;display:inline-flex;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:#FF5C7A;border:1.5px solid #F5F6F2;"></span></span>
+                <span style="position:relative;display:inline-flex;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:6px 20px 0 20px;">
+              <div style="border-radius:20px;background:linear-gradient(135deg,#DFEFE6 0%,#EAF5EF 100%);border:1px solid #D8E8DF;padding:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                  <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#17171C;"><span style="font-size:16px;line-height:1;">☀️</span><span>맑음 27°</span><span style="font-weight:500;color:#6E8578;">· 습도 62% · 초여름</span></div>
+                  <span style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:999px;background:#FFFFFF;font-size:11px;font-weight:700;color:#2B6B52;">💧 옹달샘</span>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:11px;">
+                  <div style="width:56px;height:56px;flex-shrink:0;border-radius:50%;background:#FFFFFF;box-shadow:0 2px 8px rgba(43,107,82,.12);display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="../assets/mascot/base_face_neutral.png" alt="마스코트" style="width:84%;height:84%;object-fit:contain;"></div>
+                  <div style="flex:1;min-width:0;border-radius:4px 14px 14px 14px;background:#FFFFFF;padding:10px 12px;">
+                    <p style="margin:0;font-size:12.5px;line-height:1.5;color:#374151;"><span style="font-weight:800;color:#2B6B52;">오늘의 케어</span> · 오늘은 무거운 크림보다 가벼운 수분 젤이 맞아요!</p>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
+                  <span style="font-size:13px;font-weight:800;color:#17171C;white-space:nowrap;">대체러 <span style="font-size:10px;font-weight:700;color:#6E8578;">Lv.4 꼼꼼 분석가</span></span>
+                  <div style="flex:1;height:5px;border-radius:999px;background:rgba(255,255,255,.7);overflow:hidden;"><div style="height:100%;width:64%;border-radius:999px;background:#3D8F6F;"></div></div>
+                  <span style="font-size:10px;color:#6E8578;white-space:nowrap;">320/500</span>
+                </div>
+              </div>
+              <div style="display:flex;border-radius:16px;background:#FFFFFF;box-shadow:0 2px 12px rgba(43,107,82,.08);margin-top:10px;">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:12px 0;"><span style="font-size:15px;font-weight:900;color:#17171C;">12</span><span style="font-size:10px;color:#8A8F98;margin-top:1px;">화장대 제품</span></div>
+                <div style="width:1px;background:#F0F1F3;margin:11px 0;"></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:12px 0;"><span style="font-size:15px;font-weight:900;color:#17171C;">8</span><span style="font-size:10px;color:#8A8F98;margin-top:1px;">분석 완료</span></div>
+                <div style="width:1px;background:#F0F1F3;margin:11px 0;"></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:12px 0;"><span style="font-size:15px;font-weight:900;color:#3D8F6F;">74,500원</span><span style="font-size:10px;color:#8A8F98;margin-top:1px;">절약 가능</span></div>
+              </div>
+            </div>
+            <div style="padding:22px 20px 0 20px;">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;">
+                <h3 style="margin:0;font-size:16px;font-weight:800;color:#17171C;letter-spacing:-0.2px;">오늘의 교체 제안</h3>
+                <span style="font-size:11px;font-weight:600;color:#9CA3AF;">성분 유사도 기준 · 1건</span>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="flex:1;min-width:0;text-align:center;">
+                    <div style="width:76px;height:76px;border-radius:14px;overflow:hidden;background:#F4F4F4;margin:0 auto 7px auto;"><img src="https://picsum.photos/seed/seed1/200/200" alt="쓰던 제품" style="width:100%;height:100%;object-fit:cover;"></div>
+                    <span style="display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:999px;background:#F0F1F3;font-size:9px;font-weight:700;color:#6B7280;margin-bottom:3px;">쓰던 제품</span>
+                    <p style="margin:0;font-size:11.5px;font-weight:600;color:#17171C;line-height:1.3;">이니스프리<br>수분 밸런싱 토너</p>
+                    <p style="margin:3px 0 0 0;font-size:11.5px;font-weight:700;color:#9CA3AF;text-decoration:line-through;">28,000원</p>
+                  </div>
+                  <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:4px;">
+                    <span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:#EAF5EF;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 12h16M14 6l6 6-6 6" stroke="#2B6B52" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                    <span style="font-size:10px;font-weight:800;color:#3D8F6F;">유사도 92%</span>
+                  </div>
+                  <div style="flex:1;min-width:0;text-align:center;">
+                    <div style="width:76px;height:76px;border-radius:14px;overflow:hidden;background:#F4F4F4;margin:0 auto 7px auto;"><img src="https://picsum.photos/seed/alt102/200/200" alt="대체품" style="width:100%;height:100%;object-fit:cover;"></div>
+                    <span style="display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:999px;background:#EAF5EF;font-size:9px;font-weight:700;color:#2B6B52;margin-bottom:3px;">대체품</span>
+                    <p style="margin:0;font-size:11.5px;font-weight:600;color:#17171C;line-height:1.3;">코스알엑스<br>히알루론산 토너 EX</p>
+                    <p style="margin:3px 0 0 0;font-size:11.5px;font-weight:800;color:#17171C;">18,000원 <span style="color:#3D8F6F;">−10,000</span></p>
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                  <span style="flex:1;display:flex;align-items:center;justify-content:center;height:38px;border-radius:12px;border:1px solid #E1E4DD;font-size:12.5px;font-weight:700;color:#374151;">성분 비교</span>
+                  <span style="flex:1.4;display:flex;align-items:center;justify-content:center;gap:6px;height:38px;border-radius:12px;background:#2B6B52;font-size:12.5px;font-weight:800;color:#FFFFFF;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>장바구니 담기</span>
+                </div>
+              </div>
+            </div>
+            <div style="padding:22px 20px 0 20px;">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;">
+                <h3 style="margin:0;font-size:16px;font-weight:800;color:#17171C;letter-spacing:-0.2px;">옹달샘 맞춤 상품</h3>
+                <span style="display:inline-flex;align-items:center;gap:2px;font-size:12px;font-weight:600;color:#3D8F6F;">전체보기<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+              </div>
+              <div class="hscroll" style="display:flex;gap:11px;overflow-x:auto;margin:0 -20px;padding:0 20px;">
+                <sc-for list="{{ skinPicks }}" as="p" hint-placeholder-count="4">
+                  <div style="width:140px;flex-shrink:0;">
+                    <div style="position:relative;width:140px;height:140px;border-radius:14px;overflow:hidden;background:#F4F4F4;">
+                      <img src="{{ p.img }}" alt="{{ p.name }}" style="width:100%;height:100%;object-fit:cover;">
+                      <span style="position:absolute;top:0;left:0;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:0 0 10px 0;background:#17171C;color:#FFFFFF;font-size:11px;font-weight:800;">{{ p.rank }}</span>
+                    </div>
+                    <div style="padding-top:8px;">
+                      <p style="margin:0;font-size:11px;font-weight:700;color:#8A8F98;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.brand }}</p>
+                      <p style="margin:2px 0 0 0;font-size:12.5px;font-weight:600;color:#17171C;line-height:1.3;height:32px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ p.name }}</p>
+                      <div style="display:flex;align-items:baseline;gap:4px;margin-top:5px;"><span style="font-size:14px;font-weight:800;color:#FF5C7A;">{{ p.disc }}</span><span style="font-size:14px;font-weight:800;color:#17171C;">{{ p.price }}</span></div>
+                      <div style="display:flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;color:#6B7280;"><span style="color:#FFB800;">★</span><span style="font-weight:600;">{{ p.rating }}</span><span style="color:#9CA3AF;">{{ p.rev }}</span></div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="padding:22px 20px 96px 20px;">
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:14px 16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
+                  <h3 style="margin:0;font-size:15px;font-weight:800;color:#17171C;">옹달샘 추천세트</h3>
+                  <span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#EAF5EF;font-size:10px;font-weight:800;color:#2B6B52;">AI 구성</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:11px;">
+                  <div style="display:flex;flex-shrink:0;">
+                    <span style="width:44px;height:44px;border-radius:12px;overflow:hidden;background:#F4F4F4;border:2px solid #FFFFFF;"><img src="https://picsum.photos/seed/alt102/88/88" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                    <span style="width:44px;height:44px;border-radius:12px;overflow:hidden;background:#F4F4F4;border:2px solid #FFFFFF;margin-left:-12px;"><img src="https://picsum.photos/seed/seed6/88/88" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                    <span style="width:44px;height:44px;border-radius:12px;overflow:hidden;background:#F4F4F4;border:2px solid #FFFFFF;margin-left:-12px;"><img src="https://picsum.photos/seed/hist401/88/88" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <p style="margin:0;font-size:12.5px;font-weight:700;color:#17171C;">수분 루틴 3종 세트</p>
+                    <p style="margin:2px 0 0 0;font-size:11px;color:#8A8F98;">토너 + 크림 + 선크림</p>
+                  </div>
+                  <div style="flex-shrink:0;text-align:right;">
+                    <p style="margin:0;font-size:10px;color:#9CA3AF;text-decoration:line-through;">58,300원</p>
+                    <p style="margin:0;font-size:14px;font-weight:900;color:#2B6B52;">49,900원</p>
+                  </div>
+                </div>
+                <span style="display:flex;align-items:center;justify-content:center;gap:6px;height:36px;border-radius:11px;background:#2B6B52;font-size:12.5px;font-weight:800;color:#FFFFFF;margin-top:11px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>세트 담기</span>
+              </div>
+            </div>
+          </div>
+          <div style="position:absolute;right:16px;bottom:92px;z-index:5;">
+            <div style="width:48px;height:48px;border-radius:50%;background:#17171C;box-shadow:0 5px 18px rgba(0,0,0,.24);display:flex;align-items:center;justify-content:center;overflow:hidden;">
+              <span style="width:38px;height:38px;border-radius:50%;background:#EAF5EF;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;"><img src="../assets/mascot/base_face_neutral.png" alt="챗봇" style="width:82%;height:82%;object-fit:contain;"></span>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding-bottom:20px;">
+            <div style="display:flex;">
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="#EAF5EF"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="#2B6B52" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 21V12h6v9" stroke="#2B6B52" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"></path></svg><span style="font-size:10px;font-weight:700;color:#2B6B52;">홈</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect><rect x="13" y="3" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect><rect x="3" y="13" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect><rect x="13" y="13" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect></svg><span style="font-size:10px;color:#9CA3AF;">카테고리</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">검색</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l2 3v10a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 20V10l2-3V3z"></path><path d="M7 13h10"></path></svg><span style="font-size:10px;color:#9CA3AF;">화장대</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">마이</span></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div id="8b" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">8b</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">카테고리 — 추천 칩 제거 · 검색 아이콘 → <a href="#8c">8c</a></span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#FFFFFF;">
+          <div style="padding:54px 20px 0 20px;background:#FFFFFF;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #F0F1F3;">
+              <h1 style="margin:0;font-size:20px;font-weight:800;color:#17171C;letter-spacing:-0.3px;">카테고리</h1>
+              <div style="display:flex;align-items:center;gap:15px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#17171C" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#17171C" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                <span style="position:relative;display:inline-flex;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;align-items:stretch;overflow:hidden;">
+            <div style="width:110px;flex-shrink:0;display:flex;flex-direction:column;background:#F5F6F2;">
+              <sc-for list="{{ sidebarTabs }}" as="s" hint-placeholder-count="7">
+                <div style="position:relative;height:46px;padding:0 16px;display:flex;align-items:center;flex-shrink:0;font-size:13px;background:{{ s.bg }};color:{{ s.c }};font-weight:{{ s.fw }};"><span style="position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:{{ s.bar }};"></span>{{ s.t }}</div>
+              </sc-for>
+              <div style="flex:1;"></div>
+            </div>
+            <div class="phone-scroll" style="flex:1;overflow-y:auto;background:#FFFFFF;">
+              <div style="display:flex;flex-direction:column;gap:28px;padding:18px 16px 40px 16px;">
+                <sc-for list="{{ catGroups }}" as="g" hint-placeholder-count="3">
+                  <div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <div style="width:36px;height:36px;border-radius:12px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/catph/80/80" alt="" style="width:100%;height:100%;object-fit:cover;"></div>
+                      <span style="flex:1;font-size:15px;font-weight:800;color:#17171C;">{{ g.name }}</span>
+                      <span style="display:inline-flex;align-items:center;gap:2px;font-size:12px;font-weight:600;color:#9CA3AF;">전체<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:12px;margin-top:8px;">
+                      <sc-for list="{{ g.subs }}" as="s" hint-placeholder-count="4"><span style="padding:11px 2px;font-size:13px;font-weight:500;color:#4B5563;border-bottom:1px solid #F5F6F7;">{{ s }}</span></sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding-bottom:20px;">
+            <div style="display:flex;">
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="#9CA3AF" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 21V12h6v9" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">홈</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1.5" stroke="#2B6B52" fill="#EAF5EF" stroke-width="1.8"></rect><rect x="13" y="3" width="8" height="8" rx="1.5" stroke="#2B6B52" fill="#EAF5EF" stroke-width="1.8"></rect><rect x="3" y="13" width="8" height="8" rx="1.5" stroke="#2B6B52" fill="#EAF5EF" stroke-width="1.8"></rect><rect x="13" y="13" width="8" height="8" rx="1.5" stroke="#2B6B52" fill="#EAF5EF" stroke-width="1.8"></rect></svg><span style="font-size:10px;font-weight:700;color:#2B6B52;">카테고리</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">검색</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l2 3v10a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 20V10l2-3V3z"></path><path d="M7 13h10"></path></svg><span style="font-size:10px;color:#9CA3AF;">화장대</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">마이</span></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div id="8c" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">8c</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">검색 — 3b 구조 (대체품 찾기 · 성분 스캔 전면)</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#FFFFFF;">
+          <div style="padding:54px 20px 0 20px;background:#FFFFFF;">
+            <div style="display:flex;align-items:center;gap:12px;margin:10px 0 0 0;">
+              <div style="flex:1;display:flex;align-items:center;gap:8px;height:46px;padding:0 15px;border-radius:14px;background:#FFFFFF;border:1.5px solid #3D8F6F;box-shadow:0 0 0 3px rgba(61,143,111,.10);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#3D8F6F" stroke-width="2"></circle><path d="M16.5 16.5L21 21" stroke="#3D8F6F" stroke-width="2" stroke-linecap="round"></path></svg>
+                <span style="flex:1;font-size:14px;color:#9CA3AF;">제품명·브랜드·성분으로 검색</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"></path><circle cx="12" cy="12" r="3.2"></circle></svg>
+              </div>
+              <span style="position:relative;display:inline-flex;flex-shrink:0;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+            </div>
+            <div style="display:flex;margin-top:6px;">
+              <span style="padding:11px 4px 10px 4px;margin-right:20px;font-size:14px;font-weight:800;color:#2B6B52;border-bottom:2px solid #3D8F6F;">통합검색</span>
+              <span style="padding:11px 4px 10px 4px;font-size:14px;font-weight:600;color:#9CA3AF;border-bottom:2px solid transparent;">성분검색</span>
+            </div>
+          </div>
+          <div style="height:1px;background:#F0F1F3;"></div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:16px 20px;">
+              <div style="border-radius:16px;background:#EAF5EF;padding:14px 14px 12px 14px;margin-bottom:22px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                  <span style="font-size:14px;font-weight:800;color:#2B6B52;">내 화장대에서 대체품 찾기</span>
+                  <span style="font-size:12px;font-weight:600;color:#3D8F6F;">전체 12개</span>
+                </div>
+                <div class="hscroll" style="display:flex;gap:8px;overflow-x:auto;margin:0 -14px;padding:0 14px;">
+                  <sc-for list="{{ shelf }}" as="p" hint-placeholder-count="3">
+                    <div style="flex-shrink:0;width:126px;border-radius:12px;background:#FFFFFF;padding:10px;box-shadow:0 1px 4px rgba(43,107,82,.08);">
+                      <span style="display:block;width:42px;height:42px;border-radius:10px;overflow:hidden;background:#F4F4F4;margin-bottom:6px;"><img src="{{ p.img }}" alt="{{ p.name }}" style="width:100%;height:100%;object-fit:cover;"></span>
+                      <span style="display:block;font-size:10px;font-weight:600;color:#9CA3AF;">{{ p.brand }}</span>
+                      <span style="display:block;font-size:12px;font-weight:700;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:8px;">{{ p.name }}</span>
+                      <span style="display:flex;align-items:center;justify-content:center;height:28px;border-radius:8px;background:#3D8F6F;font-size:11px;font-weight:800;color:#FFFFFF;">대체품 찾기</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="margin-bottom:22px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><h3 style="margin:0;font-size:15px;font-weight:800;color:#17171C;">최근 검색</h3><span style="font-size:12px;color:#9CA3AF;">전체삭제</span></div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                  <sc-for list="{{ recentChips }}" as="c" hint-placeholder-count="3"><span style="display:inline-flex;align-items:center;gap:6px;padding:7px 10px 7px 14px;border-radius:999px;border:1px solid #E5E8EB;background:#FFFFFF;font-size:13px;font-weight:500;color:#374151;">{{ c }}<span style="font-size:10px;color:#C3C8CE;">✕</span></span></sc-for>
+                </div>
+              </div>
+              <div style="margin-bottom:22px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                  <h3 style="margin:0;font-size:15px;font-weight:800;color:#17171C;">인기 검색어</h3>
+                  <span style="font-size:11px;color:#9CA3AF;">07.20 10시 기준</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:20px;row-gap:11px;">
+                  <sc-for list="{{ popular }}" as="k" hint-placeholder-count="10">
+                    <div style="display:flex;align-items:center;gap:12px;"><span style="width:18px;font-size:14px;font-weight:800;font-style:italic;color:{{ k.c }};">{{ k.n }}</span><span style="font-size:14px;font-weight:500;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ k.t }}</span></div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;border-radius:16px;background:#17171C;padding:14px 16px;margin-bottom:22px;">
+                <span style="flex-shrink:0;width:46px;height:46px;border-radius:50%;background:#2A2A31;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="../assets/mascot/base_face_neutral.png" alt="" style="width:82%;height:82%;object-fit:contain;"></span>
+                <div style="flex:1;min-width:0;">
+                  <p style="margin:0 0 2px 0;font-size:13.5px;font-weight:800;color:#FFFFFF;">성분표가 어렵다면, 찍어보세요</p>
+                  <p style="margin:0;font-size:11.5px;color:rgba(255,255,255,.55);">AI가 전성분을 읽고 주의 성분을 알려드려요</p>
+                </div>
+                <span style="flex-shrink:0;display:inline-flex;align-items:center;height:30px;padding:0 13px;border-radius:999px;background:#3D8F6F;font-size:12px;font-weight:800;color:#FFFFFF;">스캔</span>
+              </div>
+              <div>
+                <h3 style="margin:0 0 10px 0;font-size:15px;font-weight:800;color:#17171C;">실시간 판매 BEST</h3>
+                <div style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;border:1px solid #F0F1F3;background:#FFFFFF;">
+                  <span style="flex-shrink:0;font-size:16px;font-weight:900;font-style:italic;color:#3D8F6F;">1</span>
+                  <span style="flex-shrink:0;width:46px;height:46px;border-radius:10px;overflow:hidden;background:#F4F4F4;"><img src="https://picsum.photos/seed/alt104/96/96" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:11px;font-weight:600;color:#9CA3AF;">토리든</span><span style="display:block;font-size:13px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">다이브인 저분자 히알루론산 세럼 100ml</span><span style="display:flex;align-items:center;gap:6px;margin-top:2px;"><span style="font-size:12px;font-weight:800;color:#FF5C7A;">35%</span><span style="font-size:12px;font-weight:800;color:#17171C;">28,500원</span><span style="font-size:11px;color:#9CA3AF;"><span style="color:#FFB800;">★</span> 4.6</span></span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding-bottom:20px;">
+            <div style="display:flex;">
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="#9CA3AF" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 21V12h6v9" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">홈</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect><rect x="13" y="3" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect><rect x="3" y="13" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect><rect x="13" y="13" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect></svg><span style="font-size:10px;color:#9CA3AF;">카테고리</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#2B6B52" stroke-width="2.2"></circle><path d="M16.5 16.5L21 21" stroke="#2B6B52" stroke-width="2.2" stroke-linecap="round"></path></svg><span style="font-size:10px;font-weight:700;color:#2B6B52;">검색</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l2 3v10a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 20V10l2-3V3z"></path><path d="M7 13h10"></path></svg><span style="font-size:10px;color:#9CA3AF;">화장대</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">마이</span></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div id="8d" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">8d</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">화장대 — 히스토리 대체, 4c + 4b 통합</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <h1 style="margin:0;font-size:22px;font-weight:800;color:#17171C;letter-spacing:-0.4px;">내 화장대</h1>
+              <div style="display:flex;align-items:center;gap:15px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#17171C" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#17171C" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                <span style="position:relative;display:inline-flex;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+              </div>
+            </div>
+            <div style="display:flex;padding:4px;border-radius:14px;background:#EAECE6;">
+              <span style="flex:1;display:flex;align-items:center;justify-content:center;height:34px;border-radius:11px;background:#FFFFFF;font-size:13px;font-weight:800;color:#17171C;box-shadow:0 1px 4px rgba(23,23,28,.08);">내 제품 12</span>
+              <span style="flex:1;display:flex;align-items:center;justify-content:center;height:34px;border-radius:11px;font-size:13px;font-weight:600;color:#8A8F98;">좋아요 3</span>
+              <span style="flex:1;display:flex;align-items:center;justify-content:center;height:34px;border-radius:11px;font-size:13px;font-weight:600;color:#8A8F98;">최근 본 5</span>
+            </div>
+            <div style="border-radius:20px;background:#2B6B52;padding:14px 18px;display:flex;align-items:center;gap:12px;margin-top:12px;">
+              <div style="flex:1;min-width:0;">
+                <p style="margin:0;font-size:11px;font-weight:600;color:rgba(255,255,255,.65);">이번 달 절약 가능</p>
+                <p style="margin:2px 0 0 0;font-size:20px;font-weight:900;color:#FFFFFF;letter-spacing:-0.3px;">74,500원</p>
+                <p style="margin:3px 0 0 0;font-size:11px;color:rgba(255,255,255,.75);">교체 제안 5건이 기다리고 있어요</p>
+              </div>
+              <span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.16);"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"></path></svg></span>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:12px 20px 28px 20px;">
+              <div style="display:flex;align-items:center;gap:11px;border-radius:16px;background:#EAF5EF;padding:12px 14px;margin-bottom:12px;">
+                <span style="width:38px;height:38px;border-radius:50%;background:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="../assets/mascot/base_face_neutral.png" alt="" style="width:82%;height:82%;object-fit:contain;"></span>
+                <div style="flex:1;min-width:0;">
+                  <p style="margin:0;font-size:12.5px;font-weight:800;color:#2B6B52;">스킨케어에 관심이 많으시네요</p>
+                  <p style="margin:1px 0 0 0;font-size:11px;color:#5B7A69;">최근 7일간 보습 제품 12회 탐색</p>
+                </div>
+                <span style="flex-shrink:0;display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:999px;background:#2B6B52;font-size:11px;font-weight:800;color:#FFFFFF;">분석보기</span>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:2px 16px;">
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:54px;height:54px;border-radius:14px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/seed1/108/108" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">이니스프리</span><span style="display:block;font-size:13px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">수분 밸런싱 토너 200ml</span><span style="display:flex;align-items:center;gap:4px;margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#3D8F6F;"></span><span style="font-size:11px;font-weight:600;color:#2B6B52;">교체 제안 · 유사도 92% · −10,000원</span></span></span>
+                  <span style="flex-shrink:0;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:#EAF5EF;font-size:11px;font-weight:800;color:#2B6B52;">제안 보기</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:54px;height:54px;border-radius:14px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/seed6/108/108" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">에스트라</span><span style="display:block;font-size:13px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">아토베리어365 크림 80ml</span><span style="display:flex;align-items:center;gap:4px;margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#FF9500;"></span><span style="font-size:11px;font-weight:600;color:#C77700;">단종 예정 · 대체품 2개 준비됨</span></span></span>
+                  <span style="flex-shrink:0;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:#FFF4E5;font-size:11px;font-weight:800;color:#FF9500;">대비 필요</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #F5F6F2;">
+                  <span style="width:54px;height:54px;border-radius:14px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/seed8/108/108" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">라로슈포제</span><span style="display:block;font-size:13px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">시카플라스트 밤 B5+ 40ml</span><span style="display:flex;align-items:center;gap:4px;margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#9CA3AF;"></span><span style="font-size:11px;font-weight:600;color:#8A8F98;">어제 스캔 · 주의 성분 2개</span></span></span>
+                  <span style="flex-shrink:0;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:#F0F1F3;font-size:11px;font-weight:800;color:#6B7280;">분석 보기</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:13px 0;">
+                  <span style="width:54px;height:54px;border-radius:14px;overflow:hidden;background:#F4F4F4;flex-shrink:0;"><img src="https://picsum.photos/seed/seed5/108/108" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
+                  <span style="flex:1;min-width:0;"><span style="display:block;font-size:10px;font-weight:700;color:#9CA3AF;">바이오더마</span><span style="display:block;font-size:13px;font-weight:600;color:#17171C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">하이드라비오 토너 250ml</span><span style="display:flex;align-items:center;gap:4px;margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#9CA3AF;"></span><span style="font-size:11px;font-weight:600;color:#8A8F98;">분석 대기 중</span></span></span>
+                  <span style="flex-shrink:0;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;border:1px solid #DCE8E1;font-size:11px;font-weight:800;color:#2B6B52;">분석하기</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:6px;height:50px;border-radius:16px;border:1.5px dashed #C9CFC5;margin-top:12px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#8A8F98" stroke-width="2" stroke-linecap="round"></path></svg>
+                <span style="font-size:13px;font-weight:700;color:#6B7280;">제품 추가 — 스캔하거나 검색으로</span>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding-bottom:20px;">
+            <div style="display:flex;">
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="#9CA3AF" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 21V12h6v9" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">홈</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect><rect x="13" y="3" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect><rect x="3" y="13" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect><rect x="13" y="13" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect></svg><span style="font-size:10px;color:#9CA3AF;">카테고리</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">검색</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l2 3v10a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 20V10l2-3V3z" fill="#EAF5EF"></path><path d="M7 13h10"></path></svg><span style="font-size:10px;font-weight:700;color:#2B6B52;">화장대</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">마이</span></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div id="8e" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 2px;"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:24px;padding:0 8px;border-radius:8px;background:#2B6B52;font-size:12px;font-weight:800;color:#FFFFFF;">8e</span><span style="font-size:13px;font-weight:700;color:#2B6B52;">마이 — 5c 상단 + 레벨 상세 + 5b 그룹 메뉴</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:#F5F6F2;">
+          <div style="padding:54px 20px 0 20px;background:#F5F6F2;">
+            <div style="height:52px;display:flex;align-items:center;justify-content:space-between;">
+              <h1 style="margin:0;font-size:22px;font-weight:800;color:#17171C;letter-spacing:-0.4px;">마이</h1>
+              <div style="display:flex;align-items:center;gap:15px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#17171C" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#17171C" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                <span style="position:relative;display:inline-flex;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:#2B6B52;color:#FFFFFF;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;">2</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="phone-scroll" style="flex:1;overflow-y:auto;">
+            <div style="padding:4px 20px 0 20px;">
+              <div style="display:flex;align-items:center;gap:14px;">
+                <div style="width:60px;height:60px;border-radius:50%;background:#FFFFFF;border:1px solid #ECEEE8;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 2px 10px rgba(43,107,82,.08);"><img src="../assets/mascot/base_face_neutral.png" alt="프로필" style="width:84%;height:84%;object-fit:contain;"></div>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;align-items:center;gap:8px;"><p style="margin:0;font-size:18px;font-weight:800;color:#17171C;letter-spacing:-0.3px;">대체러</p><span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#EAF5EF;font-size:10px;font-weight:800;color:#2B6B52;">Lv.4 꼼꼼 분석가</span></div>
+                  <p style="margin:3px 0 0 0;font-size:12px;color:#8A8F98;">user@email.com</p>
+                </div>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A8F98" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h.01a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h.01a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.01a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"></path></svg>
+              </div>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:16px;margin-top:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:22px;">💧</span>
+                    <div><p style="margin:0;font-size:15px;font-weight:800;color:#17171C;">수분팡팡 옹달샘</p><p style="margin:1px 0 0 0;font-size:11px;color:#8A8F98;">수분·유분 균형 · 2026.03 진단</p></div>
+                  </div>
+                  <span style="display:inline-flex;align-items:center;height:30px;padding:0 13px;border-radius:999px;background:#2B6B52;font-size:11px;font-weight:800;color:#FFFFFF;">재진단</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid #F5F6F2;">
+                  <span style="font-size:11px;font-weight:700;color:#8A8F98;white-space:nowrap;">Lv.4</span>
+                  <div style="flex:1;height:5px;border-radius:999px;background:#F0F1F3;overflow:hidden;"><div style="height:100%;width:64%;border-radius:999px;background:#3D8F6F;"></div></div>
+                  <span style="font-size:10px;color:#9CA3AF;white-space:nowrap;">320/500</span>
+                  <span style="display:inline-flex;align-items:center;gap:3px;height:24px;padding:0 9px;border-radius:999px;border:1px solid #DCE8E1;font-size:10px;font-weight:800;color:#2B6B52;">자세히보기<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="#2B6B52" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                </div>
+                <div style="border-radius:12px;background:#F5F6F2;padding:4px 12px;margin-top:10px;">
+                  <div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #EAECE6;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"></path><circle cx="12" cy="12" r="3.2"></circle></svg><span style="flex:1;font-size:12px;font-weight:600;color:#374151;">성분 스캔 1회</span><span style="font-size:12px;font-weight:800;color:#2B6B52;">+10 EXP</span></div>
+                  <div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #EAECE6;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z"></path></svg><span style="flex:1;font-size:12px;font-weight:600;color:#374151;">후기 작성</span><span style="font-size:12px;font-weight:800;color:#2B6B52;">+20 EXP</span></div>
+                  <div style="display:flex;align-items:center;gap:9px;padding:9px 0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z"></path><path d="M4 8l8 4 8-4M12 12v8"></path></svg><span style="flex:1;font-size:12px;font-weight:600;color:#374151;">제품 주문</span><span style="font-size:12px;font-weight:800;color:#2B6B52;">+50 EXP</span></div>
+                </div>
+              </div>
+              <div style="display:flex;border-radius:20px;background:#2B6B52;margin-top:12px;">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:14px 0;"><span style="font-size:15px;font-weight:900;color:#FFFFFF;">128,400원</span><span style="font-size:10px;color:rgba(255,255,255,.65);margin-top:2px;">누적 절약</span></div>
+                <div style="width:1px;background:rgba(255,255,255,.14);margin:12px 0;"></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:14px 0;"><span style="font-size:15px;font-weight:900;color:#FFFFFF;">21회</span><span style="font-size:10px;color:rgba(255,255,255,.65);margin-top:2px;">성분 스캔</span></div>
+                <div style="width:1px;background:rgba(255,255,255,.14);margin:12px 0;"></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:14px 0;"><span style="font-size:15px;font-weight:900;color:#FFFFFF;">9회</span><span style="font-size:10px;color:rgba(255,255,255,.65);margin-top:2px;">교체 성공</span></div>
+              </div>
+            </div>
+            <div style="padding:16px 20px 0 20px;">
+              <p style="margin:0 0 8px 4px;font-size:12px;font-weight:700;color:#9CA3AF;">쇼핑 활동</p>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:2px 16px;">
+                <div style="display:flex;align-items:center;gap:12px;height:50px;border-bottom:1px solid #F5F6F2;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z"></path><path d="M4 8l8 4 8-4M12 12v8"></path></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">주문내역</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="display:flex;align-items:center;gap:12px;height:50px;border-bottom:1px solid #F5F6F2;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 108-8"></path><path d="M4 4v5h5"></path></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">취소 · 반품 · 교환</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="display:flex;align-items:center;gap:12px;height:50px;border-bottom:1px solid #F5F6F2;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.5-7-11a7 7 0 1114 0c0 5.5-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">배송지 관리</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="display:flex;align-items:center;gap:12px;height:50px;border-bottom:1px solid #F5F6F2;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M12 20.5C12 20.5 3.5 15 3.5 9.2C3.5 6.6 5.6 4.5 8.2 4.5C9.8 4.5 11.2 5.3 12 6.5C12.8 5.3 14.2 4.5 15.8 4.5C18.4 4.5 20.5 6.6 20.5 9.2C20.5 15 12 20.5 12 20.5Z" stroke="#6B7280" stroke-width="1.7"></path></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">좋아요한 제품</span><span style="font-size:13px;font-weight:700;color:#3D8F6F;margin-right:4px;">3</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="display:flex;align-items:center;gap:12px;height:50px;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"></path></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">재입고 알림</span><span style="font-size:13px;font-weight:700;color:#3D8F6F;margin-right:4px;">2</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+              </div>
+            </div>
+            <div style="padding:14px 20px 0 20px;">
+              <p style="margin:0 0 8px 4px;font-size:12px;font-weight:700;color:#9CA3AF;">혜택 · 지원</p>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:2px 16px;">
+                <div style="display:flex;align-items:center;gap:12px;height:50px;border-bottom:1px solid #F5F6F2;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z"></path></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">후기</span><span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#EAF5EF;font-size:10px;font-weight:800;color:#2B6B52;margin-right:4px;">+20 EXP</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="display:flex;align-items:center;gap:12px;height:50px;border-bottom:1px solid #F5F6F2;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12.5" rx="1.5"></rect><path d="M3 12h18M12 8v12.5"></path><path d="M12 8c-1-2.5-2.6-4-4-3s-.4 3 4 3zM12 8c1-2.5 2.6-4 4-3s.4 3-4 3z"></path></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">선물함</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="display:flex;align-items:center;gap:12px;height:50px;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13a7 7 0 0114 0"></path><rect x="4" y="13" width="3.5" height="6" rx="1.5"></rect><rect x="16.5" y="13" width="3.5" height="6" rx="1.5"></rect></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">고객센터</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+              </div>
+            </div>
+            <div style="padding:14px 20px 28px 20px;">
+              <p style="margin:0 0 8px 4px;font-size:12px;font-weight:700;color:#9CA3AF;">설정</p>
+              <div style="border-radius:20px;background:#FFFFFF;border:1px solid #ECEEE8;padding:2px 16px;">
+                <div style="display:flex;align-items:center;gap:12px;height:50px;border-bottom:1px solid #F5F6F2;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7"><rect x="3" y="7" width="18" height="10" rx="5"></rect><circle cx="16" cy="12" r="3"></circle></svg><span style="flex:1;font-size:14px;font-weight:500;color:#17171C;">알림 설정</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="#C3C8CE" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="display:flex;align-items:center;gap:12px;height:50px;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FF5C7A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H6a2 2 0 00-2 2v10a2 2 0 002 2h3"></path><path d="M15 8l4 4-4 4M19 12H9"></path></svg><span style="flex:1;font-size:14px;font-weight:500;color:#FF5C7A;">로그아웃</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border-top:1px solid #ECEEE8;padding-bottom:20px;">
+            <div style="display:flex;">
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="#9CA3AF" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 21V12h6v9" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">홈</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect><rect x="13" y="3" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect><rect x="3" y="13" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect><rect x="13" y="13" width="8" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.8"></rect></svg><span style="font-size:10px;color:#9CA3AF;">카테고리</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#9CA3AF" stroke-width="1.8"></circle><path d="M16.5 16.5L21 21" stroke="#9CA3AF" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:10px;color:#9CA3AF;">검색</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l2 3v10a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 017 20V10l2-3V3z"></path><path d="M7 13h10"></path></svg><span style="font-size:10px;color:#9CA3AF;">화장대</span></div>
+              <div style="flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="#2B6B52" stroke-width="2.2"></circle><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="#2B6B52" stroke-width="2.2" stroke-linecap="round"></path></svg><span style="font-size:10px;font-weight:700;color:#2B6B52;">마이</span></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const img = (s, n = 400) => `https://picsum.photos/seed/${s}/${n}/${n}`;
+    const skinPicks = [
+      { brand: '바이오더마', name: '하이드라비오 토너 250ml 2종 기획', img: img('p5'), price: '26,500원', disc: '30%', rating: '4.8', rev: '(7,495)', rank: 1 },
+      { brand: '에스트라', name: '아토베리어365 크림 80ml', img: img('p6'), price: '25,400원', disc: '23%', rating: '4.9', rev: '(3,200)', rank: 2 },
+      { brand: '웰라쥬', name: '리얼 히알루로닉 블루 100 앰플', img: img('p9'), price: '29,800원', disc: '40%', rating: '4.8', rev: '(7,495)', rank: 3 },
+      { brand: '라로슈포제', name: '시카플라스트 밤 B5+ 40ml', img: img('p8'), price: '34,850원', disc: '15%', rating: '4.9', rev: '(6,120)', rank: 4 },
+      { brand: '닥터자르트', name: '세라마이드 수분 크림 60ml', img: img('p3'), price: '42,000원', disc: '', rating: '4.9', rev: '(3,241)', rank: 5 },
+      { brand: '메디힐', name: '에센셜 마스크팩 10+1매', img: img('p1'), price: '10,000원', disc: '50%', rating: '4.9', rev: '(99,999+)', rank: 6 },
+    ];
+    const catGroups = [
+      { name: '스킨케어', subs: ['스킨/토너', '에센스/세럼/앰플', '크림', '로션', '미스트/오일', '스킨케어세트'] },
+      { name: '마스크팩', subs: ['시트팩', '패드', '페이셜팩', '코팩', '패치'] },
+      { name: '클렌징', subs: ['클렌징폼/젤', '패드', '페이셜팩', '코팩', '패치'] },
+      { name: '선케어', subs: ['선크림', '선스틱', '선쿠션', '선스프레이/선패치'] },
+      { name: '메이크업', subs: ['립메이크업', '베이스메이크업', '아이메이크업'] },
+    ];
+    const sidebarTabs = ['스킨케어', '마스크팩', '클렌징', '선케어', '메이크업', '바디케어', '헤어케어']
+      .map((t, i) => ({ t, bg: i === 0 ? '#FFFFFF' : '#F5F6F2', c: i === 0 ? '#2B6B52' : '#6B7280', fw: i === 0 ? 800 : 500, bar: i === 0 ? '#3D8F6F' : 'transparent' }));
+    const shelf = [
+      { brand: '이니스프리', name: '수분 밸런싱 토너 200ml', img: img('seed1', 100) },
+      { brand: '바이오더마', name: '하이드라비오 토너 250ml', img: img('seed5', 100) },
+      { brand: '에스트라', name: '아토베리어365 크림 80ml', img: img('seed6', 100) },
+      { brand: '라로슈포제', name: '시카플라스트 밤 B5+ 40ml', img: img('seed8', 100) },
+    ];
+    const popular = ['메디큐브', '셀리맥스', '클리오 쿠션', '제로이드', '식물나라', '마데카소사이드', '바이오던스', 'PDRN 세럼', '아누아', '퓌 립앤치크']
+      .map((t, i) => ({ n: String(i + 1), t, c: i < 8 ? '#3D8F6F' : '#9CA3AF' }));
+    const recentChips = ['토너', '선크림', '히알루론산'];
+    return { skinPicks, catGroups, sidebarTabs, shelf, popular, recentChips };
+  }
+}
+</script>
+</body>
+</html>
