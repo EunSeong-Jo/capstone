@@ -1,9 +1,12 @@
-import { lazy, Suspense } from 'react';
+import { lazy, ReactElement, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { RequireAuth } from './components/auth/RequireAuth';
 
 const SplashPage     = lazy(() => import('./pages/Splash'));
 const OnboardingPage = lazy(() => import('./pages/Onboarding'));
 const LoginPage      = lazy(() => import('./pages/Login'));
+const SignupPage     = lazy(() => import('./pages/Signup'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword'));
 const HomePage       = lazy(() => import('./pages/Home'));
 const ClosetPage     = lazy(() => import('./pages/Closet'));
 const DecoratePage   = lazy(() => import('./pages/Closet/DecoratePage'));
@@ -17,6 +20,8 @@ const CategoryMainPage = lazy(() => import('./pages/Category/CategoryMainPage'))
 const CategoryPage   = lazy(() => import('./pages/Category/CategoryPage'));
 const HistoryPage    = lazy(() => import('./pages/History'));
 const OrderHistoryPage = lazy(() => import('./pages/Mypage/OrderHistoryPage'));
+const OrderDetailPage  = lazy(() => import('./pages/Mypage/OrderDetailPage'));
+const OrderTrackingPage = lazy(() => import('./pages/Mypage/OrderTrackingPage'));
 const PointsPage      = lazy(() => import('./pages/Mypage/PointsPage'));
 const ReviewPage      = lazy(() => import('./pages/Mypage/ReviewPage'));
 const CustomerServicePage = lazy(() => import('./pages/Mypage/CustomerServicePage'));
@@ -35,6 +40,9 @@ function LoadingScreen() {
   );
 }
 
+/** 계정 데이터를 다루는 화면 — 게스트는 로그인으로 보낸다. */
+const mine = (el: ReactElement) => <RequireAuth>{el}</RequireAuth>;
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -42,6 +50,8 @@ export default function App() {
         <Routes>
           <Route path="/"           element={<SplashPage />} />
           <Route path="/login"      element={<LoginPage />} />
+          <Route path="/signup"     element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
           {/* 마이페이지 '피부타입 재진단'은 질문창부터 시작.
               replace로 /qna 엔트리를 소진해야 Q1에서 뒤로가기가 마이페이지로 간다.
@@ -62,15 +72,17 @@ export default function App() {
           <Route path="/history"    element={<HistoryPage />} />
           <Route path="/likes"      element={<Navigate to="/history?tab=liked" replace />} />
           <Route path="/mypage/frequent-purchases" element={<Navigate to="/history?tab=frequent" replace />} />
-          <Route path="/mypage/order-history" element={<OrderHistoryPage />} />
-          <Route path="/mypage/points"        element={<PointsPage />} />
-          <Route path="/mypage/reviews"       element={<ReviewPage />} />
+          <Route path="/mypage/order-history" element={mine(<OrderHistoryPage />)} />
+          <Route path="/mypage/order-history/:orderId" element={mine(<OrderDetailPage />)} />
+          <Route path="/mypage/order-history/:orderId/tracking" element={mine(<OrderTrackingPage />)} />
+          <Route path="/mypage/points"        element={mine(<PointsPage />)} />
+          <Route path="/mypage/reviews"       element={mine(<ReviewPage />)} />
           <Route path="/mypage/customer-service" element={<CustomerServicePage />} />
           <Route path="/mypage/chat-support"  element={<ChatSupportPage />} />
           <Route path="/mypage/inquiry"       element={<InquiryPage />} />
           <Route path="/mypage/settings"      element={<SettingsPage />} />
-          <Route path="/mypage/settings/profile"  element={<ProfileEditPage />} />
-          <Route path="/mypage/settings/withdraw" element={<WithdrawPage />} />
+          <Route path="/mypage/settings/profile"  element={mine(<ProfileEditPage />)} />
+          <Route path="/mypage/settings/withdraw" element={mine(<WithdrawPage />)} />
           <Route path="/mypage/settings/terms"    element={<LegalPage doc="terms" />} />
           <Route path="/mypage/settings/privacy"  element={<LegalPage doc="privacy" />} />
           {/* 실제 결제·배송이 없어 근거를 만들 수 없던 화면들. 라우트만

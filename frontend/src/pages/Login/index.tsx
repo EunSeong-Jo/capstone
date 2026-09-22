@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/auth';
 import { PERSONAS } from '../../data/personas';
 
-// 데모 로그인 화면. 인증 API가 없어 personas.json과의 이메일·비밀번호 대조로 로그인한다.
+// 로그인 화면. `POST /api/v1/auth/login`으로 실제 인증한다.
 // (스플래시 → 로그인 → 위피 인삿말(/onboarding) 순서)
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // RequireAuth가 막아서 온 경우 원래 가려던 곳. 없으면 인삿말로 간다.
+  const from = (location.state as { from?: string } | null)?.from ?? null;
   const { login, loginAs, continueAsGuest } = useAuth();
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
@@ -21,7 +24,7 @@ export default function LoginPage() {
     setError(null);
     const r = await login(email, pw);
     setBusy(false);
-    if (r.ok) navigate('/onboarding');
+    if (r.ok) navigate(from ?? '/onboarding', { replace: true });
     else setError(r.error ?? '로그인에 실패했어요.');
   };
 
@@ -31,7 +34,7 @@ export default function LoginPage() {
     setError(null);
     const r = await loginAs(id);
     setBusy(false);
-    if (r.ok) navigate('/onboarding');
+    if (r.ok) navigate(from ?? '/onboarding', { replace: true });
     else setError(r.error ?? '로그인에 실패했어요.');
   };
 
@@ -91,9 +94,9 @@ export default function LoginPage() {
 
       {/* 보조 링크 */}
       <div className="mt-3 flex items-center justify-center gap-3 text-[12px] text-gray-50">
-        <button type="button" onClick={() => alert('준비 중이에요')}>이메일로 가입</button>
+        <button type="button" onClick={() => navigate('/signup')}>이메일로 가입</button>
         <span className="text-gray-20">|</span>
-        <button type="button" onClick={() => alert('준비 중이에요')}>비밀번호 찾기</button>
+        <button type="button" onClick={() => navigate('/forgot-password')}>비밀번호 찾기</button>
       </div>
 
       {/* 데모 계정 빠른 로그인 — 시연·테스트용. 실제 로그인 UI가 아니다 */}

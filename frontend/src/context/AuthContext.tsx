@@ -11,6 +11,7 @@ import {
   fetchMe,
   login as apiLogin,
   logout as apiLogout,
+  signup as apiSignup,
 } from '../api/auth';
 import {
   clearTokens,
@@ -175,6 +176,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * 이메일 가입.
+   *
+   * 서버가 가입과 동시에 토큰을 내주므로(`POST /auth/signup`) 로그인을
+   * 따로 태우지 않는다. 예전에는 인증 API가 없어 가입한 계정을
+   * localStorage(`swappy:customAccounts:v1`)에 Persona 모양으로 저장했는데,
+   * 그러면 그 브라우저에서만 존재하는 계정이 됐다.
+   */
+  const register = useCallback(
+    async (email: string, password: string, nickname: string): Promise<LoginResult> => {
+      try {
+        const bundle = await apiSignup(
+          email.trim(),
+          password,
+          nickname.trim() || undefined,
+        );
+        setTokens(bundle.accessToken, bundle.refreshToken);
+        applyLogin(bundle.user);
+        return { ok: true };
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 409) {
+          return { ok: false, error: '이미 가입된 이메일이에요.' };
+        }
+        if (err instanceof ApiError && err.status === 422) {
+          // 서버 쪽 검증(이메일 형식·비밀번호 길이)까지 온 경우. 화면이
+          // 먼저 걸러내지만, 서버 규칙이 바뀌어도 사용자가 이유를 본다.
+          return { ok: false, error: '이메일 형식과 비밀번호 길이를 확인해 주세요.' };
+        }
+        if (err instanceof ApiError && err.status === 0) {
+          return { ok: false, error: '서버에 연결할 수 없어요.' };
+        }
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : '가입하지 못했어요.',
+        };
+      }
+    },
+    [applyLogin],
+  );
+
+  /**
    * 데모용 퀵 로그인. 비밀번호를 personas.json에서 꺼내 같은 login()을 탄다 —
    * 서버 인증을 우회하지 않으므로 실제 계정이 없으면 그대로 실패한다.
    */
@@ -217,11 +258,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       scope: account ? account.id : 'guest',
       prevScope,
       login,
+      register,
       loginAs,
       continueAsGuest,
       logout,
     }),
-    [auth.status, account, loading, prevScope, login, loginAs, continueAsGuest, logout],
+    [
+      auth.status,
+      account,
+      loading,
+      prevScope,
+      login,
+      register,
+      loginAs,
+      continueAsGuest,
+      logout,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
