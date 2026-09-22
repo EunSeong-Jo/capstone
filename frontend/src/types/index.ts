@@ -8,15 +8,20 @@ export type SkinType =
   | 'yuriguseul'
   | 'memilmuk';
 
-export const SKIN_TYPE_META: Record<SkinType, { label: string; emoji: string; summary: string }> = {
-  ondalsam:    { label: '수분팡팡 옹달샘', emoji: '💧', summary: '수분·유분 균형, 이상적 피부' },
-  mulgae:      { label: '반질반질 물개',   emoji: '🦭', summary: '지성, 번들거림, 모공' },
-  subuji:      { label: '겉바속촉 수부지', emoji: '🌊', summary: '속건조 + 겉번들' },
-  hwasan:      { label: '울긋불긋 화산',   emoji: '🌋', summary: '트러블·홍조·염증' },
-  samak:       { label: '바스락 사막',     emoji: '🏜️', summary: '극건성, 당김' },
-  injeolmi:    { label: '말랑말랑 인절미', emoji: '🍡', summary: '건성·탄력 저하, 주름' },
-  yuriguseul:  { label: '조심조심 유리구슬', emoji: '🫧', summary: '민감성, 자극 반응' },
-  memilmuk:    { label: '얼룩덜룩 메밀묵', emoji: '🌑', summary: '색소침착·잡티' },
+export const SKIN_TYPE_META: Record<
+  SkinType,
+  // category는 별명을 모르는 사람에게 보여줄 일반 명칭이다 — '반질반질 물개'만
+  // 적으면 그게 지성인지 건성인지 알 수 없다.
+  { label: string; emoji: string; summary: string; category: string }
+> = {
+  ondalsam:    { label: '수분팡팡 옹달샘', emoji: '💧', summary: '수분·유분 균형, 이상적 피부', category: '중성' },
+  mulgae:      { label: '반질반질 물개',   emoji: '🦭', summary: '지성, 번들거림, 모공', category: '지성' },
+  subuji:      { label: '겉바속촉 수부지', emoji: '🌊', summary: '속건조 + 겉번들', category: '수부지' },
+  hwasan:      { label: '울긋불긋 화산',   emoji: '🌋', summary: '트러블·홍조·염증', category: '트러블' },
+  samak:       { label: '바스락 사막',     emoji: '🏜️', summary: '극건성, 당김', category: '악건성' },
+  injeolmi:    { label: '말랑말랑 인절미', emoji: '🍡', summary: '건성·탄력 저하, 주름', category: '탄력저하' },
+  yuriguseul:  { label: '조심조심 유리구슬', emoji: '🫧', summary: '민감성, 자극 반응', category: '민감성' },
+  memilmuk:    { label: '얼룩덜룩 메밀묵', emoji: '🌑', summary: '색소침착·잡티', category: '색소침착' },
 };
 
 export interface Product {

@@ -73,7 +73,8 @@ function CarouselError({ message, onRetry }: { message: string; onRetry: () => v
 
 /**
  * 목업 폴백이 켜진 환경(로컬 개발)에서만 뜬다. 화면이 실제 DB가 아니라
- * mocks/oliveyoung.ts를 보고 있다는 사실을 숨기지 않기 위한 것이다.
+ * 실 API 캡처본(mocks/products.fixture.json)을 보고 있다는 사실을
+ * 숨기지 않기 위한 것이다.
  */
 function MockBanner() {
   return (

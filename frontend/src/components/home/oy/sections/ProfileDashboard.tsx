@@ -79,7 +79,9 @@ export function ProfileDashboard({ weather, careTip, character, user, registry }
             <div className="h-[22px] w-32 animate-pulse rounded-full bg-gray-10" />
           )}
           <span className="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-full bg-primary-light text-[11px] font-bold text-primary">
-            {meta.emoji} {shortSkinName}
+            {/* 별명만 적으면 그게 지성인지 건성인지 알 수 없다. 일반 명칭을
+                괄호로 함께 둔다. */}
+            {meta.emoji} {shortSkinName}({meta.category})
           </span>
         </div>
         {/* 마스코트(탭→옷장) + [오늘의 케어 말풍선 / 레벨·진행바] 세로 스택 */}
