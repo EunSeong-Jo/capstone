@@ -247,14 +247,16 @@ export default function HomePage() {
         <Divider />
 
         {/* 더 저렴한 대체품 (가격절약 축) — 화장대 전체에서 절약액 순.
-            useSwapSuggestion이 같은 조회를 이미 했으므로 추가 요청이 없다. */}
+            useSwapSuggestion이 같은 조회를 이미 했으므로 추가 요청이 없다.
+
+            더보기는 전용 화면으로 보낸다. 예전에는 /alternatives?seed=<첫 항목>
+            으로 보냈는데, 캐러셀은 여러 항목의 후보를 섞어 보여주므로
+            캐러셀에서 본 카드가 더보기에 없는 경우가 생겼다. */}
         {cheaperAlternatives.length > 0 && (
           <AlternativeCarousel
             title="💰 더 저렴한 대체품"
             alternatives={cheaperAlternatives}
-            onMore={() =>
-              navigate(`/alternatives?seed=${swap.candidates[0].seed.id}&from=home`)
-            }
+            onMore={() => navigate('/home/cheaper-alternatives')}
           />
         )}
       </main>

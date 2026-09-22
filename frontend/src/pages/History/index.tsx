@@ -4,6 +4,7 @@ import { PageWrapper } from '../../components/layout/PageWrapper';
 import { BottomNav } from '../../components/layout/BottomNav';
 import { ProductCard } from '../../components/product/ProductCard';
 import { HistoryListCard } from '../../components/history/HistoryListCard';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useRecentlyViewed } from '../../hooks/useRecentlyViewed';
 import { useLikedProducts } from '../../context/liked';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
@@ -74,15 +75,32 @@ export function RecentTab() {
   const { inCart, addToCart } = useCart();
   const { items: recentlyViewed, clearRecentlyViewed } = useRecentlyViewed();
   const { isLiked, toggleLike } = useLikedProducts();
+  // 한 번 지우면 되돌릴 수 없다. 탭 한 번에 실행되지 않도록 한 단계 둔다.
+  const [confirming, setConfirming] = useState(false);
 
   return (
     <div className="px-4 py-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-bold text-gray-100">최근 본 상품</h2>
         {recentlyViewed.length > 0 && (
-          <button onClick={clearRecentlyViewed} className="text-xs text-gray-70">전체삭제</button>
+          <button onClick={() => setConfirming(true)} className="text-xs text-gray-70">전체삭제</button>
         )}
       </div>
+
+      {confirming && (
+        <ConfirmDialog
+          title="최근 본 상품을 모두 지울까요?"
+          description="지운 기록은 되돌릴 수 없어요."
+          confirmLabel="모두 삭제"
+          cancelLabel="취소"
+          danger
+          onConfirm={() => {
+            clearRecentlyViewed();
+            setConfirming(false);
+          }}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
 
       {recentlyViewed.length === 0 ? (
         <EmptyState emoji="🕐" title="아직 본 제품이 없어요" subtitle="제품을 둘러보면 여기에 기록돼요" />
@@ -122,6 +140,9 @@ export function LikedTab() {
   const { inCart, addToCart } = useCart();
   const [category, setCategory] = useState('전체');
   const [discountOnly, setDiscountOnly] = useState(false);
+  // 찜은 서버에도 있다(LikedProductsContext가 removeLike를 전부 보낸다).
+  // 이 화면에서만 사라지는 게 아니므로 한 번 더 묻는다.
+  const [confirming, setConfirming] = useState(false);
 
   const categories = useMemo(
     () => ['전체', ...Array.from(new Set(likedProducts.map((p) => p.category)))],
@@ -134,6 +155,21 @@ export function LikedTab() {
 
   return (
     <div className="px-4 py-4">
+      {confirming && (
+        <ConfirmDialog
+          title="찜한 상품을 모두 지울까요?"
+          description="서버에 저장된 찜도 함께 사라지고, 되돌릴 수 없어요."
+          confirmLabel="모두 삭제"
+          cancelLabel="취소"
+          danger
+          onConfirm={() => {
+            clearLikedProducts();
+            setConfirming(false);
+          }}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
+
       {likedProducts.length === 0 ? (
         <EmptyState emoji="🤍" title="아직 찜한 제품이 없어요" subtitle="마음에 드는 제품을 찜해보세요" />
       ) : (
@@ -165,7 +201,7 @@ export function LikedTab() {
                 할인 상품
               </label>
             </div>
-            <button onClick={clearLikedProducts} className="text-xs text-gray-70">전체삭제</button>
+            <button onClick={() => setConfirming(true)} className="text-xs text-gray-70">전체삭제</button>
           </div>
 
           <div className="flex flex-col gap-3 mb-8">

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../../context/cart';
+import { CartIcon } from '../../ui/OutlineIcons';
 
 /**
  * 상단 앱바 — 로고(swappy) + 검색·장바구니.
@@ -50,10 +51,7 @@ export function OyAppBar({ cartCount }: OyAppBarProps) {
           onClick={() => navigate('/cart')}
           className="relative transition-transform active:scale-90"
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <CartIcon size={24} className="text-[#17171C]" />
           {badge > 0 && (
             <span
               className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white"

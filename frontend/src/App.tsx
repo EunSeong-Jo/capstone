@@ -8,6 +8,7 @@ const LoginPage      = lazy(() => import('./pages/Login'));
 const SignupPage     = lazy(() => import('./pages/Signup'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword'));
 const HomePage       = lazy(() => import('./pages/Home'));
+const CheaperAlternativesPage = lazy(() => import('./pages/Home/CheaperAlternativesPage'));
 const ClosetPage     = lazy(() => import('./pages/Closet'));
 const DecoratePage   = lazy(() => import('./pages/Closet/DecoratePage'));
 const DetailPage     = lazy(() => import('./pages/ProductDetail'));
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/qna"        element={<Navigate to="/onboarding?step=question&q=0" replace />} />
           <Route path="/result"     element={<Navigate to="/onboarding" replace />} />
           <Route path="/home"       element={<HomePage />} />
+          <Route path="/home/cheaper-alternatives" element={<CheaperAlternativesPage />} />
           <Route path="/closet"     element={<ClosetPage />} />
           <Route path="/closet/decorate" element={<DecoratePage />} />
           <Route path="/detail/:id" element={<DetailPage />} />

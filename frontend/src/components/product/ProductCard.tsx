@@ -3,6 +3,7 @@ import { Product } from '../../types';
 import { useToast } from '../../context/toast';
 import { useLikedProducts } from '../../context/liked';
 import { formatUnitPrice } from '../../utils/unitPrice';
+import { HeartIcon } from '../ui/OutlineIcons';
 
 const CARD_BG = [
   'from-green-50 to-emerald-100',
@@ -65,10 +66,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           onClick={handleLike}
           aria-label={liked ? '찜 해제' : '찜하기'}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill={liked ? 'var(--accent)' : 'none'}>
-            <path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.24 3 11.91 3.81 13 5.08C14.09 3.81 15.76 3 17.5 3C20.58 3 23 5.42 23 8.5C23 14.5 12 21 12 21Z"
-              stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <HeartIcon size={16} filled={liked} className="text-[var(--accent)]" />
         </button>
       </div>
 

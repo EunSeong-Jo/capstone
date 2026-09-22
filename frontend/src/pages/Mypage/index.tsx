@@ -7,6 +7,7 @@ import { useUserProfile } from '../../context/userProfile';
 import { useCloset } from '../../context/closet';
 import { useLikedProducts } from '../../context/liked';
 import { useStats } from '../../hooks/useStats';
+import { CartIcon } from '../../components/ui/OutlineIcons';
 
 
 
@@ -99,10 +100,7 @@ export default function MypagePage() {
             </svg>
           </button>
           <button onClick={() => alert('준비 중이에요')} aria-label="알림" className="relative active:scale-90 transition-transform">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <CartIcon size={24} className="text-[#17171C]" />
             <span className="absolute -top-1 -right-1.5 inline-flex min-w-[15px] h-[15px] px-1 items-center justify-center rounded-full bg-primary-dark text-[9px] font-extrabold text-white">2</span>
           </button>
         </div>

@@ -3,6 +3,7 @@ import { Icon } from '../../components/category/Icon';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { CATEGORIES, CategoryDef } from '../../data/categories';
 import { useProducts } from '../../hooks/useProducts';
+import { CartIcon } from '../../components/ui/OutlineIcons';
 
 /**
  * 카테고리 메인 — DB에 실제로 있는 4종만.
@@ -81,10 +82,7 @@ export default function CategoryMainPage() {
             aria-label="장바구니"
             className="active:scale-90 transition-transform"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <CartIcon size={24} className="text-[#17171C]" />
           </button>
         </div>
       </header>

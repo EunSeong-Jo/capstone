@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Product } from '../../types';
+import { HeartIcon } from '../ui/OutlineIcons';
 
 interface HistoryListCardProps {
   product: Product;
@@ -57,10 +58,7 @@ export function HistoryListCard({ product, liked, onToggleLike, added, onAddToCa
           aria-label="찜하기"
           className="active:scale-90 transition-transform"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill={liked ? 'var(--accent)' : 'none'}>
-            <path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.24 3 11.91 3.81 13 5.08C14.09 3.81 15.76 3 17.5 3C20.58 3 23 5.42 23 8.5C23 14.5 12 21 12 21Z"
-              stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <HeartIcon size={20} filled={liked} className="text-[var(--accent)]" />
         </button>
         {onAddToCart && (
           <button
