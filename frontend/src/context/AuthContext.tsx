@@ -228,6 +228,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [login],
   );
 
+  /**
+   * 계정 정보만 다시 받는다. 닉네임·이메일을 고친 화면이 부른다 —
+   * 이걸 안 부르면 헤더에 옛 값이 남는다.
+   */
+  const reloadMe = useCallback(async () => {
+    const user = await fetchMe().catch(() => null);
+    if (user === null) return;
+    setAccount(toAccount(user));
+    setAuth((prev) => (prev.status === 'user' ? { ...prev, email: user.email } : prev));
+  }, []);
+
   const continueAsGuest = useCallback(() => {
     setAuth((prev) => {
       setPrevScope(scopeOf(prev));
@@ -260,6 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       loginAs,
+      reloadMe,
       continueAsGuest,
       logout,
     }),
@@ -271,6 +283,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       loginAs,
+      reloadMe,
       continueAsGuest,
       logout,
     ],

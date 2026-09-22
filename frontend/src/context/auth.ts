@@ -53,6 +53,8 @@ export interface AuthContextValue {
     nickname: string,
   ) => Promise<LoginResult>;
   loginAs: (personaId: string) => Promise<LoginResult>;
+  /** 계정 정보를 서버에서 다시 받는다 (닉네임·이메일을 고친 뒤) */
+  reloadMe: () => Promise<void>;
   continueAsGuest: () => void;
   logout: () => void;
 }

@@ -29,6 +29,8 @@ const ChatSupportPage = lazy(() => import('./pages/Mypage/ChatSupportPage'));
 const InquiryPage     = lazy(() => import('./pages/Mypage/InquiryPage'));
 const SettingsPage    = lazy(() => import('./pages/Mypage/SettingsPage'));
 const ProfileEditPage = lazy(() => import('./pages/Mypage/ProfileEditPage'));
+const EmailChangePage = lazy(() => import('./pages/Mypage/EmailChangePage'));
+const PasswordChangePage = lazy(() => import('./pages/Mypage/PasswordChangePage'));
 const WithdrawPage    = lazy(() => import('./pages/Mypage/WithdrawPage'));
 const LegalPage       = lazy(() => import('./pages/Mypage/LegalPage'));
 
@@ -82,6 +84,8 @@ export default function App() {
           <Route path="/mypage/inquiry"       element={<InquiryPage />} />
           <Route path="/mypage/settings"      element={<SettingsPage />} />
           <Route path="/mypage/settings/profile"  element={mine(<ProfileEditPage />)} />
+          <Route path="/mypage/settings/email"    element={mine(<EmailChangePage />)} />
+          <Route path="/mypage/settings/password" element={mine(<PasswordChangePage />)} />
           <Route path="/mypage/settings/withdraw" element={mine(<WithdrawPage />)} />
           <Route path="/mypage/settings/terms"    element={<LegalPage doc="terms" />} />
           <Route path="/mypage/settings/privacy"  element={<LegalPage doc="privacy" />} />

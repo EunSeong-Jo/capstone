@@ -82,6 +82,8 @@ export default function SettingsPage() {
         rows={[
           { label: profile.nickname, sub: profile.email },
           { label: '프로필 편집', onClick: () => navigate('/mypage/settings/profile') },
+          { label: '이메일 변경', onClick: () => navigate('/mypage/settings/email') },
+          { label: '비밀번호 변경', onClick: () => navigate('/mypage/settings/password') },
           { label: '피부타입 재진단', onClick: () => navigate('/qna') },
         ]}
       />
