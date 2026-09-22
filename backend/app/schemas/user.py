@@ -40,6 +40,24 @@ class RefreshIn(_CamelModel):
     refresh_token: str
 
 
+class PasswordChangeIn(_CamelModel):
+    """비밀번호 변경.
+
+    현재 비밀번호를 함께 받는다. 액세스 토큰만으로 바꾸게 두면 잠깐 자리를
+    비운 사이 기기를 만진 사람이 비밀번호를 갈아치울 수 있다.
+    """
+
+    current_password: str
+    new_password: str = Field(min_length=PASSWORD_MIN_LENGTH)
+
+    @field_validator("new_password")
+    @classmethod
+    def _fits_bcrypt(cls, v: str) -> str:
+        if len(v.encode("utf-8")) > PASSWORD_MAX_BYTES:
+            raise ValueError(f"비밀번호는 {PASSWORD_MAX_BYTES}바이트를 넘을 수 없습니다")
+        return v
+
+
 class UserOut(_CamelModel):
     id: uuid.UUID
     email: EmailStr
@@ -82,3 +100,8 @@ class ProfileIn(_CamelModel):
 
 class MeIn(_CamelModel):
     nickname: str | None = Field(default=None, max_length=20)
+    # 로그인 id이기도 하다. 바꾸면 그 순간부터 새 주소로 로그인해야 한다.
+    email: EmailStr | None = None
+    # 이메일을 바꿀 때만 필요하다. 로그인 id를 바꾸는 일은 비밀번호를 바꾸는
+    # 것만큼 민감해서, 액세스 토큰만으로는 통과시키지 않는다.
+    current_password: str | None = None

@@ -42,10 +42,13 @@ async def fresh_account(client: AsyncClient):
         json={"email": email, "password": PASSWORD, "nickname": "테스트"},
     )
     assert res.status_code == 201, res.text
-    yield res.json()
+    body = res.json()
+    yield body
 
+    # id로 지운다. 이메일 변경 테스트가 있어서 email로 찾으면 못 찾고
+    # 공용 DB에 고아 계정이 남는다.
     async with AsyncSessionLocal() as db:
-        await db.execute(delete(User).where(User.email == email))
+        await db.execute(delete(User).where(User.id == uuid.UUID(body["user"]["id"])))
         await db.commit()
 
 
@@ -224,3 +227,185 @@ async def test_seeded_persona_can_log_in(client: AsyncClient) -> None:
     )
     assert res.status_code == 200, "seed_test_users.py를 실행했는지 확인하세요"
     assert res.json()["user"]["skinType"] == "ondalsam"
+
+
+# ---------------------------------------------------------------- 비밀번호 변경
+
+
+async def test_password_change_rejects_wrong_current(
+    client: AsyncClient, fresh_account
+) -> None:
+    res = await client.post(
+        f"{AUTH}/password",
+        headers=_auth(fresh_account["accessToken"]),
+        json={"currentPassword": "not-the-password", "newPassword": "brandnew1234"},
+    )
+    assert res.status_code == 401
+
+
+async def test_password_change_rejects_same_password(
+    client: AsyncClient, fresh_account
+) -> None:
+    res = await client.post(
+        f"{AUTH}/password",
+        headers=_auth(fresh_account["accessToken"]),
+        json={"currentPassword": PASSWORD, "newPassword": PASSWORD},
+    )
+    assert res.status_code == 422
+
+
+async def test_password_change_rejects_short_password(
+    client: AsyncClient, fresh_account
+) -> None:
+    res = await client.post(
+        f"{AUTH}/password",
+        headers=_auth(fresh_account["accessToken"]),
+        json={"currentPassword": PASSWORD, "newPassword": "short"},
+    )
+    assert res.status_code == 422
+
+
+async def test_password_change_requires_token(client: AsyncClient) -> None:
+    res = await client.post(
+        f"{AUTH}/password",
+        json={"currentPassword": PASSWORD, "newPassword": "brandnew1234"},
+    )
+    assert res.status_code == 401
+
+
+async def test_password_change_swaps_credentials(
+    client: AsyncClient, fresh_account
+) -> None:
+    email = fresh_account["user"]["email"]
+    new_password = "brandnew1234"
+
+    res = await client.post(
+        f"{AUTH}/password",
+        headers=_auth(fresh_account["accessToken"]),
+        json={"currentPassword": PASSWORD, "newPassword": new_password},
+    )
+    assert res.status_code == 200, res.text
+
+    old = await client.post(f"{AUTH}/login", json={"email": email, "password": PASSWORD})
+    assert old.status_code == 401
+
+    new = await client.post(
+        f"{AUTH}/login", json={"email": email, "password": new_password}
+    )
+    assert new.status_code == 200
+
+
+async def test_password_change_kills_other_sessions(
+    client: AsyncClient, fresh_account
+) -> None:
+    """변경 전 리프레시 토큰은 죽고, 변경이 내준 것만 산다.
+
+    이게 이 엔드포인트의 존재 이유다. 비밀번호를 바꾸는 이유는 대개 남이
+    알고 있다고 의심해서인데, 그쪽이 받아 간 토큰이 14일 더 살아 있으면
+    바꾼 의미가 없다.
+    """
+    stale_refresh = fresh_account["refreshToken"]
+
+    res = await client.post(
+        f"{AUTH}/password",
+        headers=_auth(fresh_account["accessToken"]),
+        json={"currentPassword": PASSWORD, "newPassword": "brandnew1234"},
+    )
+    assert res.status_code == 200
+    issued = res.json()
+
+    dead = await client.post(f"{AUTH}/refresh", json={"refreshToken": stale_refresh})
+    assert dead.status_code == 401
+
+    alive = await client.post(
+        f"{AUTH}/refresh", json={"refreshToken": issued["refreshToken"]}
+    )
+    assert alive.status_code == 200
+
+
+# ------------------------------------------------------------------ 이메일 변경
+
+
+async def test_email_change_requires_current_password(
+    client: AsyncClient, fresh_account
+) -> None:
+    res = await client.patch(
+        ME,
+        headers=_auth(fresh_account["accessToken"]),
+        json={"email": f"moved-{uuid.uuid4().hex[:8]}@example.com"},
+    )
+    assert res.status_code == 401
+
+
+async def test_email_change_rejects_wrong_password(
+    client: AsyncClient, fresh_account
+) -> None:
+    res = await client.patch(
+        ME,
+        headers=_auth(fresh_account["accessToken"]),
+        json={
+            "email": f"moved-{uuid.uuid4().hex[:8]}@example.com",
+            "currentPassword": "not-the-password",
+        },
+    )
+    assert res.status_code == 401
+
+
+async def test_email_change_moves_the_login_id(
+    client: AsyncClient, fresh_account
+) -> None:
+    old_email = fresh_account["user"]["email"]
+    new_email = f"moved-{uuid.uuid4().hex[:8]}@example.com"
+
+    res = await client.patch(
+        ME,
+        headers=_auth(fresh_account["accessToken"]),
+        json={"email": new_email, "currentPassword": PASSWORD},
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["email"] == new_email
+
+    moved = await client.post(
+        f"{AUTH}/login", json={"email": new_email, "password": PASSWORD}
+    )
+    assert moved.status_code == 200
+
+    gone = await client.post(
+        f"{AUTH}/login", json={"email": old_email, "password": PASSWORD}
+    )
+    assert gone.status_code == 401
+
+
+async def test_email_change_normalises_case(client: AsyncClient, fresh_account) -> None:
+    new_email = f"Mixed-{uuid.uuid4().hex[:8]}@Example.COM"
+    res = await client.patch(
+        ME,
+        headers=_auth(fresh_account["accessToken"]),
+        json={"email": new_email, "currentPassword": PASSWORD},
+    )
+    assert res.status_code == 200
+    assert res.json()["email"] == new_email.lower()
+
+
+async def test_email_change_rejects_taken_address(
+    client: AsyncClient, fresh_account
+) -> None:
+    res = await client.patch(
+        ME,
+        headers=_auth(fresh_account["accessToken"]),
+        json={"email": "eunseong@swappy.app", "currentPassword": PASSWORD},
+    )
+    assert res.status_code == 409
+
+
+async def test_nickname_update_needs_no_password(
+    client: AsyncClient, fresh_account
+) -> None:
+    """이메일을 건드리지 않으면 비밀번호를 묻지 않는다."""
+    res = await client.patch(
+        ME,
+        headers=_auth(fresh_account["accessToken"]),
+        json={"nickname": "비번없이"},
+    )
+    assert res.status_code == 200
+    assert res.json()["nickname"] == "비번없이"
