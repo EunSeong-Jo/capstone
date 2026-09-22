@@ -37,6 +37,7 @@ from app.db.session import get_db
 from app.models.personal import (
     CartItem,
     ClosetItem,
+    Gift,
     Like,
     Order,
     OrderItem,
@@ -54,6 +55,8 @@ from app.schemas.personal import (
     ClosetItemIn,
     ClosetItemOut,
     FrequentItemOut,
+    GiftIn,
+    GiftOut,
     OrderItemOut,
     OrderOut,
     PointsOut,
@@ -70,6 +73,7 @@ from app.schemas.product import ProductOut
 
 router = APIRouter(prefix="/api/v1/me", tags=["personal"])
 orders_router = APIRouter(prefix="/api/v1/orders", tags=["orders"])
+gifts_router = APIRouter(prefix="/api/v1/gifts", tags=["gifts"])
 
 # 최근 본 상품 보관 개수. 넘으면 오래된 것부터 지운다.
 RECENT_LIMIT = 30
@@ -758,3 +762,71 @@ async def read_stats(
         total_spent=spent,
         point_balance=points,
     )
+
+
+# ---------------------------------------------------------------------- 선물하기
+
+
+def _gift_out(gift: Gift) -> GiftOut:
+    return GiftOut(
+        id=gift.id,
+        product_id=gift.product_id,
+        product_name=gift.product_name,
+        brand_name=gift.brand_name,
+        unit_price=gift.unit_price,
+        recipient_name=gift.recipient_name,
+        message=gift.message,
+        status=gift.status,
+        created_at=gift.created_at,
+    )
+
+
+@gifts_router.post("", response_model=GiftOut, status_code=201, summary="선물 보내기")
+async def send_gift(
+    body: GiftIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> GiftOut:
+    """선물 기록을 남긴다.
+
+    **결제도 전달도 없다.** `orders`와 같은 처지이고, 이유도 같다 — '보낸
+    선물' 목록이 이 기록에서 파생되기 때문이다. 지금까지 그 목록은
+    localStorage에 쌓이고 예시 데이터와 합쳐져 있었다.
+
+    `status`는 항상 'pending'이다. 실제 발송 수단이 붙기 전까지 바뀌지 않고,
+    화면도 그렇게 안내한다.
+    """
+    product = await db.scalar(
+        select(Product).where(Product.id == body.product_id).options(joinedload(Product.brand))
+    )
+    if product is None:
+        raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
+
+    gift = Gift(
+        sender_user_id=user.id,
+        product_id=product.id,
+        product_name=product.display_name or product.name,
+        brand_name=product.brand.name if product.brand else None,
+        unit_price=product.price or 0,
+        recipient_name=body.recipient_name.strip(),
+        message=(body.message or "").strip() or None,
+    )
+    db.add(gift)
+    await db.commit()
+    await db.refresh(gift)
+    return _gift_out(gift)
+
+
+@router.get("/gifts/sent", response_model=list[GiftOut], summary="보낸 선물")
+async def list_sent_gifts(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[GiftOut]:
+    gifts = list(
+        await db.scalars(
+            select(Gift)
+            .where(Gift.sender_user_id == user.id)
+            .order_by(Gift.created_at.desc())
+        )
+    )
+    return [_gift_out(g) for g in gifts]

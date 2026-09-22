@@ -419,6 +419,14 @@ export default function ProductDetailPage() {
         >
           <button
             type="button"
+            aria-label="선물하기"
+            onClick={() => navigate(`/gift/${product.id}`)}
+            className="h-[46px] w-[46px] shrink-0 rounded-xl border border-oy-line text-lg active:scale-[.98]"
+          >
+            🎁
+          </button>
+          <button
+            type="button"
             onClick={() => {
               addToCart({
                 id: product.id,

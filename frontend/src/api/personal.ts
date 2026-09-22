@@ -73,6 +73,19 @@ export interface ScanDto {
   createdAt: string;
 }
 
+export interface GiftDto {
+  id: string;
+  productId: number | null;
+  productName: string;
+  brandName: string | null;
+  unitPrice: number;
+  recipientName: string;
+  message: string | null;
+  /** 전달 수단이 붙기 전까지 항상 'pending' */
+  status: string;
+  createdAt: string;
+}
+
 export interface StatsDto {
   closetCount: number;
   cartCount: number;
@@ -138,3 +151,8 @@ export const fetchScans = () => request<ScanDto[]>('/api/v1/me/scans');
 export const addScan = (productId: number | null, source = 'search') =>
   postJson<ScanDto>('/api/v1/me/scans', { productId, source });
 export const fetchStats = () => request<StatsDto>('/api/v1/me/stats');
+
+/** 선물 보내기. 받는 분 연락처는 보내지 않는다 — 서버가 받지 않는다. */
+export const sendGift = (productId: number, recipientName: string, message?: string) =>
+  postJson<GiftDto>('/api/v1/gifts', { productId, recipientName, message });
+export const fetchSentGifts = () => request<GiftDto[]>('/api/v1/me/gifts/sent');

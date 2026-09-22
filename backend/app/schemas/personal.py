@@ -142,3 +142,28 @@ class StatsOut(_CamelModel):
     # 실제로 결제한 총액. 주문 기록의 합이다.
     total_spent: int
     point_balance: int
+
+
+class GiftIn(_CamelModel):
+    """선물 보내기.
+
+    받는 사람 연락처는 받지 않는다 — 전달 수단이 없어 쓰이지 않는데,
+    쓰이지도 않는 제3자의 개인정보를 공용 DB에 쌓게 된다.
+    """
+
+    product_id: int = Field(ge=1)
+    recipient_name: str = Field(min_length=1, max_length=30)
+    message: str | None = Field(default=None, max_length=200)
+
+
+class GiftOut(_CamelModel):
+    id: uuid.UUID
+    # 제품이 카탈로그에서 빠지면 None이다. 이름·가격은 행에 박제돼 있다.
+    product_id: int | None = None
+    product_name: str
+    brand_name: str | None = None
+    unit_price: int
+    recipient_name: str
+    message: str | None = None
+    status: str
+    created_at: datetime

@@ -253,3 +253,43 @@ class ScanResult(Base, TimestampMixin):
     source: Mapped[str] = mapped_column(Text, nullable=False, server_default="search")
     # OCR이 읽어낸 원문. 검색으로 등록하면 NULL이다.
     raw_text: Mapped[str | None] = mapped_column(Text)
+
+
+class Gift(Base):
+    """선물하기.
+
+    주문(`orders`)과 같은 자리에 선다 — **실제 결제도 전달도 없다.** 그래도
+    진짜 행을 남기는 이유는 '보낸 선물' 목록이 여기서 파생되기 때문이다.
+    지금까지 그 목록은 localStorage(`swappy:sentGifts:v1`)에 쌓였고, 예시
+    데이터와 합쳐서 보여줬다.
+
+    받는 사람 연락처를 담지 않는다
+    ------------------------------
+    전달 경로가 없으므로 연락처는 아무 데도 쓰이지 않는다. 쓰이지도 않는
+    **제3자의 개인정보를 공용 DB에 쌓을 이유가 없다.** 실제 발송(문자·카카오)을
+    붙일 때 그 수단에 맞는 컬럼을 추가한다.
+
+    가격은 order_items와 같은 이유로 그 시점 값을 박제한다.
+    """
+
+    __tablename__ = "gifts"
+    __table_args__ = (Index("idx_gifts_sender_created", "sender_user_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    sender_user_id: Mapped[uuid.UUID] = _user_fk()
+    # 제품이 카탈로그에서 빠져도 기록은 남는다 — 이름·가격이 박제돼 있다.
+    product_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("products.id", ondelete="SET NULL")
+    )
+    product_name: Mapped[str] = mapped_column(Text, nullable=False)
+    brand_name: Mapped[str | None] = mapped_column(Text)
+    unit_price: Mapped[int] = mapped_column(Integer, nullable=False)
+    recipient_name: Mapped[str] = mapped_column(Text, nullable=False)
+    message: Mapped[str | None] = mapped_column(Text)
+    # 전달 수단이 붙기 전까지는 항상 'pending'이다. orders.status와 같은 처지다.
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )

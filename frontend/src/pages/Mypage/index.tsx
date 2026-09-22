@@ -66,13 +66,14 @@ export default function MypagePage() {
   const { count: closetCount } = useCloset();
   const { likedProducts } = useLikedProducts();
 
-  // 취소·반품·배송지·재입고·선물함은 뺐다. 실제 결제와 배송이 없어
-  // 화면에 채울 근거가 아예 없는 항목들이고, 지금까지는 각자 하드코딩된
-  // 예시를 들고 있었다.
+  // 취소·반품·배송지·재입고는 뺐다. 실제 결제와 배송이 없어 화면에 채울
+  // 근거가 아예 없는 항목들이고, 지금까지는 각자 하드코딩된 예시를 들고
+  // 있었다. '보낸 선물'은 gifts 테이블이 생겨 돌아왔다.
   const shopping: MenuItem[] = [
     { icon: <LineIcon><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" /><path d="M4 8l8 4 8-4M12 12v8" /></LineIcon>, label: '주문내역', right: stats ? `${stats.orderCount}건` : undefined, onClick: () => navigate('/mypage/order-history') },
     { icon: <LineIcon><rect x="3" y="8" width="18" height="12.5" rx="1.5" /><path d="M3 12h18M12 8v12.5" /></LineIcon>, label: '장바구니', right: stats ? `${stats.cartCount}개` : undefined, onClick: () => navigate('/cart') },
     { icon: <LineIcon><path d="M12 21s-7-5.5-7-11a7 7 0 1114 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></LineIcon>, label: '내 화장대', right: `${stats?.closetCount ?? closetCount}개`, onClick: () => navigate('/closet') },
+    { icon: <LineIcon><rect x="4" y="9" width="16" height="11" rx="1.5" /><path d="M3 6h18v3H3zM12 6v14" /></LineIcon>, label: '보낸 선물', onClick: () => navigate('/mypage/gifts') },
   ];
 
   const benefits: MenuItem[] = [

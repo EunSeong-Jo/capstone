@@ -21,6 +21,8 @@ const CategoryMainPage = lazy(() => import('./pages/Category/CategoryMainPage'))
 const CategoryPage   = lazy(() => import('./pages/Category/CategoryPage'));
 const HistoryPage    = lazy(() => import('./pages/History'));
 const OrderHistoryPage = lazy(() => import('./pages/Mypage/OrderHistoryPage'));
+const GiftComposePage  = lazy(() => import('./pages/Gift/GiftComposePage'));
+const SentGiftsPage    = lazy(() => import('./pages/Mypage/SentGiftsPage'));
 const OrderDetailPage  = lazy(() => import('./pages/Mypage/OrderDetailPage'));
 const OrderTrackingPage = lazy(() => import('./pages/Mypage/OrderTrackingPage'));
 const PointsPage      = lazy(() => import('./pages/Mypage/PointsPage'));
@@ -79,6 +81,8 @@ export default function App() {
           <Route path="/mypage/order-history" element={mine(<OrderHistoryPage />)} />
           <Route path="/mypage/order-history/:orderId" element={mine(<OrderDetailPage />)} />
           <Route path="/mypage/order-history/:orderId/tracking" element={mine(<OrderTrackingPage />)} />
+          <Route path="/gift/:productId"      element={mine(<GiftComposePage />)} />
+          <Route path="/mypage/gifts"         element={mine(<SentGiftsPage />)} />
           <Route path="/mypage/points"        element={mine(<PointsPage />)} />
           <Route path="/mypage/reviews"       element={mine(<ReviewPage />)} />
           <Route path="/mypage/customer-service" element={<CustomerServicePage />} />
@@ -96,7 +100,7 @@ export default function App() {
               빈 화면을 보지 않도록. */}
           <Route path="/mypage/coupons"       element={<Navigate to="/mypage" replace />} />
           <Route path="/mypage/money"         element={<Navigate to="/mypage" replace />} />
-          <Route path="/mypage/giftbox"       element={<Navigate to="/mypage" replace />} />
+          <Route path="/mypage/giftbox"       element={<Navigate to="/mypage/gifts" replace />} />
           <Route path="/mypage/shipping"      element={<Navigate to="/mypage" replace />} />
           <Route path="/mypage/cancel-return" element={<Navigate to="/mypage" replace />} />
           <Route path="/mypage/restock"       element={<Navigate to="/mypage" replace />} />

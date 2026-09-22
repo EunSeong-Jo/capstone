@@ -328,3 +328,112 @@ async def test_stats_counts_real_rows(client: AsyncClient, account, product_ids)
     assert stats["cartCount"] == 0, "주문하면 장바구니가 비워진다"
     assert stats["orderCount"] == 1
     assert stats["totalSpent"] == order["total"]
+
+
+# ── 선물하기 ──────────────────────────────────────────────────
+
+GIFTS = "/api/v1/gifts"
+
+
+async def test_gift_requires_auth(client: AsyncClient, product_ids: list[int]) -> None:
+    res = await client.post(
+        GIFTS, json={"productId": product_ids[0], "recipientName": "친구"}
+    )
+    assert res.status_code == 401
+
+    res = await client.get(f"{ME}/gifts/sent")
+    assert res.status_code == 401
+
+
+async def test_gift_rejects_unknown_product(client: AsyncClient, account) -> None:
+    res = await client.post(
+        GIFTS,
+        headers=account["headers"],
+        json={"productId": NO_SUCH_PRODUCT, "recipientName": "친구"},
+    )
+    assert res.status_code == 404
+
+
+async def test_gift_requires_recipient_name(
+    client: AsyncClient, account, product_ids: list[int]
+) -> None:
+    res = await client.post(
+        GIFTS,
+        headers=account["headers"],
+        json={"productId": product_ids[0], "recipientName": ""},
+    )
+    assert res.status_code == 422
+
+
+async def test_gift_records_and_lists(
+    client: AsyncClient, account, product_ids: list[int]
+) -> None:
+    res = await client.post(
+        GIFTS,
+        headers=account["headers"],
+        json={
+            "productId": product_ids[0],
+            "recipientName": "  친구  ",
+            "message": "생일 축하해",
+        },
+    )
+    assert res.status_code == 201, res.text
+    gift = res.json()
+
+    # 이름·가격은 그 시점 값이 박제된다(order_items와 같은 이유).
+    assert gift["productId"] == product_ids[0]
+    assert gift["productName"]
+    assert gift["unitPrice"] >= 0
+    assert gift["recipientName"] == "친구"  # 앞뒤 공백은 서버가 다듬는다
+    assert gift["status"] == "pending"
+
+    listed = await client.get(f"{ME}/gifts/sent", headers=account["headers"])
+    assert listed.status_code == 200
+    assert [g["id"] for g in listed.json()] == [gift["id"]]
+
+
+async def test_gift_never_stores_contact_details(
+    client: AsyncClient, account, product_ids: list[int]
+) -> None:
+    """연락처는 받지도 돌려주지도 않는다.
+
+    전달 경로가 없어 쓰이지 않는데, 쓰이지도 않는 제3자의 개인정보를 공용
+    DB에 쌓게 된다. 실수로 컬럼이 다시 생기면 여기서 걸린다.
+    """
+    res = await client.post(
+        GIFTS,
+        headers=account["headers"],
+        json={
+            "productId": product_ids[0],
+            "recipientName": "친구",
+            "recipientPhone": "010-1234-5678",
+        },
+    )
+    assert res.status_code == 201
+    assert "recipientPhone" not in res.json()
+
+
+async def test_gift_list_is_scoped_to_sender(
+    client: AsyncClient, account, product_ids: list[int]
+) -> None:
+    """남이 보낸 선물이 내 목록에 보이면 안 된다."""
+    await client.post(
+        GIFTS,
+        headers=account["headers"],
+        json={"productId": product_ids[0], "recipientName": "친구"},
+    )
+
+    other_email = f"pytest-{uuid.uuid4().hex[:12]}@example.com"
+    signup = await client.post(
+        f"{AUTH}/signup",
+        json={"email": other_email, "password": PASSWORD, "nickname": "남"},
+    )
+    other = {"Authorization": f"Bearer {signup.json()['accessToken']}"}
+    try:
+        res = await client.get(f"{ME}/gifts/sent", headers=other)
+        assert res.status_code == 200
+        assert res.json() == []
+    finally:
+        async with AsyncSessionLocal() as db:
+            await db.execute(delete(User).where(User.email == other_email))
+            await db.commit()
