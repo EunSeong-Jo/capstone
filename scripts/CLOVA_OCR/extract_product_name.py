@@ -18,11 +18,6 @@ from pathlib import Path
 
 _FORMATS = {".png": "png", ".jpg": "jpg", ".jpeg": "jpg"}
 
-# 텍스트 유사도(pg_trgm) vs 이미지 유사도(pHash) 가중치. 텍스트 쪽을 더 믿는 이유:
-# 매대 사진은 정품 스튜디오컷과 각도·배경·조명이 달라 pHash가 구조적으로 불리하다.
-TEXT_WEIGHT = 0.7
-IMAGE_WEIGHT = 0.3
-
 
 # ── 영어 → 한글 발음 전사 ──────────────────────────────────────────────
 # DB(products.name·brands.name)는 전부 한글인데 포장은 영문인 경우(Torriden,
@@ -162,82 +157,69 @@ def draw(image_path: Path, top: list[TextField], everything: list[TextField], ou
     img.save(out_path)
 
 
-def combine_score(text_sim: float, image_sim: float | None) -> float:
-    """text_sim·image_sim(0~1)을 가중합한다. 이미지 비교 실패 시 텍스트만으로 채점."""
-    if image_sim is None:
-        return text_sim
-    return TEXT_WEIGHT * text_sim + IMAGE_WEIGHT * image_sim
+def _candidate_tokens(candidates: list[TextField]) -> set[str]:
+    """2글자 이상 후보 텍스트 + 영문 후보의 한글 전사(transliterate)를 모은다."""
+    tokens = set()
+    for c in candidates:
+        if len(c.text) < 2:
+            continue
+        tokens.add(c.text)
+        if re.search(r"[a-zA-Z]{2,}", c.text):
+            tokens.add(transliterate(c.text))
+    return tokens
 
 
-def _text_shortlist(candidates: list[TextField], dsn: str, limit: int = 15) -> dict[int, dict]:
-    """OCR 후보 전체를 한 문자열로 합쳐 pg_trgm similarity()로 한 번에 조회한다.
+def match_products_by_overlap(candidates: list[TextField], dsn: str, top_n: int = 3) -> list[dict]:
+    """OCR 후보 텍스트가 제품명에 몇 개나 그대로 포함되는지 세어, 가장 많이 겹치는 top_n을 반환한다.
 
-    후보별로 따로 조회해 최고점만 남기면 "2"·"5"·브랜드명 단독처럼 흔한
-    단어가 자기 혼자 부른 질의에서 비정상적으로 높은 점수를 받아(같은 브랜드
-    제품 전체가 비슷하게 채점됨) 정답보다 앞서는 문제가 있었다. 합쳐서 한 번에
-    비교하면 브랜드+제품명이 같이 들어있는 진짜 정답이 이긴다(실측으로 확인).
+    활성 제품이 수천 건 수준이라 파이썬에서 전수 스캔해도 비용이 무시할 만하다. pg_trgm
+    유사도와 달리 원문 그대로 겹치는지만 보므로 오탐은 적지만, 붙여쓰기 차이("자작나무수분토너"
+    vs DB의 "자작나무 수분 토너")에는 약하다 — match_products_by_trigram()과 병행해서 본다.
     """
     import psycopg2
 
-    words = []
-    for c in candidates:
-        if len(c.text) < 2:
-            continue  # trigram은 2글자 미만이면 무의미
-        words.append(c.text)
-        if re.search(r"[a-zA-Z]{2,}", c.text):
-            words.append(transliterate(c.text))  # 영문 후보는 한글 발음도 같이 대조
-    query_text = " ".join(words)
+    tokens = _candidate_tokens(candidates)
+    if not tokens:
+        return []
+
+    with psycopg2.connect(dsn) as conn, conn.cursor() as cur:
+        cur.execute("SELECT id, COALESCE(display_name, name) FROM products WHERE status = 'active'")
+        rows = cur.fetchall()
+
+    scored = []
+    for pid, name in rows:
+        matched = [t for t in tokens if t in name]
+        if matched:
+            scored.append({"id": pid, "name": name, "overlap": len(matched), "matched": matched})
+
+    return sorted(scored, key=lambda r: r["overlap"], reverse=True)[:top_n]
+
+
+def match_products_by_trigram(candidates: list[TextField], dsn: str, top_n: int = 3) -> list[dict]:
+    """OCR 후보 전체를 한 문자열로 합쳐 pg_trgm similarity()로 대조한다 (겹침 개수 방식의 보완용).
+
+    붙여쓰기·어순 차이에 강하지만, 흔한 단어 하나가 튀면 오탐이 날 수 있다 — 후보를
+    합쳐서 한 번에 비교해 그 영향을 줄인다(브랜드+제품명이 같이 들어있는 진짜 정답이 이김).
+    """
+    import psycopg2
+
+    tokens = _candidate_tokens(candidates)
+    query_text = " ".join(tokens)
     if not query_text:
-        return {}
+        return []
+
     with psycopg2.connect(dsn) as conn, conn.cursor() as cur:
         cur.execute(
             """
-            SELECT id, COALESCE(display_name, name), image_url,
-                   similarity(COALESCE(display_name, name), %s) AS sim
+            SELECT id, COALESCE(display_name, name), similarity(COALESCE(display_name, name), %s) AS sim
             FROM products
             WHERE status = 'active'
             ORDER BY sim DESC
             LIMIT %s
             """,
-            (query_text, limit),
+            (query_text, top_n),
         )
-        return {
-            pid: {"id": pid, "name": name, "image_url": image_url, "text_sim": float(sim)}
-            for pid, name, image_url, sim in cur.fetchall()
-        }
-
-
-def _image_sim(photo_hash, image_url: str, timeout: float = 10) -> float | None:
-    """제품 이미지를 내려받아 pHash 해밍 거리를 0~1 유사도로 변환한다. 실패하면 None."""
-    import imagehash
-    import requests
-    from io import BytesIO
-    from PIL import Image
-
-    try:
-        resp = requests.get(image_url, timeout=timeout)
-        resp.raise_for_status()
-        product_hash = imagehash.phash(Image.open(BytesIO(resp.content)).convert("RGB"))
-    except Exception:
-        return None
-    return 1 - (photo_hash - product_hash) / len(photo_hash.hash) ** 2
-
-
-def match_products(image_path: Path, candidates: list[TextField], dsn: str, top_n: int = 3) -> list[dict]:
-    """OCR 후보 텍스트로 DB를 좁힌 뒤, 후보 제품 이미지와 실물 사진을 pHash로 대조해 재정렬한다."""
-    import imagehash
-    from PIL import Image, ImageOps
-
-    shortlist = _text_shortlist(candidates, dsn)
-    if not shortlist:
-        return []
-
-    photo_hash = imagehash.phash(ImageOps.exif_transpose(Image.open(image_path)).convert("RGB"))
-    for row in shortlist.values():
-        row["image_sim"] = _image_sim(photo_hash, row["image_url"]) if row["image_url"] else None
-        row["score"] = combine_score(row["text_sim"], row["image_sim"])
-
-    return sorted(shortlist.values(), key=lambda r: r["score"], reverse=True)[:top_n]
+        return [{"id": pid, "name": name, "sim": float(sim)} for pid, name, sim in cur.fetchall()]
 
 
 def demo() -> None:
@@ -249,10 +231,6 @@ def demo() -> None:
     ]
     ranked = rank_by_height(fake_fields)
     assert [t.text for t in ranked] == ["이니스프리", "그린티씨드세럼", "1매당"], ranked
-
-    assert combine_score(0.8, None) == 0.8  # 이미지 비교 실패 시 텍스트만
-    assert abs(combine_score(1.0, 1.0) - 1.0) < 1e-9
-    assert abs(combine_score(0.0, 1.0) - IMAGE_WEIGHT) < 1e-9
 
     assert transliterate("bifida") == "비피다"  # DB 표기와 정확히 일치하는 케이스
     assert transliterate("torriden")[:2] == "토리"  # 근사치라 끝 음절까지는 안 맞아도 앞은 맞아야 함
@@ -266,7 +244,7 @@ if __name__ == "__main__":
     parser.add_argument("image", nargs="?", type=Path, help="제품 정면 사진 경로")
     parser.add_argument("--top", type=int, default=10, help="후보 개수 (기본 10)")
     parser.add_argument("--draw", action="store_true", help="추출 영역을 박스로 그린 이미지를 output/에 저장")
-    parser.add_argument("--search", action="store_true", help="전체 후보 텍스트 + 제품 이미지로 DB 대조, 최유사 3개 출력")
+    parser.add_argument("--search", action="store_true", help="전체 후보 텍스트로 DB 대조 (겹침 개수 + pg_trgm 유사도 병행), 각 3개 출력")
     parser.add_argument("--demo", action="store_true", help="API 호출 없이 자체 테스트만 실행")
     args = parser.parse_args()
 
@@ -292,11 +270,11 @@ if __name__ == "__main__":
 
     if args.search and candidates:
         dsn = os.environ["DATABASE_DSN"]
-        matches = match_products(args.image, candidates, dsn)
-        print(f"\nDB 대조 결과 (텍스트 {TEXT_WEIGHT} + 이미지 {IMAGE_WEIGHT} 가중):")
-        for m in matches:
-            img_sim = "n/a" if m["image_sim"] is None else f"{m['image_sim']:.2f}"
-            print(
-                f"  - {m['name']} (id={m['id']}, score={m['score']:.2f}, "
-                f"text={m['text_sim']:.2f}, image={img_sim})"
-            )
+
+        print("\nDB 대조 결과 — 겹치는 텍스트 개수순:")
+        for m in match_products_by_overlap(candidates, dsn):
+            print(f"  - {m['name']} (id={m['id']}, overlap={m['overlap']}, matched={m['matched']})")
+
+        print("\nDB 대조 결과 — pg_trgm 유사도순:")
+        for m in match_products_by_trigram(candidates, dsn):
+            print(f"  - {m['name']} (id={m['id']}, sim={m['sim']:.2f})")
