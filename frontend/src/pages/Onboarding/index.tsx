@@ -50,7 +50,7 @@ export default function OnboardingPage() {
   const location = useLocation();
   const [params, setParams] = useSearchParams();
   const { profile } = useUserProfile();
-  const { saveDiagnosis } = useDiagnosis();
+  const { saveDiagnosis, hasDiagnosis, loading: diagLoading } = useDiagnosis();
 
   const rawStep = params.get('step');
   // 결과 화면은 type을 URL에 담아 자기 완결적으로 만든다. 카드 → ✕ → /home → 뒤로가기는
@@ -60,6 +60,25 @@ export default function OnboardingPage() {
   const step: Step = !isStep(rawStep) || (needsType && !cardType) ? 'greeting' : rawStep;
   const greetingIndex = clampIndex(params.get('g'), GREETING_COUNT);
   const qIndex = clampIndex(params.get('q'), QUESTION_COUNT);
+
+  /**
+   * 이미 진단을 마친 사람에게 인삿말을 다시 보여주지 않는다.
+   *
+   * 로그인은 항상 여기로 온다(`/onboarding`). 진단 기록이 있으면 홈이
+   * 목적지다 — 퀴즈를 또 시킬 이유가 없다.
+   *
+   * `diagLoading`을 먼저 보는 것이 핵심이다. 로그인 직후에는
+   * `/diagnosis/latest` 응답 전이라 `hasDiagnosis`가 잠깐 false이고, 그때
+   * 판정하면 **다른 기기에서 진단한 사용자가 퀴즈를 다시 본다.**
+   *
+   * greeting 단계에만 적용한다. 재진단(`/qna` → `step=question`)과 결과
+   * 화면은 그대로 열려야 한다.
+   */
+  const skipGreeting = step === 'greeting' && !diagLoading && hasDiagnosis;
+
+  useEffect(() => {
+    if (skipGreeting) navigate('/home', { replace: true });
+  }, [skipGreeting, navigate]);
 
   // 단계 위치가 아닌 상태는 React state로 둔다. 검색 파라미터만 바뀌면 언마운트되지
   // 않으므로 세션 내 뒤/앞으로가기에서 살아남는다. 리마운트(새로고침·타 라우트 경유)
@@ -107,6 +126,16 @@ export default function OnboardingPage() {
     saveRef.current({ ...computed, answers: picked, source: 'quiz' });
     setParams({ step: 'result-msg', type: computed.skinType }, { replace: true });
   }, [setParams]);
+
+  // 인삿말을 띄웠다가 곧바로 홈으로 튕기면 화면이 한 번 번쩍인다. 판정이
+  // 끝날 때까지, 그리고 건너뛰기로 결정된 뒤에는 인삿말을 그리지 않는다.
+  if (step === 'greeting' && (diagLoading || skipGreeting)) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-ob-bg">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-ob-green border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div

@@ -67,7 +67,7 @@ function toResult(dto: DiagnosisDto, succeeded: boolean): DiagnosisResult {
 }
 
 export function DiagnosisProvider({ children }: { children: ReactNode }) {
-  const { scope, status, user: account } = useAuth();
+  const { scope, status, user: account, loading: authLoading } = useAuth();
 
   /** 진단 결과 + 그것이 어느 계정의 것인지. 계정이 바뀌면 이전 결과는 남의 것이다. */
   const [store, setStore] = useState<{ scope: string; result: DiagnosisResult | null }>(
@@ -98,6 +98,15 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
   );
 
   const [justSucceeded, setJustSucceeded] = useState(false);
+
+  /**
+   * 서버 조회를 끝낸 scope. 지금 scope와 다르면 아직 확인 전이다.
+   *
+   * 별도의 loading 상태를 두지 않는 이유는 저장소의 다른 훅들과 같다 —
+   * effect에서 `setLoading(true)`를 부르면 렌더가 한 번 더 돈다
+   * (react-hooks/set-state-in-effect).
+   */
+  const [settledScope, setSettledScope] = useState<string | null>(null);
 
   // 로그인 계정의 서버 진단 조회 — 게스트 결과는 위에서 이미 읽었다.
   useEffect(() => {
@@ -143,7 +152,12 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
         writeJSON(keyOf(scope), next);
         setResult(next);
       }
-    })().catch(() => undefined);
+    })()
+      .catch(() => undefined)
+      .finally(() => {
+        // 승계·조회·페르소나 시드 중 무엇으로 끝났든 "확인은 끝났다".
+        if (alive) setSettledScope(scope);
+      });
 
     return () => {
       alive = false;
@@ -199,12 +213,24 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       result,
       skinType: result?.skinType ?? null,
       hasDiagnosis: !!result,
+      // 비회원은 서버에 물을 것이 없다 — 로컬 값이 곧 답이다.
+      loading: authLoading || (status === 'user' && settledScope !== scope),
       justSucceeded,
       saveDiagnosis,
       clearDiagnosis,
       acknowledgeSuccession,
     }),
-    [result, justSucceeded, saveDiagnosis, clearDiagnosis, acknowledgeSuccession],
+    [
+      result,
+      authLoading,
+      status,
+      settledScope,
+      scope,
+      justSucceeded,
+      saveDiagnosis,
+      clearDiagnosis,
+      acknowledgeSuccession,
+    ],
   );
 
   return <DiagnosisContext.Provider value={value}>{children}</DiagnosisContext.Provider>;
