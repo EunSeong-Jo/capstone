@@ -130,8 +130,9 @@ export type FaceExpression = 'neutral' | 'laugh' | 'thinking' | 'pout';
 export interface CharacterState {
   skinType: SkinType; // 캐릭터가 대표하는 피부타입
   expression: FaceExpression; // 사용 표정 (현재 'neutral' 고정)
-  // 레벨·경험치는 서버에 근거가 없다(GET /me/stats 미구현). 값이 없으면
-  // 대시보드가 그 줄을 통째로 숨긴다 — 고정 목업 숫자를 그리지 않기 위해서다.
+  // 레벨·경험치는 GET /me/stats가 기록에서 계산해 준다(스캔·후기·주문·선물).
+  // 비회원은 셀 대상이 서버에 없어 값이 비고, 그러면 대시보드가 그 줄을
+  // 통째로 숨긴다 — 근거 없는 숫자를 그리지 않기 위해서다.
   level?: number;
   exp?: number;
   nextLevelExp?: number;

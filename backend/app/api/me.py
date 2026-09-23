@@ -28,6 +28,10 @@ router = APIRouter(prefix="/api/v1/me", tags=["me"])
 
 # 진단 8타입. 아무 문자열이나 받으면 화면이 모르는 코드로 캐릭터를 찾다가
 # 깨지므로 여기서 막는다. skin_type_rules의 skin_type과 같은 집합이다.
+# 꾸미기 장식 id. frontend/public/mascot/decoration_*.png 파일 번호와 같다.
+# 없는 번호를 받으면 화면이 깨진 이미지를 그리므로 여기서 막는다.
+DECORATION_IDS = frozenset(range(1, 8))
+
 SKIN_TYPES = frozenset(
     {
         "ondalsam",
@@ -117,6 +121,7 @@ async def read_profile(
         budget_min=profile.budget_min,
         budget_max=profile.budget_max,
         domains=profile.domains,
+        decoration_id=profile.decoration_id,
     )
 
 
@@ -146,6 +151,15 @@ async def update_profile(
     if body.domains is not None:
         profile.domains = body.domains
 
+    if body.decoration_id is not None:
+        # 0은 "장식 해제"다. None(안 보냄)과 구분하려고 0을 쓴다.
+        if body.decoration_id == 0:
+            profile.decoration_id = None
+        elif body.decoration_id not in DECORATION_IDS:
+            raise HTTPException(status_code=422, detail="없는 장식입니다")
+        else:
+            profile.decoration_id = body.decoration_id
+
     await db.commit()
     return ProfileOut(
         skin_type=profile.skin_type,
@@ -153,4 +167,5 @@ async def update_profile(
         budget_min=profile.budget_min,
         budget_max=profile.budget_max,
         domains=profile.domains,
+        decoration_id=profile.decoration_id,
     )

@@ -314,8 +314,8 @@ async def test_stats_counts_real_rows(client: AsyncClient, account, product_ids)
     """예전에는 홈·마이페이지에 {saved: 128400, scans: 21, swaps: 9}가 박혀 있었다."""
     empty = (await client.get(f"{ME}/stats", **account)).json()
     assert empty["closetCount"] == 0 and empty["totalSpent"] == 0
-    # 레벨·경험치는 근거가 없어 내지 않는다.
-    assert "level" not in empty and "exp" not in empty
+    # 레벨·경험치도 기록에서 계산해 낸다. 아무 것도 안 했으면 Lv.1 · 0 EXP다.
+    assert empty["level"] == 1 and empty["exp"] == 0
 
     await client.post(f"{ME}/closet", json={"productId": product_ids[0]}, **account)
     await client.post(f"{ME}/likes", json={"productId": product_ids[1]}, **account)
@@ -437,3 +437,116 @@ async def test_gift_list_is_scoped_to_sender(
         async with AsyncSessionLocal() as db:
             await db.execute(delete(User).where(User.email == other_email))
             await db.commit()
+
+
+# ── 레벨·경험치 ────────────────────────────────────────────────
+
+
+async def test_stats_starts_at_level_one(client: AsyncClient, account) -> None:
+    """아무 것도 안 한 계정은 Lv.1 · 0 EXP다."""
+    res = await client.get(f"{ME}/stats", headers=account["headers"])
+    assert res.status_code == 200
+    body = res.json()
+    assert body["exp"] == 0
+    assert body["level"] == 1
+    assert body["expInLevel"] == 0
+    assert body["levelSpan"] == 100
+
+
+async def test_stats_counts_exp_from_records(
+    client: AsyncClient, account, product_ids: list[int]
+) -> None:
+    """경험치는 **기록에서 센다.**
+
+    클라이언트가 더해 보내는 값이 아니다. 여기서 확인하는 것은 행동을
+    실제로 했을 때 서버가 그 행을 보고 계산한다는 것이다.
+    """
+    before = (await client.get(f"{ME}/stats", headers=account["headers"])).json()
+
+    # 스캔 +10
+    await client.post(
+        f"{ME}/scans",
+        headers=account["headers"],
+        json={"productId": product_ids[0], "source": "search"},
+    )
+    # 주문 +50 (장바구니 → 결제)
+    await client.post(
+        f"{ME}/cart", headers=account["headers"], json={"productId": product_ids[0], "qty": 1}
+    )
+    order = await client.post(ORDERS, headers=account["headers"])
+    assert order.status_code == 201
+    # 후기 +20
+    await client.post(
+        f"{ME}/reviews",
+        headers=account["headers"],
+        json={"orderItemId": order.json()["items"][0]["id"], "rating": 5},
+    )
+    # 선물 +20
+    await client.post(
+        "/api/v1/gifts",
+        headers=account["headers"],
+        json={"productId": product_ids[0], "recipientName": "친구"},
+    )
+
+    after = (await client.get(f"{ME}/stats", headers=account["headers"])).json()
+    assert after["scanCount"] == before["scanCount"] + 1
+    assert after["reviewCount"] == before["reviewCount"] + 1
+    assert after["giftCount"] == before["giftCount"] + 1
+    assert after["exp"] == before["exp"] + 10 + 50 + 20 + 20
+
+
+async def test_stats_level_is_consistent(client: AsyncClient, account) -> None:
+    """레벨·진행도는 서로 어긋나지 않는다."""
+    body = (await client.get(f"{ME}/stats", headers=account["headers"])).json()
+    assert 0 <= body["expInLevel"] < body["levelSpan"]
+    assert body["levelSpan"] == body["level"] * 100
+
+
+# ── 캐릭터 꾸미기 ─────────────────────────────────────────────
+
+
+async def test_decoration_defaults_to_none(client: AsyncClient, account) -> None:
+    res = await client.get(f"{ME}/profile", headers=account["headers"])
+    assert res.status_code == 200
+    assert res.json()["decorationId"] is None
+
+
+async def test_decoration_roundtrip(client: AsyncClient, account) -> None:
+    res = await client.patch(
+        f"{ME}/profile", headers=account["headers"], json={"decorationId": 4}
+    )
+    assert res.status_code == 200
+    assert res.json()["decorationId"] == 4
+
+    again = await client.get(f"{ME}/profile", headers=account["headers"])
+    assert again.json()["decorationId"] == 4
+
+
+async def test_decoration_zero_clears_it(client: AsyncClient, account) -> None:
+    """0은 해제다. null은 '안 보냈다'라서 해제와 구분되지 않는다."""
+    await client.patch(f"{ME}/profile", headers=account["headers"], json={"decorationId": 4})
+    res = await client.patch(
+        f"{ME}/profile", headers=account["headers"], json={"decorationId": 0}
+    )
+    assert res.status_code == 200
+    assert res.json()["decorationId"] is None
+
+
+async def test_decoration_rejects_unknown_id(client: AsyncClient, account) -> None:
+    """에셋이 없는 번호를 받으면 화면이 깨진 이미지를 그린다."""
+    res = await client.patch(
+        f"{ME}/profile", headers=account["headers"], json={"decorationId": 99}
+    )
+    assert res.status_code == 422
+
+
+async def test_decoration_survives_other_profile_edits(
+    client: AsyncClient, account
+) -> None:
+    """다른 필드만 보내면 장식은 그대로다(부분 수정)."""
+    await client.patch(f"{ME}/profile", headers=account["headers"], json={"decorationId": 2})
+    res = await client.patch(
+        f"{ME}/profile", headers=account["headers"], json={"budgetMin": 10000}
+    )
+    assert res.status_code == 200
+    assert res.json()["decorationId"] == 2

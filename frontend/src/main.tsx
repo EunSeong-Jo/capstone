@@ -10,6 +10,7 @@ import { ClosetProvider } from './context/ClosetContext.tsx'
 import { CartProvider } from './context/CartContext.tsx'
 import { LikedProductsProvider } from './context/LikedProductsContext.tsx'
 import { UserProfileProvider } from './context/UserProfileContext.tsx'
+import { CharacterProvider } from './context/CharacterContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -25,7 +26,10 @@ createRoot(document.getElementById('root')!).render(
                     (UserProfileContext.tsx의 TODO) useAuth에 닿을 수 있어야 한다. */}
                 <UserProfileProvider>
                   <LikedProductsProvider>
-                    <App />
+                    {/* 꾸미기는 진단 결과(마스코트)와 함께 그려진다. */}
+                    <CharacterProvider>
+                      <App />
+                    </CharacterProvider>
                   </LikedProductsProvider>
                 </UserProfileProvider>
               </CartProvider>

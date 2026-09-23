@@ -70,6 +70,7 @@ from app.schemas.personal import (
     StatsOut,
 )
 from app.schemas.product import ProductOut
+from app.services.experience import level_of, total_exp
 
 router = APIRouter(prefix="/api/v1/me", tags=["personal"])
 orders_router = APIRouter(prefix="/api/v1/orders", tags=["orders"])
@@ -716,8 +717,11 @@ async def read_stats(
     """전부 실제 행에서 센다.
 
     예전에는 홈과 마이페이지에 `{saved: 128400, scans: 21, swaps: 9}` 같은
-    고정값이 박혀 있었다. 레벨·경험치는 내지 않는다 — 무엇으로 오르는지
-    정한 적이 없어서 숫자를 만들면 그 자체가 또 다른 더미가 된다.
+    고정값이 박혀 있었다.
+
+    **레벨·경험치도 여기서 계산한다.** 클라이언트가 행동할 때마다 더해
+    나가면 값이 그 브라우저에만 쌓여 기기를 바꾸면 0부터 다시 시작하고,
+    콘솔에서 고쳐도 서버는 모른다. 계산식은 services/experience.py에 있다.
     """
 
     async def count(model) -> int:
@@ -753,14 +757,35 @@ async def read_stats(
         or 0
     )
 
+    scans = await count(ScanResult)
+    reviews = await count(Review)
+    orders = await count(Order)
+    gifts = int(
+        await db.scalar(
+            select(func.count())
+            .select_from(Gift)
+            .where(Gift.sender_user_id == user.id)
+        )
+        or 0
+    )
+
+    exp = total_exp(scans=scans, reviews=reviews, orders=orders, gifts=gifts)
+    level, exp_in_level, level_span = level_of(exp)
+
     return StatsOut(
         closet_count=await count(ClosetItem),
         cart_count=cart_qty,
         like_count=await count(Like),
-        order_count=await count(Order),
-        scan_count=await count(ScanResult),
+        order_count=orders,
+        scan_count=scans,
+        review_count=reviews,
+        gift_count=gifts,
         total_spent=spent,
         point_balance=points,
+        exp=exp,
+        level=level,
+        exp_in_level=exp_in_level,
+        level_span=level_span,
     )
 
 

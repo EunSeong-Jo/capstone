@@ -20,6 +20,7 @@ import {
 import { useProducts } from '../../hooks/useProducts';
 import { useRecommendations } from '../../hooks/useRecommendations';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
+import { useStats } from '../../hooks/useStats';
 import { useSwapSuggestion } from '../../hooks/useSwapSuggestion';
 import { useWeather } from '../../hooks/useWeather';
 import { useCareTip } from '../../hooks/useCareTip';
@@ -91,6 +92,7 @@ export default function HomePage() {
   const { user: persona, isUser } = useAuth();
   const { skinType: diagType, justSucceeded, acknowledgeSuccession } = useDiagnosis();
   const { items: closetItems } = useCloset();
+  const { stats } = useStats();
   const { addToCart } = useCart();
   const [setOpen, setSetOpen] = useState(false);
 
@@ -166,8 +168,24 @@ export default function HomePage() {
   const dashUser: ProfileUser = isUser && persona
     ? { nickname: persona.nickname, skinType, memberSince: persona.memberSince, email: persona.email }
     : { ...profile, skinType };
-  // 레벨·경험치는 서버 근거가 없어 넘기지 않는다(ProfileDashboard가 줄을 숨긴다).
-  const dashCharacter: CharacterState = { skinType, expression: 'neutral' };
+  /**
+   * 레벨·경험치는 `GET /me/stats`가 **기록에서 계산해** 준다(스캔·후기·
+   * 주문·선물). 클라이언트가 더해 나가지 않으므로 기기를 바꿔도 같다.
+   *
+   * 비회원은 stats가 null이라 값을 넘기지 않고, ProfileDashboard가 그 줄을
+   * 통째로 숨긴다 — 근거 없는 숫자를 그리지 않기 위해서다.
+   */
+  const dashCharacter: CharacterState = {
+    skinType,
+    expression: 'neutral',
+    ...(stats
+      ? {
+          level: stats.level,
+          exp: stats.expInLevel,
+          nextLevelExp: stats.levelSpan,
+        }
+      : {}),
+  };
   const dashRegistry: RegistrySummary = {
     count: closetItems.length,
     totalSavings,

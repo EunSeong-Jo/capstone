@@ -130,8 +130,9 @@ class StatsOut(_CamelModel):
     전부 실제 행에서 센다. 예전에는 이 자리에 `{saved: 128400, scans: 21,
     swaps: 9}` 같은 고정값이 박혀 있었다.
 
-    레벨·경험치는 내지 않는다. 무엇으로 오르는지 정한 적이 없어서,
-    숫자를 만들면 그 자체가 또 다른 더미가 된다.
+    **레벨·경험치도 기록에서 계산한다.** 클라이언트가 더해 나가지 않는다 —
+    그러면 브라우저마다 값이 달라지고 조작도 된다. 근거가 되는 행동
+    (스캔·후기·주문·선물)이 전부 테이블에 있으므로 셀 수 있다.
     """
 
     closet_count: int
@@ -139,9 +140,17 @@ class StatsOut(_CamelModel):
     like_count: int
     order_count: int
     scan_count: int
+    review_count: int
+    gift_count: int
     # 실제로 결제한 총액. 주문 기록의 합이다.
     total_spent: int
     point_balance: int
+    # 누적 경험치와 그로부터 나온 레벨. 계산식은 services/experience.py에 있다.
+    exp: int
+    level: int
+    # 이번 레벨 안에서의 진행. 진행바가 exp_in_level / level_span을 그린다.
+    exp_in_level: int
+    level_span: int
 
 
 class GiftIn(_CamelModel):

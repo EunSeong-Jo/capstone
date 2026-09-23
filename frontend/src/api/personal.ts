@@ -92,8 +92,19 @@ export interface StatsDto {
   likeCount: number;
   orderCount: number;
   scanCount: number;
+  reviewCount: number;
+  giftCount: number;
   totalSpent: number;
   pointBalance: number;
+  /**
+   * 누적 경험치와 레벨. **서버가 기록에서 계산한다** — 스캔·후기·주문·선물
+   * 행을 센다. 클라이언트가 더해 나가지 않으므로 기기를 바꿔도 같다.
+   */
+  exp: number;
+  level: number;
+  /** 진행바용. 이번 레벨 안에서의 경험치 / 다음 레벨까지의 폭 */
+  expInLevel: number;
+  levelSpan: number;
 }
 
 /** 204 응답용. postJson은 JSON 본문을 기대하므로 따로 둡니다. */

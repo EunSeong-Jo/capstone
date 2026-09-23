@@ -31,6 +31,8 @@ export interface UserProfileOut {
   budgetMin: number | null;
   budgetMax: number | null;
   domains: string[] | null;
+  /** 캐릭터 꾸미기 장식. null이면 없음. */
+  decorationId: number | null;
 }
 
 export function signup(
@@ -97,4 +99,22 @@ export function changePassword(
 
 export function fetchMyProfile(): Promise<UserProfileOut> {
   return request<UserProfileOut>('/api/v1/me/profile');
+}
+
+/**
+ * 프로필 부분 수정. 보내지 않은 필드는 서버가 건드리지 않습니다.
+ *
+ * `decorationId: 0`은 **장식 해제**입니다 — `null`을 보내면 "안 보냄"과
+ * 구분되지 않아 해제할 방법이 없습니다.
+ */
+export function updateMyProfile(
+  patch: Partial<{
+    skinType: string;
+    budgetMin: number;
+    budgetMax: number;
+    domains: string[];
+    decorationId: number;
+  }>,
+): Promise<UserProfileOut> {
+  return patchJson<UserProfileOut>('/api/v1/me/profile', patch);
 }

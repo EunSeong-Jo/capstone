@@ -87,6 +87,8 @@ class ProfileOut(_CamelModel):
     budget_min: int | None = None
     budget_max: int | None = None
     domains: list | None = None
+    # 캐릭터 꾸미기 장식. None이면 장식 없음.
+    decoration_id: int | None = None
 
 
 class ProfileIn(_CamelModel):
@@ -96,6 +98,8 @@ class ProfileIn(_CamelModel):
     budget_min: int | None = Field(default=None, ge=0)
     budget_max: int | None = Field(default=None, ge=0)
     domains: list[str] | None = None
+    # 0을 "장식 없음"으로 쓴다. None은 "안 보냈다"라서 해제와 구분되지 않는다.
+    decoration_id: int | None = Field(default=None, ge=0)
 
 
 class MeIn(_CamelModel):

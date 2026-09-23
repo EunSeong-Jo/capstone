@@ -8,7 +8,16 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, Text, text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    SmallInteger,
+    Text,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -64,6 +73,10 @@ class Profile(Base, TimestampMixin):
     budget_min: Mapped[int | None] = mapped_column(Integer)
     budget_max: Mapped[int | None] = mapped_column(Integer)
     domains: Mapped[list | None] = mapped_column(JSONB)
+    # 캐릭터에 얹은 꾸미기 장식. 에셋은 frontend/public/mascot/decoration_*.png이고
+    # id가 곧 파일 번호다. NULL이면 장식 없음. 예전에는 localStorage에만 있어
+    # 기기를 바꾸면 사라졌다.
+    decoration_id: Mapped[int | None] = mapped_column(SmallInteger)
 
     user: Mapped["User"] = relationship(back_populates="profile")
 
