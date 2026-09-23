@@ -23,6 +23,8 @@ const HistoryPage    = lazy(() => import('./pages/History'));
 const OrderHistoryPage = lazy(() => import('./pages/Mypage/OrderHistoryPage'));
 const GiftComposePage  = lazy(() => import('./pages/Gift/GiftComposePage'));
 const SentGiftsPage    = lazy(() => import('./pages/Mypage/SentGiftsPage'));
+const NotificationsPage = lazy(() => import('./pages/Notifications'));
+const NoticesPage      = lazy(() => import('./pages/Mypage/NoticesPage'));
 const OrderDetailPage  = lazy(() => import('./pages/Mypage/OrderDetailPage'));
 const OrderTrackingPage = lazy(() => import('./pages/Mypage/OrderTrackingPage'));
 const PointsPage      = lazy(() => import('./pages/Mypage/PointsPage'));
@@ -82,6 +84,7 @@ export default function App() {
           <Route path="/mypage/order-history/:orderId" element={mine(<OrderDetailPage />)} />
           <Route path="/mypage/order-history/:orderId/tracking" element={mine(<OrderTrackingPage />)} />
           <Route path="/gift/:productId"      element={mine(<GiftComposePage />)} />
+          <Route path="/notifications"        element={mine(<NotificationsPage />)} />
           <Route path="/mypage/gifts"         element={mine(<SentGiftsPage />)} />
           <Route path="/mypage/points"        element={mine(<PointsPage />)} />
           <Route path="/mypage/reviews"       element={mine(<ReviewPage />)} />
@@ -93,6 +96,7 @@ export default function App() {
           <Route path="/mypage/settings/email"    element={mine(<EmailChangePage />)} />
           <Route path="/mypage/settings/password" element={mine(<PasswordChangePage />)} />
           <Route path="/mypage/settings/withdraw" element={mine(<WithdrawPage />)} />
+          <Route path="/mypage/settings/notices"  element={<NoticesPage />} />
           <Route path="/mypage/settings/terms"    element={<LegalPage doc="terms" />} />
           <Route path="/mypage/settings/privacy"  element={<LegalPage doc="privacy" />} />
           {/* 실제 결제·배송이 없어 근거를 만들 수 없던 화면들. 라우트만

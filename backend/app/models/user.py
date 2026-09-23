@@ -77,6 +77,11 @@ class Profile(Base, TimestampMixin):
     # id가 곧 파일 번호다. NULL이면 장식 없음. 예전에는 localStorage에만 있어
     # 기기를 바꾸면 사라졌다.
     decoration_id: Mapped[int | None] = mapped_column(SmallInteger)
+    # 알림함을 마지막으로 연 시각. 이보다 새로운 알림이 '안 읽음'이다.
+    # 알림 자체는 저장하지 않고 기록에서 뽑으므로, 읽음 표시만 여기 둔다.
+    notifications_seen_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
 
     user: Mapped["User"] = relationship(back_populates="profile")
 

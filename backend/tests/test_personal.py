@@ -550,3 +550,97 @@ async def test_decoration_survives_other_profile_edits(
     )
     assert res.status_code == 200
     assert res.json()["decorationId"] == 2
+
+
+# ── 알림 ──────────────────────────────────────────────────────
+
+NOTI = f"{ME}/notifications"
+
+
+async def test_notifications_require_auth(client: AsyncClient) -> None:
+    assert (await client.get(NOTI)).status_code == 401
+    assert (await client.post(f"{NOTI}/seen")).status_code == 401
+
+
+async def test_notifications_start_empty(client: AsyncClient, account) -> None:
+    """아무 것도 안 한 계정은 알릴 것이 없다.
+
+    알림은 저장돼 있지 않고 기록에서 뽑으므로, 기록이 없으면 비는 게 맞다.
+    """
+    res = await client.get(NOTI, headers=account["headers"])
+    assert res.status_code == 200
+    body = res.json()
+    assert body["items"] == []
+    assert body["unreadCount"] == 0
+
+
+async def test_notifications_come_from_records(
+    client: AsyncClient, account, product_ids: list[int]
+) -> None:
+    await client.post(
+        f"{ME}/cart", headers=account["headers"], json={"productId": product_ids[0], "qty": 1}
+    )
+    order = await client.post(ORDERS, headers=account["headers"])
+    assert order.status_code == 201
+
+    res = await client.get(NOTI, headers=account["headers"])
+    kinds = {i["kind"] for i in res.json()["items"]}
+    # 주문 → 주문 알림 · 포인트 적립 알림 · 아직 안 쓴 후기 알림
+    assert {"order", "point", "review"} <= kinds
+    assert res.json()["unreadCount"] > 0
+
+
+async def test_notifications_never_invent_price_or_restock(
+    client: AsyncClient, account, product_ids: list[int]
+) -> None:
+    """가격 인하·재입고 알림은 만들지 않는다.
+
+    가격 이력 테이블이 없고 재입고 신청 기능 자체가 없다. 근거 없이
+    내보내면 목업과 다를 바 없다 — 옮겨 온 판이 그랬다.
+    """
+    await client.post(
+        f"{ME}/cart", headers=account["headers"], json={"productId": product_ids[0], "qty": 1}
+    )
+    await client.post(ORDERS, headers=account["headers"])
+
+    kinds = {i["kind"] for i in (await client.get(NOTI, headers=account["headers"])).json()["items"]}
+    assert "price" not in kinds and "restock" not in kinds
+
+
+async def test_notifications_seen_clears_unread(
+    client: AsyncClient, account, product_ids: list[int]
+) -> None:
+    await client.post(
+        f"{ME}/cart", headers=account["headers"], json={"productId": product_ids[0], "qty": 1}
+    )
+    await client.post(ORDERS, headers=account["headers"])
+    assert (await client.get(NOTI, headers=account["headers"])).json()["unreadCount"] > 0
+
+    assert (await client.post(f"{NOTI}/seen", headers=account["headers"])).status_code == 204
+
+    after = (await client.get(NOTI, headers=account["headers"])).json()
+    assert after["unreadCount"] == 0
+    # 읽었다고 사라지지는 않는다 — 목록은 그대로다.
+    assert len(after["items"]) > 0
+
+
+async def test_notifications_are_scoped_to_user(
+    client: AsyncClient, account, product_ids: list[int]
+) -> None:
+    await client.post(
+        f"{ME}/cart", headers=account["headers"], json={"productId": product_ids[0], "qty": 1}
+    )
+    await client.post(ORDERS, headers=account["headers"])
+
+    other_email = f"pytest-{uuid.uuid4().hex[:12]}@example.com"
+    signup = await client.post(
+        f"{AUTH}/signup",
+        json={"email": other_email, "password": PASSWORD, "nickname": "남"},
+    )
+    other = {"Authorization": f"Bearer {signup.json()['accessToken']}"}
+    try:
+        assert (await client.get(NOTI, headers=other)).json()["items"] == []
+    finally:
+        async with AsyncSessionLocal() as db:
+            await db.execute(delete(User).where(User.email == other_email))
+            await db.commit()

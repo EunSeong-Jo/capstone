@@ -176,3 +176,25 @@ class GiftOut(_CamelModel):
     message: str | None = None
     status: str
     created_at: datetime
+
+
+class NotificationOut(_CamelModel):
+    """알림 한 건.
+
+    **테이블에 저장된 것이 아니라 기록에서 뽑은 것이다.** id는 출처를
+    가리키는 문자열이고(`order:<uuid>` 같은), 화면은 key로만 쓴다.
+    """
+
+    id: str
+    kind: str
+    title: str
+    body: str
+    at: datetime
+    link: str | None = None
+    # profiles.notifications_seen_at 이후에 생긴 것.
+    unread: bool
+
+
+class NotificationsOut(_CamelModel):
+    items: list[NotificationOut]
+    unread_count: int

@@ -273,3 +273,40 @@ class TestUnitPrice:
         assert res.status_code == 200
         for item in res.json()["items"]:
             assert (item.get("unitPrice") is None) == (item.get("unitLabel") is None)
+
+
+# ── 제품 후기 ─────────────────────────────────────────────────
+
+
+async def test_product_reviews_empty_by_default(client: AsyncClient) -> None:
+    """후기는 산 제품에만 쓸 수 있어서, 대부분의 제품은 비어 있다.
+
+    `products.review_count`(크롤링으로 받아 온 올리브영 리뷰 수)와 다른
+    값이다 — 저쪽은 내용을 갖고 있지 않다.
+    """
+    listing = await client.get("/api/v1/products", params={"size": 1})
+    product_id = listing.json()["items"][0]["id"]
+
+    res = await client.get(f"/api/v1/products/{product_id}/reviews")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["items"] == []
+    assert body["total"] == 0
+    # 0.0이 아니라 null이다. 0.0으로 내면 "최악"과 "아직 없음"이 같아 보인다.
+    assert body["average"] is None
+    assert body["distribution"] == {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
+
+
+async def test_product_reviews_404_for_unknown_product(client: AsyncClient) -> None:
+    res = await client.get("/api/v1/products/999999999/reviews")
+    assert res.status_code == 404
+
+
+async def test_product_reviews_never_expose_email(client: AsyncClient) -> None:
+    """작성자는 닉네임만 낸다."""
+    listing = await client.get("/api/v1/products", params={"size": 1})
+    product_id = listing.json()["items"][0]["id"]
+
+    res = await client.get(f"/api/v1/products/{product_id}/reviews")
+    for item in res.json()["items"]:
+        assert "email" not in item and "userId" not in item

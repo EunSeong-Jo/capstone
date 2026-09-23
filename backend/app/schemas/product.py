@@ -16,6 +16,8 @@ brand·category는 FK지만 응답에서는 **문자열**로 편다. 프론트 �
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
@@ -104,3 +106,33 @@ class ProductListOut(_CamelModel):
     total: int
     page: int
     size: int
+
+
+class ProductReviewOut(_CamelModel):
+    """제품 상세의 후기 한 건.
+
+    작성자는 닉네임만 낸다 — 이메일·id를 내보낼 이유가 없다. 닉네임이 없는
+    계정은 서버가 가려 준다.
+    """
+
+    id: int
+    nickname: str
+    rating: int
+    body: str | None = None
+    created_at: datetime
+
+
+class ProductReviewsOut(_CamelModel):
+    """후기 목록 + 평점 분포.
+
+    `distribution`은 5점부터 1점까지의 건수다. 별점 막대를 그리는 화면이
+    목록을 다시 세지 않아도 되고, 페이지를 넘겨도 분포는 전체 기준으로
+    고정된다.
+    """
+
+    items: list[ProductReviewOut]
+    total: int
+    # 소수 첫째 자리까지. 후기가 없으면 None이다 — 0.0으로 내면 "최악"과
+    # "아직 없음"이 같아 보인다.
+    average: float | None = None
+    distribution: dict[int, int]
