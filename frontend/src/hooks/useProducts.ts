@@ -26,7 +26,7 @@ interface UseProductsResult {
  * 조회가 실패했을 때의 동작은 환경에 따라 다릅니다(VITE_MOCK_FALLBACK).
  *
  *   로컬 `npm run dev` (백엔드 없이 화면만 보는 경우)
- *     → mocks/oliveyoung.ts의 상품 풀로 폴백하고 `isMock=true`를 올립니다.
+ *     → 실 API 캡처본(mocks/products.fixture.json)으로 폴백하고 `isMock=true`를 올립니다.
  *       화면에는 목업임을 알리는 배너가 뜹니다(pages/Home의 MockBanner).
  *   도커 compose · 프로덕션 빌드
  *     → 폴백하지 않고 오류를 그대로 노출합니다.

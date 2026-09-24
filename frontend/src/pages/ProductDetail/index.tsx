@@ -11,6 +11,7 @@ import { useRecentlyViewed } from '../../hooks/useRecentlyViewed';
 import { Product } from '../../types';
 import { countIngredients, groupIngredients } from '../../utils/ingredients';
 import type { ProductIngredient } from '../../api/products';
+import { ProductReviews } from '../../components/product/ProductReviews';
 
 /** 처음에 펼쳐 보여줄 성분 개수. 제품당 중앙값이 37개라 20개면 절반쯤 보입니다. */
 const PREVIEW_COUNT = 20;
@@ -404,10 +405,7 @@ export default function ProductDetailPage() {
             reason="피부타입 진단을 연결하면 이 제품이 내 피부에 맞는지 알려드려요."
           />
           <Divider />
-          <ComingSoon
-            title="리뷰"
-            reason="리뷰는 아직 수집하지 않았습니다. 별점과 리뷰 수만 먼저 제공합니다."
-          />
+          <ProductReviews productId={product.id} />
         </main>
       )}
 
@@ -417,6 +415,14 @@ export default function ProductDetailPage() {
           className="fixed bottom-0 left-1/2 z-30 flex w-full max-w-[430px] -translate-x-1/2 gap-2 border-t border-oy-line bg-white px-4 pt-3"
           style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}
         >
+          <button
+            type="button"
+            aria-label="선물하기"
+            onClick={() => navigate(`/gift/${product.id}`)}
+            className="h-[46px] w-[46px] shrink-0 rounded-xl border border-oy-line text-lg active:scale-[.98]"
+          >
+            🎁
+          </button>
           <button
             type="button"
             onClick={() => {

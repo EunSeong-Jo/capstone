@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
-import { OrderDto, fetchOrders, writeReview } from '../../api/personal';
-import { useAuth } from '../../context/auth';
+import { OrderItemDto, writeReview } from '../../api/personal';
+import { ReviewDraft, ReviewWriteSheet } from '../../components/reviews/ReviewWriteSheet';
 import { useCart } from '../../context/cart';
+import { useToast } from '../../context/toast';
+import { useOrders } from '../../hooks/useOrders';
 
 /**
  * 주문내역.
@@ -13,8 +15,11 @@ import { useCart } from '../../context/cart';
  * 지금은 `GET /api/v1/me/orders`가 전부다 — 주문한 적이 없으면 빈 화면이
  * 맞다.
  *
- * '재구매'와 '배송조회' 버튼은 뺐다. 재구매는 장바구니로 보내면 되지만
- * 배송은 흉내 낼 근거가 없다(배송사도 송장도 없다).
+ * 목록 조회는 `useOrders`가 한다 — 주문상세·배송조회와 같은 데이터를 본다.
+ * 게스트 차단은 라우트의 `RequireAuth`가 맡으므로 여기서 다시 보지 않는다.
+ *
+ * '후기 작성'은 예전에 별점 4점을 고정으로 보냈다(입력 화면이 없었다).
+ * 지금은 `ReviewWriteSheet`에서 사용자가 직접 고른다.
  */
 
 const fmtDate = (iso: string) =>
@@ -24,51 +29,27 @@ const fmtDate = (iso: string) =>
 
 export default function OrderHistoryPage() {
   const navigate = useNavigate();
-  const { isUser, loading: authLoading } = useAuth();
   const { addToCart } = useCart();
-  const [orders, setOrders] = useState<OrderDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [writing, setWriting] = useState<number | null>(null);
+  const { orders, loading, reload } = useOrders();
+  const { showToast } = useToast();
+  /** 후기를 쓰는 중인 품목. null이면 시트가 닫혀 있다. */
+  const [target, setTarget] = useState<OrderItemDto | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const reload = () => {
-    fetchOrders()
-      .then(setOrders)
-      .catch(() => setOrders([]))
-      .finally(() => setLoading(false));
+  const submitReview = async (draft: ReviewDraft) => {
+    if (target === null) return;
+    setSaving(true);
+    try {
+      await writeReview(target.id, draft.rating, draft.body);
+      setTarget(null);
+      showToast('후기를 등록했어요');
+      reload();
+    } catch {
+      showToast('후기를 저장하지 못했어요');
+    } finally {
+      setSaving(false);
+    }
   };
-
-  useEffect(() => {
-    // 비회원은 조회하지 않는다. 아래 로그인 안내 화면으로 빠지므로
-    // loading을 되돌릴 필요가 없다.
-    if (authLoading || !isUser) return;
-    reload();
-  }, [isUser, authLoading]);
-
-  const submitReview = async (orderItemId: number) => {
-    setWriting(orderItemId);
-    // 별점 입력 UI는 아직 없다. 5점 고정으로 보내지 않고, 화면이 생기기
-    // 전까지는 기본 4점으로 남긴다 — 만점만 쌓이면 평점이 의미를 잃는다.
-    await writeReview(orderItemId, 4).catch(() => undefined);
-    setWriting(null);
-    reload();
-  };
-
-  if (!authLoading && !isUser) {
-    return (
-      <PageWrapper>
-        <Header showBack title="주문/배송 조회" />
-        <div className="px-4 py-20 text-center">
-          <p className="text-sm text-gray-70">주문내역은 로그인 후에 볼 수 있어요.</p>
-          <button
-            onClick={() => navigate('/login')}
-            className="mt-4 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white active:scale-95"
-          >
-            로그인
-          </button>
-        </div>
-      </PageWrapper>
-    );
-  }
 
   return (
     <PageWrapper>
@@ -96,14 +77,21 @@ export default function OrderHistoryPage() {
         ) : (
           orders.map((order) => (
             <div key={order.id} className="mb-2">
-              <div className="flex items-center justify-between border-b border-gray-10 bg-white px-4 py-3">
+              <button
+                type="button"
+                onClick={() => navigate(`/mypage/order-history/${order.id}`)}
+                className="flex w-full items-center justify-between border-b border-gray-10 bg-white px-4 py-3 text-left active:bg-gray-5"
+              >
                 <span className="text-[15px] font-bold text-gray-100">
                   {fmtDate(order.placedAt)}
                 </span>
-                <span className="text-[13px] font-bold text-gray-100">
-                  {order.total.toLocaleString()}원
+                <span className="flex items-center gap-1">
+                  <span className="text-[13px] font-bold text-gray-100">
+                    {order.total.toLocaleString()}원
+                  </span>
+                  <span className="text-[13px] text-gray-50">›</span>
                 </span>
-              </div>
+              </button>
 
               {order.items.map((item, i) => (
                 <div
@@ -143,11 +131,11 @@ export default function OrderHistoryPage() {
                       재구매
                     </button>
                     <button
-                      disabled={item.reviewed || writing === item.id || item.productId === null}
-                      onClick={() => submitReview(item.id)}
+                      disabled={item.reviewed || item.productId === null}
+                      onClick={() => setTarget(item)}
                       className="rounded-lg border border-gray-20 py-2 text-[13px] font-medium text-gray-100 disabled:opacity-40"
                     >
-                      {item.reviewed ? '후기 작성됨' : writing === item.id ? '저장 중…' : '후기 작성'}
+                      {item.reviewed ? '후기 작성됨' : '후기 작성'}
                     </button>
                   </div>
                 </div>
@@ -156,6 +144,20 @@ export default function OrderHistoryPage() {
           ))
         )}
       </div>
+
+      {/* key로 다시 마운트시켜 별점·본문을 초기화한다 — 시트가 effect로
+          자기 상태를 되돌리지 않아도 된다. */}
+      {target && (
+        <ReviewWriteSheet
+          key={target.id}
+          productLabel={
+            target.brandName ? `${target.brandName} · ${target.productName}` : target.productName
+          }
+          saving={saving}
+          onClose={() => setTarget(null)}
+          onSubmit={submitReview}
+        />
+      )}
     </PageWrapper>
   );
 }

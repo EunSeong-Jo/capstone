@@ -23,7 +23,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import delete, func, select
@@ -37,6 +37,7 @@ from app.db.session import get_db
 from app.models.personal import (
     CartItem,
     ClosetItem,
+    Gift,
     Like,
     Order,
     OrderItem,
@@ -54,6 +55,10 @@ from app.schemas.personal import (
     ClosetItemIn,
     ClosetItemOut,
     FrequentItemOut,
+    GiftIn,
+    GiftOut,
+    NotificationOut,
+    NotificationsOut,
     OrderItemOut,
     OrderOut,
     PointsOut,
@@ -67,9 +72,13 @@ from app.schemas.personal import (
     StatsOut,
 )
 from app.schemas.product import ProductOut
+from app.models.user import Profile
+from app.services.experience import level_of, total_exp
+from app.services.notifications import build_feed
 
 router = APIRouter(prefix="/api/v1/me", tags=["personal"])
 orders_router = APIRouter(prefix="/api/v1/orders", tags=["orders"])
+gifts_router = APIRouter(prefix="/api/v1/gifts", tags=["gifts"])
 
 # 최근 본 상품 보관 개수. 넘으면 오래된 것부터 지운다.
 RECENT_LIMIT = 30
@@ -712,8 +721,11 @@ async def read_stats(
     """전부 실제 행에서 센다.
 
     예전에는 홈과 마이페이지에 `{saved: 128400, scans: 21, swaps: 9}` 같은
-    고정값이 박혀 있었다. 레벨·경험치는 내지 않는다 — 무엇으로 오르는지
-    정한 적이 없어서 숫자를 만들면 그 자체가 또 다른 더미가 된다.
+    고정값이 박혀 있었다.
+
+    **레벨·경험치도 여기서 계산한다.** 클라이언트가 행동할 때마다 더해
+    나가면 값이 그 브라우저에만 쌓여 기기를 바꾸면 0부터 다시 시작하고,
+    콘솔에서 고쳐도 서버는 모른다. 계산식은 services/experience.py에 있다.
     """
 
     async def count(model) -> int:
@@ -749,12 +761,164 @@ async def read_stats(
         or 0
     )
 
+    scans = await count(ScanResult)
+    reviews = await count(Review)
+    orders = await count(Order)
+    gifts = int(
+        await db.scalar(
+            select(func.count())
+            .select_from(Gift)
+            .where(Gift.sender_user_id == user.id)
+        )
+        or 0
+    )
+
+    exp = total_exp(scans=scans, reviews=reviews, orders=orders, gifts=gifts)
+    level, exp_in_level, level_span = level_of(exp)
+
     return StatsOut(
         closet_count=await count(ClosetItem),
         cart_count=cart_qty,
         like_count=await count(Like),
-        order_count=await count(Order),
-        scan_count=await count(ScanResult),
+        order_count=orders,
+        scan_count=scans,
+        review_count=reviews,
+        gift_count=gifts,
         total_spent=spent,
         point_balance=points,
+        exp=exp,
+        level=level,
+        exp_in_level=exp_in_level,
+        level_span=level_span,
     )
+
+
+# ---------------------------------------------------------------------- 선물하기
+
+
+def _gift_out(gift: Gift) -> GiftOut:
+    return GiftOut(
+        id=gift.id,
+        product_id=gift.product_id,
+        product_name=gift.product_name,
+        brand_name=gift.brand_name,
+        unit_price=gift.unit_price,
+        recipient_name=gift.recipient_name,
+        message=gift.message,
+        status=gift.status,
+        created_at=gift.created_at,
+    )
+
+
+@gifts_router.post("", response_model=GiftOut, status_code=201, summary="선물 보내기")
+async def send_gift(
+    body: GiftIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> GiftOut:
+    """선물 기록을 남긴다.
+
+    **결제도 전달도 없다.** `orders`와 같은 처지이고, 이유도 같다 — '보낸
+    선물' 목록이 이 기록에서 파생되기 때문이다. 지금까지 그 목록은
+    localStorage에 쌓이고 예시 데이터와 합쳐져 있었다.
+
+    `status`는 항상 'pending'이다. 실제 발송 수단이 붙기 전까지 바뀌지 않고,
+    화면도 그렇게 안내한다.
+    """
+    product = await db.scalar(
+        select(Product).where(Product.id == body.product_id).options(joinedload(Product.brand))
+    )
+    if product is None:
+        raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
+
+    gift = Gift(
+        sender_user_id=user.id,
+        product_id=product.id,
+        product_name=product.display_name or product.name,
+        brand_name=product.brand.name if product.brand else None,
+        unit_price=product.price or 0,
+        recipient_name=body.recipient_name.strip(),
+        message=(body.message or "").strip() or None,
+    )
+    db.add(gift)
+    await db.commit()
+    await db.refresh(gift)
+    return _gift_out(gift)
+
+
+@router.get("/gifts/sent", response_model=list[GiftOut], summary="보낸 선물")
+async def list_sent_gifts(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[GiftOut]:
+    gifts = list(
+        await db.scalars(
+            select(Gift)
+            .where(Gift.sender_user_id == user.id)
+            .order_by(Gift.created_at.desc())
+        )
+    )
+    return [_gift_out(g) for g in gifts]
+
+
+# ------------------------------------------------------------------------ 알림
+
+
+@router.get("/notifications", response_model=NotificationsOut, summary="알림")
+async def list_notifications(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> NotificationsOut:
+    """주문·포인트·후기·선물·진단 기록에서 만든 알림 피드.
+
+    **알림을 저장하지 않는다.** 행동할 때마다 알림 행을 심는 대신 매번
+    기록을 훑는다 — 심는 코드를 빠뜨릴 일이 없고, 과거에 한 일도 소급해서
+    보인다. 자세한 배경은 services/notifications.py에 있다.
+
+    가격 인하·재입고 알림은 만들지 않는다. 가격 이력 테이블이 없고 재입고
+    신청 기능 자체가 없어서, 지금 내보내면 지어낸 알림이 된다.
+    """
+    profile = await db.scalar(select(Profile).where(Profile.user_id == user.id))
+    seen_at = profile.notifications_seen_at if profile else None
+
+    feed = await build_feed(db, user)
+    items = [
+        NotificationOut(
+            id=n.id,
+            kind=n.kind,
+            title=n.title,
+            body=n.body,
+            at=n.at,
+            link=n.link,
+            unread=seen_at is None or n.at > seen_at,
+        )
+        for n in feed
+    ]
+    return NotificationsOut(
+        items=items,
+        unread_count=sum(1 for i in items if i.unread),
+    )
+
+
+@router.post(
+    "/notifications/seen",
+    status_code=204,
+    response_class=Response,
+    summary="알림 읽음 표시",
+)
+async def mark_notifications_seen(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """지금까지의 알림을 읽은 것으로 표시한다.
+
+    건별이 아니라 시각 하나로 끊는다. 알림이 저장돼 있지 않아 건별 상태를
+    둘 데가 없고, 알림함은 열면 전부 보는 화면이라 그걸로 충분하다.
+    """
+    profile = await db.scalar(select(Profile).where(Profile.user_id == user.id))
+    if profile is None:
+        profile = Profile(user_id=user.id)
+        db.add(profile)
+    profile.notifications_seen_at = datetime.now(timezone.utc)
+    await db.commit()
+    return Response(status_code=204)

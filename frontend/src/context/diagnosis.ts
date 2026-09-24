@@ -25,6 +25,14 @@ export interface DiagnosisContextValue {
   /** 진단 완료(또는 페르소나 기본값)로 확정된 피부타입. 없으면 null */
   skinType: SkinType | null;
   hasDiagnosis: boolean;
+  /**
+   * 이 계정에 진단이 있는지 **아직 모른다.**
+   *
+   * 로그인 직후에는 `/diagnosis/latest` 응답 전이라 `hasDiagnosis`가 잠깐
+   * false다. 그때 "진단 안 했다"고 단정하면 다른 기기에서 진단한 사용자가
+   * 퀴즈를 다시 본다. 판정하는 화면은 이 값이 false가 될 때까지 기다린다.
+   */
+  loading: boolean;
   /** 직전 로그인에서 게스트 진단이 승계됐다 — 배너 1회 노출용 */
   justSucceeded: boolean;
   saveDiagnosis: (r: Omit<DiagnosisResult, 'ts'>) => void;

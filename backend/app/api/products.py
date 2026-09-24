@@ -30,7 +30,11 @@ from app.models.product import (
     ProductIngredient,
 )
 from app.services.skin_type import SkinRule, apply_exclusions, fit_score, load_rule
+from app.models.personal import Review
+from app.models.user import User
 from app.schemas.product import (
+    ProductReviewOut,
+    ProductReviewsOut,
     IngredientOut,
     ProductDetailOut,
     ProductListOut,
@@ -388,3 +392,71 @@ async def get_product(
     response.headers["Cache-Control"] = "public, max-age=300"
     response.headers["X-Cache"] = "MISS"
     return detail
+
+
+@router.get(
+    "/{product_id}/reviews",
+    response_model=ProductReviewsOut,
+    summary="제품 후기",
+)
+async def list_product_reviews(
+    product_id: int = Path(..., ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+) -> ProductReviewsOut:
+    """이 제품에 달린 후기.
+
+    **캐시하지 않는다.** 제품 정보와 달리 후기는 사용자가 방금 쓴 것이
+    바로 보여야 한다.
+
+    후기는 산 제품에만 쓸 수 있다(`reviews.order_item_id`). 그래서 목록이
+    비어 있는 것이 정상이고, 지금은 대부분의 제품이 그렇다 — 없는 후기를
+    지어내는 대신 빈 목록을 낸다.
+
+    `products.review_count`(크롤링으로 받아 온 올리브영 리뷰 수)와는 다른
+    값이다. 저쪽은 우리가 내용을 갖고 있지 않다.
+    """
+    exists = await db.scalar(select(Product.id).where(Product.id == product_id))
+    if exists is None:
+        raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
+
+    # 분포는 전체 기준이다. 페이지를 넘겨도 막대가 흔들리지 않는다.
+    buckets = dict.fromkeys(range(1, 6), 0)
+    for rating, count in await db.execute(
+        select(Review.rating, func.count())
+        .where(Review.product_id == product_id)
+        .group_by(Review.rating)
+    ):
+        buckets[int(rating)] = int(count)
+
+    total = sum(buckets.values())
+    average = (
+        round(sum(r * n for r, n in buckets.items()) / total, 1) if total > 0 else None
+    )
+
+    rows = await db.execute(
+        select(Review, User.nickname)
+        .join(User, User.id == Review.user_id)
+        .where(Review.product_id == product_id)
+        .order_by(Review.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    return ProductReviewsOut(
+        items=[
+            ProductReviewOut(
+                id=review.id,
+                # 닉네임만 낸다. 없으면 가린다 — 이메일을 대신 쓰면 그게 유출이다.
+                nickname=nickname or "익명",
+                rating=review.rating,
+                body=review.body,
+                created_at=review.created_at,
+            )
+            for review, nickname in rows
+        ],
+        total=total,
+        average=average,
+        distribution=buckets,
+    )

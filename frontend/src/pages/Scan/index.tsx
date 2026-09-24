@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCamera } from '../../hooks/useCamera';
 import { useSearchProducts } from '../../hooks/useSearchProducts';
 import type { Product } from '../../types';
 import { ScanDto, addScan, fetchScans } from '../../api/personal';
@@ -24,6 +25,10 @@ const MODES: [ScanMode, string][] = [
  * 인식은 준비 중으로 표시한다 — `scripts/OCR_SUMMARY.md`의 벤치마크에서
  * 최고 엔진(CLOVA)도 완전 실패가 44.4%라, 붙여도 절반은 검색으로 떨어진다.
  * 그 폴백을 먼저 제대로 만드는 게 순서라는 게 그 문서의 결론이기도 하다.
+ *
+ * 카메라 프리뷰는 실제로 켠다(`useCamera`). 인식은 못 해도 무엇을 비추는지
+ * 보이면 제품을 맞추기 쉽고, OCR을 붙일 때 이 자리가 그대로 쓰인다. 카메라를
+ * 쓸 수 없으면 그 사실을 화면에 적는다 — 흐린 사진으로 대신하지 않는다.
  */
 export default function ScanPage() {
   const navigate = useNavigate();
@@ -72,6 +77,9 @@ export default function ScanPage() {
   const { products: found, loading: searching } = useSearchProducts(query);
   // 사진 인식을 눌렀을 때의 안내. 준비 중임을 숨기지 않는다.
   const [notice, setNotice] = useState<string | null>(null);
+  // 검색·결과 단계에서는 카메라를 끈다. 가려져 보이지도 않는데 켜 두면
+  // 표시등만 켜지고 배터리를 쓴다.
+  const { videoRef, ready: cameraReady, denied: cameraDenied } = useCamera(phase === 'idle');
 
   /** 셔터·갤러리 — 사진 인식은 아직 없다. 있는 척하지 않는다. */
   const handleCapture = () => {
@@ -110,10 +118,20 @@ export default function ScanPage() {
 
   return (
     <div className="relative flex flex-col h-dvh overflow-hidden bg-[#111114]">
-      {/* 카메라 프리뷰 자리. 실제 카메라가 붙기 전까지 어두운 배경만 둔다 —
-          예전에는 picsum.photos 난수 사진을 깔아 두었는데, 성분표처럼
-          보이지도 않으면서 "촬영 중"이라는 인상만 만들었다. */}
+      {/* 카메라 프리뷰. 못 켜면 어두운 배경만 남는다 — 예전에는 picsum.photos
+          난수 사진을 깔아 두었는데, 성분표처럼 보이지도 않으면서 "촬영 중"
+          이라는 인상만 만들었다. */}
       <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-[#1b1b20] to-[#0d0d10]" />
+      {phase === 'idle' && cameraReady && (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          aria-hidden
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
 
       {/* 상단 바 */}
       <div className="relative z-10 px-5" style={{ paddingTop: 'calc(var(--safe-top) + 22px)' }}>
@@ -218,6 +236,16 @@ export default function ScanPage() {
           </button>
         </div>
       </div>
+
+      {/* 카메라를 못 켰다는 사실을 숨기지 않는다. 흐린 사진으로 대신하면
+          사용자는 카메라가 켜진 줄 안다. */}
+      {phase === 'idle' && cameraDenied && (
+        <div className="relative z-10 mx-5 mb-2 rounded-xl bg-white/90 px-4 py-2.5 text-center text-[12px] leading-relaxed text-gray-70">
+          카메라를 쓸 수 없어요. 권한을 허용했는지 확인해 주세요.
+          <br />
+          아래에서 제품명으로 찾을 수 있어요.
+        </div>
+      )}
 
       {notice && (
         <div className="relative z-10 mx-5 mb-2 rounded-xl bg-white/95 px-4 py-2.5 text-center text-[12px] font-semibold text-gray-100">

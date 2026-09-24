@@ -73,14 +73,54 @@ export interface ScanDto {
   createdAt: string;
 }
 
+export interface GiftDto {
+  id: string;
+  productId: number | null;
+  productName: string;
+  brandName: string | null;
+  unitPrice: number;
+  recipientName: string;
+  message: string | null;
+  /** 전달 수단이 붙기 전까지 항상 'pending' */
+  status: string;
+  createdAt: string;
+}
+
+export interface NotificationDto {
+  /** 출처를 가리키는 문자열(`order:<uuid>` 같은). 화면은 key로만 씁니다. */
+  id: string;
+  kind: string;
+  title: string;
+  body: string;
+  at: string;
+  link: string | null;
+  unread: boolean;
+}
+
+export interface NotificationsDto {
+  items: NotificationDto[];
+  unreadCount: number;
+}
+
 export interface StatsDto {
   closetCount: number;
   cartCount: number;
   likeCount: number;
   orderCount: number;
   scanCount: number;
+  reviewCount: number;
+  giftCount: number;
   totalSpent: number;
   pointBalance: number;
+  /**
+   * 누적 경험치와 레벨. **서버가 기록에서 계산한다** — 스캔·후기·주문·선물
+   * 행을 센다. 클라이언트가 더해 나가지 않으므로 기기를 바꿔도 같다.
+   */
+  exp: number;
+  level: number;
+  /** 진행바용. 이번 레벨 안에서의 경험치 / 다음 레벨까지의 폭 */
+  expInLevel: number;
+  levelSpan: number;
 }
 
 /** 204 응답용. postJson은 JSON 본문을 기대하므로 따로 둡니다. */
@@ -138,3 +178,17 @@ export const fetchScans = () => request<ScanDto[]>('/api/v1/me/scans');
 export const addScan = (productId: number | null, source = 'search') =>
   postJson<ScanDto>('/api/v1/me/scans', { productId, source });
 export const fetchStats = () => request<StatsDto>('/api/v1/me/stats');
+
+/**
+ * 알림. **저장된 알림이 아니라** 주문·포인트·후기·선물·진단 기록에서
+ * 서버가 만들어 주는 피드입니다.
+ */
+export const fetchNotifications = () =>
+  request<NotificationsDto>('/api/v1/me/notifications');
+export const markNotificationsSeen = () =>
+  send('/api/v1/me/notifications/seen', 'POST');
+
+/** 선물 보내기. 받는 분 연락처는 보내지 않는다 — 서버가 받지 않는다. */
+export const sendGift = (productId: number, recipientName: string, message?: string) =>
+  postJson<GiftDto>('/api/v1/gifts', { productId, recipientName, message });
+export const fetchSentGifts = () => request<GiftDto[]>('/api/v1/me/gifts/sent');

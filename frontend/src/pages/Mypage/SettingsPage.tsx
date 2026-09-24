@@ -82,6 +82,8 @@ export default function SettingsPage() {
         rows={[
           { label: profile.nickname, sub: profile.email },
           { label: '프로필 편집', onClick: () => navigate('/mypage/settings/profile') },
+          { label: '이메일 변경', onClick: () => navigate('/mypage/settings/email') },
+          { label: '비밀번호 변경', onClick: () => navigate('/mypage/settings/password') },
           { label: '피부타입 재진단', onClick: () => navigate('/qna') },
         ]}
       />
@@ -105,6 +107,7 @@ export default function SettingsPage() {
       <Section
         title="약관 및 정보"
         rows={[
+          { label: '공지사항', onClick: () => navigate('/mypage/settings/notices') },
           { label: '서비스 이용약관', onClick: () => navigate('/mypage/settings/terms') },
           { label: '개인정보 처리방침', onClick: () => navigate('/mypage/settings/privacy') },
           { label: '버전 정보', right: <span className="text-[13px] text-gray-50">v{APP_VERSION}</span> },

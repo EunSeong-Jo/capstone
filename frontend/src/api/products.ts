@@ -94,3 +94,39 @@ export function searchProducts(
     signal,
   );
 }
+
+
+export interface ProductReview {
+  id: number;
+  nickname: string;
+  rating: number;
+  body: string | null;
+  createdAt: string;
+}
+
+export interface ProductReviews {
+  items: ProductReview[];
+  total: number;
+  /** 후기가 없으면 null입니다 — 0.0으로 내면 "최악"과 구분되지 않습니다. */
+  average: number | null;
+  /** 5점부터 1점까지의 건수. 키는 문자열입니다(JSON). */
+  distribution: Record<string, number>;
+}
+
+/**
+ * 제품에 달린 후기.
+ *
+ * **`products.reviewCount`와는 다른 값입니다.** 저쪽은 크롤링으로 받아 온
+ * 올리브영의 리뷰 수이고 내용은 갖고 있지 않습니다. 여기 목록은 이 앱에서
+ * 실제로 산 사람이 쓴 것뿐이라, 지금은 대부분 비어 있는 게 정상입니다.
+ */
+export function fetchProductReviews(
+  productId: number,
+  signal?: AbortSignal,
+): Promise<ProductReviews> {
+  return request<ProductReviews>(
+    `/api/v1/products/${productId}/reviews`,
+    undefined,
+    signal,
+  );
+}

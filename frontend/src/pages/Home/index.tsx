@@ -20,6 +20,7 @@ import {
 import { useProducts } from '../../hooks/useProducts';
 import { useRecommendations } from '../../hooks/useRecommendations';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
+import { useStats } from '../../hooks/useStats';
 import { useSwapSuggestion } from '../../hooks/useSwapSuggestion';
 import { useWeather } from '../../hooks/useWeather';
 import { useCareTip } from '../../hooks/useCareTip';
@@ -73,7 +74,8 @@ function CarouselError({ message, onRetry }: { message: string; onRetry: () => v
 
 /**
  * 목업 폴백이 켜진 환경(로컬 개발)에서만 뜬다. 화면이 실제 DB가 아니라
- * mocks/oliveyoung.ts를 보고 있다는 사실을 숨기지 않기 위한 것이다.
+ * 실 API 캡처본(mocks/products.fixture.json)을 보고 있다는 사실을
+ * 숨기지 않기 위한 것이다.
  */
 function MockBanner() {
   return (
@@ -90,6 +92,7 @@ export default function HomePage() {
   const { user: persona, isUser } = useAuth();
   const { skinType: diagType, justSucceeded, acknowledgeSuccession } = useDiagnosis();
   const { items: closetItems } = useCloset();
+  const { stats } = useStats();
   const { addToCart } = useCart();
   const [setOpen, setSetOpen] = useState(false);
 
@@ -165,8 +168,24 @@ export default function HomePage() {
   const dashUser: ProfileUser = isUser && persona
     ? { nickname: persona.nickname, skinType, memberSince: persona.memberSince, email: persona.email }
     : { ...profile, skinType };
-  // 레벨·경험치는 서버 근거가 없어 넘기지 않는다(ProfileDashboard가 줄을 숨긴다).
-  const dashCharacter: CharacterState = { skinType, expression: 'neutral' };
+  /**
+   * 레벨·경험치는 `GET /me/stats`가 **기록에서 계산해** 준다(스캔·후기·
+   * 주문·선물). 클라이언트가 더해 나가지 않으므로 기기를 바꿔도 같다.
+   *
+   * 비회원은 stats가 null이라 값을 넘기지 않고, ProfileDashboard가 그 줄을
+   * 통째로 숨긴다 — 근거 없는 숫자를 그리지 않기 위해서다.
+   */
+  const dashCharacter: CharacterState = {
+    skinType,
+    expression: 'neutral',
+    ...(stats
+      ? {
+          level: stats.level,
+          exp: stats.expInLevel,
+          nextLevelExp: stats.levelSpan,
+        }
+      : {}),
+  };
   const dashRegistry: RegistrySummary = {
     count: closetItems.length,
     totalSavings,
@@ -246,14 +265,16 @@ export default function HomePage() {
         <Divider />
 
         {/* 더 저렴한 대체품 (가격절약 축) — 화장대 전체에서 절약액 순.
-            useSwapSuggestion이 같은 조회를 이미 했으므로 추가 요청이 없다. */}
+            useSwapSuggestion이 같은 조회를 이미 했으므로 추가 요청이 없다.
+
+            더보기는 전용 화면으로 보낸다. 예전에는 /alternatives?seed=<첫 항목>
+            으로 보냈는데, 캐러셀은 여러 항목의 후보를 섞어 보여주므로
+            캐러셀에서 본 카드가 더보기에 없는 경우가 생겼다. */}
         {cheaperAlternatives.length > 0 && (
           <AlternativeCarousel
             title="💰 더 저렴한 대체품"
             alternatives={cheaperAlternatives}
-            onMore={() =>
-              navigate(`/alternatives?seed=${swap.candidates[0].seed.id}&from=home`)
-            }
+            onMore={() => navigate('/home/cheaper-alternatives')}
           />
         )}
       </main>

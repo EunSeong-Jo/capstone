@@ -1,7 +1,7 @@
 """내 계정·프로필 (Task 12.5).
 
     GET   /api/v1/me            계정 기본 정보
-    PATCH /api/v1/me            닉네임 수정
+    PATCH /api/v1/me            닉네임·이메일 수정
     GET   /api/v1/me/profile    피부타입·예산·관심 도메인
     PATCH /api/v1/me/profile    부분 수정
 
@@ -15,9 +15,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
+from app.core.security import verify_password
 from app.db.session import get_db
 from app.models.user import Profile, User
 from app.schemas.user import MeIn, ProfileIn, ProfileOut, UserOut
@@ -26,6 +28,10 @@ router = APIRouter(prefix="/api/v1/me", tags=["me"])
 
 # 진단 8타입. 아무 문자열이나 받으면 화면이 모르는 코드로 캐릭터를 찾다가
 # 깨지므로 여기서 막는다. skin_type_rules의 skin_type과 같은 집합이다.
+# 꾸미기 장식 id. frontend/public/mascot/decoration_*.png 파일 번호와 같다.
+# 없는 번호를 받으면 화면이 깨진 이미지를 그리므로 여기서 막는다.
+DECORATION_IDS = frozenset(range(1, 8))
+
 SKIN_TYPES = frozenset(
     {
         "ondalsam",
@@ -66,7 +72,7 @@ async def read_me(user: User = Depends(get_current_user)) -> UserOut:
     return _to_user_out(user)
 
 
-@router.patch("", response_model=UserOut, summary="닉네임 수정")
+@router.patch("", response_model=UserOut, summary="닉네임·이메일 수정")
 async def update_me(
     body: MeIn,
     user: User = Depends(get_current_user),
@@ -77,7 +83,27 @@ async def update_me(
         if not nickname:
             raise HTTPException(status_code=422, detail="닉네임을 입력해 주세요")
         user.nickname = nickname
-    await db.commit()
+
+    if body.email is not None:
+        # 이메일은 로그인 id다. 소문자로 맞춰 저장하는 것은 signup·login과
+        # 같은 규칙이다 — 안 맞추면 대문자로 가입한 사람이 못 들어온다.
+        email = body.email.strip().lower()
+        if email != user.email:
+            # 잠깐 자리를 비운 사이 기기를 만진 사람이 로그인 주소를 자기
+            # 것으로 바꿔 계정을 통째로 가져가는 경로를 막는다.
+            if not verify_password(body.current_password or "", user.password_hash):
+                raise HTTPException(
+                    status_code=401, detail="현재 비밀번호가 올바르지 않습니다"
+                )
+            user.email = email
+
+    try:
+        await db.commit()
+    except IntegrityError:
+        # email UNIQUE 위반. signup과 같은 응답으로 맞춘다.
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="이미 사용 중인 이메일입니다")
+
     await db.refresh(user, ["profile"])
     return _to_user_out(user)
 
@@ -95,6 +121,7 @@ async def read_profile(
         budget_min=profile.budget_min,
         budget_max=profile.budget_max,
         domains=profile.domains,
+        decoration_id=profile.decoration_id,
     )
 
 
@@ -124,6 +151,15 @@ async def update_profile(
     if body.domains is not None:
         profile.domains = body.domains
 
+    if body.decoration_id is not None:
+        # 0은 "장식 해제"다. None(안 보냄)과 구분하려고 0을 쓴다.
+        if body.decoration_id == 0:
+            profile.decoration_id = None
+        elif body.decoration_id not in DECORATION_IDS:
+            raise HTTPException(status_code=422, detail="없는 장식입니다")
+        else:
+            profile.decoration_id = body.decoration_id
+
     await db.commit()
     return ProfileOut(
         skin_type=profile.skin_type,
@@ -131,4 +167,5 @@ async def update_profile(
         budget_min=profile.budget_min,
         budget_max=profile.budget_max,
         domains=profile.domains,
+        decoration_id=profile.decoration_id,
     )

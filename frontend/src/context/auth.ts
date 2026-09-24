@@ -46,7 +46,15 @@ export interface AuthContextValue {
   /** 직전 범위 — 게스트→로그인 승계 판단에 쓴다 */
   prevScope: string | null;
   login: (email: string, password: string) => Promise<LoginResult>;
+  /** 이메일로 가입 — 서버에 계정을 만들고 그대로 로그인한다 */
+  register: (
+    email: string,
+    password: string,
+    nickname: string,
+  ) => Promise<LoginResult>;
   loginAs: (personaId: string) => Promise<LoginResult>;
+  /** 계정 정보를 서버에서 다시 받는다 (닉네임·이메일을 고친 뒤) */
+  reloadMe: () => Promise<void>;
   continueAsGuest: () => void;
   logout: () => void;
 }

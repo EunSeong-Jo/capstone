@@ -7,6 +7,9 @@ import { useUserProfile } from '../../context/userProfile';
 import { useCloset } from '../../context/closet';
 import { useLikedProducts } from '../../context/liked';
 import { useStats } from '../../hooks/useStats';
+import { CartIcon } from '../../components/ui/OutlineIcons';
+import { CharacterAvatar } from '../../components/character/CharacterAvatar';
+import { useCharacter } from '../../context/character';
 
 
 
@@ -64,14 +67,16 @@ export default function MypagePage() {
   const { stats } = useStats();
   const { count: closetCount } = useCloset();
   const { likedProducts } = useLikedProducts();
+  const { decorationId } = useCharacter();
 
-  // 취소·반품·배송지·재입고·선물함은 뺐다. 실제 결제와 배송이 없어
-  // 화면에 채울 근거가 아예 없는 항목들이고, 지금까지는 각자 하드코딩된
-  // 예시를 들고 있었다.
+  // 취소·반품·배송지·재입고는 뺐다. 실제 결제와 배송이 없어 화면에 채울
+  // 근거가 아예 없는 항목들이고, 지금까지는 각자 하드코딩된 예시를 들고
+  // 있었다. '보낸 선물'은 gifts 테이블이 생겨 돌아왔다.
   const shopping: MenuItem[] = [
     { icon: <LineIcon><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" /><path d="M4 8l8 4 8-4M12 12v8" /></LineIcon>, label: '주문내역', right: stats ? `${stats.orderCount}건` : undefined, onClick: () => navigate('/mypage/order-history') },
     { icon: <LineIcon><rect x="3" y="8" width="18" height="12.5" rx="1.5" /><path d="M3 12h18M12 8v12.5" /></LineIcon>, label: '장바구니', right: stats ? `${stats.cartCount}개` : undefined, onClick: () => navigate('/cart') },
     { icon: <LineIcon><path d="M12 21s-7-5.5-7-11a7 7 0 1114 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></LineIcon>, label: '내 화장대', right: `${stats?.closetCount ?? closetCount}개`, onClick: () => navigate('/closet') },
+    { icon: <LineIcon><rect x="4" y="9" width="16" height="11" rx="1.5" /><path d="M3 6h18v3H3zM12 6v14" /></LineIcon>, label: '보낸 선물', onClick: () => navigate('/mypage/gifts') },
   ];
 
   const benefits: MenuItem[] = [
@@ -99,10 +104,7 @@ export default function MypagePage() {
             </svg>
           </button>
           <button onClick={() => alert('준비 중이에요')} aria-label="알림" className="relative active:scale-90 transition-transform">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <CartIcon size={24} className="text-[#17171C]" />
             <span className="absolute -top-1 -right-1.5 inline-flex min-w-[15px] h-[15px] px-1 items-center justify-center rounded-full bg-primary-dark text-[9px] font-extrabold text-white">2</span>
           </button>
         </div>
@@ -112,9 +114,21 @@ export default function MypagePage() {
       <div className="px-4 pt-1">
         {/* 프로필 행 */}
         <div className="flex items-center gap-3.5">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white border border-[#ECEEE8] shadow-[0_2px_10px_rgba(43,107,82,.08)]">
-            <img src="/mascot/base_face_neutral.png" alt="프로필" className="h-[84%] w-[84%] object-contain" />
-          </div>
+          {/* 프로필 사진도 내 캐릭터다. 예전에는 피부타입과 무관한 범용
+              얼굴(base_face_neutral.png)이라 홈의 마스코트와 달랐고, 꾸미기도
+              반영되지 않았다. */}
+          <button
+            type="button"
+            onClick={() => navigate('/closet/decorate')}
+            aria-label="내 캐릭터 꾸미기"
+            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#ECEEE8] bg-white shadow-[0_2px_10px_rgba(43,107,82,.08)] transition-transform active:scale-95"
+          >
+            <CharacterAvatar
+              skinType={profile.skinType}
+              decorationId={decorationId}
+              className="h-[84%] w-[84%]"
+            />
+          </button>
           <div className="min-w-0 flex-1">
             <p className="text-[19px] font-extrabold tracking-[-0.3px] text-gray-100">{profile.nickname}</p>
             <p className="mt-0.5 text-xs text-gray-50">{profile.email}</p>
@@ -141,10 +155,31 @@ export default function MypagePage() {
               재진단
             </button>
           </div>
+
+          {/* 레벨·경험치. 서버가 기록(스캔·후기·주문·선물)에서 계산한 값이라
+              비회원에게는 아예 없다 — 그 경우 줄을 그리지 않는다. */}
+          {stats && (
+            <div className="mt-3.5 flex items-center gap-3 border-t border-gray-10 pt-3">
+              <span className="shrink-0 whitespace-nowrap text-[11px] font-bold text-gray-50">
+                Lv.{stats.level}
+              </span>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-10">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, Math.round((stats.expInLevel / stats.levelSpan) * 100))}%`,
+                  }}
+                />
+              </div>
+              <span className="shrink-0 whitespace-nowrap text-[10px] text-gray-50">
+                {stats.expInLevel}/{stats.levelSpan}
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* 통계 바. 서버 통계(GET /me/stats)가 없으므로 지금 실제로 셀 수
-            있는 것만 센다 — 누적 절약·스캔 횟수는 근거가 없어 빼 두었다. */}
+        {/* 통계 바. 전부 GET /me/stats가 실제 행에서 센 값이다. 비회원은
+            stats가 null이라 로컬 개수로 대신한다. */}
         <div className="mt-3 flex rounded-[20px] bg-primary-dark">
           {[
             [`${(stats?.closetCount ?? closetCount).toLocaleString()}개`, '내 화장대'],

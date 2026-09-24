@@ -1,24 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { CharacterState, ProfileUser, RegistrySummary, WeatherInfo, SkinType, SKIN_TYPE_META } from '../../../../types';
-
-/**
- * 피부타입별 마스코트 에셋 경로 (public/mascot/).
- *
- * base_face_*.png(표정별)는 캐릭터가 아직 피부타입을 대표하지 않는 범용
- * 이미지라 여기서는 안 쓴다 — character.skinType("캐릭터가 대표하는
- * 피부타입", types/index.ts)에 맞는 전용 일러스트로 항상 고정한다.
- * 타입마다 이미지가 1장뿐이라 표정(expression) 구분은 없다.
- */
-const TYPE_FACE_SRC: Record<SkinType, string> = {
-  ondalsam: '/mascot/수분팡팡옹달샙타입.png',
-  mulgae: '/mascot/반질반질물개타입.png',
-  subuji: '/mascot/겉바속촉수부지타입.png',
-  hwasan: '/mascot/울긋불긋화산타입.png',
-  samak: '/mascot/바스락사막타입.png',
-  injeolmi: '/mascot/말랑말랑인절미타입.png',
-  yuriguseul: '/mascot/조심조심유리구슬타입.png',
-  memilmuk: '/mascot/얼룩덜룩메밀묵타입.png',
-};
+import { CharacterState, ProfileUser, RegistrySummary, WeatherInfo, SKIN_TYPE_META } from '../../../../types';
+import { CharacterAvatar } from '../../../character/CharacterAvatar';
+import { useCharacter } from '../../../../context/character';
 
 interface ProfileDashboardProps {
   /** null이면 로딩 중 — 스켈레톤을 보여준다. useWeather 참고 */
@@ -37,6 +20,8 @@ interface ProfileDashboardProps {
  * 카드 아래 '대체품 절약 가능' 그린 배너.
  */
 export function ProfileDashboard({ weather, careTip, character, user, registry }: ProfileDashboardProps) {
+  // 꾸미기는 전역 상태다 — 꾸미기 화면에서 저장하면 여기도 같이 바뀐다.
+  const { decorationId } = useCharacter();
   const navigate = useNavigate();
   const meta = SKIN_TYPE_META[user.skinType];
   // "수분팡팡 옹달샘" → "옹달샘" (칩용 짧은 피부명)
@@ -79,7 +64,9 @@ export function ProfileDashboard({ weather, careTip, character, user, registry }
             <div className="h-[22px] w-32 animate-pulse rounded-full bg-gray-10" />
           )}
           <span className="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-full bg-primary-light text-[11px] font-bold text-primary">
-            {meta.emoji} {shortSkinName}
+            {/* 별명만 적으면 그게 지성인지 건성인지 알 수 없다. 일반 명칭을
+                괄호로 함께 둔다. */}
+            {meta.emoji} {shortSkinName}({meta.category})
           </span>
         </div>
         {/* 마스코트(탭→옷장) + [오늘의 케어 말풍선 / 레벨·진행바] 세로 스택 */}
@@ -93,10 +80,10 @@ export function ProfileDashboard({ weather, careTip, character, user, registry }
             aria-label="내 캐릭터 꾸미기"
             className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-visible rounded-full bg-primary-light active:scale-95 transition-transform"
           >
-            <img
-              src={TYPE_FACE_SRC[character.skinType]}
-              alt="내 캐릭터"
-              className="h-[88%] w-[88%] object-contain"
+            <CharacterAvatar
+              skinType={character.skinType}
+              decorationId={decorationId}
+              className="h-[88%] w-[88%]"
             />
             {/* 꾸미기 힌트 뱃지 */}
             <span className="absolute -bottom-1 -right-1 inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">

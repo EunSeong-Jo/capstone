@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { Product } from '../../types';
+import { useToast } from '../../context/toast';
 import { useLikedProducts } from '../../context/liked';
 import { formatUnitPrice } from '../../utils/unitPrice';
+import { HeartIcon } from '../ui/OutlineIcons';
 
 const CARD_BG = [
   'from-green-50 to-emerald-100',
@@ -21,7 +23,16 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const unitPrice = formatUnitPrice(product.unitPrice, product.unitLabel);
   const navigate = useNavigate();
   const { isLiked, toggleLike } = useLikedProducts();
+  const { showToast } = useToast();
   const liked = isLiked(product.id);
+
+  // 하트가 작고 카드 구석에 있어 눌렀는지 확신이 안 선다. 담겼다는 사실을
+  // 말로 한 번 더 알린다.
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleLike(product);
+    showToast(liked ? '찜을 해제했어요' : '찜 목록에 추가했어요');
+  };
   const bg = CARD_BG[index % CARD_BG.length];
 
   return (
@@ -52,13 +63,10 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         {/* 찜 버튼 */}
         <button
           className="absolute bottom-2 right-2 w-8 h-8 rounded-lg bg-white/80 flex items-center justify-center shadow-sm active:scale-90 transition-transform"
-          onClick={(e) => { e.stopPropagation(); toggleLike(product); }}
-          aria-label="찜하기"
+          onClick={handleLike}
+          aria-label={liked ? '찜 해제' : '찜하기'}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill={liked ? 'var(--accent)' : 'none'}>
-            <path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.24 3 11.91 3.81 13 5.08C14.09 3.81 15.76 3 17.5 3C20.58 3 23 5.42 23 8.5C23 14.5 12 21 12 21Z"
-              stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <HeartIcon size={16} filled={liked} className="text-[var(--accent)]" />
         </button>
       </div>
 

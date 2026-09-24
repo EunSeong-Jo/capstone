@@ -17,14 +17,14 @@
 
 | 영역 | 상태 |
 |---|---|
-| **DB** | Neon PostgreSQL 16 · 테이블 27개 · **제품 4,013 / 성분 23,147 / 연결 163,103 / 유사도 146,940 / 계정 5** → [docs/db-schema.md](docs/db-schema.md) |
-| **백엔드 API** | **엔드포인트 45개** — 제품(목록·검색·상세)·대체품·추천·인증·프로필·진단·개인 데이터(화장대·장바구니·찜·최근본·주문·후기·포인트·스캔)·챗봇·날씨·케어문구·`GET /health` |
-| **프론트엔드** | 라우트 27개 · 페이지 15개. **제품 데이터는 전 화면이 실 API**를 봅니다. 개인 데이터는 로그인 시 서버, 비회원은 localStorage |
-| **테스트** | 백엔드 pytest **294건** 통과 (`backend/tests/` 11개 파일, `test_volume_parsing.py` 제외 — 컨테이너에 `scripts/`가 없어 수집 실패). 프론트는 여전히 0건 |
+| **DB** | Neon PostgreSQL 16 · 테이블 28개 · **제품 4,013 / 성분 23,147 / 연결 163,103 / 유사도 146,940 / 계정 5** → [docs/db-schema.md](docs/db-schema.md) |
+| **백엔드 API** | **엔드포인트 51개** — 제품(목록·검색·상세)·대체품·추천·인증(가입·로그인·갱신·로그아웃·비밀번호 변경)·프로필(닉네임·이메일)·진단·개인 데이터(화장대·장바구니·찜·최근본·주문·후기·포인트·스캔·선물)·알림·제품 후기·챗봇·날씨·케어문구·`GET /health` |
+| **프론트엔드** | 화면 라우트 39개(+리다이렉트 11) · 페이지 파일 37개. **제품 데이터는 전 화면이 실 API**를 봅니다. 개인 데이터는 로그인 시 서버, 비회원은 localStorage. 계정 화면은 `RequireAuth`가 게스트를 막습니다 |
+| **테스트** | 백엔드 pytest **329건** 통과 (`backend/tests/` 11개 파일, `test_volume_parsing.py` 제외 — 컨테이너에 `scripts/`가 없어 수집 실패). 프론트는 여전히 0건 |
 
 **제품 더미 데이터는 전부 걷어냈습니다.** 이전에는 `src/mocks/alternatives.ts` 등의 가짜 제품에 붙은 id(102~109 등)가 실재 카탈로그 id와 겹쳐, 카드에 적힌 것과 **전혀 다른 제품의 상세가 조용히 열렸습니다**. `npm run check:dummy`가 재발을 막습니다 — 배경은 [frontend/README.md](frontend/README.md) 7-2절.
 
-남은 목업은 제품 id를 담지 않는 것들뿐입니다: 날씨·케어문구 오프라인 폴백(`mocks/home.ts`), 인기 검색어·성분 사전 문구(`mocks/search.ts`), 도메인 드롭다운(`mocks/oliveyoung.ts`), 실 API 캡처본(`mocks/products.fixture.json`).
+남은 목업은 제품 id를 담지 않는 것들뿐입니다: 날씨·케어문구 오프라인 폴백(`mocks/home.ts`), 인기 검색어·성분 사전 문구(`mocks/search.ts`), 실 API 캡처본(`mocks/products.fixture.json`). 공지사항은 목업이 아니라 **실제 작업 이력**을 적은 정적 콘텐츠입니다(`pages/Mypage/NoticesPage.tsx`) — 이용약관·개인정보 처리방침과 같은 성격입니다.
 
 ### 태스크 현황
 

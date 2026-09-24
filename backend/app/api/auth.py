@@ -4,6 +4,7 @@
     POST /api/v1/auth/login     이메일·비밀번호
     POST /api/v1/auth/refresh   액세스 토큰 재발급 (회전)
     POST /api/v1/auth/logout    리프레시 토큰 폐기
+    POST /api/v1/auth/password  비밀번호 변경 (다른 세션 전부 끊음)
 
 리프레시 토큰을 회전시키는 이유
 -------------------------------
@@ -16,7 +17,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -31,7 +32,14 @@ from app.core.security import (
 )
 from app.db.session import get_db
 from app.models.user import Profile, RefreshToken, User
-from app.schemas.user import LoginIn, RefreshIn, SignupIn, TokenOut, UserOut
+from app.schemas.user import (
+    LoginIn,
+    PasswordChangeIn,
+    RefreshIn,
+    SignupIn,
+    TokenOut,
+    UserOut,
+)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -151,6 +159,41 @@ async def logout(body: RefreshIn, db: AsyncSession = Depends(get_db)) -> Respons
         row.revoked_at = datetime.now(timezone.utc)
         await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/password", response_model=TokenOut, summary="비밀번호 변경")
+async def change_password(
+    body: PasswordChangeIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> TokenOut:
+    """비밀번호를 바꾸고 **기존 세션을 전부 끊는다.**
+
+    마지막 단계가 핵심이다. 비밀번호를 바꾸는 이유는 대개 남이 알고 있다고
+    의심해서인데, 그 사람이 이미 받아 간 리프레시 토큰이 14일 더 살아 있으면
+    바꾼 의미가 없다. 그래서 이 계정의 리프레시 토큰을 모두 폐기하고 새로
+    한 벌 발급한다 — 방금 바꾼 본인만 로그인 상태로 남는다.
+
+    (액세스 토큰은 서명만 검증하므로 최대 30분은 살아 있다. `logout`과 같은
+    한계다.)
+    """
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(status_code=401, detail="현재 비밀번호가 올바르지 않습니다")
+    if body.current_password == body.new_password:
+        raise HTTPException(status_code=422, detail="지금과 다른 비밀번호를 입력해 주세요")
+
+    user.password_hash = hash_password(body.new_password)
+
+    now = datetime.now(timezone.utc)
+    await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    await db.flush()
+    await db.refresh(user, ["profile"])
+    # _issue가 commit까지 한다. 위 폐기와 같은 트랜잭션이라, 새 토큰만 남는다.
+    return await _issue(db, user)
 
 
 @router.get("/me", response_model=UserOut, summary="내 계정 (토큰 검증용)")

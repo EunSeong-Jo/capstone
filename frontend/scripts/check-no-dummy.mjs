@@ -27,7 +27,6 @@ const ALLOWED_MOCKS = new Set([
   'products.fixture.json', // 실 API 캡처본
   'home', // 날씨·케어문구 오프라인 폴백
   'search', // 인기 검색어·성분 사전 (정적 문구)
-  'oliveyoung', // 도메인 드롭다운 (정적 문구)
 ]);
 
 const PLACEHOLDER_HOSTS = [

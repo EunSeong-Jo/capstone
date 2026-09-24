@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../../../context/cart';
 import { useCloset } from '../../../../context/closet';
+import { useToast } from '../../../../context/toast';
 import { useSwapSuggestion } from '../../../../hooks/useSwapSuggestion';
 import { SkinType } from '../../../../types';
 
@@ -80,6 +81,7 @@ export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
   const navigate = useNavigate();
   const { items } = useCloset();
   const { addToCart } = useCart();
+  const { showToast } = useToast();
   const { suggestion, outcome, variantHint, loading, error, reload } = useSwapSuggestion(
     items,
     skinType,
@@ -229,7 +231,12 @@ export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
       price: alt.price,
       imageUrl: alt.imageUrl,
     });
-    navigate('/cart');
+    // 담자마자 장바구니로 끌고 가지 않는다. 홈에서 제안을 더 볼 수 있고,
+    // 가려면 토스트의 링크로 간다.
+    showToast('장바구니에 담았어요', {
+      label: '장바구니로',
+      onClick: () => navigate('/cart'),
+    });
   };
 
   return (

@@ -22,7 +22,11 @@ from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
 from app.api.diagnosis import router as diagnosis_router
 from app.api.me import router as me_router
-from app.api.personal import orders_router, router as personal_router
+from app.api.personal import (
+    gifts_router,
+    orders_router,
+    router as personal_router,
+)
 from app.api.products import router as products_router
 from app.api.recommendations import router as recommendations_router
 from app.api.recommendations_main import router as reco_main_router
@@ -73,6 +77,7 @@ app.include_router(me_router)
 app.include_router(diagnosis_router)
 app.include_router(personal_router)
 app.include_router(orders_router)
+app.include_router(gifts_router)
 app.include_router(chat_router)
 app.include_router(products_router)
 app.include_router(recommendations_router)

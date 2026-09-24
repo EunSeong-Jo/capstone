@@ -130,8 +130,9 @@ class StatsOut(_CamelModel):
     전부 실제 행에서 센다. 예전에는 이 자리에 `{saved: 128400, scans: 21,
     swaps: 9}` 같은 고정값이 박혀 있었다.
 
-    레벨·경험치는 내지 않는다. 무엇으로 오르는지 정한 적이 없어서,
-    숫자를 만들면 그 자체가 또 다른 더미가 된다.
+    **레벨·경험치도 기록에서 계산한다.** 클라이언트가 더해 나가지 않는다 —
+    그러면 브라우저마다 값이 달라지고 조작도 된다. 근거가 되는 행동
+    (스캔·후기·주문·선물)이 전부 테이블에 있으므로 셀 수 있다.
     """
 
     closet_count: int
@@ -139,6 +140,61 @@ class StatsOut(_CamelModel):
     like_count: int
     order_count: int
     scan_count: int
+    review_count: int
+    gift_count: int
     # 실제로 결제한 총액. 주문 기록의 합이다.
     total_spent: int
     point_balance: int
+    # 누적 경험치와 그로부터 나온 레벨. 계산식은 services/experience.py에 있다.
+    exp: int
+    level: int
+    # 이번 레벨 안에서의 진행. 진행바가 exp_in_level / level_span을 그린다.
+    exp_in_level: int
+    level_span: int
+
+
+class GiftIn(_CamelModel):
+    """선물 보내기.
+
+    받는 사람 연락처는 받지 않는다 — 전달 수단이 없어 쓰이지 않는데,
+    쓰이지도 않는 제3자의 개인정보를 공용 DB에 쌓게 된다.
+    """
+
+    product_id: int = Field(ge=1)
+    recipient_name: str = Field(min_length=1, max_length=30)
+    message: str | None = Field(default=None, max_length=200)
+
+
+class GiftOut(_CamelModel):
+    id: uuid.UUID
+    # 제품이 카탈로그에서 빠지면 None이다. 이름·가격은 행에 박제돼 있다.
+    product_id: int | None = None
+    product_name: str
+    brand_name: str | None = None
+    unit_price: int
+    recipient_name: str
+    message: str | None = None
+    status: str
+    created_at: datetime
+
+
+class NotificationOut(_CamelModel):
+    """알림 한 건.
+
+    **테이블에 저장된 것이 아니라 기록에서 뽑은 것이다.** id는 출처를
+    가리키는 문자열이고(`order:<uuid>` 같은), 화면은 key로만 쓴다.
+    """
+
+    id: str
+    kind: str
+    title: str
+    body: str
+    at: datetime
+    link: str | None = None
+    # profiles.notifications_seen_at 이후에 생긴 것.
+    unread: bool
+
+
+class NotificationsOut(_CamelModel):
+    items: list[NotificationOut]
+    unread_count: int
