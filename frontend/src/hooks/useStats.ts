@@ -55,11 +55,14 @@ export function useStats() {
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  if (!isUser) return { stats: null, loading: false, reload };
+  // 세션 복원이 끝나기 전에는 비회원인지 아직 모른다. 여기서 단정하면
+  // 새로고침할 때마다 "값 없음"이 스쳐 지나가고, 화면은 그 순간을 로딩과
+  // 구분할 수 없다 — 그래서 레벨 줄이 없다가 갑자기 튀어나왔다.
+  if (!authLoading && !isUser) return { stats: null, loading: false, reload };
 
   return {
     stats: loaded?.key === key ? loaded.stats : null,
-    loading: !authLoading && loaded?.key !== key,
+    loading: authLoading || loaded?.key !== key,
     reload,
   };
 }

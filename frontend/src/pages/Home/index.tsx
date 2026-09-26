@@ -92,7 +92,7 @@ export default function HomePage() {
   const { user: persona, isUser } = useAuth();
   const { skinType: diagType, justSucceeded, acknowledgeSuccession } = useDiagnosis();
   const { items: closetItems } = useCloset();
-  const { stats } = useStats();
+  const { stats, loading: statsLoading } = useStats();
   const { addToCart } = useCart();
   const [setOpen, setSetOpen] = useState(false);
 
@@ -217,11 +217,15 @@ export default function HomePage() {
           </button>
         )}
 
-        {/* 개인 대시보드: 날씨 + 마스코트(탭→옷장) + 경험치 */}
+        {/* 개인 대시보드: 날씨 + 마스코트(탭→옷장) + 경험치
+
+            levelPending: useStats는 비회원을 확정했을 때만 loading을 내린다.
+            그래서 이 값 하나로 "비회원이라 없음"과 "곧 온다"가 갈린다. */}
         <ProfileDashboard
           weather={weather}
           careTip={careTip}
           character={dashCharacter}
+          levelPending={statsLoading}
           user={dashUser}
           registry={dashRegistry}
         />

@@ -32,6 +32,20 @@ AUTH = "/api/v1/auth"
 ME = "/api/v1/me"
 PASSWORD = "swappy1234"
 
+# 진단 8타입. app/api/me.py의 SKIN_TYPES와 같은 집합이다.
+SKIN_TYPES = frozenset(
+    {
+        "ondalsam",
+        "mulgae",
+        "subuji",
+        "hwasan",
+        "samak",
+        "injeolmi",
+        "yuriguseul",
+        "memilmuk",
+    }
+)
+
 
 @pytest_asyncio.fixture(loop_scope="session")
 async def fresh_account(client: AsyncClient):
@@ -221,12 +235,17 @@ async def test_seeded_persona_can_log_in(client: AsyncClient) -> None:
 
     이 테스트가 깨지면 시드를 다시 돌려야 한다는 뜻이다. 프론트 데모 로그인이
     이 계정들에 걸려 있다.
+
+    피부타입은 **고정값으로 단언하지 않는다.** 처음에는 `== "ondalsam"`이라고
+    적었는데, 누군가 이 계정으로 앱에서 재진단을 하면(실제로 있었다 —
+    ondalsam → hwasan) 정상 사용 때문에 테스트가 깨진다. 여기서 확인할 것은
+    "시드가 프로필을 만들어 뒀는지"이므로, 8타입 중 하나가 들어 있으면 된다.
     """
     res = await client.post(
         f"{AUTH}/login", json={"email": "eunseong@swappy.app", "password": PASSWORD}
     )
     assert res.status_code == 200, "seed_test_users.py를 실행했는지 확인하세요"
-    assert res.json()["user"]["skinType"] == "ondalsam"
+    assert res.json()["user"]["skinType"] in SKIN_TYPES
 
 
 # ---------------------------------------------------------------- 비밀번호 변경

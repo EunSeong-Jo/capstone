@@ -64,7 +64,7 @@ export default function MypagePage() {
   const skinMeta = SKIN_TYPE_META[profile.skinType];
   // 서버가 실제 행에서 센 값. 비회원은 null이라 로컬 개수로 대신한다.
   // 레벨·경험치는 무엇으로 오르는지 정한 적이 없어 그리지 않는다.
-  const { stats } = useStats();
+  const { stats, loading: statsLoading } = useStats();
   const { count: closetCount } = useCloset();
   const { likedProducts } = useLikedProducts();
   const { decorationId } = useCharacter();
@@ -157,7 +157,15 @@ export default function MypagePage() {
           </div>
 
           {/* 레벨·경험치. 서버가 기록(스캔·후기·주문·선물)에서 계산한 값이라
-              비회원에게는 아예 없다 — 그 경우 줄을 그리지 않는다. */}
+              비회원에게는 아예 없다 — 그 경우 줄을 그리지 않는다. 로그인
+              사용자는 값이 곧 오므로 자리만 먼저 잡아 둔다. */}
+          {!stats && statsLoading && (
+            <div className="mt-3.5 flex items-center gap-3 border-t border-gray-10 pt-3" aria-hidden>
+              <span className="h-3 w-8 shrink-0 animate-pulse rounded-full bg-gray-10" />
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-10" />
+              <span className="h-3 w-8 shrink-0 animate-pulse rounded-full bg-gray-10" />
+            </div>
+          )}
           {stats && (
             <div className="mt-3.5 flex items-center gap-3 border-t border-gray-10 pt-3">
               <span className="shrink-0 whitespace-nowrap text-[11px] font-bold text-gray-50">
