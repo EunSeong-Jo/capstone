@@ -42,10 +42,12 @@ const quickButtons = [
   ['배송 문의', '취소/교환/반품'],
 ];
 
-/** 챗봇 아바타 — 로봇 이모지 대신 사용자 본인의 캐릭터(피부타입 마스코트 + 꾸미기)를 보여준다 */
+/** 챗봇 아바타 — 로봇 이모지 대신 사용자 본인의 캐릭터(피부타입 마스코트 + 꾸미기)를 보여준다.
+ *  배경은 Mypage/ProfileDashboard의 캐릭터 원형 아이콘과 동일하게 흰 배경 + 연한 테두리로 맞춘다 —
+ *  bg-gray-100이 이 팔레트에서 #111827(거의 검정)이라 캐릭터 이미지 뒤에서 도드라져 보였다. */
 function BotAvatar({ skinType, decorationId }: { skinType: SkinType; decorationId: number | null }) {
   return (
-    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0 shadow overflow-hidden">
+    <div className="w-10 h-10 rounded-full bg-white border border-gray-20 flex items-center justify-center shrink-0 shadow overflow-hidden">
       <CharacterAvatar skinType={skinType} decorationId={decorationId} className="h-[85%] w-[85%]" />
     </div>
   );
@@ -244,7 +246,7 @@ export default function ChatSupportPage() {
 
                   {msg.isWelcome && (
                     <>
-                      <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-b-2xl px-5 pt-4 pb-2 mb-2 text-center">
+                      <div className="bg-gray-5 rounded-tl-[4px] rounded-tr-2xl rounded-b-2xl px-5 pt-4 pb-2 mb-2 text-center">
                         <CharacterAvatar skinType={skinType} decorationId={decorationId} className="mx-auto h-16 w-16" />
                       </div>
                       <div className="bg-white rounded-tl-[4px] rounded-tr-2xl rounded-b-2xl px-4 py-3.5 shadow-sm text-[13px] text-gray-100 leading-relaxed">
