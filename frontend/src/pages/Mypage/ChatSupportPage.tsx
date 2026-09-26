@@ -8,6 +8,8 @@ import { ApiError } from '../../api/client';
 import { useCloset } from '../../context/closet';
 import { useAuth } from '../../context/auth';
 import { useDiagnosis } from '../../context/diagnosis';
+import { useCharacter } from '../../context/character';
+import { CharacterAvatar } from '../../components/character/CharacterAvatar';
 import type { SkinType } from '../../types';
 
 // Home/index.tsx와 동일한 기본값. 로그인·진단 모두 없는 게스트가 챗봇을 열면
@@ -40,10 +42,47 @@ const quickButtons = [
   ['배송 문의', '취소/교환/반품'],
 ];
 
-function BotAvatar() {
+/** 챗봇 아바타 — 로봇 이모지 대신 사용자 본인의 캐릭터(피부타입 마스코트 + 꾸미기)를 보여준다 */
+function BotAvatar({ skinType, decorationId }: { skinType: SkinType; decorationId: number | null }) {
   return (
-    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-lg shrink-0 shadow">
-      🤖
+    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0 shadow overflow-hidden">
+      <CharacterAvatar skinType={skinType} decorationId={decorationId} className="h-[85%] w-[85%]" />
+    </div>
+  );
+}
+
+/**
+ * "**굵게**"만 지원하는 최소 마크다운 렌더러.
+ * 시스템 프롬프트가 그 외 마크다운 기호는 안 쓰도록 지시하므로 그것만 처리한다.
+ * 예전엔 텍스트를 그대로 찍어서 **별표**가 안 굵어지고 그대로 보였다.
+ */
+function renderWithBold(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith('**') && part.endsWith('**') && part.length > 4 ? (
+      <strong key={i}>{part.slice(2, -2)}</strong>
+    ) : (
+      part
+    ),
+  );
+}
+
+/** 카카오톡 식 "입력 중" 표시 — 챗봇이 응답을 준비하는 동안 보여준다 */
+function TypingBubble({ skinType, decorationId }: { skinType: SkinType; decorationId: number | null }) {
+  return (
+    <div className="flex gap-2 mb-3 items-start">
+      <BotAvatar skinType={skinType} decorationId={decorationId} />
+      <div className="flex-1 max-w-[80%]">
+        <span className="text-[11px] text-gray-50 mb-1 block">swappy · 입력 중</span>
+        <div className="inline-flex items-center gap-1 bg-white rounded-tl-[4px] rounded-tr-2xl rounded-b-2xl px-4 py-3.5 shadow-sm">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="h-1.5 w-1.5 rounded-full bg-gray-50 animate-bounce"
+              style={{ animationDelay: `${i * 0.15}s` }}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -56,6 +95,7 @@ export default function ChatSupportPage() {
   const { user: persona } = useAuth();
   const { skinType: diagType } = useDiagnosis();
   const skinType = diagType ?? persona?.skinType ?? DEFAULT_SKIN;
+  const { decorationId } = useCharacter();
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [registerMode, setRegisterMode] = useState(false);
@@ -198,14 +238,14 @@ export default function ChatSupportPage() {
           <div key={msg.id}>
             {msg.role === 'bot' && (
               <div className="flex gap-2 mb-3 items-start">
-                <BotAvatar />
+                <BotAvatar skinType={skinType} decorationId={decorationId} />
                 <div className="flex-1 max-w-[80%]">
                   <span className="text-[11px] text-gray-50 mb-1 block">swappy · 방금 전</span>
 
                   {msg.isWelcome && (
                     <>
                       <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-b-2xl px-5 pt-4 pb-2 mb-2 text-center">
-                        <span className="text-4xl">🤖</span>
+                        <CharacterAvatar skinType={skinType} decorationId={decorationId} className="mx-auto h-16 w-16" />
                       </div>
                       <div className="bg-white rounded-tl-[4px] rounded-tr-2xl rounded-b-2xl px-4 py-3.5 shadow-sm text-[13px] text-gray-100 leading-relaxed">
                         반갑습니다.
@@ -261,7 +301,7 @@ export default function ChatSupportPage() {
 
                   {msg.text && (
                     <div className="bg-white rounded-tl-[4px] rounded-tr-2xl rounded-b-2xl px-3.5 py-3 shadow-sm text-[13px] text-gray-100 leading-relaxed whitespace-pre-line">
-                      {msg.text}
+                      {renderWithBold(msg.text)}
                     </div>
                   )}
                 </div>
@@ -277,6 +317,8 @@ export default function ChatSupportPage() {
             )}
           </div>
         ))}
+
+        {isSending && <TypingBubble skinType={skinType} decorationId={decorationId} />}
 
         <div ref={bottomRef} />
       </div>
