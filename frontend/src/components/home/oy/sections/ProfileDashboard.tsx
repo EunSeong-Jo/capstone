@@ -10,6 +10,14 @@ interface ProfileDashboardProps {
    *  null이면 로딩 중 — 스켈레톤을 보여준다. */
   careTip: string | null;
   character: CharacterState;
+  /**
+   * 레벨을 아직 받아오는 중이다(로그인 사용자).
+   *
+   * 비회원과 구분해야 한다 — 비회원은 셀 대상이 서버에 없어 줄을 아예 그리지
+   * 않지만, 로그인 사용자에게는 곧 값이 온다. 없다가 갑자기 튀어나오면
+   * 레이아웃이 밀리므로 자리만 먼저 잡아 둔다.
+   */
+  levelPending?: boolean;
   user: ProfileUser;
   registry: RegistrySummary;
 }
@@ -19,7 +27,14 @@ interface ProfileDashboardProps {
  * 상단 미니 날씨바(계절·피부타입 칩) + 오늘의 케어 / 마스코트(탭→옷장)·프로필·경험치.
  * 카드 아래 '대체품 절약 가능' 그린 배너.
  */
-export function ProfileDashboard({ weather, careTip, character, user, registry }: ProfileDashboardProps) {
+export function ProfileDashboard({
+  weather,
+  careTip,
+  character,
+  user,
+  registry,
+  levelPending = false,
+}: ProfileDashboardProps) {
   // 꾸미기는 전역 상태다 — 꾸미기 화면에서 저장하면 여기도 같이 바뀐다.
   const { decorationId } = useCharacter();
   const navigate = useNavigate();
@@ -114,6 +129,13 @@ export function ProfileDashboard({ weather, careTip, character, user, registry }
 
             {/* 레벨/칭호 · 진행바 · 경험치. 닉네임은 제거하되, 레벨 자체는 기존
                 보조 텍스트 스타일 그대로 — 위 말풍선과 폭(컬럼)만 맞춘다 */}
+            {!hasLevel && levelPending && (
+              <div className="shrink-0 flex items-center gap-3" aria-hidden>
+                <span className="h-3 w-10 shrink-0 animate-pulse rounded-full bg-gray-10" />
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-10" />
+                <span className="h-3 w-8 shrink-0 animate-pulse rounded-full bg-gray-10" />
+              </div>
+            )}
             {hasLevel && (
               <div className="shrink-0 flex items-center gap-3">
                 <span className="shrink-0 whitespace-nowrap text-[11px] font-bold text-gray-50">
