@@ -37,10 +37,16 @@ function writeStorage(patch: Partial<ProfileUser>) {
  *
  * TODO: Task 12(인증) 연동 시 persona 대신 GET /me 응답을 씁니다.
  */
-/** 비로그인 상태의 바탕값. 가짜 이메일·식별번호를 만들지 않습니다. */
+/**
+ * 비로그인 상태의 바탕값. 가짜 이메일·식별번호를 만들지 않습니다.
+ *
+ * `skinType`도 지어내지 않습니다. 예전에는 `'ondalsam'`이라 게스트와 진단 전
+ * 계정이 모두 "옹달샘"으로 보였습니다 — 화면은 null을 `UNKNOWN_SKIN_META`로
+ * 그립니다.
+ */
 const GUEST_PROFILE: ProfileUser = {
   nickname: '게스트',
-  skinType: 'ondalsam',
+  skinType: null,
 };
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {

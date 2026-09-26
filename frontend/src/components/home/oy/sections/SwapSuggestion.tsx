@@ -79,7 +79,7 @@ function SwapProduct({
 
 export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
   const navigate = useNavigate();
-  const { items } = useCloset();
+  const { items, loading: closetLoading } = useCloset();
   const { addToCart } = useCart();
   const { showToast } = useToast();
   const { suggestion, outcome, variantHint, loading, error, reload } = useSwapSuggestion(
@@ -87,7 +87,14 @@ export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
     skinType,
   );
 
-  if (items.length === 0) {
+  /**
+   * "화장대가 비었다"는 조회가 끝난 뒤에만 말할 수 있다.
+   *
+   * ClosetContext는 로그인 시 빈 배열로 시작한다. 예전에는 이 검사가
+   * `loading`보다 앞에 있어서, 화장대에 제품이 있는 사용자도 "제품
+   * 등록하기" 안내를 먼저 보고 잠시 뒤 제안 카드로 바뀌었다.
+   */
+  if (!closetLoading && items.length === 0) {
     return (
       <SectionFrame>
         <p className="text-[13px] leading-relaxed text-oy-sub">
@@ -106,7 +113,7 @@ export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
     );
   }
 
-  if (loading) {
+  if (closetLoading || loading) {
     return (
       <SectionFrame>
         <div className="animate-pulse">

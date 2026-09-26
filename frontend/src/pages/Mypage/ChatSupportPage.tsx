@@ -6,15 +6,11 @@ import { searchProducts } from '../../api/products';
 import { sendChatMessage } from '../../api/chat';
 import { ApiError } from '../../api/client';
 import { useCloset } from '../../context/closet';
-import { useAuth } from '../../context/auth';
-import { useDiagnosis } from '../../context/diagnosis';
-import type { SkinType } from '../../types';
+import { useSkinType } from '../../hooks/useSkinType';
 
 // Home/index.tsx와 동일한 기본값. 로그인·진단 모두 없는 게스트가 챗봇을 열면
 // 여기 폴백이 없어서 skinType이 undefined로 넘어가 "미확인"으로 표시되던 버그가 있었다 —
 // 앱 다른 화면과 동작을 맞춘다.
-const DEFAULT_SKIN: SkinType = 'ondalsam';
-
 /**
  * AI 챗봇 UI — backend POST /api/v1/chat(RAG) 연동.
  * quickButtons(고객센터 FAQ)는 기존 정형 응답을 그대로 유지합니다 — AI 챗봇과는 별개 기능입니다.
@@ -53,9 +49,7 @@ const REGISTER_INTENT = /(화장품|제품).*(등록|추가)|등록.*(화장품|
 export default function ChatSupportPage() {
   const navigate = useNavigate();
   const { addItem } = useCloset();
-  const { user: persona } = useAuth();
-  const { skinType: diagType } = useDiagnosis();
-  const skinType = diagType ?? persona?.skinType ?? DEFAULT_SKIN;
+  const { skinType } = useSkinType();
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [registerMode, setRegisterMode] = useState(false);
@@ -160,7 +154,7 @@ export default function ChatSupportPage() {
       .map((m) => ({ role: m.role === 'bot' ? ('assistant' as const) : ('user' as const), content: m.text! }));
 
     try {
-      const { reply } = await sendChatMessage({ message: userText, skin_type: skinType, history });
+      const { reply } = await sendChatMessage({ message: userText, skin_type: skinType ?? undefined, history });
       const botReply: Message = { id: nextId.current++, role: 'bot', text: reply };
       setMessages((prev) => [...prev, botReply]);
     } catch (err) {

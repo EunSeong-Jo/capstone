@@ -20,13 +20,26 @@ interface UseCareTipResult {
  * 떠 있는 걸 막기 위해서다(호출부가 null을 "로딩 중"으로 보고 스켈레톤을
  * 보여줘야 한다). 정적 테이블(getSkinCareTip)은 AI 생성이 실제로 실패했을
  * 때만 폴백으로 쓴다 — useWeather와 같은 방어적 설계.
+ *
+ * 피부타입을 모르면 묻지 않는다
+ * -----------------------------
+ * `fetchCareTip`은 skinType이 필수다. 예전에는 화면이 기본값 'ondalsam'을
+ * 넘겨서 옹달샘용 문구를 한 번 받아 보여준 뒤 진단이 도착하면 다시 받았다.
+ * `skinPending`이면 기다리고, 진단을 한 적이 없으면(`skinType === null`)
+ * 진단을 권하는 문구를 낸다 — 남의 타입 문구를 보여주지 않는다.
  */
-export function useCareTip(skinType: SkinType, condition: WeatherCondition): UseCareTipResult {
+export function useCareTip(
+  skinType: SkinType | null,
+  skinPending: boolean,
+  condition: WeatherCondition,
+): UseCareTipResult {
   const [tip, setTip] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (skinPending || skinType === null) return;
+
     const controller = new AbortController();
 
     fetchCareTip(skinType, controller.signal)
@@ -41,7 +54,17 @@ export function useCareTip(skinType: SkinType, condition: WeatherCondition): Use
       });
 
     return () => controller.abort();
-  }, [skinType, condition]);
+  }, [skinType, skinPending, condition]);
 
-  return { tip, loading, error };
+  // 진단 전에는 문구가 아니라 다음 할 일을 알린다. 이건 폴백이 아니라
+  // 그 상태의 정답이다.
+  if (!skinPending && skinType === null) {
+    return {
+      tip: '피부타입을 진단하면 오늘의 케어를 알려드려요.',
+      loading: false,
+      error: null,
+    };
+  }
+
+  return { tip, loading: skinPending || loading, error };
 }

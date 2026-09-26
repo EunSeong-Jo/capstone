@@ -1,5 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { CharacterState, ProfileUser, RegistrySummary, WeatherInfo, SKIN_TYPE_META } from '../../../../types';
+import {
+  CharacterState,
+  ProfileUser,
+  RegistrySummary,
+  SKIN_TYPE_META,
+  UNKNOWN_SKIN_META,
+  WeatherInfo,
+} from '../../../../types';
 import { CharacterAvatar } from '../../../character/CharacterAvatar';
 import { useCharacter } from '../../../../context/character';
 
@@ -18,6 +25,14 @@ interface ProfileDashboardProps {
    * 레이아웃이 밀리므로 자리만 먼저 잡아 둔다.
    */
   levelPending?: boolean;
+  /**
+   * 피부타입을 아직 받아오는 중이다.
+   *
+   * `character.skinType === null`이 "진단을 안 했다"인지 "아직 모른다"인지
+   * 구분하려면 이 값이 필요하다. 전자는 진단을 권해야 하고, 후자는
+   * 기다려야 한다 — 잘못 고르면 진단한 사용자에게 "진단하세요"가 뜬다.
+   */
+  skinPending?: boolean;
   user: ProfileUser;
   registry: RegistrySummary;
 }
@@ -34,14 +49,25 @@ export function ProfileDashboard({
   user,
   registry,
   levelPending = false,
+  skinPending = false,
 }: ProfileDashboardProps) {
   // 꾸미기는 전역 상태다 — 꾸미기 화면에서 저장하면 여기도 같이 바뀐다.
-  const { decorationId } = useCharacter();
+  const { decorationId, loading: decoPending } = useCharacter();
   const navigate = useNavigate();
-  const meta = SKIN_TYPE_META[user.skinType];
+
+  const meta = user.skinType !== null ? SKIN_TYPE_META[user.skinType] : UNKNOWN_SKIN_META;
   // "수분팡팡 옹달샘" → "옹달샘" (칩용 짧은 피부명)
   const skinWords = meta.label.split(' ');
   const shortSkinName = skinWords[skinWords.length - 1] || meta.label;
+
+  /**
+   * 얼굴과 장식은 둘 다 로그인 직후 도착한다. 하나라도 아직이면 아바타를
+   * 통째로 스켈레톤으로 둔다 — 얼굴을 먼저 그리고 장식만 나중에 얹으면
+   * 같은 자리가 두 번 깜빡인다.
+   */
+  const avatarPending = skinPending || decoPending;
+  /** 진단을 한 적이 없다(확인은 끝났다). 기다릴 게 아니라 권해야 한다. */
+  const needsDiagnosis = !skinPending && user.skinType === null;
   // 레벨·경험치는 /me/stats가 붙기 전까지 근거가 없다. 값이 없으면 줄을 숨긴다.
   const hasLevel =
     character.level !== undefined &&
@@ -78,11 +104,28 @@ export function ProfileDashboard({
           ) : (
             <div className="h-[22px] w-32 animate-pulse rounded-full bg-gray-10" />
           )}
-          <span className="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-full bg-primary-light text-[11px] font-bold text-primary">
-            {/* 별명만 적으면 그게 지성인지 건성인지 알 수 없다. 일반 명칭을
-                괄호로 함께 둔다. */}
-            {meta.emoji} {shortSkinName}({meta.category})
-          </span>
+          {skinPending ? (
+            <span
+              aria-hidden
+              className="h-[22px] w-24 shrink-0 animate-pulse rounded-full bg-gray-10"
+            />
+          ) : needsDiagnosis ? (
+            /* 진단 전. 8종 중 하나를 골라 보여주면 그게 곧 거짓이라, 대신
+               진단으로 보낸다. */
+            <button
+              type="button"
+              onClick={() => navigate('/qna')}
+              className="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-full bg-primary text-[11px] font-bold text-white active:scale-95 transition-transform"
+            >
+              {UNKNOWN_SKIN_META.emoji} 피부타입 진단하기
+            </button>
+          ) : (
+            <span className="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-full bg-primary-light text-[11px] font-bold text-primary">
+              {/* 별명만 적으면 그게 지성인지 건성인지 알 수 없다. 일반 명칭을
+                  괄호로 함께 둔다. */}
+              {meta.emoji} {shortSkinName}({meta.category})
+            </span>
+          )}
         </div>
         {/* 마스코트(탭→옷장) + [오늘의 케어 말풍선 / 레벨·진행바] 세로 스택 */}
         {/* 닉네임을 없애면서 생긴 여백을 마스코트 확대로 채운다 — 그만큼 오른쪽
@@ -95,11 +138,15 @@ export function ProfileDashboard({
             aria-label="내 캐릭터 꾸미기"
             className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-visible rounded-full bg-primary-light active:scale-95 transition-transform"
           >
-            <CharacterAvatar
-              skinType={character.skinType}
-              decorationId={decorationId}
-              className="h-[88%] w-[88%]"
-            />
+            {avatarPending ? (
+              <span aria-hidden className="h-[88%] w-[88%] animate-pulse rounded-full bg-gray-10" />
+            ) : (
+              <CharacterAvatar
+                skinType={character.skinType}
+                decorationId={decorationId}
+                className="h-[88%] w-[88%]"
+              />
+            )}
             {/* 꾸미기 힌트 뱃지 */}
             <span className="absolute -bottom-1 -right-1 inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
               ✨꾸미기

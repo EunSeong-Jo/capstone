@@ -15,12 +15,12 @@ import {
   ProfileUser,
   RegistrySummary,
   SKIN_TYPE_META,
-  SkinType,
 } from '../../types';
 import { useProducts } from '../../hooks/useProducts';
 import { useRecommendations } from '../../hooks/useRecommendations';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
 import { useStats } from '../../hooks/useStats';
+import { useSkinType } from '../../hooks/useSkinType';
 import { useSwapSuggestion } from '../../hooks/useSwapSuggestion';
 import { useWeather } from '../../hooks/useWeather';
 import { useCareTip } from '../../hooks/useCareTip';
@@ -85,19 +85,24 @@ function MockBanner() {
   );
 }
 
-const DEFAULT_SKIN: SkinType = 'ondalsam';
-
 export default function HomePage() {
   const navigate = useNavigate();
   const { user: persona, isUser } = useAuth();
-  const { skinType: diagType, justSucceeded, acknowledgeSuccession } = useDiagnosis();
-  const { items: closetItems } = useCloset();
+  const { justSucceeded, acknowledgeSuccession } = useDiagnosis();
+  const { items: closetItems, loading: closetLoading } = useCloset();
   const { stats, loading: statsLoading } = useStats();
   const { addToCart } = useCart();
   const [setOpen, setSetOpen] = useState(false);
 
-  const skinType: SkinType = diagType ?? persona?.skinType ?? DEFAULT_SKIN;
-  const skinLabel = SKIN_TYPE_META[skinType].label;
+  /**
+   * 피부타입은 세 상태다 — 모른다(확인 중) / 진단 전 / 확정.
+   *
+   * 예전에는 `?? 'ondalsam'`으로 뭉개서, 진단 응답 전에도 진단을 한 적이
+   * 없어도 옹달샘으로 확정됐다. 마스코트·칩·캐러셀 제목·추천 요청이 전부
+   * 그 값을 썼다.
+   */
+  const { skinType, loading: skinPending } = useSkinType();
+  const skinLabel = skinType !== null ? SKIN_TYPE_META[skinType].label : null;
 
   const owned = closetItems.map((c) => ({ id: c.id, brand: c.brand, name: c.name }));
   const {
@@ -105,7 +110,7 @@ export default function HomePage() {
     set,
     error: recError,
     reload: recReload,
-  } = useRecommendations(skinType, owned);
+  } = useRecommendations(skinType, skinPending, owned);
 
   // 계절 맞춤 캐러셀은 개인화와 무관한 별도 풀
   const {
@@ -124,9 +129,10 @@ export default function HomePage() {
   // 사용자가 직접 고친 프로필(닉네임 등)은 UserProfileContext가 들고 있다.
   // 로그인 페르소나가 없을 때의 표시값으로 쓴다.
   const { profile } = useUserProfile();
-  const { tip: careTip } = useCareTip(skinType, weather?.condition ?? 'sunny');
+  const { tip: careTip } = useCareTip(skinType, skinPending, weather?.condition ?? 'sunny');
 
-  const registrySeedId = closetItems[0]?.id;
+  // 화장대 조회 중에는 seed가 없다 — 빈 배열을 "화장대가 비었다"로 읽으면 안 된다.
+  const registrySeedId = closetLoading ? undefined : closetItems[0]?.id;
 
   // 화장대 첫 항목의 실제 성분 유사도. 화장대 id가 카탈로그 id가 된 뒤로
   // 여기서 진짜 점수를 쓸 수 있다.
@@ -145,7 +151,7 @@ export default function HomePage() {
   // 예전에는 이 자리에 mocks/alternatives.ts의 고정 목업이 있었는데, 가짜
   // 제품에 붙은 id(102~109)가 실재 카탈로그 id와 겹쳐 카드를 탭하면 전혀
   // 다른 제품 상세가 열렸다.
-  const swap = useSwapSuggestion(closetItems, skinType);
+  const swap = useSwapSuggestion(closetItems, skinType ?? undefined);
 
   // 화장대 제품들을 실제로 바꿨을 때 아낄 수 있는 금액. 후보가 없으면
   // undefined이고 대시보드가 문구를 바꾼다 — 고정값을 그리지 않는다.
@@ -213,7 +219,8 @@ export default function HomePage() {
             onClick={acknowledgeSuccession}
             className="block w-full bg-primary-light px-4 py-2.5 text-left text-[12px] font-semibold text-primary-dark"
           >
-            ✅ 로그인 전 진단한 피부타입({skinLabel})을 계정으로 가져왔어요. 탭하여 닫기
+            ✅ 로그인 전 진단한 피부타입{skinLabel !== null ? `(${skinLabel})` : ''}을
+            계정으로 가져왔어요. 탭하여 닫기
           </button>
         )}
 
@@ -226,17 +233,28 @@ export default function HomePage() {
           careTip={careTip}
           character={dashCharacter}
           levelPending={statsLoading}
+          skinPending={skinPending}
           user={dashUser}
           registry={dashRegistry}
         />
         <Divider />
 
         {/* 오늘의 교체 제안 — 화장대 기반, 홈의 첫 카드 */}
-        <SwapSuggestion skinType={skinType} />
+        <SwapSuggestion skinType={skinType ?? undefined} />
         <Divider />
 
-        {/* 피부타입 맞춤 추천 */}
-        <ProductCarousel title={`${withObjParticle(skinLabel)} 위한 상품`} products={forYou} ad />
+        {/* 피부타입 맞춤 추천.
+
+            진단 전에는 서버도 개인화하지 않고 인기순으로 응답한다
+            (recommendations_main.py의 skinType 기본값이 None). 그러니 제목도
+            개인화인 척하지 않는다 — "옹달샘을 위한 상품"이 그 척이었다. */}
+        <ProductCarousel
+          title={
+            skinLabel !== null ? `${withObjParticle(skinLabel)} 위한 상품` : '요즘 인기 있는 상품'
+          }
+          products={forYou}
+          ad
+        />
         {loading && forYou.length === 0 && <CarouselSkeleton />}
         {recError && forYou.length === 0 && (
           <CarouselError message={recError} onRetry={recReload} />

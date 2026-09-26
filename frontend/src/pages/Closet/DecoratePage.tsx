@@ -5,11 +5,9 @@ import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Button } from '../../components/ui/Button';
 import { DECORATIONS } from '../../data/mascotAssets';
-import { useAuth } from '../../context/auth';
 import { useCharacter } from '../../context/character';
-import { useDiagnosis } from '../../context/diagnosis';
 import { useToast } from '../../context/toast';
-import { SkinType } from '../../types';
+import { useSkinType } from '../../hooks/useSkinType';
 
 /**
  * 내 캐릭터 꾸미기.
@@ -19,15 +17,11 @@ import { SkinType } from '../../types';
  * 지금은 진단 결과의 마스코트를 쓰고, 저장하면 서버에 남아 홈·마이의
  * 캐릭터에도 같이 반영된다.
  */
-const DEFAULT_SKIN: SkinType = 'ondalsam';
-
 export default function DecoratePage() {
   const navigate = useNavigate();
-  const { user: persona } = useAuth();
-  const { skinType: diagType } = useDiagnosis();
   const { decorationId, setDecoration } = useCharacter();
   const { showToast } = useToast();
-  const skinType: SkinType = diagType ?? persona?.skinType ?? DEFAULT_SKIN;
+  const { skinType } = useSkinType();
 
   // 저장 전까지는 화면 안에서만 고른다 — 뒤로 나가면 원래대로다.
   const [selected, setSelected] = useState<number | null>(decorationId);

@@ -17,6 +17,15 @@ export const TYPE_FACE_SRC: Record<SkinType, string> = {
   memilmuk: '/mascot/얼룩덜룩메밀묵타입.png',
 };
 
+/**
+ * 진단 전 캐릭터.
+ *
+ * `base_face_*.png`는 피부타입을 대표하지 않는 범용 얼굴이라 타입별 표시에는
+ * 쓰지 않는다. 반대로 **타입을 모를 때는 이쪽이 맞다** — 8종 중 하나를
+ * 골라 보여주면 그게 곧 거짓이 된다. thinking 표정을 쓰는 이유도 같다.
+ */
+export const UNKNOWN_FACE_SRC = '/mascot/base_face_thinking.png';
+
 export type DecorationSlot = 'head' | 'eyes';
 
 export interface Decoration {

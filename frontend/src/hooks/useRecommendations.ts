@@ -52,21 +52,35 @@ interface Loaded {
   error: string | null;
 }
 
+/**
+ * 개인화 추천.
+ *
+ * `skinPending`이 true면 **요청을 보내지 않는다.** 예전에는 화면이 기본값
+ * 'ondalsam'을 넘겨서, 옹달샘 기준 추천을 한 번 받아 보여준 뒤 진단이
+ * 도착하면 다시 받았다. 첫 응답은 남의 피부타입 추천이었다.
+ *
+ * 진단을 한 적이 없는 계정(`skinType === null`, `skinPending === false`)은
+ * 요청한다 — 서버가 skinType 없이도 인기순으로 응답하므로 빈 화면보다 낫다.
+ */
 export function useRecommendations(
-  skinType: SkinType,
+  skinType: SkinType | null,
+  skinPending: boolean,
   owned: OwnedRef[],
 ): UseRecommendationsResult {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [nonce, setNonce] = useState(0);
 
-  const key = `${skinType}#${nonce}`;
+  const key = `${skinType ?? 'none'}:${skinPending}#${nonce}`;
 
   useEffect(() => {
+    // 타입을 아직 모르는 동안은 묻지 않는다. 지금 물으면 곧 다시 물어야 한다.
+    if (skinPending) return;
+
     const controller = new AbortController();
 
     Promise.all([
-      fetchMainRecommendations(skinType, 12, controller.signal),
-      fetchRecommendationSet(skinType, controller.signal),
+      fetchMainRecommendations(skinType ?? undefined, 12, controller.signal),
+      fetchRecommendationSet(skinType ?? undefined, controller.signal),
     ])
       .then(([main, set]) => {
         setLoaded({ key, forYou: main.items, set, error: null });
@@ -82,7 +96,7 @@ export function useRecommendations(
       });
 
     return () => controller.abort();
-  }, [key, skinType]);
+  }, [key, skinType, skinPending]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 

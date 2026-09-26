@@ -101,7 +101,18 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const [loading, setLoading] = useState(false);
+  /**
+   * 서버 조회를 끝낸 scope. 지금 scope와 다르면 아직 확인 전이다.
+   *
+   * 예전에는 `useState(false)`로 시작해 `.finally()`에서만 false로 두었는데
+   * `setLoading(true)`가 어디에도 없어서 **loading이 항상 false**였다. 그래서
+   * 교체 제안이 "화장대가 비었어요"를 먼저 보여줬다 — 화장대에 제품이 있는
+   * 사용자에게도.
+   *
+   * effect에서 켜지 않고 파생시키는 이유는 `useStats`·`useOrders`와 같다
+   * (react-hooks/set-state-in-effect).
+   */
+  const [settledScope, setSettledScope] = useState<string | null>(null);
 
   /** 게스트 저장은 그대로 localStorage. 로그인 상태에서는 쓰지 않는다. */
   const persistGuest = useCallback(
@@ -146,7 +157,8 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
         if (alive) setItems([]);
       })
       .finally(() => {
-        if (alive) setLoading(false);
+        // 시드까지 끝났든 실패했든 "확인은 끝났다".
+        if (alive) setSettledScope(scope);
       });
 
     return () => {
@@ -258,14 +270,26 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     () => ({
       items,
       count: items.length,
-      loading,
+      // 비회원은 서버에 물을 것이 없다 — localStorage가 곧 답이다.
+      loading: authLoading || (isUser && settledScope !== scope),
       hasItem,
       addItem,
       removeItem,
       setStatus,
       clearCloset,
     }),
-    [items, loading, hasItem, addItem, removeItem, setStatus, clearCloset],
+    [
+      items,
+      authLoading,
+      isUser,
+      settledScope,
+      scope,
+      hasItem,
+      addItem,
+      removeItem,
+      setStatus,
+      clearCloset,
+    ],
   );
 
   return <ClosetContext.Provider value={value}>{children}</ClosetContext.Provider>;
