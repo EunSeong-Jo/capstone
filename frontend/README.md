@@ -93,6 +93,7 @@ npm run dev            # 개발 서버 실행 (vite --host)
 | 명령 | 설명 |
 |---|---|
 | `npm run dev` | 개발 서버(HMR) |
+| `npm run typecheck` | 타입 검사만 (`tsc -b`) |
 | `npm run build` | 타입체크(`tsc -b`) + 프로덕션 빌드 |
 | `npm run preview` | 빌드 결과 로컬 미리보기 |
 | `npm run lint` | ESLint 검사 |
@@ -102,10 +103,14 @@ npm run dev            # 개발 서버 실행 (vite --host)
 
 ## 5. 테스트 · 검증 방법
 
-현재 **단위 테스트 프레임워크는 없습니다.** PR 올리기 전 아래 3가지로 검증합니다.
+현재 **단위 테스트 프레임워크는 없습니다.** PR 올리기 전 아래로 검증합니다.
+
+> ⚠️ **`npx tsc --noEmit`을 쓰지 마세요.** 이 저장소의 `tsconfig.json`은
+> `files: []` + references 구조라, 그 명령은 **아무 파일도 검사하지 않고
+> 통과합니다.** 실제 검사는 `tsc -b`이고 `npm run typecheck`가 그것입니다.
 
 ```bash
-npx tsc --noEmit     # ① 타입 에러 0 확인
+npm run typecheck    # ① 타입 에러 0 확인
 npm run build        # ② 빌드 성공 확인 (타입체크 포함)
 npm run lint         # ③ 린트 통과 확인
 npm run check:dummy  # ④ 더미 제품 데이터 없음 확인

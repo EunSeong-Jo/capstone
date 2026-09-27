@@ -2,11 +2,10 @@ import { useNavigate } from 'react-router-dom';
 import { AlternativeCardV } from '../../components/alternatives/AlternativeCardV';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
-import { useAuth } from '../../context/auth';
 import { useCloset } from '../../context/closet';
-import { useDiagnosis } from '../../context/diagnosis';
+import { useSkinType } from '../../hooks/useSkinType';
 import { useSwapSuggestion } from '../../hooks/useSwapSuggestion';
-import { SkinType, SKIN_TYPE_META } from '../../types';
+import { SKIN_TYPE_META } from '../../types';
 
 /**
  * 홈 "💰 더 저렴한 대체품" 더보기 — 전체 목록.
@@ -21,18 +20,15 @@ import { SkinType, SKIN_TYPE_META } from '../../types';
  * 홈이 이미 같은 조회를 했더라도 추가 요청이 생기지는 않는다 — 훅 안의
  * 조회는 화장대 항목 id로 키가 잡혀 있고, 브라우저가 같은 GET을 캐시한다.
  */
-const DEFAULT_SKIN: SkinType = 'ondalsam';
-
 export default function CheaperAlternativesPage() {
   const navigate = useNavigate();
-  const { user: persona } = useAuth();
-  const { skinType: diagType } = useDiagnosis();
   const { items: closetItems } = useCloset();
-  const skinType: SkinType = diagType ?? persona?.skinType ?? DEFAULT_SKIN;
+  const { skinType } = useSkinType();
 
   const { candidates, outcome, loading, error, reload } = useSwapSuggestion(
     closetItems,
-    skinType,
+    // 타입을 모르면 기피 성분 필터 없이 찾는다 — 8종 중 하나를 찍어 넣는 것보다 낫다.
+    skinType ?? undefined,
   );
 
   const totalSaving = candidates.reduce((sum, c) => sum + -(c.alt.priceDelta ?? 0), 0);
@@ -43,7 +39,8 @@ export default function CheaperAlternativesPage() {
 
       {candidates.length > 0 && (
         <p className="px-4 pt-4 text-[13px] text-gray-70">
-          {SKIN_TYPE_META[skinType].label} 기준으로 {candidates.length}건을 찾았어요.
+          {skinType !== null ? `${SKIN_TYPE_META[skinType].label} 기준으로 ` : ''}
+          {candidates.length}건을 찾았어요.
           전부 바꾸면 <span className="font-bold text-primary-dark">
             {totalSaving.toLocaleString()}원
           </span>{' '}

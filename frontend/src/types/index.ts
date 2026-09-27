@@ -24,6 +24,20 @@ export const SKIN_TYPE_META: Record<
   memilmuk:    { label: '얼룩덜룩 메밀묵', emoji: '🌑', summary: '색소침착·잡티', category: '색소침착' },
 };
 
+/**
+ * 아직 진단하지 않았을 때의 표시값.
+ *
+ * `SkinType`에 9번째 코드를 넣지 않는다. 8종은 DB(`skin_type_rules` 8행)와
+ * 백엔드 검증(`api/me.py: SKIN_TYPES`)이 함께 쓰는 집합이라, 여기에 'guest'를
+ * 끼우면 `PATCH /me/profile`이 **진단이 아닌 값을 프로필에 저장**할 수 있게
+ * 된다. 이건 화면에서만 쓰는 상태다.
+ */
+export const UNKNOWN_SKIN_META = {
+  label: '피부타입 미정',
+  emoji: '🤔',
+  category: '진단 전',
+} as const;
+
 export interface Product {
   id: number;
   name: string;
@@ -128,7 +142,8 @@ export type FaceExpression = 'neutral' | 'laugh' | 'thinking' | 'pout';
 
 /** 내 캐릭터 상태 (레벨/경험치) */
 export interface CharacterState {
-  skinType: SkinType; // 캐릭터가 대표하는 피부타입
+  /** 캐릭터가 대표하는 피부타입. 모르면 null — 범용 얼굴을 그린다. */
+  skinType: SkinType | null;
   expression: FaceExpression; // 사용 표정 (현재 'neutral' 고정)
   // 레벨·경험치는 GET /me/stats가 기록에서 계산해 준다(스캔·후기·주문·선물).
   // 비회원은 셀 대상이 서버에 없어 값이 비고, 그러면 대시보드가 그 줄을
@@ -170,7 +185,8 @@ export interface QuickAction {
 /** "주민등록증" 컨셉 사용자 프로필 */
 export interface ProfileUser {
   nickname: string;
-  skinType: SkinType;
+  /** 진단 전이거나 아직 확인 중이면 null. 화면은 UNKNOWN_SKIN_META로 그린다. */
+  skinType: SkinType | null;
   email?: string;
   memberSince?: string; // 발급일 컨셉 "2026.03"
 }

@@ -40,6 +40,15 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     });
   }
 
+  /**
+   * 서버 조회를 끝낸 scope. 지금 scope와 다르면 아직 확인 전이다.
+   *
+   * 별도의 loading 상태를 두지 않는 이유는 저장소의 다른 훅들과 같다 —
+   * effect에서 `setLoading(true)`를 부르면 렌더가 한 번 더 돈다
+   * (react-hooks/set-state-in-effect).
+   */
+  const [settledScope, setSettledScope] = useState<string | null>(null);
+
   useEffect(() => {
     if (authLoading || !isUser) return;
 
@@ -48,7 +57,11 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
       .then((p) => {
         if (alive) setStore({ scope, decorationId: p.decorationId ?? null });
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        // 실패했어도 "확인은 끝났다" — 장식 없이 그리면 된다.
+        if (alive) setSettledScope(scope);
+      });
 
     return () => {
       alive = false;
@@ -74,8 +87,13 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<CharacterContextValue>(
-    () => ({ decorationId: store.decorationId, setDecoration }),
-    [store.decorationId, setDecoration],
+    () => ({
+      decorationId: store.decorationId,
+      // 비회원은 서버에 물을 것이 없다 — localStorage가 곧 답이다.
+      loading: authLoading || (isUser && settledScope !== scope),
+      setDecoration,
+    }),
+    [store.decorationId, authLoading, isUser, settledScope, scope, setDecoration],
   );
 
   return <CharacterContext.Provider value={value}>{children}</CharacterContext.Provider>;

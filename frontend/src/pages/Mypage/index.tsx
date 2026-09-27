@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
-import { SKIN_TYPE_META } from '../../types';
+import { SKIN_TYPE_META, UNKNOWN_SKIN_META } from '../../types';
 import { useUserProfile } from '../../context/userProfile';
 import { useCloset } from '../../context/closet';
 import { useLikedProducts } from '../../context/liked';
@@ -61,7 +61,12 @@ function GroupCard({ title, items }: { title: string; items: MenuItem[] }) {
 export default function MypagePage() {
   const navigate = useNavigate();
   const { profile } = useUserProfile();
-  const skinMeta = SKIN_TYPE_META[profile.skinType];
+  /**
+   * 진단 전에는 8종 중 하나를 골라 보여주지 않는다 — 그게 곧 거짓이 된다.
+   * 요약 문구와 '재진단' 버튼도 그 상태에 맞게 바뀐다.
+   */
+  const diagnosed = profile.skinType !== null;
+  const skinMeta = diagnosed ? SKIN_TYPE_META[profile.skinType!] : UNKNOWN_SKIN_META;
   // 서버가 실제 행에서 센 값. 비회원은 null이라 로컬 개수로 대신한다.
   // 레벨·경험치는 무엇으로 오르는지 정한 적이 없어 그리지 않는다.
   const { stats, loading: statsLoading } = useStats();
@@ -148,11 +153,15 @@ export default function MypagePage() {
               <span className="text-[22px]">{skinMeta.emoji}</span>
               <div>
                 <p className="text-[15px] font-extrabold text-gray-100">{skinMeta.label}</p>
-                <p className="mt-px text-[11px] text-gray-50">{skinMeta.summary.split(',')[0]} · {profile.memberSince} 진단</p>
+                <p className="mt-px text-[11px] text-gray-50">
+                  {diagnosed
+                    ? `${SKIN_TYPE_META[profile.skinType!].summary.split(',')[0]} · ${profile.memberSince} 진단`
+                    : '아직 진단하지 않았어요'}
+                </p>
               </div>
             </div>
             <button onClick={() => navigate('/qna')} className="inline-flex items-center h-[30px] px-[13px] rounded-full bg-primary-dark text-[11px] font-extrabold text-white active:scale-95 transition-transform">
-              재진단
+              {diagnosed ? '재진단' : '진단하기'}
             </button>
           </div>
 
