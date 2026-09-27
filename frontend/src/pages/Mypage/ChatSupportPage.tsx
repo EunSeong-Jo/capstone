@@ -6,16 +6,10 @@ import { searchProducts } from '../../api/products';
 import { sendChatMessage } from '../../api/chat';
 import { ApiError } from '../../api/client';
 import { useCloset } from '../../context/closet';
-import { useAuth } from '../../context/auth';
-import { useDiagnosis } from '../../context/diagnosis';
 import { useCharacter } from '../../context/character';
 import { CharacterAvatar } from '../../components/character/CharacterAvatar';
+import { useSkinType } from '../../hooks/useSkinType';
 import type { SkinType } from '../../types';
-
-// Home/index.tsx와 동일한 기본값. 로그인·진단 모두 없는 게스트가 챗봇을 열면
-// 여기 폴백이 없어서 skinType이 undefined로 넘어가 "미확인"으로 표시되던 버그가 있었다 —
-// 앱 다른 화면과 동작을 맞춘다.
-const DEFAULT_SKIN: SkinType = 'ondalsam';
 
 /**
  * AI 챗봇 UI — backend POST /api/v1/chat(RAG) 연동.
@@ -45,7 +39,14 @@ const quickButtons = [
 /** 챗봇 아바타 — 로봇 이모지 대신 사용자 본인의 캐릭터(피부타입 마스코트 + 꾸미기)를 보여준다.
  *  배경은 Mypage/ProfileDashboard의 캐릭터 원형 아이콘과 동일하게 흰 배경 + 연한 테두리로 맞춘다 —
  *  bg-gray-100이 이 팔레트에서 #111827(거의 검정)이라 캐릭터 이미지 뒤에서 도드라져 보였다. */
-function BotAvatar({ skinType, decorationId }: { skinType: SkinType; decorationId: number | null }) {
+function BotAvatar({
+  skinType,
+  decorationId,
+}: {
+  /** 진단 전이면 null — CharacterAvatar가 범용 얼굴을 그린다. */
+  skinType: SkinType | null;
+  decorationId: number | null;
+}) {
   return (
     <div className="w-10 h-10 rounded-full bg-white border border-gray-20 flex items-center justify-center shrink-0 shadow overflow-hidden">
       <CharacterAvatar skinType={skinType} decorationId={decorationId} className="h-[85%] w-[85%]" />
@@ -69,7 +70,14 @@ function renderWithBold(text: string) {
 }
 
 /** 카카오톡 식 "입력 중" 표시 — 챗봇이 응답을 준비하는 동안 보여준다 */
-function TypingBubble({ skinType, decorationId }: { skinType: SkinType; decorationId: number | null }) {
+function TypingBubble({
+  skinType,
+  decorationId,
+}: {
+  /** 진단 전이면 null — CharacterAvatar가 범용 얼굴을 그린다. */
+  skinType: SkinType | null;
+  decorationId: number | null;
+}) {
   return (
     <div className="flex gap-2 mb-3 items-start">
       <BotAvatar skinType={skinType} decorationId={decorationId} />
@@ -94,9 +102,11 @@ const REGISTER_INTENT = /(화장품|제품).*(등록|추가)|등록.*(화장품|
 export default function ChatSupportPage() {
   const navigate = useNavigate();
   const { addItem } = useCloset();
-  const { user: persona } = useAuth();
-  const { skinType: diagType } = useDiagnosis();
-  const skinType = diagType ?? persona?.skinType ?? DEFAULT_SKIN;
+  /**
+   * 진단 전이면 null이다. 예전에는 `?? 'ondalsam'`이라 **진단을 한 적이 없는
+   * 사용자의 챗봇 아바타가 옹달샘으로** 나왔고, 서버에도 그 타입으로 물었다.
+   */
+  const { skinType } = useSkinType();
   const { decorationId } = useCharacter();
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -202,7 +212,7 @@ export default function ChatSupportPage() {
       .map((m) => ({ role: m.role === 'bot' ? ('assistant' as const) : ('user' as const), content: m.text! }));
 
     try {
-      const { reply } = await sendChatMessage({ message: userText, skin_type: skinType, history });
+      const { reply } = await sendChatMessage({ message: userText, skin_type: skinType ?? undefined, history });
       const botReply: Message = { id: nextId.current++, role: 'bot', text: reply };
       setMessages((prev) => [...prev, botReply]);
     } catch (err) {
