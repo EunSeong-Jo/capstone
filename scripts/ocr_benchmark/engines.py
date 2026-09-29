@@ -136,13 +136,18 @@ ALL_ENGINE_NAMES = ["tesseract", "easyocr", "paddleocr", "tesseract_easyocr_fall
 
 
 def build_engines(
-    tesseract_psm: int = 11, engines: list[str] | None = None
+    tesseract_psm: int = 11, engines: list[str] | None = None, easyocr_gpu: bool = False
 ) -> dict[str, Callable[[np.ndarray], OCRResult]]:
     """모델을 1회 로딩(첫 실행 시 다운로드 포함)하고 요청받은 엔진의 실행 함수만 반환한다.
 
     engines를 좁히면 안 쓰는 모델은 아예 안 만든다(로딩/추론 둘 다 스킵) - 특정 엔진 하나만
     빠르게 재검증하고 싶을 때(예: 후보 결정 후 paddleocr만) 46장 기준 벤치마크 시간을 크게
     줄여준다. easyocr reader는 easyocr/fallback 둘 중 하나라도 요청되면 한 번만 만들어 공유.
+
+    easyocr_gpu=True는 EasyOCR(PyTorch 기반)만 CUDA로 돌린다. Tesseract는 GPU 백엔드가
+    존재하지 않아 항상 CPU로 실행되고, PaddleOCR도 이 함수에서는 별도 처리하지 않는다 - 기본은
+    False(CPU)로 엔진 간 레이턴시 비교의 공정성을 유지한다(README 참고). GPU 비교 실험을 할
+    때만 명시적으로 켠다.
     """
     requested = set(engines) if engines is not None else set(ALL_ENGINE_NAMES)
     unknown = requested - set(ALL_ENGINE_NAMES)
@@ -155,7 +160,7 @@ def build_engines(
     if requested & {"easyocr", "tesseract_easyocr_fallback"}:
         import easyocr
 
-        easyocr_reader = easyocr.Reader(["ko", "en"], gpu=False)
+        easyocr_reader = easyocr.Reader(["ko", "en"], gpu=easyocr_gpu)
 
     if "tesseract" in requested:
         result["tesseract"] = lambda image: run_tesseract(image, psm=tesseract_psm)
@@ -164,7 +169,11 @@ def build_engines(
     if "paddleocr" in requested:
         from paddleocr import PaddleOCR
 
-        paddle_ocr = PaddleOCR(lang="korean", use_angle_cls=True, show_log=False)
+        # 3.x(PP-OCRv5)로 업그레이드: use_angle_cls -> use_textline_orientation, show_log 제거.
+        # enable_mkldnn=False는 필수 - 기본값(True)에서는 oneDNN 백엔드가
+        # "ConvertPirAttribute2RuntimeAttribute not support" 오류로 추론 자체가 크래시한다
+        # (paddlepaddle 3.3.1 CPU 실행 시 재현 확인). 정확도에는 영향 없음, 속도만 소폭 저하.
+        paddle_ocr = PaddleOCR(lang="korean", use_textline_orientation=True, enable_mkldnn=False)
         result["paddleocr"] = lambda image: run_paddleocr(image, paddle_ocr)
     if "tesseract_easyocr_fallback" in requested:
         result["tesseract_easyocr_fallback"] = lambda image: run_tesseract_easyocr_fallback(

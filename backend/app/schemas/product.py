@@ -16,6 +16,8 @@ brand·category는 FK지만 응답에서는 **문자열**로 편다. 프론트 �
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
@@ -48,6 +50,17 @@ class ProductOut(_CamelModel):
     # "single"이지만, ?composition= 로 분류를 검증할 때 값이 보여야 한다.
     composition: str = "single"
 
+    # 단가. 마스크팩에 '20매' 같은 대용량이 섞여 있어 총액만으로는 비교가
+    # 어긋난다 — 80,000원/20매가 3,000원/1매보다 27배 비싼 것처럼 정렬된다.
+    #
+    # 라벨을 '1매당'이 아니라 코드로 내는 이유: 문구는 화면이 정한다. 서버가
+    # 한국어를 내면 문구를 바꿀 때마다 서버를 고쳐야 한다.
+    #
+    # 둘은 항상 함께 있거나 함께 없다(DB 생성 컬럼이 같은 식에서 나온다).
+    # 한쪽만 오면 화면이 'None당 3,000원'을 그린다.
+    unit_price: float | None = None      # 1매당 / 10ml당 / 10g당 / 1개당 금액
+    unit_label: str | None = None        # sheet / ml10 / g10 / piece
+
 
 class IngredientOut(_CamelModel):
     """전성분 1건. position은 표기 순서(1부터)이자 함량 내림차순이다."""
@@ -56,6 +69,18 @@ class IngredientOut(_CamelModel):
     name: str
     name_en: str | None = None
     position: int
+
+    # 성분 분류. `scripts/seed_skin_type_tags.py`가 ingredient_tags에서 도출한다.
+    #
+    #   key     추천 태그(보습·진정·항산화 등)가 붙은 성분
+    #   warn    기피 태그(표시 의무 착향제·향료·건조 유발 알코올)
+    #   normal  제품에 쓰이지만 어느 쪽도 아닌 성분
+    #   None    분류 근거가 없는 성분 — 화면은 '등급 미정'으로 중립 표시한다
+    #
+    # ewg_grade는 내지 않는다. 컬럼은 있지만 비어 있고, 출처를 검증할 수 없는
+    # 숫자를 채우면 화면이 근거 없는 안전 등급을 주장하게 된다.
+    grade: str | None = None
+    is_allergen: bool = False
 
 
 class ProductDetailOut(ProductOut):
@@ -81,3 +106,33 @@ class ProductListOut(_CamelModel):
     total: int
     page: int
     size: int
+
+
+class ProductReviewOut(_CamelModel):
+    """제품 상세의 후기 한 건.
+
+    작성자는 닉네임만 낸다 — 이메일·id를 내보낼 이유가 없다. 닉네임이 없는
+    계정은 서버가 가려 준다.
+    """
+
+    id: int
+    nickname: str
+    rating: int
+    body: str | None = None
+    created_at: datetime
+
+
+class ProductReviewsOut(_CamelModel):
+    """후기 목록 + 평점 분포.
+
+    `distribution`은 5점부터 1점까지의 건수다. 별점 막대를 그리는 화면이
+    목록을 다시 세지 않아도 되고, 페이지를 넘겨도 분포는 전체 기준으로
+    고정된다.
+    """
+
+    items: list[ProductReviewOut]
+    total: int
+    # 소수 첫째 자리까지. 후기가 없으면 None이다 — 0.0으로 내면 "최악"과
+    # "아직 없음"이 같아 보인다.
+    average: float | None = None
+    distribution: dict[int, int]

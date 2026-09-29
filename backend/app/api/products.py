@@ -30,7 +30,11 @@ from app.models.product import (
     ProductIngredient,
 )
 from app.services.skin_type import SkinRule, apply_exclusions, fit_score, load_rule
+from app.models.personal import Review
+from app.models.user import User
 from app.schemas.product import (
+    ProductReviewOut,
+    ProductReviewsOut,
     IngredientOut,
     ProductDetailOut,
     ProductListOut,
@@ -75,6 +79,9 @@ class SortBy(str, Enum):
 
     popular = "popular"        # 리뷰 수 내림차순
     price_asc = "priceAsc"
+    # 단가 오름차순. price_asc와 따로 두는 이유는 '내가 낼 돈'과 '가성비'가
+    # 다른 질문이기 때문이다 — 80,000원짜리 20매가 단가로는 가장 싸다.
+    unit_price_asc = "unitPriceAsc"
     price_desc = "priceDesc"
     rating = "rating"
     # 추천 성분이 많은 순. skinType을 함께 주지 않으면 popular와 같다.
@@ -115,6 +122,10 @@ def _apply_sort(stmt: Select, sort: SortBy, rule: SkinRule | None = None) -> Sel
         return stmt.order_by(Product.price.desc(), Product.id.asc())
     if sort is SortBy.rating:
         return stmt.order_by(Product.rating.desc().nullslast(), Product.id.asc())
+    if sort is SortBy.unit_price_asc:
+        # 단가를 못 내는 제품(11건)은 뒤로 보낸다. NULL을 앞에 세우면
+        # '가장 싼 것'을 물었는데 값이 없는 제품이 먼저 나온다.
+        return stmt.order_by(Product.unit_price.asc().nullslast(), Product.id.asc())
     if sort is SortBy.skin_fit:
         # 같은 점수 안에서는 인기순으로 갈린다 — 태그가 0~3개라 동점이 많다.
         return stmt.order_by(
@@ -142,6 +153,8 @@ def _to_out(p: Product) -> ProductOut:
         rating=float(p.rating) if p.rating is not None else None,
         review_count=p.review_count,
         composition=p.composition,
+        unit_price=float(p.unit_price) if p.unit_price is not None else None,
+        unit_label=p.unit_label,
     )
 
 
@@ -350,7 +363,7 @@ async def get_product(
 
     rows = await db.execute(
         select(Ingredient.id, Ingredient.name_ko, Ingredient.name_en,
-               ProductIngredient.position)
+               ProductIngredient.position, Ingredient.grade, Ingredient.is_allergen)
         .join(ProductIngredient, ProductIngredient.ingredient_id == Ingredient.id)
         .where(ProductIngredient.product_id == product_id)
         .order_by(ProductIngredient.position)
@@ -367,8 +380,11 @@ async def get_product(
         report_no=product.report_no,
         ingredient_count_raw=product.ingredient_count_raw,
         ingredients=[
-            IngredientOut(id=i, name=ko, name_en=en, position=pos)
-            for i, ko, en, pos in rows.all()
+            IngredientOut(
+                id=i, name=ko, name_en=en, position=pos,
+                grade=grade, is_allergen=allergen,
+            )
+            for i, ko, en, pos, grade, allergen in rows.all()
         ],
     )
 
@@ -376,3 +392,71 @@ async def get_product(
     response.headers["Cache-Control"] = "public, max-age=300"
     response.headers["X-Cache"] = "MISS"
     return detail
+
+
+@router.get(
+    "/{product_id}/reviews",
+    response_model=ProductReviewsOut,
+    summary="제품 후기",
+)
+async def list_product_reviews(
+    product_id: int = Path(..., ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+) -> ProductReviewsOut:
+    """이 제품에 달린 후기.
+
+    **캐시하지 않는다.** 제품 정보와 달리 후기는 사용자가 방금 쓴 것이
+    바로 보여야 한다.
+
+    후기는 산 제품에만 쓸 수 있다(`reviews.order_item_id`). 그래서 목록이
+    비어 있는 것이 정상이고, 지금은 대부분의 제품이 그렇다 — 없는 후기를
+    지어내는 대신 빈 목록을 낸다.
+
+    `products.review_count`(크롤링으로 받아 온 올리브영 리뷰 수)와는 다른
+    값이다. 저쪽은 우리가 내용을 갖고 있지 않다.
+    """
+    exists = await db.scalar(select(Product.id).where(Product.id == product_id))
+    if exists is None:
+        raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
+
+    # 분포는 전체 기준이다. 페이지를 넘겨도 막대가 흔들리지 않는다.
+    buckets = dict.fromkeys(range(1, 6), 0)
+    for rating, count in await db.execute(
+        select(Review.rating, func.count())
+        .where(Review.product_id == product_id)
+        .group_by(Review.rating)
+    ):
+        buckets[int(rating)] = int(count)
+
+    total = sum(buckets.values())
+    average = (
+        round(sum(r * n for r, n in buckets.items()) / total, 1) if total > 0 else None
+    )
+
+    rows = await db.execute(
+        select(Review, User.nickname)
+        .join(User, User.id == Review.user_id)
+        .where(Review.product_id == product_id)
+        .order_by(Review.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    return ProductReviewsOut(
+        items=[
+            ProductReviewOut(
+                id=review.id,
+                # 닉네임만 낸다. 없으면 가린다 — 이메일을 대신 쓰면 그게 유출이다.
+                nickname=nickname or "익명",
+                rating=review.rating,
+                body=review.body,
+                created_at=review.created_at,
+            )
+            for review, nickname in rows
+        ],
+        total=total,
+        average=average,
+        distribution=buckets,
+    )

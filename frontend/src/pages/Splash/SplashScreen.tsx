@@ -113,13 +113,9 @@ function Character({ config, index }: { config: CharacterConfig; index: number }
 export default function SplashScreen() {
   return (
     <div
-      className="absolute inset-0 overflow-hidden"
+      className="absolute inset-0 overflow-hidden bg-ob-bg"
       style={{
-        background: '#f5f6f3',
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
-        paddingLeft: 'env(safe-area-inset-left)',
-        paddingRight: 'env(safe-area-inset-right)',
+        paddingBottom: 'var(--safe-bottom)',
       }}
     >
       <div className="relative h-full w-full">
@@ -139,9 +135,7 @@ export default function SplashScreen() {
             <span className="text-[clamp(2.5rem,11cqmin,5rem)]" style={{ color: '#ef969f' }}>
               S
             </span>
-            <span className="text-[clamp(2.5rem,11cqmin,5rem)]" style={{ color: '#2d7a4f' }}>
-              wappy
-            </span>
+            <span className="text-ob-green-deep text-[clamp(2.5rem,11cqmin,5rem)]">wappy</span>
           </motion.div>
         </div>
       </div>

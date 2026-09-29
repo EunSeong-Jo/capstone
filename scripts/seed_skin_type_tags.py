@@ -314,6 +314,38 @@ def main() -> None:
         ],
     )
 
+    # ── ingredients.grade ──────────────────────────────────────────
+    # 상세 화면의 성분 칩 색을 정하는 값이다. EWG처럼 외부 등급을 옮겨오는
+    # 대신 **이미 적재한 태그에서 도출한다** — 우리가 근거를 댈 수 있는 값만
+    # 넣기 위해서다.
+    #
+    #   warn    기피 태그(착향제·향료·건조 유발 알코올)가 붙은 성분
+    #   key     추천 태그(보습·진정·항산화 등)가 붙은 성분
+    #   normal  제품에 쓰이지만 어느 쪽으로도 분류되지 않은 성분
+    #   NULL    어떤 제품에도 안 쓰이는 협회 사전 어휘 (판단할 이유가 없다)
+    #
+    # warn이 key보다 우선한다. 리모넨처럼 항산화 문헌이 있으면서 표시 의무
+    # 알레르겐인 성분이 있는데, 그런 건 '주의'로 보이는 쪽이 안전하다.
+    #
+    # ewg_grade는 채우지 않는다. 출처를 검증할 수 없는 숫자를 DB에 넣으면
+    # 화면이 근거 없는 안전 등급을 주장하게 된다.
+    exclusion_codes = [d["tag_code"] for d in exclusion_defs]
+    warn_ids = sorted({i for c in exclusion_codes for i in by_tag.get(c, ())})
+    key_ids = sorted(
+        {i for r in tag_map for i in by_tag.get(r["tag_code"], ())} - set(warn_ids)
+    )
+
+    cur.execute("UPDATE ingredients SET grade = NULL WHERE grade IS NOT NULL")
+    cur.execute(
+        """UPDATE ingredients SET grade = 'normal'
+           WHERE id IN (SELECT DISTINCT ingredient_id FROM product_ingredients)"""
+    )
+    normal_ids = cur.rowcount
+    if key_ids:
+        cur.execute("UPDATE ingredients SET grade = 'key' WHERE id = ANY(%s)", (key_ids,))
+    if warn_ids:
+        cur.execute("UPDATE ingredients SET grade = 'warn' WHERE id = ANY(%s)", (warn_ids,))
+
     # 알레르기 유발 착향제는 ingredients.is_allergen에도 표시한다. 성분 단위
     # 질의(상세 화면의 '알레르기 주의' 배지 등)가 태그 조인 없이 쓰도록.
     allergen_ids = list(by_tag.get("allergen_fragrance", ()))
@@ -327,6 +359,10 @@ def main() -> None:
     print(f"\n적재 완료 — ingredient_tags {links:,}행 (이전 {removed:,}행 교체)")
     print(f"           skin_type_rules {len(tag_map)}행 · tags {len(all_codes)}행")
     print(f"           is_allergen 표시 {len(allergen_ids)}종")
+    print(
+        f"           grade — key {len(key_ids):,} · warn {len(warn_ids):,} · "
+        f"normal {normal_ids - len(key_ids) - len(warn_ids):,} (나머지는 NULL)"
+    )
     conn.close()
     bump_cache_version()
 

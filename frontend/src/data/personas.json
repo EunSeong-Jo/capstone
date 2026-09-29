@@ -1,0 +1,111 @@
+{
+  "_comment": "데모/테스트용 사용자 페르소나 단일 원본. 프론트(personas.ts)와 백엔드(scripts/seed_test_users.py)가 함께 읽는다. 값을 바꾸면 양쪽에 동시 반영된다. 팀원 실명 기반 계정(게스트 포함 6종) — PPT '팀 구성 및 역할' 슬라이드와 동일 인물·역할.",
+  "quizVersion": "v1.8",
+  "personas": [
+    {
+      "id": "eunseong",
+      "email": "eunseong@swappy.app",
+      "password": "swappy1234",
+      "nickname": "조은성",
+      "role": "팀장 · 프론트엔드 통합",
+      "memberSince": "2026.03",
+      "skinType": "ondalsam",
+      "scores": { "moisture": 7, "oil": 5, "sensitivity": 3, "pigmentation": 3, "trouble": 2 },
+      "ranks": [
+        { "rank": 1, "skinType": "ondalsam", "score": 0.63 },
+        { "rank": 2, "skinType": "injeolmi", "score": 0.21 },
+        { "rank": 3, "skinType": "mulgae", "score": 0.16 }
+      ],
+      "budget": { "min": 40000, "max": 70000 },
+      "ownedCosmetics": [
+        {"id": 1722, "brand": "라운드랩", "name": "1025 독도 토너 200ml", "category": "스킨케어", "price": 13500, "keyIngredients": ["정제수", "부틸렌글라이콜", "글리세린", "펜틸렌글라이콜"]},
+        {"id": 2242, "brand": "이니스프리", "name": "그린티 히알루론산 글로우 아이&페이스볼 10ml", "category": "스킨케어", "price": 16100, "keyIngredients": ["정제수", "부틸렌글라이콜", "글리세린", "프로판다이올"]}
+      ]
+    },
+    {
+      "id": "donggyun",
+      "email": "donggyun@swappy.app",
+      "password": "swappy1234",
+      "nickname": "최동균",
+      "role": "부팀장 · 상품 데이터 · DB",
+      "memberSince": "2026.03",
+      "skinType": "subuji",
+      "scores": { "moisture": 3, "oil": 7, "sensitivity": 5, "pigmentation": 4, "trouble": 4 },
+      "ranks": [
+        { "rank": 1, "skinType": "subuji", "score": 0.61 },
+        { "rank": 2, "skinType": "hwasan", "score": 0.22 },
+        { "rank": 3, "skinType": "samak", "score": 0.17 }
+      ],
+      "budget": { "min": 30000, "max": 50000 },
+      "ownedCosmetics": [
+        {"id": 1674, "brand": "이니스프리", "name": "그린티 스킨 포맨 150ml", "category": "스킨케어", "price": 22000, "keyIngredients": ["정제수", "변성알코올", "프로판다이올", "글리세린"]},
+        {"id": 712, "brand": "에스트라", "name": "아토베리어365 크림 80ml", "category": "스킨케어", "price": 29700, "keyIngredients": ["정제수", "부틸렌글라이콜", "글리세린", "부틸렌글라이콜다이카프릴레이트/다이카프레이트"]},
+        {"id": 2063, "brand": "닥터지", "name": "레드 블레미쉬 클리어 수딩크림 EX 70ml", "category": "스킨케어", "price": 26600, "keyIngredients": ["정제수", "글리세린", "부틸렌글라이콜", "다이카프릴릴에터"]}
+      ]
+    },
+    {
+      "id": "juwon",
+      "email": "juwon@swappy.app",
+      "password": "swappy1234",
+      "nickname": "박주원",
+      "role": "편집 · 백엔드 · RAG 챗봇",
+      "memberSince": "2026.03",
+      "skinType": "mulgae",
+      "scores": { "moisture": 5, "oil": 9, "sensitivity": 4, "pigmentation": 4, "trouble": 5 },
+      "ranks": [
+        { "rank": 1, "skinType": "mulgae", "score": 0.58 },
+        { "rank": 2, "skinType": "hwasan", "score": 0.24 },
+        { "rank": 3, "skinType": "subuji", "score": 0.18 }
+      ],
+      "budget": { "min": 15000, "max": 35000 },
+      "ownedCosmetics": [
+        {"id": 1682, "brand": "조선미녀", "name": "청매실 AHABHA 토너 150ml", "category": "스킨케어", "price": 18000, "keyIngredients": ["정제수", "매실수", "다이프로필렌글라이콜", "글리세린"]},
+        {"id": 662, "brand": "브링그린", "name": "티트리 시카 수딩 토너 (500ml/250ml)", "category": "스킨케어", "price": 27000, "keyIngredients": ["정제수", "다이프로필렌글라이콜", "1,2-헥산다이올", "부틸렌글라이콜"]},
+        {"id": 3973, "brand": "비플레인", "name": "녹두 약산성 클렌징폼 80ml", "category": "클렌징", "price": 13800, "keyIngredients": ["글리세린", "정제수", "소듐코코일글라이시네이트", "소듐라우로일글루타메이트"]}
+      ]
+    },
+    {
+      "id": "yubin",
+      "email": "yubin@swappy.app",
+      "password": "swappy1234",
+      "nickname": "심유빈",
+      "role": "학술 · OCR · UI",
+      "memberSince": "2026.03",
+      "skinType": "yuriguseul",
+      "scores": { "moisture": 4, "oil": 4, "sensitivity": 9, "pigmentation": 3, "trouble": 4 },
+      "ranks": [
+        { "rank": 1, "skinType": "yuriguseul", "score": 0.66 },
+        { "rank": 2, "skinType": "samak", "score": 0.19 },
+        { "rank": 3, "skinType": "ondalsam", "score": 0.15 }
+      ],
+      "budget": { "min": 25000, "max": 45000 },
+      "ownedCosmetics": [
+        {"id": 2119, "brand": "아벤느", "name": "시칼파트 플러스 SOS 리페어 크림 40ml", "category": "스킨케어", "price": 24000, "keyIngredients": ["온천수", "카프릴릭/카프릭트라이글리세라이드", "미네랄오일", "글리세린"]},
+        {"id": 33, "brand": "라로슈포제", "name": "시카플라스트 B5 스프레이 100ml", "category": "스킨케어", "price": 23400, "keyIngredients": ["정제수", "글리세린", "프로판다이올", "판테놀"]}
+      ]
+    },
+    {
+      "id": "misong",
+      "email": "misong@swappy.app",
+      "password": "swappy1234",
+      "nickname": "김미송",
+      "role": "총무 · UI/UX · 피부진단",
+      "memberSince": "2026.03",
+      "skinType": "samak",
+      "scores": { "moisture": 1, "oil": 2, "sensitivity": 6, "pigmentation": 3, "trouble": 2 },
+      "ranks": [
+        { "rank": 1, "skinType": "samak", "score": 0.68 },
+        { "rank": 2, "skinType": "yuriguseul", "score": 0.19 },
+        { "rank": 3, "skinType": "injeolmi", "score": 0.13 }
+      ],
+      "budget": { "min": 50000, "max": 80000 },
+      "ownedCosmetics": [
+        {"id": 669, "brand": "바이오더마", "name": "하이드라비오 토너 250ml", "category": "스킨케어", "price": 19200, "keyIngredients": ["정제수", "글리세린", "폴리솔베이트20", "다이소듐이디티에이"]},
+        {"id": 2267, "brand": "라운드랩", "name": "자작나무 수분 크림 80ml", "category": "스킨케어", "price": 25600, "keyIngredients": ["정제수", "글리세린", "아이소노닐아이소노나노에이트", "아이소도데케인"]},
+        {"id": 216, "brand": "토리든", "name": "다이브인 저분자 히알루론산 세럼 50ml", "category": "스킨케어", "price": 22000, "keyIngredients": ["정제수", "부틸렌글라이콜", "글리세린", "다이프로필렌글라이콜"]},
+        {"id": 33, "brand": "라로슈포제", "name": "시카플라스트 B5 스프레이 100ml", "category": "스킨케어", "price": 23400, "keyIngredients": ["정제수", "글리세린", "프로판다이올", "판테놀"]},
+        {"id": 2707, "brand": "웰라쥬", "name": "리얼 히알루로닉 100 크림 50ml", "category": "스킨케어", "price": 19200, "keyIngredients": ["하이드롤라이즈드하이알루로닉애씨드", "정제수", "글리세린", "세테아릴알코올"]}
+      ]
+    }
+  ]
+}

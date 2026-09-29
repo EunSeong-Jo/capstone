@@ -1,0 +1,16 @@
+# AI Vision OCR
+anthropic
+openai
+
+# 이미지 / 시각화
+pillow
+matplotlib
+
+# 지표 계산 (ocr_benchmark/metrics.py 재사용)
+pandas
+rapidfuzz
+tabulate
+
+# 환경변수 / 진행률
+python-dotenv
+tqdm

@@ -19,48 +19,61 @@ interface UseProductResult {
  * 잘못된 id로 들어오는 경로가 실제로 있어(목업 화면의 링크 등)
  * "서버 오류"와 "없는 제품"을 다르게 안내해야 합니다.
  */
+/** 조회 결과 한 벌. key로 "어떤 요청의 결과인지"를 함께 들고 있다. */
+interface Loaded {
+  key: string;
+  product: ProductDetail | null;
+  error: string | null;
+  notFound: boolean;
+}
+
 export function useProduct(id: number | undefined): UseProductResult {
-  const [product, setProduct] = useState<ProductDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [nonce, setNonce] = useState(0);
 
+  const key = `${id}#${nonce}`;
+  // 잘못된 id로 들어오는 경로가 실제로 있습니다(목업 링크, /detail/NaN).
+  // 조회할 것이 없으므로 effect를 돌리지 않고 아래에서 바로 notFound를 냅니다.
+  const invalid = id === undefined || Number.isNaN(id) || id <= 0;
+
   useEffect(() => {
-    if (id === undefined || Number.isNaN(id) || id <= 0) {
-      setProduct(null);
-      setLoading(false);
-      setNotFound(true);
-      return;
-    }
+    if (invalid) return;
 
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-    setNotFound(false);
 
     fetchProduct(id, controller.signal)
-      .then(setProduct)
+      .then((product) => setLoaded({ key, product, error: null, notFound: false }))
       .catch((err: unknown) => {
         // 언마운트·재요청으로 인한 취소는 오류가 아닙니다.
         if (err instanceof DOMException && err.name === 'AbortError') return;
-        setProduct(null);
         if (err instanceof ApiError && err.status === 404) {
-          setNotFound(true);
+          setLoaded({ key, product: null, error: null, notFound: true });
         } else {
-          setError(
-            err instanceof Error ? err.message : '제품을 불러오지 못했습니다.',
-          );
+          setLoaded({
+            key,
+            product: null,
+            notFound: false,
+            error: err instanceof Error ? err.message : '제품을 불러오지 못했습니다.',
+          });
         }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
       });
 
     return () => controller.abort();
-  }, [id, nonce]);
+  }, [key, id, invalid]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  return { product, loading, error, notFound, reload };
+  if (invalid) {
+    return { product: null, loading: false, error: null, notFound: true, reload };
+  }
+
+  const current = loaded?.key === key ? loaded : null;
+
+  return {
+    product: current?.product ?? null,
+    loading: current === null,
+    error: current?.error ?? null,
+    notFound: current?.notFound ?? false,
+    reload,
+  };
 }

@@ -27,6 +27,9 @@
 .env.local
 .env.*.local
 
+# OCR 수동 실험용 샘플 사진 (로컬 전용, 커밋 대상 아님)
+scripts/ocr_test_image/
+
 # ───────────────────────────────
 # 의존성
 # ───────────────────────────────
@@ -107,6 +110,18 @@ scripts/ocr_benchmark/test/*
 !scripts/ocr_benchmark/test/.gitkeep
 scripts/ocr_benchmark/labels.csv
 
+# AI Vision OCR 실험 (같은 이유 - 결과물에 개인 사진 크롭이 포함됨)
+scripts/AI_OCR/output/*
+!scripts/AI_OCR/output/.gitkeep
+scripts/AI_OCR/output_openai/
+scripts/AI_OCR/*.log
+
+# 네이버 CLOVA OCR 실험 (같은 이유)
+scripts/CLOVA_OCR/output/
+
+# Surya OCR 실험 - 대용량 바이너리/모델 (재다운로드 가능, git에 안 올림)
+scripts/Surya_OCR/llama_cpp_bin/
+
 
 # ───────────────────────────────
 # 크롤러 작업 폴더 (팀원 로컬 작업 공간)
@@ -126,3 +141,11 @@ skills-lock.json
 # 로컬에서 받은 설치 스크립트 (프로젝트 코드 아님)
 # ───────────────────────────────
 get-docker.sh
+
+# ───────────────────────────────
+# 개인 졸업논문 자료 (팀 저장소 대상 아님, 로컬 전용)
+# ───────────────────────────────
+dg_crawler/
+논문/
+*.docx
+SWAPPY*.pdf

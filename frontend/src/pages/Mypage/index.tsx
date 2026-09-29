@@ -1,37 +1,17 @@
-import { useState, ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
-import { SKIN_TYPE_META } from '../../types';
-import { MOCK_PROFILE, MOCK_CHARACTER } from '../../mocks/home';
+import { SKIN_TYPE_META, UNKNOWN_SKIN_META } from '../../types';
+import { useUserProfile } from '../../context/userProfile';
+import { useCloset } from '../../context/closet';
+import { useLikedProducts } from '../../context/liked';
+import { useStats } from '../../hooks/useStats';
+import { CartIcon } from '../../components/ui/OutlineIcons';
+import { CharacterAvatar } from '../../components/character/CharacterAvatar';
+import { useCharacter } from '../../context/character';
 
-// TODO: 실제 사용자 통계 API 연동 전까지 목데이터
-const CUMULATIVE = { saved: 128400, scans: 21, swaps: 9 };
-const USER_EMAIL = 'user@email.com';
 
-const ScanIcon = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2" />
-    <circle cx="12" cy="12" r="3.2" />
-  </svg>
-);
-const StarIcon = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" />
-  </svg>
-);
-const BoxIconGreen = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" />
-    <path d="M4 8l8 4 8-4M12 12v8" />
-  </svg>
-);
-
-const EXP_GUIDE: { icon: ReactNode; label: string; exp: number }[] = [
-  { icon: ScanIcon, label: '성분 스캔 1회', exp: 10 },
-  { icon: StarIcon, label: '후기 작성', exp: 20 },
-  { icon: BoxIconGreen, label: '제품 주문', exp: 50 },
-];
 
 interface MenuItem {
   icon: ReactNode;
@@ -80,21 +60,33 @@ function GroupCard({ title, items }: { title: string; items: MenuItem[] }) {
 
 export default function MypagePage() {
   const navigate = useNavigate();
-  const [expOpen, setExpOpen] = useState(true);
-  const skinMeta = SKIN_TYPE_META[MOCK_PROFILE.skinType];
-  const { level, exp, nextLevelExp, title } = MOCK_CHARACTER;
-  const expPct = Math.min(100, Math.round((exp / nextLevelExp) * 100));
+  const { profile } = useUserProfile();
+  /**
+   * 진단 전에는 8종 중 하나를 골라 보여주지 않는다 — 그게 곧 거짓이 된다.
+   * 요약 문구와 '재진단' 버튼도 그 상태에 맞게 바뀐다.
+   */
+  const diagnosed = profile.skinType !== null;
+  const skinMeta = diagnosed ? SKIN_TYPE_META[profile.skinType!] : UNKNOWN_SKIN_META;
+  // 서버가 실제 행에서 센 값. 비회원은 null이라 로컬 개수로 대신한다.
+  // 레벨·경험치는 무엇으로 오르는지 정한 적이 없어 그리지 않는다.
+  const { stats, loading: statsLoading } = useStats();
+  const { count: closetCount } = useCloset();
+  const { likedProducts } = useLikedProducts();
+  const { decorationId } = useCharacter();
 
+  // 취소·반품·배송지·재입고는 뺐다. 실제 결제와 배송이 없어 화면에 채울
+  // 근거가 아예 없는 항목들이고, 지금까지는 각자 하드코딩된 예시를 들고
+  // 있었다. '보낸 선물'은 gifts 테이블이 생겨 돌아왔다.
   const shopping: MenuItem[] = [
-    { icon: <LineIcon><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" /><path d="M4 8l8 4 8-4M12 12v8" /></LineIcon>, label: '주문내역', onClick: () => navigate('/mypage/order-history') },
-    { icon: <LineIcon><path d="M4 12a8 8 0 108-8" /><path d="M4 4v5h5" /></LineIcon>, label: '취소 · 반품 · 교환', onClick: () => navigate('/mypage/cancel-return') },
-    { icon: <LineIcon><path d="M12 21s-7-5.5-7-11a7 7 0 1114 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></LineIcon>, label: '배송지 관리', onClick: () => navigate('/mypage/shipping') },
-    { icon: <LineIcon><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" /></LineIcon>, label: '재입고 알림', right: '2', onClick: () => navigate('/mypage/restock') },
+    { icon: <LineIcon><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" /><path d="M4 8l8 4 8-4M12 12v8" /></LineIcon>, label: '주문내역', right: stats ? `${stats.orderCount}건` : undefined, onClick: () => navigate('/mypage/order-history') },
+    { icon: <LineIcon><rect x="3" y="8" width="18" height="12.5" rx="1.5" /><path d="M3 12h18M12 8v12.5" /></LineIcon>, label: '장바구니', right: stats ? `${stats.cartCount}개` : undefined, onClick: () => navigate('/cart') },
+    { icon: <LineIcon><path d="M12 21s-7-5.5-7-11a7 7 0 1114 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></LineIcon>, label: '내 화장대', right: `${stats?.closetCount ?? closetCount}개`, onClick: () => navigate('/closet') },
+    { icon: <LineIcon><rect x="4" y="9" width="16" height="11" rx="1.5" /><path d="M3 6h18v3H3zM12 6v14" /></LineIcon>, label: '보낸 선물', onClick: () => navigate('/mypage/gifts') },
   ];
 
   const benefits: MenuItem[] = [
-    { icon: <LineIcon><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" /></LineIcon>, label: '후기', right: '1,200P', onClick: () => navigate('/mypage/reviews') },
-    { icon: <LineIcon><rect x="3" y="8" width="18" height="12.5" rx="1.5" /><path d="M3 12h18M12 8v12.5" /><path d="M12 8c-1-2.5-2.6-4-4-3s-.4 3 4 3zM12 8c1-2.5 2.6-4 4-3s.4 3-4 3z" /></LineIcon>, label: '선물함', onClick: () => navigate('/mypage/giftbox') },
+    { icon: <LineIcon><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" /></LineIcon>, label: '후기', onClick: () => navigate('/mypage/reviews') },
+    { icon: <LineIcon><circle cx="12" cy="12" r="8" /><path d="M9.5 10.5h5M9.5 13.5h5" /></LineIcon>, label: '포인트', right: stats ? `${stats.pointBalance.toLocaleString()}P` : undefined, onClick: () => navigate('/mypage/points') },
     { icon: <LineIcon><path d="M5 13a7 7 0 0114 0" /><rect x="4" y="13" width="3.5" height="6" rx="1.5" /><rect x="16.5" y="13" width="3.5" height="6" rx="1.5" /></LineIcon>, label: '고객센터', onClick: () => navigate('/mypage/customer-service') },
   ];
 
@@ -117,10 +109,7 @@ export default function MypagePage() {
             </svg>
           </button>
           <button onClick={() => alert('준비 중이에요')} aria-label="알림" className="relative active:scale-90 transition-transform">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M6 8h12l-.9 11.2a1.8 1.8 0 01-1.8 1.65H8.7a1.8 1.8 0 01-1.8-1.65L6 8z" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M9 8.5V7a3 3 0 016 0v1.5" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <CartIcon size={24} className="text-[#17171C]" />
             <span className="absolute -top-1 -right-1.5 inline-flex min-w-[15px] h-[15px] px-1 items-center justify-center rounded-full bg-primary-dark text-[9px] font-extrabold text-white">2</span>
           </button>
         </div>
@@ -130,17 +119,24 @@ export default function MypagePage() {
       <div className="px-4 pt-1">
         {/* 프로필 행 */}
         <div className="flex items-center gap-3.5">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white border border-[#ECEEE8] shadow-[0_2px_10px_rgba(43,107,82,.08)]">
-            <img src="/mascot/base_face_neutral.png" alt="프로필" className="h-[84%] w-[84%] object-contain" />
-          </div>
+          {/* 프로필 사진도 내 캐릭터다. 예전에는 피부타입과 무관한 범용
+              얼굴(base_face_neutral.png)이라 홈의 마스코트와 달랐고, 꾸미기도
+              반영되지 않았다. */}
+          <button
+            type="button"
+            onClick={() => navigate('/closet/decorate')}
+            aria-label="내 캐릭터 꾸미기"
+            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#ECEEE8] bg-white shadow-[0_2px_10px_rgba(43,107,82,.08)] transition-transform active:scale-95"
+          >
+            <CharacterAvatar
+              skinType={profile.skinType}
+              decorationId={decorationId}
+              className="h-[84%] w-[84%]"
+            />
+          </button>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="text-[19px] font-extrabold tracking-[-0.3px] text-gray-100">{MOCK_PROFILE.nickname}</p>
-              <span className="inline-flex items-center h-5 px-2 rounded-full bg-primary-light text-[10px] font-extrabold text-primary-dark">
-                Lv.{level} {title}
-              </span>
-            </div>
-            <p className="mt-0.5 text-xs text-gray-50">{USER_EMAIL}</p>
+            <p className="text-[19px] font-extrabold tracking-[-0.3px] text-gray-100">{profile.nickname}</p>
+            <p className="mt-0.5 text-xs text-gray-50">{profile.email}</p>
           </div>
           <button onClick={() => navigate('/mypage/settings')} aria-label="설정" className="active:scale-90 transition-transform">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A8F98" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -157,55 +153,58 @@ export default function MypagePage() {
               <span className="text-[22px]">{skinMeta.emoji}</span>
               <div>
                 <p className="text-[15px] font-extrabold text-gray-100">{skinMeta.label}</p>
-                <p className="mt-px text-[11px] text-gray-50">{skinMeta.summary.split(',')[0]} · {MOCK_PROFILE.memberSince} 진단</p>
+                <p className="mt-px text-[11px] text-gray-50">
+                  {diagnosed
+                    ? `${SKIN_TYPE_META[profile.skinType!].summary.split(',')[0]} · ${profile.memberSince} 진단`
+                    : '아직 진단하지 않았어요'}
+                </p>
               </div>
             </div>
             <button onClick={() => navigate('/qna')} className="inline-flex items-center h-[30px] px-[13px] rounded-full bg-primary-dark text-[11px] font-extrabold text-white active:scale-95 transition-transform">
-              재진단
+              {diagnosed ? '재진단' : '진단하기'}
             </button>
           </div>
 
-          {/* 레벨 진행 + 자세히보기 */}
-          <div className="mt-3 pt-3 flex items-center gap-2.5 border-t border-surface-warm">
-            <span className="whitespace-nowrap text-[11px] font-bold text-gray-50">Lv.{level}</span>
-            <div className="h-[5px] flex-1 overflow-hidden rounded-full bg-[#F0F1F3]">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${expPct}%` }} />
+          {/* 레벨·경험치. 서버가 기록(스캔·후기·주문·선물)에서 계산한 값이라
+              비회원에게는 아예 없다 — 그 경우 줄을 그리지 않는다. 로그인
+              사용자는 값이 곧 오므로 자리만 먼저 잡아 둔다. */}
+          {!stats && statsLoading && (
+            <div className="mt-3.5 flex items-center gap-3 border-t border-gray-10 pt-3" aria-hidden>
+              <span className="h-3 w-8 shrink-0 animate-pulse rounded-full bg-gray-10" />
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-10" />
+              <span className="h-3 w-8 shrink-0 animate-pulse rounded-full bg-gray-10" />
             </div>
-            <span className="whitespace-nowrap text-[10px] text-gray-50">{exp}/{nextLevelExp}</span>
-            <button
-              onClick={() => setExpOpen((v) => !v)}
-              className="inline-flex items-center gap-0.5 h-6 px-2.5 rounded-full border border-[#DCE8E1] text-[10px] font-extrabold text-primary-dark"
-            >
-              자세히보기
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" className={`transition-transform ${expOpen ? '' : 'rotate-180'}`}>
-                <path d="M6 9l6 6 6-6" stroke="#2B6B52" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          </div>
-
-          {/* 경험치 가이드 */}
-          {expOpen && (
-            <div className="mt-2.5 rounded-xl bg-surface-warm px-3">
-              {EXP_GUIDE.map((g, i) => (
+          )}
+          {stats && (
+            <div className="mt-3.5 flex items-center gap-3 border-t border-gray-10 pt-3">
+              <span className="shrink-0 whitespace-nowrap text-[11px] font-bold text-gray-50">
+                Lv.{stats.level}
+              </span>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-10">
                 <div
-                  key={g.label}
-                  className={`flex items-center gap-2.5 py-2.5 ${i < EXP_GUIDE.length - 1 ? 'border-b border-[#EAECE6]' : ''}`}
-                >
-                  {g.icon}
-                  <span className="flex-1 text-xs font-medium text-gray-70">{g.label}</span>
-                  <span className="text-xs font-extrabold text-primary-dark">+{g.exp} EXP</span>
-                </div>
-              ))}
+                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, Math.round((stats.expInLevel / stats.levelSpan) * 100))}%`,
+                  }}
+                />
+              </div>
+              <span className="shrink-0 whitespace-nowrap text-[10px] text-gray-50">
+                {stats.expInLevel}/{stats.levelSpan}
+              </span>
             </div>
           )}
         </div>
 
-        {/* 통계 바 (누적 절약 / 성분 스캔 / 교체 성공) */}
+        {/* 통계 바. 전부 GET /me/stats가 실제 행에서 센 값이다. 비회원은
+            stats가 null이라 로컬 개수로 대신한다. */}
         <div className="mt-3 flex rounded-[20px] bg-primary-dark">
           {[
-            [`${CUMULATIVE.saved.toLocaleString()}원`, '누적 절약'],
-            [`${CUMULATIVE.scans}회`, '성분 스캔'],
-            [`${CUMULATIVE.swaps}회`, '교체 성공'],
+            [`${(stats?.closetCount ?? closetCount).toLocaleString()}개`, '내 화장대'],
+            [`${(stats?.likeCount ?? likedProducts.length).toLocaleString()}개`, '찜한 제품'],
+            [
+              stats ? `${stats.pointBalance.toLocaleString()}P` : '—',
+              '포인트',
+            ],
           ].map(([value, label], i) => (
             <div key={label} className="relative flex flex-1 flex-col items-center py-[15px]">
               {i > 0 && <span className="absolute left-0 top-[13px] bottom-[13px] w-px bg-white/[0.14]" />}

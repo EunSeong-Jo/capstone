@@ -93,24 +93,31 @@ npm run dev            # 개발 서버 실행 (vite --host)
 | 명령 | 설명 |
 |---|---|
 | `npm run dev` | 개발 서버(HMR) |
+| `npm run typecheck` | 타입 검사만 (`tsc -b`) |
 | `npm run build` | 타입체크(`tsc -b`) + 프로덕션 빌드 |
 | `npm run preview` | 빌드 결과 로컬 미리보기 |
 | `npm run lint` | ESLint 검사 |
+| `npm run check:dummy` | 더미 제품 데이터 잔존 검사 (7-2 참고) |
 
 ---
 
 ## 5. 테스트 · 검증 방법
 
-현재 **단위 테스트 프레임워크는 없습니다.** PR 올리기 전 아래 3가지로 검증합니다.
+현재 **단위 테스트 프레임워크는 없습니다.** PR 올리기 전 아래로 검증합니다.
+
+> ⚠️ **`npx tsc --noEmit`을 쓰지 마세요.** 이 저장소의 `tsconfig.json`은
+> `files: []` + references 구조라, 그 명령은 **아무 파일도 검사하지 않고
+> 통과합니다.** 실제 검사는 `tsc -b`이고 `npm run typecheck`가 그것입니다.
 
 ```bash
-npx tsc --noEmit     # ① 타입 에러 0 확인
+npm run typecheck    # ① 타입 에러 0 확인
 npm run build        # ② 빌드 성공 확인 (타입체크 포함)
 npm run lint         # ③ 린트 통과 확인
-npm run dev          # ④ 브라우저에서 실제 동작 수동 확인
+npm run check:dummy  # ④ 더미 제품 데이터 없음 확인
+npm run dev          # ⑤ 브라우저에서 실제 동작 수동 확인
 ```
 
-PR 체크리스트: **위 ①②③ 통과 + 변경 화면 수동 확인**.
+PR 체크리스트: **위 ①②③④ 통과 + 변경 화면 수동 확인**.
 
 > 향후 자동화 테스트가 필요해지면 **Vitest + React Testing Library** 도입을 권장합니다(현재 P0 범위 밖).
 
@@ -127,8 +134,11 @@ frontend/
 │  │  ├─ ui/          # 원자 단위: Button, Chip, Badge
 │  │  ├─ layout/      # PageWrapper, Header, BottomNav
 │  │  └─ {feature}/   # 기능별 묶음 (product/, skin/ 등)
+│  ├─ api/            # HTTP 클라이언트. client.ts가 토큰 주입·401 재시도를 전담
+│  ├─ context/        # 전역 상태. 로그인 시 서버, 비회원은 localStorage
+│  ├─ hooks/          # 조회 훅 (useProducts, useSimilarProducts, useSwapSuggestion …)
 │  ├─ types/index.ts  # 공용 타입 (SkinType, Product, Alternative …)
-│  ├─ mocks/          # 목업 데이터 (API 연동 전)
+│  ├─ mocks/          # 제품 id를 담지 않는 정적 문구 + 오프라인 폴백만 (7-2절)
 │  ├─ App.tsx         # 라우트 정의
 │  └─ index.css       # CSS 변수 + Tailwind + 커스텀 유틸(.glass, .scrollbar-hide)
 ```
@@ -144,7 +154,20 @@ frontend/
 
 - **디자인 토큰만 사용, 색상 하드코딩 금지** — Tailwind 토큰(`primary`, `gray-*`, `oy-*`, `surface-warm`) 또는 CSS 변수(`var(--primary)`)를 쓰고 `#3D8F6F`·`#F5F6F2` 같은 직접 값 지양. 토큰 정의: `tailwind.config.ts`, `index.css`
 - **아이콘은 인라인 SVG** (아이콘 라이브러리 추가 금지)
-- **API 미연동 데이터는 `mocks/`에 모으고 `// TODO` 마커**를 남깁니다
+- **API 미연동 데이터는 `mocks/`에 모으고 `// TODO` 마커**를 남깁니다. 화면을 API에
+  붙일 때 해당 목업은 유지가 아니라 **삭제** 대상입니다
+- **목업 폴백은 손으로 적지 않습니다** — 백엔드 없이 `npm run dev`만 띄웠을 때
+  `useProducts`가 화면을 채우는 데 쓰는 `mocks/products.fixture.json`은 실제 API
+  응답 캡처본입니다. 스키마가 바뀌면 백엔드를 띄운 뒤 다시 받으세요:
+
+  ```bash
+  npm run fixture:products                        # localhost:8000
+  API_BASE=http://backend:8000 npm run fixture:products
+  ```
+
+  이 폴백은 **로컬에서만** 동작합니다. 도커 compose는 `VITE_MOCK_FALLBACK=false`라
+  조회가 실패하면 목업으로 덮지 않고 에러를 그대로 노출합니다 — 시연 환경에서
+  백엔드 고장이 화면에 드러나지 않으면 연동이 끊긴 걸 알 방법이 없기 때문입니다
 - **safe-area**: 고정 요소는 `var(--safe-top/bottom)` 사용 (모바일 노치 대응)
 - 모바일 폭 기준 `max-w-[430px]`, 터치 피드백 `active:scale-*`
 
@@ -165,10 +188,39 @@ frontend/
 
 ---
 
+### 7-2. 목업 제품 데이터 금지 ⭐
+
+**제품 id를 직접 적은 목업 상수를 만들지 마세요.**
+
+2026-09에 홈 화면의 목업 대체품 카드를 탭하면 전혀 다른 제품이 열리는 버그가 있었습니다.
+`mocks/alternatives.ts`가 가짜 제품에 `id: 102`를 붙였는데, 카탈로그의 실제 102번이
+**디오디너리 레티놀**이었기 때문입니다.
+
+| id | 카드에 적힌 제품 | 실제로 열린 제품 |
+|---|---|---|
+| 102 | 코스알엑스 히알루론산 토너 EX | 디오디너리 레티놀 0.2% 인 스쿠알란 |
+| 105 | 라운드랩 1025 독도 토너 | 라로슈포제 멜라B3 세럼 |
+
+**id가 없으면 404가 나서 드러나는데, 겹치면 조용히 틀립니다.** 그래서 눈으로는 안 잡힙니다.
+
+지켜야 할 것:
+
+- 제품은 **항상** `src/api/`를 거쳐 받습니다 (`useProducts`, `useProduct`, `useSearchProducts`, `useSimilarProducts`)
+- 화면이 빌 것 같으면 목업으로 채우지 말고 **빈 상태 UI**를 그립니다
+- 이미지는 `products.image_url`을 씁니다. DB의 4,013건 전부 실제 올리브영 CDN 주소이므로 난수 이미지(picsum 등)가 필요 없습니다
+- 오프라인 폴백이 꼭 필요하면 손으로 적지 말고 실제 응답을 캡처합니다 — `npm run fixture:products`
+
+`npm run check:dummy`가 이 규칙을 검사합니다. 허용 목록은 `scripts/check-no-dummy.mjs` 상단에 있고,
+제품 id를 담지 않는 정적 문구(인기 검색어·도메인 드롭다운)와 날씨·케어문구 폴백만 들어 있습니다.
+
+---
+
 ## 8. 협업 규칙 (브랜치 · PR · 커밋)
 
-- **브랜치**: 통합 브랜치는 `dev`. 작업은 `dev`에서 분기한 **feature 브랜치**에서.
-  - 예: `feat/search-image`, `fix/home-exp-bar`, `docs/...`
+- **브랜치**: 통합 브랜치는 `dev`. 작업은 `dev`에서 분기한 작업 브랜치에서.
+  - 이름은 **`기능_작업자이니셜`**. 예: `unitprice_es`, `category_yb`, `search_jw`, `history_misong`
+  - 이니셜은 `es` · `yb` · `jw` · `dg` · `misong`
+  - 초기에 만든 `feature/...` · `fix/...` 형식이 네 개 남아 있지만 현행 규칙은 위쪽입니다
 - **PR**: base는 항상 **`dev`** (절대 `main` 직접 X). 작게 자주 올립니다. 안정화되면 `dev` → `main`.
 - **커밋 메시지**: `타입(scope): 한글 요약`
   - 타입: `feat` / `fix` / `chore` / `docs` / `refactor` / `style`

@@ -115,6 +115,12 @@ def main():
         help=f"쉼표로 구분된 실행할 엔진 목록 (기본 전체: {','.join(ALL_ENGINE_NAMES)}). "
         "예: --engines paddleocr — 특정 엔진만 빠르게 재검증할 때 사용",
     )
+    parser.add_argument(
+        "--gpu",
+        action="store_true",
+        help="EasyOCR을 CUDA GPU로 실행한다 (Tesseract는 GPU 백엔드가 없어 항상 CPU). "
+        "기본은 CPU - 엔진 간 레이턴시 비교 공정성을 위해 필요할 때만 켠다.",
+    )
     args = parser.parse_args()
 
     images_dir = Path(args.images_dir)
@@ -128,7 +134,9 @@ def main():
         return
 
     print("엔진 로딩 중 (최초 실행 시 모델 다운로드로 수 분 소요될 수 있습니다)...")
-    engines = build_engines(tesseract_psm=args.tesseract_psm, engines=args.engines.split(","))
+    engines = build_engines(
+        tesseract_psm=args.tesseract_psm, engines=args.engines.split(","), easyocr_gpu=args.gpu
+    )
 
     detector = None
     if args.region_detection:

@@ -6,8 +6,8 @@ import type { CategoryProduct } from './types';
 interface RankedProductCardProps {
   rank: number;
   product: CategoryProduct;
-  onToggleFavorite?: (id: string) => void;
-  onAddToCart?: (id: string) => void;
+  onToggleFavorite?: (id: number) => void;
+  onAddToCart?: (id: number) => void;
 }
 
 /** BEST 랭킹 카드: 썸네일+순위뱃지(겹침) / 제목+가격(가로 정보블록) / 찜·장바구니 아이콘(세로) */

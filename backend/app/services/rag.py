@@ -48,6 +48,19 @@ _INGREDIENT_SYNONYMS: dict[str, list[str]] = {
 }
 
 
+def _tokenize(query: str) -> list[str]:
+    """검색어를 공백 기준으로 쪼갠 키워드 후보.
+
+    형태소 분석기 없이 최소한으로 개선한 것이다. "토너 추천해줘"처럼 조사·요청
+    문구가 붙은 문장을 통째로 부분일치 시키면 그 문장 전체를 포함하는 상품명은
+    사실상 없어서 절대 안 걸린다 — 예전 버그가 정확히 이거였다("토너 추천해줘"가
+    "토너"만 있는 상품명과 매칭 안 됨). 공백으로 쪼개면 "토너" 토큰만으로 매칭된다.
+    2글자 미만 토큰은 노이즈라 버리고, 다 걸러지면 원문 그대로 하나만 남긴다.
+    """
+    tokens = [t for t in query.split() if len(t) >= 2]
+    return tokens or [query]
+
+
 def _expand_ingredient_patterns(query: str) -> list[str]:
     """쿼리에 통용명이 섞여 있으면 표준화명칭 후보를 추가로 붙인다."""
     patterns = [query]
@@ -84,7 +97,7 @@ async def search_products(
     사용자가 피해야 할 것이면 안 되기 때문이다.
     """
     rule = await load_rule(db, skin_type_id)
-    pattern = f"%{_escape_like(query)}%"
+    name_patterns = [f"%{_escape_like(t)}%" for t in _tokenize(query)]
     ingredient_patterns = [f"%{_escape_like(p)}%" for p in _expand_ingredient_patterns(query)]
 
     stmt = (
@@ -94,10 +107,13 @@ async def search_products(
         .join(ProductIngredient, ProductIngredient.product_id == Product.id, isouter=True)
         .join(Ingredient, Ingredient.id == ProductIngredient.ingredient_id, isouter=True)
         .where(Product.status == "active")
+        # 기획세트·굿즈 동봉·증량판은 앱 다른 화면(products.py, recommendations_main.py)과
+        # 동일하게 제외한다 — 여기 빠져있어서 챗봇만 세트/굿즈 상품을 추천하던 버그가 있었다.
+        .where(Product.composition == "single")
         .where(
             or_(
-                Product.name.ilike(pattern, escape="\\"),
-                Brand.name.ilike(pattern, escape="\\"),
+                *[Product.name.ilike(p, escape="\\") for p in name_patterns],
+                *[Brand.name.ilike(p, escape="\\") for p in name_patterns],
                 *[Ingredient.name_ko.ilike(p, escape="\\") for p in ingredient_patterns],
             )
         )
@@ -121,6 +137,7 @@ async def _fallback_top_rated(
     stmt = (
         select(Product)
         .where(Product.status == "active")
+        .where(Product.composition == "single")
         .options(joinedload(Product.brand), joinedload(Product.category))
         .order_by(Product.rating.desc().nullslast(), Product.review_count.desc().nullslast())
         .limit(top_k)

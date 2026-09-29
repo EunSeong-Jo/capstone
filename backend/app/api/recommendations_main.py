@@ -1,0 +1,180 @@
+"""프로필 기반 메인 추천 (Task 14).
+
+    GET /api/v1/recommendations/main   홈 큐레이션
+    GET /api/v1/recommendations/set    피부타입 맞춤 세트
+
+지금까지 이 계산은 **프론트에서** 일어났다 — `useRecommendations.ts`가 제품
+40개를 받아 제품명에 키워드가 들어 있는지로 점수를 매겼다. 두 가지가 문제였다.
+
+  1. 40개 안에서만 골랐다. 카탈로그 2,489개(단일제품) 중 1.6%다.
+  2. 근거가 제품명 문자열이었다. 성분을 보지 않았다.
+
+여기서는 `ingredient_tags`를 쓴다. 제품 3,974/4,013에 태그가 붙은 성분이
+하나 이상 있어 실제로 갈린다.
+
+점수 (Task 14.3 설계 그대로)
+----------------------------
+    매칭 성분 0.4 + 별점 0.3 + log(리뷰수) 0.2 + 브랜드 다양성 0.1
+
+앞의 셋은 SQL에서 계산하고, 브랜드 다양성만 파이썬에서 후처리한다 —
+"이미 뽑은 목록에 같은 브랜드가 몇 개 있는지"는 행 단위로 볼 수 없다.
+"""
+from __future__ import annotations
+
+import math
+
+from fastapi import APIRouter, Depends, Query, Response
+from sqlalchemy import Float, cast, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+
+from app.api.products import _to_out
+from app.core.cache import cache_get, cache_set
+from app.core.deps import get_optional_user
+from app.db.session import get_db
+from app.models.product import Product
+from app.models.user import User
+from app.schemas.product import ProductListOut, ProductOut
+from app.services.skin_type import apply_exclusions, fit_score, load_rule
+
+router = APIRouter(prefix="/api/v1/recommendations", tags=["recommendations"])
+
+# 점수 가중치. 합이 1이다.
+W_MATCH = 0.4
+W_RATING = 0.3
+W_REVIEW = 0.2
+W_BRAND = 0.1
+
+# 매칭 성분 수를 0~1로 누르는 기준. 실측 상위 제품이 20종 안팎이라
+# 그 위로는 더 벌어져도 의미가 없다.
+MATCH_CAP = 20
+# 리뷰수 로그 정규화 기준. 10만 리뷰를 1.0으로 본다.
+REVIEW_LOG_CAP = math.log10(100_000)
+
+# 한 브랜드가 목록을 채우지 않도록 하는 감점 폭. 같은 브랜드가 n번째로
+# 등장하면 (1 - n * 이 값)을 곱한다.
+BRAND_PENALTY = 0.35
+
+CACHE_TTL = 60 * 60 * 24  # 24h. 카탈로그가 자주 바뀌지 않는다.
+
+# 세트를 구성할 카테고리 순서. DB에 있는 4종 중 얼굴 루틴 순서다.
+SET_CATEGORIES = ("스킨케어", "선케어", "마스크팩", "클렌징")
+
+
+def _base_score(rule) -> tuple:
+    """SQL에서 계산하는 세 항. (매칭, 별점, 리뷰) 각각 0~1로 정규화한다."""
+    match = func.least(cast(fit_score(rule), Float) / MATCH_CAP, 1.0)
+    rating = func.coalesce(cast(Product.rating, Float), 0.0) / 5.0
+    review = func.least(
+        func.log(func.greatest(func.coalesce(Product.review_count, 0), 1) + 1)
+        / REVIEW_LOG_CAP,
+        1.0,
+    )
+    return match, rating, review
+
+
+def _diversify(rows: list[tuple[Product, float]], limit: int) -> list[Product]:
+    """브랜드 다양성 후처리.
+
+    점수가 높아도 같은 브랜드가 연달아 나오면 감점한다. 한 브랜드 제품이
+    목록을 덮으면 "추천"이 아니라 "그 브랜드 매대"가 된다.
+    """
+    seen: dict[int, int] = {}
+    adjusted = []
+    for product, score in rows:
+        brand_id = product.brand_id or 0
+        appeared = seen.get(brand_id, 0)
+        penalty = max(0.0, 1.0 - appeared * BRAND_PENALTY)
+        adjusted.append((product, score * (1 - W_BRAND) + W_BRAND * penalty))
+        seen[brand_id] = appeared + 1
+
+    adjusted.sort(key=lambda x: x[1], reverse=True)
+    return [p for p, _ in adjusted[:limit]]
+
+
+async def _pick(
+    db: AsyncSession,
+    skin_type: str | None,
+    limit: int,
+    category: str | None = None,
+) -> list[Product]:
+    rule = await load_rule(db, skin_type)
+    match, rating, review = _base_score(rule)
+    score = (W_MATCH * match + W_RATING * rating + W_REVIEW * review).label("score")
+
+    stmt = (
+        select(Product, score)
+        .where(Product.composition == "single", Product.price.is_not(None))
+        .options(joinedload(Product.brand), joinedload(Product.category))
+        .order_by(score.desc(), Product.id)
+        # 다양성 후처리가 순서를 바꾸므로 넉넉히 받아 온다.
+        .limit(limit * 4)
+    )
+    if category:
+        # has()만 쓴다. join까지 걸면 joinedload(Product.category)와 겹쳐
+        # 같은 테이블이 두 번 붙는다.
+        stmt = stmt.where(Product.category.has(code=category))
+    stmt = apply_exclusions(stmt, rule)
+
+    rows = [(p, float(s)) for p, s in (await db.execute(stmt)).all()]
+    return _diversify(rows, limit)
+
+
+@router.get("/main", response_model=ProductListOut, summary="홈 큐레이션")
+async def main_recommendations(
+    response: Response,
+    skin_type: str | None = Query(default=None, alias="skinType"),
+    size: int = Query(default=8, ge=1, le=40),
+    user: User | None = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+) -> ProductListOut:
+    """로그인하면 프로필의 피부타입으로, 아니면 인기순으로.
+
+    `skinType`을 직접 넘길 수도 있다 — 비회원이 진단만 하고 가입하지 않은
+    경우가 그렇다(Soft-gate).
+    """
+    effective = skin_type
+    if effective is None and user is not None and user.profile:
+        effective = user.profile.skin_type
+
+    # 캐시 키에 계정을 넣지 않는다. 같은 피부타입이면 결과가 같기 때문이고,
+    # 계정별로 캐시하면 적중률이 사실상 0이 된다.
+    key = f"reco:main:{effective or 'any'}:{size}"
+    cached = await cache_get(key)
+    if cached:
+        response.headers["X-Cache"] = "HIT"
+        return ProductListOut.model_validate_json(cached)
+
+    picked = await _pick(db, effective, size)
+    out = ProductListOut(
+        items=[_to_out(p) for p in picked], total=len(picked), page=1, size=size
+    )
+    await cache_set(key, out.model_dump_json(by_alias=True), CACHE_TTL)
+    response.headers["X-Cache"] = "MISS"
+    return out
+
+
+@router.get("/set", response_model=list[ProductOut], summary="피부타입 맞춤 세트")
+async def recommendation_set(
+    skin_type: str | None = Query(default=None, alias="skinType"),
+    user: User | None = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[ProductOut]:
+    """서로 다른 카테고리에서 하나씩.
+
+    한 카테고리에서 여러 개를 고르면 '세트'가 아니라 '토너 3종'이 된다.
+    카테고리가 4개뿐이라 최대 4건이고, 해당 카테고리에 맞는 제품이 없으면
+    그 자리는 비운다 — 억지로 채우지 않는다.
+    """
+    effective = skin_type
+    if effective is None and user is not None and user.profile:
+        effective = user.profile.skin_type
+
+    items: list[ProductOut] = []
+    for category in SET_CATEGORIES:
+        picked = await _pick(db, effective, 1, category=category)
+        if picked:
+            items.append(_to_out(picked[0]))
+        if len(items) == 3:
+            break
+    return items

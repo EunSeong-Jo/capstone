@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import type { SkinType } from '../../data/skinTypes';
 
-// Figma "3.TypeGrid / 8.Result card": 타입명은 Rubik Doodle Shadow / #2d7a4f,
-// 설명은 rgba(45,122,79,0.8).
+// Figma "3.TypeGrid / 8.Result card": 타입명은 Rubik Doodle Shadow / ob-green-deep,
+// 설명은 같은 색 80%.
 export default function TypeDisplay({ type }: { type: SkinType }) {
   return (
     <div className="flex flex-col items-center gap-[2cqmin]">
@@ -18,15 +18,12 @@ export default function TypeDisplay({ type }: { type: SkinType }) {
         transition={{ duration: 0.3 }}
       />
       <p
-        className="text-[clamp(1rem,4.2cqmin,1.3rem)]"
-        style={{ fontFamily: "'Rubik Doodle Shadow', system-ui, sans-serif", color: '#2d7a4f' }}
+        className="text-ob-green-deep text-[clamp(1rem,4.2cqmin,1.3rem)]"
+        style={{ fontFamily: "'Rubik Doodle Shadow', system-ui, sans-serif" }}
       >
         {type.label}타입
       </p>
-      <p
-        className="text-center text-[clamp(0.72rem,3cqmin,0.88rem)]"
-        style={{ color: 'rgba(45,122,79,0.8)' }}
-      >
+      <p className="text-center text-ob-green-deep/80 text-[clamp(0.72rem,3cqmin,0.88rem)]">
         {type.description}
       </p>
     </div>

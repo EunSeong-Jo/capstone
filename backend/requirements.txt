@@ -14,7 +14,12 @@ redis==5.2.1
 
 # Auth
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+# pydantic의 EmailStr이 쓰는 검증기. 인증 스키마(app/schemas/user.py)에 필요하다.
+email-validator==2.2.0
+# passlib 1.7.4는 bcrypt 5.x와 맞지 않는다(백엔드 탐지 프로브가 72바이트를
+# 넘어 ValueError). 2020년 이후 릴리스가 없어 bcrypt를 직접 쓴다 —
+# app/core/security.py 상단 주석 참고.
+bcrypt==5.0.0
 python-multipart==0.0.20
 
 # Settings

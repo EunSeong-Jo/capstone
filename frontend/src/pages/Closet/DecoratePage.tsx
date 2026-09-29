@@ -1,18 +1,37 @@
 import { useState } from 'react';
-import { PageWrapper } from '../../components/layout/PageWrapper';
+import { useNavigate } from 'react-router-dom';
+import { CharacterAvatar } from '../../components/character/CharacterAvatar';
 import { Header } from '../../components/layout/Header';
+import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Button } from '../../components/ui/Button';
+import { DECORATIONS } from '../../data/mascotAssets';
+import { useCharacter } from '../../context/character';
+import { useToast } from '../../context/toast';
+import { useSkinType } from '../../hooks/useSkinType';
 
-const FACE = '/mascot/base_face_neutral.png';
-const DECORATIONS = [1, 2, 3, 4, 5, 6, 7].map((n) => ({
-  id: n,
-  src: `/mascot/decoration_${n}.png`,
-}));
-
-/** 내 캐릭터 꾸미기 — 마스코트에 데코레이션 적용 (홈 캐릭터 탭 진입) */
+/**
+ * 내 캐릭터 꾸미기.
+ *
+ * 예전에는 '저장하기'가 아무 일도 하지 않았고(파일에 TODO가 적혀 있었다),
+ * 미리보기도 피부타입과 무관한 범용 얼굴(`base_face_neutral.png`)이었다.
+ * 지금은 진단 결과의 마스코트를 쓰고, 저장하면 서버에 남아 홈·마이의
+ * 캐릭터에도 같이 반영된다.
+ */
 export default function DecoratePage() {
-  const [selected, setSelected] = useState<number | null>(null);
-  const deco = selected ? DECORATIONS[selected - 1] : null;
+  const navigate = useNavigate();
+  const { decorationId, setDecoration } = useCharacter();
+  const { showToast } = useToast();
+  const { skinType } = useSkinType();
+
+  // 저장 전까지는 화면 안에서만 고른다 — 뒤로 나가면 원래대로다.
+  const [selected, setSelected] = useState<number | null>(decorationId);
+  const changed = selected !== decorationId;
+
+  const save = () => {
+    setDecoration(selected);
+    showToast('캐릭터를 저장했어요');
+    navigate(-1);
+  };
 
   return (
     <PageWrapper>
@@ -20,23 +39,14 @@ export default function DecoratePage() {
 
       {/* 미리보기 */}
       <div className="flex items-center justify-center bg-gray-5 py-10">
-        <div className="relative h-52 w-52">
-          <img src={FACE} alt="내 캐릭터" className="h-full w-full object-contain" />
-          {deco && (
-            <img
-              src={deco.src}
-              alt="데코레이션"
-              className="absolute inset-0 h-full w-full object-contain"
-            />
-          )}
-        </div>
+        <CharacterAvatar skinType={skinType} decorationId={selected} className="h-52 w-52" />
       </div>
 
       {/* 데코레이션 선택 */}
       <div className="px-4 py-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-bold text-gray-100">데코레이션</h2>
-          {selected && (
+          {selected !== null && (
             <button onClick={() => setSelected(null)} className="text-xs text-gray-50">
               초기화
             </button>
@@ -50,19 +60,22 @@ export default function DecoratePage() {
               <button
                 key={d.id}
                 onClick={() => setSelected(on ? null : d.id)}
-                className={`aspect-square rounded-xl border-2 bg-white p-2 active:scale-95 transition-transform ${
+                aria-label={d.label}
+                aria-pressed={on}
+                className={`aspect-square rounded-xl border-2 bg-white p-2 transition-transform active:scale-95 ${
                   on ? 'border-primary' : 'border-gray-20'
                 }`}
               >
-                <img src={d.src} alt={`데코 ${d.id}`} className="h-full w-full object-contain" />
+                <img src={d.src} alt={d.label} className="h-full w-full object-contain" />
               </button>
             );
           })}
         </div>
 
         <div className="mt-6">
-          <Button variant="next">저장하기</Button>
-          {/* TODO: 선택 데코 저장 (사용자 store/API 연동) */}
+          <Button variant="next" disabled={!changed} onClick={save}>
+            저장하기
+          </Button>
         </div>
       </div>
     </PageWrapper>

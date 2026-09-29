@@ -60,6 +60,18 @@ export default {
           line: '#EEEEEE', // 섹션 구분선·카드 보더
           chip: '#F4F4F4', // 태그칩 배경·비활성칩
         },
+        // 온보딩·스플래시·로그인 전용 (전역 토큰과 분리)
+        // 값 정의는 index.css의 --ob-* 한 곳. 여기서는 참조만 하므로 색 확정 시 이 블록은 건드리지 않습니다.
+        ob: {
+          green: {
+            DEFAULT: 'rgb(var(--ob-green-rgb) / <alpha-value>)',
+            deep: 'rgb(var(--ob-green-deep-rgb) / <alpha-value>)',
+            soft: 'rgb(var(--ob-green-soft-rgb) / <alpha-value>)',
+          },
+          surface: 'rgb(var(--ob-surface-rgb) / <alpha-value>)',
+          cream: 'rgb(var(--ob-cream-rgb) / <alpha-value>)',
+          bg: 'rgb(var(--ob-bg-rgb) / <alpha-value>)',
+        },
       },
       borderRadius: {
         sm: '4px',
@@ -105,9 +117,14 @@ export default {
           '0%': { transform: 'translate(-50%, -100%)', opacity: '0' },
           '100%': { transform: 'translate(-50%, 0)', opacity: '1' },
         },
+        slideUp: {
+          '0%': { transform: 'translate(-50%, 100%)', opacity: '0' },
+          '100%': { transform: 'translate(-50%, 0)', opacity: '1' },
+        },
       },
       animation: {
         'slide-down': 'slideDown .28s ease-out',
+        'slide-up': 'slideUp .28s ease-out',
       },
       fontFamily: {
         sans: [

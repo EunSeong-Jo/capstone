@@ -2,9 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
-import { MOCK_PROFILE } from '../../mocks/home';
+import { useUserProfile } from '../../context/userProfile';
 
-const USER_EMAIL = 'user@email.com';
 const APP_VERSION = '1.0.0';
 
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
@@ -70,6 +69,7 @@ function Section({ title, rows }: { title: string; rows: Row[] }) {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const { profile } = useUserProfile();
   const [pushNoti, setPushNoti] = useState(true);
   const [marketingNoti, setMarketingNoti] = useState(false);
 
@@ -80,8 +80,10 @@ export default function SettingsPage() {
       <Section
         title="계정"
         rows={[
-          { label: MOCK_PROFILE.nickname, sub: USER_EMAIL },
+          { label: profile.nickname, sub: profile.email },
           { label: '프로필 편집', onClick: () => navigate('/mypage/settings/profile') },
+          { label: '이메일 변경', onClick: () => navigate('/mypage/settings/email') },
+          { label: '비밀번호 변경', onClick: () => navigate('/mypage/settings/password') },
           { label: '피부타입 재진단', onClick: () => navigate('/qna') },
         ]}
       />
@@ -105,6 +107,7 @@ export default function SettingsPage() {
       <Section
         title="약관 및 정보"
         rows={[
+          { label: '공지사항', onClick: () => navigate('/mypage/settings/notices') },
           { label: '서비스 이용약관', onClick: () => navigate('/mypage/settings/terms') },
           { label: '개인정보 처리방침', onClick: () => navigate('/mypage/settings/privacy') },
           { label: '버전 정보', right: <span className="text-[13px] text-gray-50">v{APP_VERSION}</span> },

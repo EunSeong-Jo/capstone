@@ -1,0 +1,17 @@
+# CLOVA OCR API 호출
+requests
+
+# 시각화
+matplotlib
+
+# 지표 계산 (ocr_benchmark/metrics.py 재사용)
+pandas
+rapidfuzz
+tabulate
+
+# 환경변수 / 진행률
+python-dotenv
+tqdm
+
+# DB 텍스트 대조 — extract_product_name.py --search
+psycopg2-binary
