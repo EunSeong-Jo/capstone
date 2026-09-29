@@ -61,6 +61,7 @@ erDiagram
   products        ||--o{ product_ingredients : ""
   ingredients     ||--o{ product_ingredients : ""
   ingredients     ||--o{ ingredient_aliases : "구명칭"
+  ingredients     ||--o| ingredient_descriptions : "설명"
   ingredients     ||--o{ ingredient_tags : ""
   tags            ||--o{ ingredient_tags : ""
   products        ||--o{ similarities : "유사도"
@@ -208,6 +209,24 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 | | `changed_at` | date | NULL | 명칭 변경 고시일 |
 
 `is_ambiguous`는 한 구명칭이 서로 다른 표준명 둘 이상으로 갈리는 경우입니다(`승마추출물` → 촛대승마추출물 / 라케모사승마뿌리추출물). 기계적으로 결정할 수 없어 자동 변환에서 제외합니다.
+
+### `ingredient_descriptions` — 적재 전
+
+성분별 한 줄 설명과 키워드. 마이그레이션 `952adbaa9665`.
+
+| | 컬럼 | 타입 | | 비고 |
+|---|---|---|---|---|
+| PK FK | `ingredient_id` | int | NOT NULL | → `ingredients` [CASCADE] |
+| | `description` | text | NOT NULL | 한 줄 설명 |
+| | `keywords` | text[] | NOT NULL | `= '{}'` · 최대 2개 |
+| | `source` | varchar(20) | NOT NULL | `llm`(생성 초안) / `reviewed`(검수 완료) |
+| | `created_at` `updated_at` | timestamptz | NOT NULL | `= now()` |
+
+**`ingredients`에 컬럼을 더하지 않고 테이블을 나눈 이유**: 출처가 다릅니다. `ingredients`는 협회 사전이 원본이고, 설명은 `data/seed/ingredient_descriptions.csv`가 원본입니다. 설명을 고칠 때는 CSV를 고치고 `scripts/seed_ingredient_descriptions.py`를 다시 돌립니다. 이 스크립트는 몇 번을 돌려도 결과가 같습니다.
+
+**키워드는 고정 어휘 20개에서만 고릅니다.** 효능 10개(보습·진정·장벽강화·브라이트닝·탄력·항산화·피지조절·각질케어·자외선차단·영양)는 화면 칩용이고, 역할 10개(용제·보존·유화·세정·점증·pH조절·향료·사용감개선·안정화·색소)는 정제수·EDTA처럼 효능이 없는 성분을 분류하는 데 씁니다. 자유 입력을 허용하면 '보습'·'수분공급'이 갈라져 필터가 무너지므로 적재 스크립트가 어휘 밖 값을 거부합니다. '미백'·'주름개선'은 기능성 인증 표현이라 키워드로 쓰지 않습니다.
+
+제품에 쓰이는 성분 4,277종 중 3,687종에 설명이 있고, 연결 기준으로는 99.6%를 덮습니다. 비어 있는 590종은 영문명이 없는 파싱 잔해(제품명 혼입·성분 두 개가 붙은 이름)이고, 대부분 한 제품에만 나옵니다.
 
 ### `brands` — 512행
 
