@@ -6,6 +6,7 @@ import { AlternativeCard } from '../../components/alternatives/AlternativeCard';
 import { ProductCard } from '../../components/product/ProductCard';
 import { toSimilarMethod } from '../../api/similar';
 import { useCloset } from '../../context/closet';
+import { ClosetSeedPicker } from '../../components/alternatives/ClosetSeedPicker';
 import { useProduct } from '../../hooks/useProduct';
 import { useProducts } from '../../hooks/useProducts';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
@@ -135,9 +136,11 @@ export default function AlternativesPage() {
 
   const { items: closetItems } = useCloset();
   const closetMatch = closetItems.find((c) => c.id === seedId);
+  // 화장대 제품은 분석을 마쳐야 대체품을 찾는다. 막힌 동안은 조회도 하지 않는다.
+  const notAnalyzed = !!closetMatch && closetMatch.status !== 'analyzed';
 
   const seedProduct = useProduct(seedId);
-  const similar = useSimilarProducts(seedId, {
+  const similar = useSimilarProducts(notAnalyzed ? undefined : seedId, {
     limit: 20,
     method,
     seedProduct: seedProduct.product,
@@ -175,18 +178,26 @@ export default function AlternativesPage() {
     return arr;
   }, [similar.alternatives, sort]);
 
-  // 기준제품을 못 정한 경우. 화장대·홈 배너가 '대체품 모아보기' 성격으로
-  // seed 없이 들어오는데, 그런 API가 아직 없다.
+  // 기준제품 없이 들어온 경우(홈 배너·화장대 요약 카드) — 화장대에서 고르게 한다.
   if (!hasSeedParam) {
+    return (
+      <PageWrapper>
+        <Header showBack title="내 화장대 대체품 찾기" />
+        <ClosetSeedPicker />
+      </PageWrapper>
+    );
+  }
+
+  if (notAnalyzed) {
     return (
       <PageWrapper>
         <Header showBack title="대체품 추천" />
         <Notice
-          emoji="🧴"
-          title="어떤 제품의 대체품을 찾을까요?"
-          description="내 화장대에서 고르거나 제품을 검색해 주세요."
-          actionLabel="검색하러 가기"
-          onAction={() => navigate('/search')}
+          emoji="🔬"
+          title="아직 분석이 안 됐어요"
+          description={`'${closetMatch.name}'은(는) 분석 전이에요. 내 화장대에서 분석하기를 누르면 대체품을 찾을 수 있어요.`}
+          actionLabel="화장대에서 분석하기"
+          onAction={() => navigate('/closet')}
         />
       </PageWrapper>
     );

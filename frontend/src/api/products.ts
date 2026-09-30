@@ -95,6 +95,19 @@ export function searchProducts(
   );
 }
 
+/** 전성분에 이 성분(한글·INCI 부분일치)이 든 제품. 2자 이상. */
+export function searchProductsByIngredient(
+  q: string,
+  query: Pick<ProductQuery, 'sort' | 'page' | 'size'> = {},
+  signal?: AbortSignal,
+): Promise<ProductListResponse> {
+  return request<ProductListResponse>(
+    '/api/v1/products/search/ingredient',
+    { q, ...query } as QueryParams,
+    signal,
+  );
+}
+
 
 export interface ProductReview {
   id: number;
@@ -102,11 +115,18 @@ export interface ProductReview {
   rating: number;
   body: string | null;
   createdAt: string;
+  /** 후기 사진 URL(`/api/v1/reviews/photos/:id`) */
+  photoUrls: string[];
+  /** 작성자 피부타입 코드. 진단 전이면 null */
+  skinType: string | null;
 }
 
 export interface ProductReviews {
   items: ProductReview[];
+  /** 이 제품 후기 전체 수(필터와 무관) */
   total: number;
+  /** 지금 필터에 맞는 수 */
+  matched: number;
   /** 후기가 없으면 null입니다 — 0.0으로 내면 "최악"과 구분되지 않습니다. */
   average: number | null;
   /** 5점부터 1점까지의 건수. 키는 문자열입니다(JSON). */
@@ -120,13 +140,24 @@ export interface ProductReviews {
  * 올리브영의 리뷰 수이고 내용은 갖고 있지 않습니다. 여기 목록은 이 앱에서
  * 실제로 산 사람이 쓴 것뿐이라, 지금은 대부분 비어 있는 게 정상입니다.
  */
+export type ReviewSort = 'latest' | 'oldest' | 'rating_desc' | 'rating_asc';
+
+export interface ReviewQuery {
+  sort?: ReviewSort;
+  /** 이 별점의 후기만 */
+  rating?: number;
+  /** 작성자 피부타입이 이것인 후기만 */
+  skinType?: string;
+}
+
 export function fetchProductReviews(
   productId: number,
+  query: ReviewQuery = {},
   signal?: AbortSignal,
 ): Promise<ProductReviews> {
   return request<ProductReviews>(
     `/api/v1/products/${productId}/reviews`,
-    undefined,
+    query as QueryParams,
     signal,
   );
 }
