@@ -2,25 +2,32 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
-import { OrderDto, fetchOrders, writeReview } from '../../api/personal';
+import { MyReviewDto, OrderDto, fetchMyReviews, fetchOrders, writeReview } from '../../api/personal';
+import { ApiError } from '../../api/client';
+import { ReviewDraft, ReviewWriteSheet } from '../../components/reviews/ReviewWriteSheet';
 import { useAuth } from '../../context/auth';
+import { useToast } from '../../context/toast';
+import { isClosed } from '../../utils/orderStage';
 
 /**
  * 후기.
  *
  * '작성 가능'은 주문했지만 아직 후기를 안 쓴 항목이고, '작성한 후기'는
- * 반대다. 둘 다 `GET /api/v1/me/orders` 하나에서 나온다 — 서버가 항목마다
- * `reviewed`를 내려주기 때문이다.
+ * 반대다. 목록은 `GET /me/orders`(항목마다 `reviewed`)에서, 쓴 내용(본문·
+ * 사진)은 `GET /me/reviews`에서 온다.
+ *
+ * 작성은 주문내역과 같은 `ReviewWriteSheet`(별점·본문·사진 3장)로 한다.
+ * 예전에는 이 화면만 별점 하나를 눌러 바로 저장해서 글도 사진도 넣을 수 없었다.
  *
  * 산 제품에만 쓸 수 있다는 규칙은 화면이 아니라 DB가 강제한다
- * (`reviews.order_item_id` FK). 예전에는 작성 가능 목록 자체가 하드코딩이라
- * 사지도 않은 제품에 후기를 쓸 수 있는 것처럼 보였다.
+ * (`reviews.order_item_id` FK). 취소·반품한 주문은 서버가 막는다.
  */
 
 type Tab = 'writable' | 'written';
 
 interface Row {
   orderItemId: number;
+  productId: number | null;
   productName: string;
   brandName: string | null;
   placedAt: string;
@@ -32,31 +39,43 @@ const fmtDate = (iso: string) =>
     .replace(/\.$/, '');
 
 function collect(orders: OrderDto[], reviewed: boolean): Row[] {
-  return orders.flatMap((o) =>
-    o.items
-      .filter((i) => i.reviewed === reviewed && i.productId !== null)
-      .map((i) => ({
-        orderItemId: i.id,
-        productName: i.productName,
-        brandName: i.brandName,
-        placedAt: o.placedAt,
-      })),
-  );
+  return orders
+    .filter((o) => !isClosed(o.status))
+    .flatMap((o) =>
+      o.items
+        .filter((i) => i.reviewed === reviewed && i.productId !== null)
+        .map((i) => ({
+          orderItemId: i.id,
+          productId: i.productId,
+          productName: i.productName,
+          brandName: i.brandName,
+          placedAt: o.placedAt,
+        })),
+    );
 }
 
 export default function ReviewPage() {
   const navigate = useNavigate();
   const { isUser, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const [tab, setTab] = useState<Tab>('writable');
   const [orders, setOrders] = useState<OrderDto[]>([]);
+  const [reviews, setReviews] = useState<MyReviewDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rating, setRating] = useState<Record<number, number>>({});
-  const [saving, setSaving] = useState<number | null>(null);
+  /** 후기를 쓰는 중인 항목. null이면 시트가 닫혀 있다. */
+  const [target, setTarget] = useState<Row | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const reload = () =>
-    fetchOrders()
-      .then(setOrders)
-      .catch(() => setOrders([]))
+    Promise.all([fetchOrders(), fetchMyReviews()])
+      .then(([o, r]) => {
+        setOrders(o);
+        setReviews(r);
+      })
+      .catch(() => {
+        setOrders([]);
+        setReviews([]);
+      })
       .finally(() => setLoading(false));
 
   useEffect(() => {
@@ -66,11 +85,20 @@ export default function ReviewPage() {
     reload();
   }, [isUser, authLoading]);
 
-  const submit = async (orderItemId: number) => {
-    setSaving(orderItemId);
-    await writeReview(orderItemId, rating[orderItemId] ?? 5).catch(() => undefined);
-    setSaving(null);
-    reload();
+  const submit = async (draft: ReviewDraft) => {
+    if (target === null) return;
+    setSaving(true);
+    try {
+      await writeReview(target.orderItemId, draft.rating, draft.body, draft.photos);
+      setTarget(null);
+      showToast('후기를 등록했어요 (+100P)');
+      setTab('written');
+      reload();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : '후기를 저장하지 못했어요');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!authLoading && !isUser) {
@@ -91,6 +119,7 @@ export default function ReviewPage() {
   }
 
   const rows = collect(orders, tab === 'written');
+  const reviewOf = (orderItemId: number) => reviews.find((r) => r.orderItemId === orderItemId);
 
   return (
     <PageWrapper>
@@ -133,40 +162,67 @@ export default function ReviewPage() {
             <p className="mt-1 text-sm text-gray-50">주문한 제품에만 후기를 쓸 수 있어요</p>
           </div>
         ) : (
-          rows.map((row) => (
-            <div key={row.orderItemId} className="mb-2 bg-white p-4">
-              <p className="text-sm font-semibold text-gray-100">{row.productName}</p>
-              <p className="mt-0.5 text-xs text-gray-50">
-                {row.brandName} · {fmtDate(row.placedAt)} 주문
-              </p>
+          rows.map((row) => {
+            const review = tab === 'written' ? reviewOf(row.orderItemId) : undefined;
+            return (
+              <div key={row.orderItemId} className="mb-2 bg-white p-4">
+                <p className="text-sm font-semibold text-gray-100">{row.productName}</p>
+                <p className="mt-0.5 text-xs text-gray-50">
+                  {row.brandName} · {fmtDate(row.placedAt)} 주문
+                </p>
 
-              {tab === 'writable' && (
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <button
-                        key={n}
-                        onClick={() => setRating((r) => ({ ...r, [row.orderItemId]: n }))}
-                        aria-label={`${n}점`}
-                        className="text-[20px] leading-none"
-                      >
-                        {(rating[row.orderItemId] ?? 5) >= n ? '★' : '☆'}
-                      </button>
-                    ))}
-                  </div>
+                {tab === 'writable' && (
                   <button
-                    disabled={saving === row.orderItemId}
-                    onClick={() => submit(row.orderItemId)}
-                    className="ml-auto rounded-lg bg-primary px-4 py-2 text-[13px] font-bold text-white active:scale-95 disabled:opacity-50"
+                    onClick={() => setTarget(row)}
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-[13px] font-bold text-white active:scale-[.98]"
                   >
-                    {saving === row.orderItemId ? '저장 중…' : '후기 쓰기 (+100P)'}
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 8a2 2 0 012-2h1.5l1.2-1.8A1.5 1.5 0 0110 3.5h4a1.5 1.5 0 011.3.7L16.5 6H18a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2V8z" />
+                      <circle cx="12" cy="12.5" r="3.2" />
+                    </svg>
+                    사진·글 후기 쓰기 (+100P)
                   </button>
-                </div>
-              )}
-            </div>
-          ))
+                )}
+
+                {review && (
+                  <div className="mt-3 border-t border-gray-10 pt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[14px] text-star">
+                        {'★'.repeat(review.rating)}
+                        <span className="text-gray-20">{'★'.repeat(5 - review.rating)}</span>
+                      </span>
+                      <span className="text-[11px] text-gray-50">{fmtDate(review.createdAt)} 작성</span>
+                    </div>
+                    {review.body && (
+                      <p className="mt-1.5 text-[13px] leading-relaxed text-gray-70">{review.body}</p>
+                    )}
+                    {review.photoUrls.length > 0 && (
+                      <div className="mt-2 flex gap-1.5">
+                        {review.photoUrls.map((url) => (
+                          <a key={url} href={url} target="_blank" rel="noreferrer">
+                            <img src={url} alt="후기 사진" className="h-20 w-20 rounded-lg object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
+
+      {/* key로 다시 마운트시켜 별점·본문·사진을 초기화한다. */}
+      {target && (
+        <ReviewWriteSheet
+          key={target.orderItemId}
+          productLabel={target.brandName ? `${target.brandName} · ${target.productName}` : target.productName}
+          saving={saving}
+          onClose={() => setTarget(null)}
+          onSubmit={submit}
+        />
+      )}
     </PageWrapper>
   );
 }

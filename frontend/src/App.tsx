@@ -10,6 +10,8 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword'));
 const HomePage       = lazy(() => import('./pages/Home'));
 const CheaperAlternativesPage = lazy(() => import('./pages/Home/CheaperAlternativesPage'));
 const ClosetPage     = lazy(() => import('./pages/Closet'));
+const ScanHistoryPage = lazy(() => import('./pages/Scan/ScanHistoryPage'));
+const CancelReturnPage = lazy(() => import('./pages/Mypage/CancelReturnPage'));
 const DecoratePage   = lazy(() => import('./pages/Closet/DecoratePage'));
 const DetailPage     = lazy(() => import('./pages/ProductDetail'));
 const AlternativesPage = lazy(() => import('./pages/Alternatives'));
@@ -74,6 +76,7 @@ export default function App() {
           <Route path="/cart"       element={<CartPage />} />
           <Route path="/search"     element={<SearchPage />} />
           <Route path="/scan"       element={<ScanPage />} />
+          <Route path="/scan/history" element={<ScanHistoryPage />} />
           <Route path="/mypage"     element={<MypagePage />} />
           <Route path="/category"   element={<CategoryMainPage />} />
           <Route path="/category/:code" element={<CategoryPage />} />
@@ -106,7 +109,7 @@ export default function App() {
           <Route path="/mypage/money"         element={<Navigate to="/mypage" replace />} />
           <Route path="/mypage/giftbox"       element={<Navigate to="/mypage/gifts" replace />} />
           <Route path="/mypage/shipping"      element={<Navigate to="/mypage" replace />} />
-          <Route path="/mypage/cancel-return" element={<Navigate to="/mypage" replace />} />
+          <Route path="/mypage/cancel-return" element={mine(<CancelReturnPage />)} />
           <Route path="/mypage/restock"       element={<Navigate to="/mypage" replace />} />
           <Route path="*"           element={<Navigate to="/onboarding" replace />} />
         </Routes>
