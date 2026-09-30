@@ -4,6 +4,7 @@
     python scripts/seed_ingredient_descriptions.py
 
 멱등하다. CSV가 원본이므로 설명을 고칠 때는 CSV를 고치고 다시 돌린다.
+설명은 제품 상세 응답에 실리므로 적재 후 상세 캐시 버전을 올린다.
 description이 빈 행은 건너뛴다(파싱 잔해 등 아직 채우지 않은 성분).
 
 입력 컬럼
@@ -27,6 +28,23 @@ sys.path.insert(0, str(REPO / "backend"))
 from app.config import settings  # noqa: E402
 
 CSV_PATH = REPO / "data/seed/ingredient_descriptions.csv"
+
+
+def bump_cache_version() -> None:
+    """products:cache_version INCR — best-effort.
+
+    설명은 ProductDetailOut.ingredients[]에 실리므로, 재적재 후 상세 캐시에
+    옛 설명이 남지 않도록 무효화한다. 실패해도 스크립트 자체는 성공으로
+    끝나야 한다.
+    """
+    try:
+        import redis
+        r = redis.Redis.from_url(
+            settings.REDIS_URL, socket_connect_timeout=0.5, socket_timeout=0.5,
+        )
+        print(f"캐시 버전 갱신 → v{r.incr('products:cache_version')}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"캐시 버전 갱신 실패(무시): {exc}")
 
 # 효능(화면 칩으로 노출) + 역할(제형 성분 분류). 자유 입력을 허용하면
 # '보습'·'수분공급'·'촉촉함'이 갈라져 필터가 무너진다.
@@ -93,6 +111,8 @@ def main() -> None:
         conn.commit()
         cur.execute("SELECT count(*) FROM ingredient_descriptions")
         print(f"적재 {len(values):,}건 → ingredient_descriptions {cur.fetchone()[0]:,}행")
+
+    bump_cache_version()
 
 
 if __name__ == "__main__":

@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| DBMS | PostgreSQL 16.14 |
+| DBMS | PostgreSQL 16.15 |
 | 호스팅 | Neon (serverless) · branch `production` · db `neondb` |
 | 확장 | `pg_trgm` 1.6 |
-| alembic head | `d07012ddaaa9` |
-| 테이블 | 27 (Phase 1 18 + Phase 2 개인 데이터 9) |
-| 기준일 | 2026-09-20 |
+| alembic head | `952adbaa9665` |
+| 테이블 | 29 (Phase 1 18 + 개인 데이터 10 + 성분 설명 1) |
+| 기준일 | 2026-09-30 |
 
 ---
 
@@ -24,6 +24,7 @@
 | 성분 `ingredients` | 23,147 |
 | 제품–성분 연결 `product_ingredients` | 163,103 |
 | 성분 별칭 `ingredient_aliases` | 4,411 |
+| 성분 설명 `ingredient_descriptions` | 3,687 |
 | 브랜드 `brands` | 512 |
 | 표준사전 매칭률 | 97.8% |
 
@@ -210,7 +211,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `is_ambiguous`는 한 구명칭이 서로 다른 표준명 둘 이상으로 갈리는 경우입니다(`승마추출물` → 촛대승마추출물 / 라케모사승마뿌리추출물). 기계적으로 결정할 수 없어 자동 변환에서 제외합니다.
 
-### `ingredient_descriptions` — 적재 전
+### `ingredient_descriptions` — 3,687행
 
 성분별 한 줄 설명과 키워드. 마이그레이션 `952adbaa9665`.
 
@@ -222,7 +223,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 | | `source` | varchar(20) | NOT NULL | `llm`(생성 초안) / `reviewed`(검수 완료) |
 | | `created_at` `updated_at` | timestamptz | NOT NULL | `= now()` |
 
-**`ingredients`에 컬럼을 더하지 않고 테이블을 나눈 이유**: 출처가 다릅니다. `ingredients`는 협회 사전이 원본이고, 설명은 `data/seed/ingredient_descriptions.csv`가 원본입니다. 설명을 고칠 때는 CSV를 고치고 `scripts/seed_ingredient_descriptions.py`를 다시 돌립니다. 이 스크립트는 몇 번을 돌려도 결과가 같습니다.
+**`ingredients`에 컬럼을 더하지 않고 테이블을 나눈 이유**: 출처가 다릅니다. `ingredients`는 협회 사전이 원본이고, 설명은 `data/seed/ingredient_descriptions.csv`가 원본입니다. 설명을 고칠 때는 CSV를 고치고 `scripts/seed_ingredient_descriptions.py`를 다시 돌립니다. 이 스크립트는 몇 번을 돌려도 결과가 같습니다. 설명은 제품 상세 응답(`GET /api/v1/products/{id}`의 `ingredients[]`)에 실리므로, 적재가 끝나면 스크립트가 `products:cache_version`을 올려 상세 캐시를 비웁니다. 호스트에서 돌릴 때는 `REDIS_HOST=localhost`를 앞에 붙이세요. 기본값 `redis`는 도커 네트워크 안에서만 풀리는 이름이라, 붙이지 않으면 캐시 갱신이 실패하고(스크립트는 무시하고 성공 처리) 옛 설명이 캐시 TTL 동안 나갑니다.
 
 **키워드는 고정 어휘 20개에서만 고릅니다.** 효능 10개(보습·진정·장벽강화·브라이트닝·탄력·항산화·피지조절·각질케어·자외선차단·영양)는 화면 칩용이고, 역할 10개(용제·보존·유화·세정·점증·pH조절·향료·사용감개선·안정화·색소)는 정제수·EDTA처럼 효능이 없는 성분을 분류하는 데 씁니다. 자유 입력을 허용하면 '보습'·'수분공급'이 갈라져 필터가 무너지므로 적재 스크립트가 어휘 밖 값을 거부합니다. '미백'·'주름개선'은 기능성 인증 표현이라 키워드로 쓰지 않습니다.
 

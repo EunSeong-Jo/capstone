@@ -19,6 +19,14 @@ SEARCH = "/api/v1/products/search"
 # 프론트 src/types/index.ts의 Product가 필수로 요구하는 필드
 REQUIRED = ("id", "name", "brand", "category", "price")
 
+# scripts/seed_ingredient_descriptions.py의 KEYWORDS와 같아야 한다
+DESCRIPTION_KEYWORDS = {
+    "보습", "진정", "장벽강화", "브라이트닝", "탄력", "항산화", "피지조절",
+    "각질케어", "자외선차단", "영양",
+    "용제", "보존", "유화", "세정", "점증", "pH조절", "향료", "사용감개선",
+    "안정화", "색소",
+}
+
 
 async def _items(client: AsyncClient, path: str = LIST, **params) -> list[dict]:
     res = await client.get(path, params=params)
@@ -199,6 +207,31 @@ async def test_detail_returns_ingredients_in_order(client: AsyncClient) -> None:
 
     # 알레르겐 표시는 불리언이다(식약처 표시 의무 착향제 26종).
     assert all(isinstance(x["isAllergen"], bool) for x in ingredients)
+
+    # 성분 설명. 키워드가 어휘 밖으로 새면 화면 칩 필터가 갈라진다 —
+    # 적재 스크립트가 막지만 응답 계약으로도 못박는다.
+    for x in ingredients:
+        desc = x.get("description")
+        if desc is None:
+            assert x.get("keywords") == []
+            assert x.get("descriptionSource") is None
+            continue
+        assert isinstance(desc, str) and desc.strip()
+        assert 1 <= len(x["keywords"]) <= 2
+        assert set(x["keywords"]) <= DESCRIPTION_KEYWORDS
+        assert x["descriptionSource"] in ("llm", "reviewed")
+
+
+async def test_detail_joins_ingredient_description(client: AsyncClient) -> None:
+    """설명이 실제로 붙는지 — 정제수는 거의 모든 제품에 들어 있고 설명이 있다."""
+    for item in await _items(client, size=20):
+        body = (await client.get(f"{LIST}/{item['id']}")).json()
+        water = next((x for x in body["ingredients"] if x["name"] == "정제수"), None)
+        if water is not None:
+            assert water["description"]
+            assert water["keywords"]
+            return
+    pytest.skip("첫 20개 제품에 정제수가 없다")
 
 
 async def test_detail_includes_notice_fields(client: AsyncClient) -> None:

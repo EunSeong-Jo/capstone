@@ -82,6 +82,17 @@ class IngredientOut(_CamelModel):
     grade: str | None = None
     is_allergen: bool = False
 
+    # 성분 설명. `scripts/seed_ingredient_descriptions.py`가
+    # ingredient_descriptions에 적재한다. 설명이 없는 성분은 셋 다 비어 있다.
+    #
+    #   description         한 줄 설명
+    #   keywords            고정 어휘 20개(효능 10 · 역할 10)에서 최대 2개
+    #   description_source  llm(생성 초안) | reviewed(검수 완료)
+    #                       화면은 llm일 때 '참고용' 문구를 붙인다
+    description: str | None = None
+    keywords: list[str] = []
+    description_source: str | None = None
+
 
 class ProductDetailOut(ProductOut):
     """상세용. 상품정보제공고시 항목과 전성분이 붙는다."""
