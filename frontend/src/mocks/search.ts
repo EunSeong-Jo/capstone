@@ -8,26 +8,10 @@
 
 export const POPULAR_SEARCH_FILTERS = ['급상승', '성분', '브랜드'] as const;
 
-export type PopularSearchFilter = (typeof POPULAR_SEARCH_FILTERS)[number];
-
-/**
- * 필터별 인기 검색어. '성분' 탭 항목은 누르면 성분검색으로 넘어간다
- * (Search/index.tsx) — 제품명에는 성분명이 거의 없어 통합검색으로는 안 나온다.
- */
-export const POPULAR_SEARCH_RANKING: Record<PopularSearchFilter, string[]> = {
-  급상승: [
-    '메디큐브', '셀리맥스', '클리오 쿠션', '제로이드', '식물나라',
-    '마데카소사이드', '바이오던스', 'PDRN 세럼', '아누아', '퓌 립앤치크',
-  ],
-  성분: [
-    '나이아신아마이드', '판테놀', '히알루론산', '병풀추출물', '세라마이드',
-    '레티놀', '마데카소사이드', '아데노신', '티트리', '살리실릭애씨드',
-  ],
-  브랜드: [
-    '라운드랩', '토리든', '아누아', '메디힐', '닥터지',
-    '달바', '에스트라', '라로슈포제', '구달', '넘버즈인',
-  ],
-};export interface IngredientCategory {
+export const POPULAR_SEARCH_RANKING = [
+  '메디큐브', '셀리맥스', '클리오 쿠션', '제로이드', '식물나라',
+  '마데카소사이드', '바이오던스', 'PDRN 세럼', '아누아', '퓌 립앤치크',
+];export interface IngredientCategory {
   id: string;
   emoji: string;
   label: string;

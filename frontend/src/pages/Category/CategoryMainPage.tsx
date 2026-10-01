@@ -3,7 +3,7 @@ import { Icon } from '../../components/category/Icon';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { CATEGORIES, CategoryDef } from '../../data/categories';
 import { useProducts } from '../../hooks/useProducts';
-import { CartButton } from '../../components/ui/CartButton';
+import { CartIcon } from '../../components/ui/OutlineIcons';
 
 /**
  * 카테고리 메인 — DB에 실제로 있는 4종만.
@@ -36,9 +36,9 @@ function CategoryRow({ category }: { category: CategoryDef }) {
     <button
       type="button"
       onClick={() => navigate(`/category/${category.slug}`)}
-      className="flex w-full items-center gap-3 rounded-md border border-gray-10 bg-white px-4 py-2.5 text-left active:scale-[.99] transition-transform"
+      className="flex w-full items-center gap-3 rounded-2xl border border-gray-10 bg-white p-3 text-left active:scale-[.99] transition-transform"
     >
-      <div className="h-11 w-11 shrink-0 overflow-hidden rounded bg-gray-10">
+      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-10">
         {cover?.imageUrl && (
           <img src={cover.imageUrl} alt="" className="h-full w-full object-cover" />
         )}
@@ -76,7 +76,14 @@ export default function CategoryMainPage() {
               <path d="M16.5 16.5L21 21" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           </button>
-          <CartButton />
+          <button
+            type="button"
+            onClick={() => navigate('/cart')}
+            aria-label="장바구니"
+            className="active:scale-90 transition-transform"
+          >
+            <CartIcon size={24} className="text-[#17171C]" />
+          </button>
         </div>
       </header>
 

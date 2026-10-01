@@ -21,8 +21,6 @@ import { useAuth } from '../../context/auth';
 const REASON_LABEL: Record<string, string> = {
   order: '주문 적립',
   review: '후기 작성 적립',
-  order_cancel: '주문 취소 · 적립 회수',
-  order_return: '반품 · 적립 회수',
 };
 
 const fmtDate = (iso: string) =>

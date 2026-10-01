@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
+import { useCart } from '../../../context/cart';
 import { useUnreadNotifications } from '../../../hooks/useNotifications';
-import { CartButton } from '../../ui/CartButton';
+import { CartIcon } from '../../ui/OutlineIcons';
 
 /**
  * 상단 앱바 — 로고(swappy) + 검색·장바구니.
@@ -13,9 +14,16 @@ import { CartButton } from '../../ui/CartButton';
  * 알림 버튼은 한동안 뺐다가 되살렸다 — 눌러도 아무 일이 없던 버튼이었는데,
  * 이제 알림함(`/notifications`)이 생겼다. 안 읽은 알림 수는 배지로 띄운다.
  */
-export function OyAppBar() {
+interface OyAppBarProps {
+  /** 미지정 시 장바구니 컨텍스트의 담긴 수량을 쓴다 */
+  cartCount?: number;
+}
+
+export function OyAppBar({ cartCount }: OyAppBarProps) {
   const navigate = useNavigate();
+  const { count: cartCtxCount } = useCart();
   const { unreadCount } = useUnreadNotifications();
+  const badge = cartCount ?? cartCtxCount;
 
   return (
     <header className="sticky top-0 z-30 flex h-[52px] items-center justify-between bg-surface-warm px-4">
@@ -63,7 +71,21 @@ export function OyAppBar() {
             <path d="M16.5 16.5L21 21" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         </button>
-        <CartButton />
+        <button
+          aria-label="장바구니"
+          onClick={() => navigate('/cart')}
+          className="relative transition-transform active:scale-90"
+        >
+          <CartIcon size={24} className="text-[#17171C]" />
+          {badge > 0 && (
+            <span
+              className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white"
+              style={{ backgroundColor: '#F8174A' }}
+            >
+              {badge > 99 ? '99+' : badge}
+            </span>
+          )}
+        </button>
       </div>
     </header>
   );
