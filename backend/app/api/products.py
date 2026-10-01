@@ -26,12 +26,14 @@ from app.models.product import (
     Brand,
     Category,
     Ingredient,
+    IngredientAlias,
     Product,
     ProductIngredient,
 )
+from app.services.review_photos import photo_urls_of
 from app.services.skin_type import SkinRule, apply_exclusions, fit_score, load_rule
 from app.models.personal import Review
-from app.models.user import User
+from app.models.user import Profile, User
 from app.schemas.product import (
     ProductReviewOut,
     ProductReviewsOut,
@@ -335,6 +337,82 @@ async def search_products(
     return result
 
 
+# 통칭 → 표준명 일부. 표준명·구명칭 어디에도 없는, 사람들이 실제로 치는 말.
+# ingredient_aliases는 식약처 명칭 변경 목록이라 이런 통칭은 들어 있지 않다.
+_INGREDIENT_COLLOQUIAL = {
+    "히알루론산": "하이알루로",
+    "히알루론": "하이알루로",
+    "히알루": "하이알루로",
+    "살리실산": "살리실릭애씨드",
+    "비타민C": "아스코빅애씨드",
+    "비타민c": "아스코빅애씨드",
+    "시카": "병풀",
+}
+
+
+@router.get("/search/ingredient", response_model=ProductListOut, summary="성분명 검색")
+async def search_products_by_ingredient(
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    q: str = Query(..., min_length=2, description="성분명 (한글·INCI, 2자 이상)"),
+    sort: SortBy = Query(SortBy.popular),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=MAX_PAGE_SIZE),
+) -> ProductListOut | Response:
+    """전성분에 이 성분이 든 제품.
+
+    성분명은 표준 한글명·INCI명 부분일치로 찾는다. '나이아신'처럼 앞부분만
+    쳐도 나이아신아마이드가 든 제품이 나와야 검색창이 쓸 만하다.
+
+    JOIN이 아니라 EXISTS로 거른다 — 한 제품에 매칭 성분이 여럿이면(예:
+    '추출물') JOIN은 같은 제품을 여러 줄 내고 total도 부풀린다.
+    """
+    # 캐시 키도 변환 뒤 검색어로 잡는다 — '히알루론산'과 '히알루론'이 같은 결과를 쓴다.
+    term = _INGREDIENT_COLLOQUIAL.get(q.strip(), q.strip())
+    version = await get_cache_version()
+    key = _cache_key(
+        "search_ingredient", version, q=term, sort=sort.value, page=page, size=size,
+    )
+    cached = await cache_get(key)
+    if cached is not None:
+        return Response(
+            content=cached, media_type="application/json",
+            headers={"Cache-Control": "public, max-age=60", "X-Cache": "HIT"},
+        )
+
+    escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    pattern = f"%{escaped}%"
+    # 구명칭도 본다. 사람들은 '히알루론산'이라고 치지만 표준명은
+    # '하이알루로닉애씨드'라 표준명만 보면 0건이 나온다.
+    alias_hit = (
+        select(IngredientAlias.ingredient_id)
+        .where(IngredientAlias.alias.ilike(pattern, escape="\\"))
+    )
+    has_ingredient = (
+        select(ProductIngredient.product_id)
+        .join(Ingredient, ProductIngredient.ingredient_id == Ingredient.id)
+        .where(ProductIngredient.product_id == Product.id)
+        .where(
+            or_(
+                Ingredient.name_ko.ilike(pattern, escape="\\"),
+                Ingredient.name_en.ilike(pattern, escape="\\"),
+                Ingredient.id.in_(alias_hit),
+            )
+        )
+        .exists()
+    )
+    stmt = _apply_composition(
+        select(Product).where(Product.status == "active").where(has_ingredient),
+        CompositionFilter.single,
+    )
+    result = await _paginate(db, _apply_sort(stmt, sort), page, size)
+
+    await cache_set(key, result.model_dump_json(by_alias=True), LIST_CACHE_TTL)
+    response.headers["Cache-Control"] = "public, max-age=60"
+    response.headers["X-Cache"] = "MISS"
+    return result
+
+
 @router.get("/{product_id}", response_model=ProductDetailOut, summary="제품 상세")
 async def get_product(
     response: Response,
@@ -403,6 +481,15 @@ async def list_product_reviews(
     product_id: int = Path(..., ge=1),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    sort: str = Query(
+        "latest", pattern="^(latest|oldest|rating_desc|rating_asc)$",
+        description="최신순 · 오래된순 · 별점 높은순 · 별점 낮은순",
+    ),
+    # 이름을 rating으로 두면 아래 분포 계산의 루프 변수와 겹친다.
+    rating_filter: int | None = Query(None, alias="rating", ge=1, le=5, description="이 별점의 후기만"),
+    skin_type: str | None = Query(
+        None, alias="skinType", description="작성자 피부타입이 이것인 후기만"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> ProductReviewsOut:
     """이 제품에 달린 후기.
@@ -435,14 +522,31 @@ async def list_product_reviews(
         round(sum(r * n for r, n in buckets.items()) / total, 1) if total > 0 else None
     )
 
-    rows = await db.execute(
-        select(Review, User.nickname)
+    # 작성자 피부타입은 프로필(최신 진단의 캐시)에서 온다. 진단 전이면 NULL.
+    stmt = (
+        select(Review, User.nickname, Profile.skin_type)
         .join(User, User.id == Review.user_id)
+        .outerjoin(Profile, Profile.user_id == Review.user_id)
         .where(Review.product_id == product_id)
-        .order_by(Review.created_at.desc())
-        .limit(limit)
-        .offset(offset)
     )
+    if rating_filter is not None:
+        stmt = stmt.where(Review.rating == rating_filter)
+    if skin_type:
+        stmt = stmt.where(Profile.skin_type == skin_type)
+
+    matched = await db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+
+    order = {
+        "latest": (Review.created_at.desc(),),
+        "oldest": (Review.created_at.asc(),),
+        # 같은 별점 안에서는 최신이 먼저다.
+        "rating_desc": (Review.rating.desc(), Review.created_at.desc()),
+        "rating_asc": (Review.rating.asc(), Review.created_at.desc()),
+    }[sort]
+    rows = await db.execute(stmt.order_by(*order).limit(limit).offset(offset))
+
+    rows = list(rows)
+    photos = await photo_urls_of(db, [review.id for review, _, _ in rows])
 
     return ProductReviewsOut(
         items=[
@@ -453,10 +557,13 @@ async def list_product_reviews(
                 rating=review.rating,
                 body=review.body,
                 created_at=review.created_at,
+                photo_urls=photos.get(review.id, []),
+                skin_type=skin,
             )
-            for review, nickname in rows
+            for review, nickname, skin in rows
         ],
         total=total,
+        matched=matched,
         average=average,
         distribution=buckets,
     )

@@ -22,11 +22,11 @@ import { SKIN_TYPE_META } from '../../types';
  */
 export default function CheaperAlternativesPage() {
   const navigate = useNavigate();
-  const { items: closetItems } = useCloset();
+  const { items: closetItems, analyzedItems } = useCloset();
   const { skinType } = useSkinType();
 
   const { candidates, outcome, loading, error, reload } = useSwapSuggestion(
-    closetItems,
+    analyzedItems,
     // 타입을 모르면 기피 성분 필터 없이 찾는다 — 8종 중 하나를 찍어 넣는 것보다 낫다.
     skinType ?? undefined,
   );
@@ -74,6 +74,18 @@ export default function CheaperAlternativesPage() {
             className="mt-4 rounded-xl border border-gray-20 px-5 py-2.5 text-sm font-medium active:scale-95"
           >
             화장대로
+          </button>
+        </div>
+      ) : analyzedItems.length === 0 ? (
+        <div className="px-8 py-20 text-center">
+          <span className="text-4xl">🔬</span>
+          <p className="mt-3 text-base font-semibold text-gray-100">아직 분석한 제품이 없어요</p>
+          <p className="mt-1 text-sm text-gray-50">화장대에서 분석하기를 누르면 대체품을 찾아드려요</p>
+          <button
+            onClick={() => navigate('/closet')}
+            className="mt-4 rounded-xl border border-gray-20 px-5 py-2.5 text-sm font-medium active:scale-95"
+          >
+            화장대로 가기
           </button>
         </div>
       ) : candidates.length === 0 ? (

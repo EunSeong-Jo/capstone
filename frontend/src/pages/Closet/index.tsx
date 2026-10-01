@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { RecentTab, LikedTab, FrequentTab } from '../History';
-import { useCloset, ClosetItem, ClosetStatus } from '../../context/closet';
+import { useCloset, ClosetItem } from '../../context/closet';
+import { useToast } from '../../context/toast';
+import { fetchProduct } from '../../api/products';
 
 type ClosetTab = 'vanity' | 'recent' | 'liked' | 'frequent';
 
@@ -14,19 +16,6 @@ const TABS: [ClosetTab, string][] = [
   ['frequent', '자주 구매'],
 ];
 
-/** 상태별 표시 (점 색 · 라벨 색 · 액션 뱃지) */
-const STATUS_STYLE: Record<ClosetStatus, { dot: string; label: string; badge: string }> = {
-  owned: { dot: 'bg-primary', label: 'text-primary-dark', badge: 'bg-primary-light text-primary-dark' },
-  scanned: { dot: 'bg-gray-50', label: 'text-gray-50', badge: 'bg-[#F0F1F3] text-gray-70' },
-  analyzing: { dot: 'bg-warning', label: 'text-[#C77700]', badge: 'border border-[#DCE8E1] text-primary-dark' },
-};
-
-const STATUS_LABEL: Record<ClosetStatus, string> = {
-  owned: '보유 중',
-  scanned: '스캔 완료',
-  analyzing: '분석 대기 중',
-};
-
 const SOURCE_LABEL: Record<ClosetItem['addedVia'], string> = {
   seed: '',
   scan: 'OCR 스캔으로 추가',
@@ -34,26 +23,77 @@ const SOURCE_LABEL: Record<ClosetItem['addedVia'], string> = {
   search: '검색으로 추가',
 };
 
-const FILTERS: { key: 'all' | ClosetStatus; label: string }[] = [
+type AnalysisFilter = 'all' | 'analyzed' | 'pending';
+
+const FILTERS: { key: AnalysisFilter; label: string }[] = [
   { key: 'all', label: '전체' },
-  { key: 'owned', label: '보유 중' },
-  { key: 'scanned', label: '스캔 완료' },
-  { key: 'analyzing', label: '분석 대기' },
+  { key: 'analyzed', label: '분석 완료' },
+  { key: 'pending', label: '분석 전' },
 ];
 
-/** 4c — 내 화장대(보유 제품 상태 관리) */
+const isAnalyzed = (item: ClosetItem) => item.status === 'analyzed';
+
+/** '분석 중'이 눈에 보일 만큼은 머문다. 캐시가 맞으면 응답이 수십 ms라 깜빡이고 끝난다 */
+const MIN_ANALYZE_MS = 1200;
+
+/** 4c — 내 화장대(보유 제품 분석 상태 관리) */
 function VanityView() {
   const navigate = useNavigate();
-  const { items, removeItem } = useCloset();
-  const [filter, setFilter] = useState<'all' | ClosetStatus>('all');
+  const { items, removeItem, setStatus } = useCloset();
+  const { showToast } = useToast();
+  const [filter, setFilter] = useState<AnalysisFilter>('all');
+  const [editing, setEditing] = useState(false);
+  // 분석 중인 제품. 서버에 남길 상태가 아니라(중간에 나가면 '분석 중'에 갇힌다) 화면이 든다.
+  const [analyzing, setAnalyzing] = useState<Set<number>>(() => new Set());
 
-  const countOf = (key: 'all' | ClosetStatus) =>
-    key === 'all' ? items.length : items.filter((i) => i.status === key).length;
+  const countOf = (key: AnalysisFilter) =>
+    key === 'all'
+      ? items.length
+      : items.filter((i) => (key === 'analyzed' ? isAnalyzed(i) : !isAnalyzed(i))).length;
 
   const shown = useMemo(
-    () => (filter === 'all' ? items : items.filter((i) => i.status === filter)),
+    () =>
+      filter === 'all'
+        ? items
+        : items.filter((i) => (filter === 'analyzed' ? isAnalyzed(i) : !isAnalyzed(i))),
     [items, filter],
   );
+
+  /**
+   * 분석 = 전성분을 실제로 불러와 확인하는 것. 대체품은 성분 유사도로 찾으므로
+   * 성분표가 없는 제품은 분석 완료로 만들 수 없다.
+   */
+  const analyze = async (item: ClosetItem) => {
+    setAnalyzing((prev) => new Set(prev).add(item.id));
+    try {
+      const [detail] = await Promise.all([
+        fetchProduct(item.id),
+        new Promise((r) => window.setTimeout(r, MIN_ANALYZE_MS)),
+      ]);
+      if (detail.ingredients.length > 0) {
+        setStatus(item.id, 'analyzed');
+        showToast(`분석 완료! 성분 ${detail.ingredients.length}개를 확인했어요`);
+      } else {
+        showToast('성분 정보가 없어 분석할 수 없어요');
+      }
+    } catch {
+      showToast('분석하지 못했어요. 다시 시도해 주세요');
+    } finally {
+      setAnalyzing((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
+
+  const openItem = (item: ClosetItem) => {
+    if (!isAnalyzed(item)) {
+      showToast('아직 분석이 안 됐어요. 분석하기를 눌러 주세요');
+      return;
+    }
+    navigate(`/alternatives?seed=${item.id}&from=closet`);
+  };
 
   return (
     <div className="px-4 pt-1 pb-6">
@@ -68,7 +108,7 @@ function VanityView() {
             {items.length}개 등록됨
           </span>
           <span className="mt-1 block text-[11px] text-white/75">
-            보유 화장품과 비슷한 대체품을 찾아드려요
+            분석한 제품과 비슷한 대체품을 찾아드려요
           </span>
         </span>
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.16]">
@@ -94,33 +134,41 @@ function VanityView() {
         </div>
       ) : (
         <>
-          {/* 상태 필터 칩 */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 py-3">
-            {FILTERS.map(({ key, label }) => {
-              const active = filter === key;
-              return (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key)}
-                  className={`shrink-0 inline-flex items-center h-8 px-[13px] rounded-full text-xs transition-colors ${
-                    active ? 'bg-oy-black text-white font-bold' : 'bg-white border border-[#E1E4DD] text-gray-70 font-semibold'
-                  }`}
-                >
-                  {label} {countOf(key)}
-                </button>
-              );
-            })}
+          {/* 분석 상태 필터 칩 + 편집 */}
+          <div className="flex items-center gap-2 -mx-4 px-4 py-3">
+            <div className="flex flex-1 items-center gap-2 overflow-x-auto scrollbar-hide">
+              {FILTERS.map(({ key, label }) => {
+                const active = filter === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setFilter(key)}
+                    className={`shrink-0 inline-flex items-center h-8 px-[13px] rounded-full text-xs transition-colors ${
+                      active ? 'bg-oy-black text-white font-bold' : 'bg-white border border-[#E1E4DD] text-gray-70 font-semibold'
+                    }`}
+                  >
+                    {label} {countOf(key)}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setEditing((v) => !v)}
+              className="shrink-0 text-xs font-semibold text-gray-50 active:opacity-60"
+            >
+              {editing ? '완료' : '편집'}
+            </button>
           </div>
 
           {/* 제품 목록 */}
           <div className="rounded-[20px] bg-white border border-[#ECEEE8] px-4">
+            {shown.length === 0 && (
+              <p className="py-8 text-center text-xs text-gray-50">해당하는 제품이 없어요</p>
+            )}
             {shown.map((item, i) => {
-              const s = STATUS_STYLE[item.status];
               const via = SOURCE_LABEL[item.addedVia];
-              const to =
-                item.status === 'analyzing'
-                  ? '/scan'
-                  : `/alternatives?seed=${item.id}&from=closet`;
+              const done = isAnalyzed(item);
+              const busy = analyzing.has(item.id);
               return (
                 <div
                   key={item.id}
@@ -128,7 +176,7 @@ function VanityView() {
                     i < shown.length - 1 ? 'border-b border-surface-warm' : ''
                   }`}
                 >
-                  <button onClick={() => navigate(to)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                  <button onClick={() => openItem(item)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                     <span className="h-[54px] w-[54px] shrink-0 overflow-hidden rounded-[14px] bg-gray-10">
                       <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
                     </span>
@@ -136,23 +184,49 @@ function VanityView() {
                       <span className="block text-[10px] font-bold text-gray-50">{item.brand}</span>
                       <span className="block truncate text-[13px] font-semibold text-gray-100">{item.name}</span>
                       <span className="mt-0.5 flex items-center gap-1">
-                        <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-                        <span className={`text-[11px] font-semibold ${s.label}`}>
-                          {STATUS_LABEL[item.status]}
+                        <span className={`h-1.5 w-1.5 rounded-full ${done ? 'bg-primary' : busy ? 'bg-warning' : 'bg-gray-50'}`} />
+                        <span className={`text-[11px] font-semibold ${done ? 'text-primary-dark' : busy ? 'text-[#C77700]' : 'text-gray-50'}`}>
+                          {done ? '분석 완료' : busy ? '분석 중' : '분석 전'}
                           {via ? ` · ${via}` : ''}
                         </span>
                       </span>
                     </span>
                   </button>
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    aria-label="화장대에서 빼기"
-                    className="shrink-0 rounded-full p-1.5 text-gray-50 active:scale-90 transition-transform"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M6 6l12 12M18 6L6 18" stroke="#9AA0A6" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                  </button>
+
+                  {editing ? (
+                    <button
+                      onClick={() => removeItem(item.id)}
+                      aria-label="화장대에서 빼기"
+                      className="shrink-0 rounded-full p-1.5 text-gray-50 active:scale-90 transition-transform"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M6 6l12 12M18 6L6 18" stroke="#9AA0A6" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  ) : done ? (
+                    <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-primary-light px-2.5 text-[11px] font-bold text-primary-dark">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      분석 완료
+                    </span>
+                  ) : busy ? (
+                    <span
+                      role="status"
+                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-[#F1D9B0] bg-[#FFF7EA] px-2.5 text-[11px] font-bold text-[#C77700]"
+                    >
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#C77700] border-t-transparent" />
+                      분석 중
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => analyze(item)}
+                      className="inline-flex h-8 shrink-0 items-center rounded-lg px-3 text-[11px] font-bold text-white active:scale-95 transition-transform"
+                      style={{ background: '#00916D' }}
+                    >
+                      분석하기
+                    </button>
+                  )}
                 </div>
               );
             })}

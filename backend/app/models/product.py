@@ -4,6 +4,8 @@
   - products / brands / categories : 올리브영 크롤러 (scripts/load_products.py)
   - ingredients / ingredient_aliases : 대한화장품협회 표준화명칭목록
                                        (scripts/seed_ingredients.py)
+  - ingredient_descriptions : data/seed/ingredient_descriptions.csv
+                              (scripts/seed_ingredient_descriptions.py)
   - tags / ingredient_tags / grade / ewg : 수동 큐레이션 (아직 미착수)
 """
 from __future__ import annotations
@@ -22,6 +24,7 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy import FetchedValue
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -240,6 +243,29 @@ class IngredientAlias(Base):
     changed_at: Mapped[date | None] = mapped_column(Date)  # 명칭 변경 고시일
 
     ingredient: Mapped["Ingredient"] = relationship(back_populates="aliases")
+
+
+class IngredientDescription(Base, TimestampMixin):
+    """성분 설명 — 한 줄 설명 + 효능·역할 키워드.
+
+    원본은 data/seed/ingredient_descriptions.csv이고
+    scripts/seed_ingredient_descriptions.py가 적재한다. ingredients와 따로 두는
+    이유는 성분 마스터(협회 사전)와 출처·갱신 주기가 다르기 때문이다.
+
+    keywords: 고정 어휘에서만 고른다(적재 스크립트가 검사).
+    source: 'llm'(생성 초안) | 'reviewed'(사람 검수 완료)
+    """
+
+    __tablename__ = "ingredient_descriptions"
+
+    ingredient_id: Mapped[int] = mapped_column(
+        ForeignKey("ingredients.id", ondelete="CASCADE"), primary_key=True
+    )
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    keywords: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default="{}"
+    )
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
 
 
 class ProductIngredient(Base):

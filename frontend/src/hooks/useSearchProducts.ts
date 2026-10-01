@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { searchProducts, ProductQuery } from '../api/products';
+import { searchProducts, searchProductsByIngredient, ProductQuery } from '../api/products';
 import { Product } from '../types';
 
 const DEBOUNCE_MS = 300;
@@ -31,9 +31,13 @@ interface Loaded {
   error: string | null;
 }
 
+/** name: 제품명(통합검색), ingredient: 전성분(성분검색) */
+export type SearchBy = 'name' | 'ingredient';
+
 export function useSearchProducts(
   q: string,
   query: Omit<ProductQuery, 'category' | 'brand'> = {},
+  by: SearchBy = 'name',
 ): UseSearchProductsResult {
   const trimmed = q.trim();
   const [debouncedQ, setDebouncedQ] = useState(trimmed);
@@ -57,7 +61,7 @@ export function useSearchProducts(
     return () => window.clearTimeout(timer);
   }, [trimmed]);
 
-  const key = `${debouncedQ}:${queryKey}#${nonce}`;
+  const key = `${by}:${debouncedQ}:${queryKey}#${nonce}`;
   // 두 글자 미만은 조회하지 않습니다. 결과는 아래에서 파생합니다.
   const tooShort = debouncedQ.length < MIN_QUERY_LENGTH;
 
@@ -66,7 +70,12 @@ export function useSearchProducts(
 
     const controller = new AbortController();
 
-    searchProducts(debouncedQ, JSON.parse(queryKey) as ProductQuery, controller.signal)
+    const parsed = JSON.parse(queryKey) as ProductQuery;
+    const call =
+      by === 'ingredient'
+        ? searchProductsByIngredient(debouncedQ, parsed, controller.signal)
+        : searchProducts(debouncedQ, parsed, controller.signal);
+    call
       .then((res) => {
         setLoaded({ key, products: res.items, total: res.total, error: null });
       })
@@ -82,7 +91,7 @@ export function useSearchProducts(
       });
 
     return () => controller.abort();
-  }, [key, debouncedQ, queryKey, tooShort]);
+  }, [key, debouncedQ, queryKey, tooShort, by]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 

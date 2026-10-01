@@ -10,7 +10,6 @@ import { useLikedProducts } from '../../context/liked';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
 import { FrequentItemDto, fetchFrequent } from '../../api/personal';
 import { useAuth } from '../../context/auth';
-import { useCart } from '../../context/cart';
 
 type HistoryTab = 'recent' | 'liked' | 'frequent';
 
@@ -72,7 +71,6 @@ function EmptyState({ emoji, title, subtitle }: { emoji: string; title: string; 
 }
 
 export function RecentTab() {
-  const { inCart, addToCart } = useCart();
   const { items: recentlyViewed, clearRecentlyViewed } = useRecentlyViewed();
   const { isLiked, toggleLike } = useLikedProducts();
   // 한 번 지우면 되돌릴 수 없다. 탭 한 번에 실행되지 않도록 한 단계 둔다.
@@ -112,16 +110,6 @@ export function RecentTab() {
               product={p}
               liked={isLiked(p.id)}
               onToggleLike={() => toggleLike(p)}
-              added={inCart(p.id)}
-              onAddToCart={() =>
-                addToCart({
-                  id: p.id,
-                  name: p.name,
-                  brand: p.brand,
-                  price: p.price,
-                  imageUrl: p.imageUrl,
-                })
-              }
             />
           ))}
         </div>
@@ -137,7 +125,6 @@ export function RecentTab() {
 
 export function LikedTab() {
   const { likedProducts, isLiked, toggleLike, clearLikedProducts } = useLikedProducts();
-  const { inCart, addToCart } = useCart();
   const [category, setCategory] = useState('전체');
   const [discountOnly, setDiscountOnly] = useState(false);
   // 찜은 서버에도 있다(LikedProductsContext가 removeLike를 전부 보낸다).
@@ -211,16 +198,6 @@ export function LikedTab() {
                 product={p}
                 liked={isLiked(p.id)}
                 onToggleLike={() => toggleLike(p)}
-                added={inCart(p.id)}
-                onAddToCart={() =>
-                  addToCart({
-                    id: p.id,
-                    name: p.name,
-                    brand: p.brand,
-                    price: p.price,
-                    imageUrl: p.imageUrl,
-                  })
-                }
               />
             ))}
           </div>
@@ -243,7 +220,6 @@ export function FrequentTab() {
   // 열렸다.
   const { isUser, loading: authLoading } = useAuth();
   const { isLiked, toggleLike } = useLikedProducts();
-  const { inCart, addToCart } = useCart();
   const [rows, setRows] = useState<FrequentItemDto[] | null>(null);
 
   useEffect(() => {
@@ -290,16 +266,6 @@ export function FrequentTab() {
             product={r.product}
             liked={isLiked(r.product.id)}
             onToggleLike={() => toggleLike(r.product)}
-            added={inCart(r.product.id)}
-            onAddToCart={() =>
-              addToCart({
-                id: r.product.id,
-                name: r.product.name,
-                brand: r.product.brand,
-                price: r.product.price,
-                imageUrl: r.product.imageUrl,
-              })
-            }
             extraBadge={`${r.purchaseCount}회 구매`}
           />
         ))}

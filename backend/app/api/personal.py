@@ -45,6 +45,7 @@ from app.models.personal import (
     PointTransaction,
     RecentlyViewed,
     Review,
+    ReviewPhoto,
     ScanResult,
 )
 from app.models.product import Product
@@ -54,12 +55,14 @@ from app.schemas.personal import (
     CartLineOut,
     CartOut,
     ClosetItemIn,
+    ClosetStatusIn,
     ClosetItemOut,
     FrequentItemOut,
     GiftIn,
     GiftOut,
     NotificationOut,
     NotificationsOut,
+    OrderCloseIn,
     OrderItemOut,
     OrderOut,
     PointsOut,
@@ -71,15 +74,27 @@ from app.schemas.personal import (
     ScanIn,
     ScanOut,
     StatsOut,
+    TrackingStepOut,
 )
 from app.schemas.product import ProductOut
 from app.models.user import Profile
 from app.services.experience import level_of, total_exp
 from app.services.notifications import build_feed
+from app.services.order_stage import (
+    CANCELLED,
+    CLOSED_STATUSES,
+    RETURNED,
+    can_cancel,
+    can_return,
+    order_stage,
+    tracking,
+)
+from app.services.review_photos import decode_photo, photo_url, photo_urls_of
 
 router = APIRouter(prefix="/api/v1/me", tags=["personal"])
 orders_router = APIRouter(prefix="/api/v1/orders", tags=["orders"])
 gifts_router = APIRouter(prefix="/api/v1/gifts", tags=["gifts"])
+reviews_router = APIRouter(prefix="/api/v1/reviews", tags=["reviews"])
 
 # 최근 본 상품 보관 개수. 넘으면 오래된 것부터 지운다.
 RECENT_LIMIT = 30
@@ -177,6 +192,36 @@ async def add_closet(
         status=existing.status,
         added_via=existing.added_via,
         added_at=existing.added_at,
+    )
+
+
+@router.patch("/closet/{product_id}", response_model=ClosetItemOut, summary="화장대 제품 상태 변경")
+async def update_closet_status(
+    product_id: int,
+    body: ClosetStatusIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ClosetItemOut:
+    """분석하기 → 분석 완료를 남긴다. 화면에서만 바꾸면 새로고침에 사라지고,
+    대체품 찾기가 다시 막힌다."""
+    item = await db.scalar(
+        select(ClosetItem).where(
+            ClosetItem.user_id == user.id, ClosetItem.product_id == product_id
+        )
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="화장대에 없는 제품입니다")
+    item.status = body.status
+    await db.commit()
+    await db.refresh(item)
+
+    products = await _products_of(db, [item.product_id])
+    return ClosetItemOut(
+        id=item.id,
+        product=products[item.product_id],
+        status=item.status,
+        added_via=item.added_via,
+        added_at=item.added_at,
     )
 
 
@@ -421,7 +466,7 @@ async def list_scans(
             select(ScanResult)
             .where(ScanResult.user_id == user.id)
             .order_by(ScanResult.created_at.desc())
-            .limit(20)
+            .limit(100)
         )
     )
     products = await _products_of(db, [r.product_id for r in rows if r.product_id])
@@ -485,6 +530,15 @@ async def _order_out(db: AsyncSession, order: Order) -> OrderOut:
         total=order.total,
         status=order.status,
         placed_at=order.placed_at,
+        stage=order_stage(order.status, order.placed_at),
+        tracking=[
+            TrackingStepOut(stage=name, at=at)
+            for name, at in tracking(order.status, order.placed_at, order.closed_at)
+        ],
+        can_cancel=can_cancel(order.status, order.placed_at),
+        can_return=can_return(order.status, order.placed_at),
+        closed_at=order.closed_at,
+        close_reason=order.close_reason,
         items=[
             OrderItemOut(
                 id=i.id,
@@ -581,6 +635,75 @@ async def list_orders(
     return [await _order_out(db, o) for o in orders]
 
 
+async def _close_order(
+    db: AsyncSession, user: User, order_id: uuid.UUID, new_status: str,
+    reason: str | None,
+) -> OrderOut:
+    """취소·반품 공통. 적립했던 주문 포인트도 회수한다."""
+    order = await db.scalar(
+        select(Order).where(Order.id == order_id, Order.user_id == user.id)
+    )
+    if order is None:
+        raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다")
+
+    allowed = (
+        can_cancel(order.status, order.placed_at)
+        if new_status == CANCELLED
+        else can_return(order.status, order.placed_at)
+    )
+    if not allowed:
+        detail = (
+            "결제완료 단계에서만 취소할 수 있어요"
+            if new_status == CANCELLED
+            else "배송완료된 주문만 반품할 수 있어요"
+        )
+        raise HTTPException(status_code=409, detail=detail)
+
+    order.status = new_status
+    order.closed_at = datetime.now(timezone.utc)
+    order.close_reason = (reason or "").strip() or None
+
+    earned = await db.scalar(
+        select(func.coalesce(func.sum(PointTransaction.amount), 0)).where(
+            PointTransaction.order_id == order.id, PointTransaction.reason == "order"
+        )
+    )
+    if earned:
+        db.add(
+            PointTransaction(
+                user_id=user.id,
+                amount=-int(earned),
+                reason="order_cancel" if new_status == CANCELLED else "order_return",
+                order_id=order.id,
+            )
+        )
+    await db.commit()
+    await db.refresh(order)
+    return await _order_out(db, order)
+
+
+@router.post("/orders/{order_id}/cancel", response_model=OrderOut, summary="주문 취소")
+async def cancel_order(
+    order_id: uuid.UUID,
+    body: OrderCloseIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> OrderOut:
+    """결제완료 단계(배송 준비 전)에서만 된다. 실제 결제가 없어 환불은 기록뿐이다."""
+    return await _close_order(db, user, order_id, CANCELLED, body.reason)
+
+
+@router.post("/orders/{order_id}/return", response_model=OrderOut, summary="반품 신청")
+async def return_order(
+    order_id: uuid.UUID,
+    body: OrderCloseIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> OrderOut:
+    """배송완료된 주문만. 회수·검수 과정이 없어 신청 즉시 반품 완료로 기록한다."""
+    return await _close_order(db, user, order_id, RETURNED, body.reason)
+
+
 @router.get("/orders/frequent", response_model=list[FrequentItemOut], summary="자주 구매")
 async def list_frequent(
     user: User = Depends(get_current_user),
@@ -600,6 +723,8 @@ async def list_frequent(
             )
             .join(Order, Order.id == OrderItem.order_id)
             .where(Order.user_id == user.id, OrderItem.product_id.is_not(None))
+            # 취소·반품한 주문은 산 것이 아니다.
+            .where(Order.status.not_in(CLOSED_STATUSES))
             .group_by(OrderItem.product_id)
             .order_by(func.sum(OrderItem.qty).desc())
             .limit(20)
@@ -625,9 +750,12 @@ async def list_reviews(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[ReviewOut]:
-    rows = await db.scalars(
-        select(Review).where(Review.user_id == user.id).order_by(Review.created_at.desc())
+    rows = list(
+        await db.scalars(
+            select(Review).where(Review.user_id == user.id).order_by(Review.created_at.desc())
+        )
     )
+    photos = await photo_urls_of(db, [r.id for r in rows])
     return [
         ReviewOut(
             id=r.id,
@@ -636,6 +764,7 @@ async def list_reviews(
             rating=r.rating,
             body=r.body,
             created_at=r.created_at,
+            photo_urls=photos.get(r.id, []),
         )
         for r in rows
     ]
@@ -652,13 +781,20 @@ async def write_review(
     order_item을 거치는 이유: "구매한 사람의 후기"라는 조건을 DB 구조로
     강제하기 위해서다. product_id만 받으면 사지 않은 제품에도 쓸 수 있다.
     """
-    item = await db.scalar(
-        select(OrderItem)
-        .join(Order, Order.id == OrderItem.order_id)
-        .where(OrderItem.id == body.order_item_id, Order.user_id == user.id)
-    )
-    if item is None:
+    row = (
+        await db.execute(
+            select(OrderItem, Order.status)
+            .join(Order, Order.id == OrderItem.order_id)
+            .where(OrderItem.id == body.order_item_id, Order.user_id == user.id)
+        )
+    ).first()
+    if row is None:
         raise HTTPException(status_code=404, detail="주문 내역에서 찾을 수 없습니다")
+    item, order_status = row
+    if order_status in CLOSED_STATUSES:
+        raise HTTPException(status_code=409, detail="취소·반품한 주문에는 후기를 쓸 수 없어요")
+    # 사진은 저장 전에 전부 검사한다. 한 장이 잘못돼 후기만 남으면 안 된다.
+    decoded = [decode_photo(p) for p in body.photos]
     if item.product_id is None:
         raise HTTPException(status_code=422, detail="카탈로그에서 내려간 제품입니다")
 
@@ -676,6 +812,12 @@ async def write_review(
         body=body.body,
     )
     db.add(review)
+    await db.flush()
+    photo_rows = [
+        ReviewPhoto(review_id=review.id, position=i, content_type=ctype, data=data)
+        for i, (ctype, data) in enumerate(decoded)
+    ]
+    db.add_all(photo_rows)
     db.add(PointTransaction(user_id=user.id, amount=REVIEW_POINT, reason="review"))
     await db.commit()
     await db.refresh(review)
@@ -687,6 +829,26 @@ async def write_review(
         rating=review.rating,
         body=review.body,
         created_at=review.created_at,
+        photo_urls=[photo_url(p.id) for p in photo_rows],
+    )
+
+
+@reviews_router.get("/photos/{photo_id}", summary="후기 사진")
+async def get_review_photo(
+    photo_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """후기 사진 원본. 후기는 공개(제품 상세)라 로그인 없이 받는다.
+
+    한 번 올린 사진은 바뀌지 않으므로 오래 캐시한다.
+    """
+    photo = await db.get(ReviewPhoto, photo_id)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="사진을 찾을 수 없습니다")
+    return Response(
+        content=photo.data,
+        media_type=photo.content_type,
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
     )
 
 
@@ -740,18 +902,19 @@ async def read_stats(
     """
 
     def rows_of(model) -> Any:
-        """이 사용자의 행 수. 선물만 컬럼 이름이 다르다(보낸 사람)."""
+        """이 사용자의 행 수. 선물만 컬럼 이름이 다르다(보낸 사람).
+        주문은 취소·반품을 빼고 센다 — 산 것이 아니다."""
         owner = Gift.sender_user_id if model is Gift else model.user_id
-        return (
-            select(func.count()).select_from(model).where(owner == user.id).scalar_subquery()
-        )
+        stmt = select(func.count()).select_from(model).where(owner == user.id)
+        if model is Order:
+            stmt = stmt.where(Order.status.not_in(CLOSED_STATUSES))
+        return stmt.scalar_subquery()
 
     def sum_of(column, owner) -> Any:
-        return (
-            select(func.coalesce(func.sum(column), 0))
-            .where(owner == user.id)
-            .scalar_subquery()
-        )
+        stmt = select(func.coalesce(func.sum(column), 0)).where(owner == user.id)
+        if column is Order.total:
+            stmt = stmt.where(Order.status.not_in(CLOSED_STATUSES))
+        return stmt.scalar_subquery()
 
     (
         closet,
@@ -802,7 +965,7 @@ async def read_stats(
 # ---------------------------------------------------------------------- 선물하기
 
 
-def _gift_out(gift: Gift) -> GiftOut:
+def _gift_out(gift: Gift, sender_nickname: str | None = None) -> GiftOut:
     return GiftOut(
         id=gift.id,
         product_id=gift.product_id,
@@ -810,6 +973,7 @@ def _gift_out(gift: Gift) -> GiftOut:
         brand_name=gift.brand_name,
         unit_price=gift.unit_price,
         recipient_name=gift.recipient_name,
+        sender_nickname=sender_nickname,
         message=gift.message,
         status=gift.status,
         created_at=gift.created_at,
@@ -837,13 +1001,31 @@ async def send_gift(
     if product is None:
         raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
 
+    # 받는 사람은 닉네임으로 찾는다. 닉네임은 유일하지 않으므로 여럿이면
+    # 누구에게 보낼지 정할 수 없다 — 아무에게나 보내지 않고 알린다.
+    nickname = body.recipient_nickname.strip()
+    recipients = list(
+        await db.scalars(
+            select(User.id).where(User.nickname == nickname, User.is_active.is_(True)).limit(2)
+        )
+    )
+    if not recipients:
+        raise HTTPException(status_code=404, detail=f"'{nickname}' 닉네임의 회원을 찾을 수 없어요")
+    if len(recipients) > 1:
+        raise HTTPException(
+            status_code=409, detail=f"'{nickname}' 닉네임을 쓰는 회원이 여러 명이에요"
+        )
+    if recipients[0] == user.id:
+        raise HTTPException(status_code=422, detail="나에게는 선물할 수 없어요")
+
     gift = Gift(
         sender_user_id=user.id,
+        recipient_user_id=recipients[0],
         product_id=product.id,
         product_name=product.display_name or product.name,
         brand_name=product.brand.name if product.brand else None,
         unit_price=product.price or 0,
-        recipient_name=body.recipient_name.strip(),
+        recipient_name=nickname,
         message=(body.message or "").strip() or None,
     )
     db.add(gift)
@@ -865,6 +1047,20 @@ async def list_sent_gifts(
         )
     )
     return [_gift_out(g) for g in gifts]
+
+
+@router.get("/gifts/received", response_model=list[GiftOut], summary="받은 선물")
+async def list_received_gifts(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[GiftOut]:
+    rows = await db.execute(
+        select(Gift, User.nickname)
+        .join(User, User.id == Gift.sender_user_id)
+        .where(Gift.recipient_user_id == user.id)
+        .order_by(Gift.created_at.desc())
+    )
+    return [_gift_out(g, nickname or "익명") for g, nickname in rows]
 
 
 # ------------------------------------------------------------------------ 알림
