@@ -370,7 +370,9 @@ is_active(bool = true) · updated_at
 
 ## 진단
 
-비회원 진단(Soft-gate)을 위해 `diagnoses`가 `user_id`와 `guest_token` 양쪽을 받습니다.
+`diagnoses.guest_token`과 `user_id` NULL 허용은 **Soft-gate 시절의 흔적**입니다. 비회원도 진단하고 가입할 때 계정에 붙이는 구조였는데, 승계 장치가 생기기 전에 저장된 게스트 진단이 주인을 찾지 못한 채 브라우저에 남아 둘러보기만 한 사람에게 표시되는 일이 있어 걷어냈습니다.
+
+**지금 진단은 로그인 이후에만 가능합니다**(`POST /profile/skin-quiz`가 인증을 요구하고, `/claim`은 제거했습니다). 이 컬럼은 더 채워지지 않으며, 과거 행을 지우지 않으려고 컬럼만 남겨 두었습니다.
 
 ### `diagnoses` — 0행
 
@@ -378,7 +380,7 @@ is_active(bool = true) · updated_at
 |---|---|---|---|---|
 | PK | `id` | bigserial | | |
 | FK | `user_id` | uuid | NULL | → `users` [CASCADE] |
-| | `guest_token` | text | NULL | 비회원 |
+| | `guest_token` | text | NULL | Soft-gate 시절의 흔적 — 더 채워지지 않음 |
 | FK | `version_id` | int | NOT NULL | → `quiz_versions` [RESTRICT] |
 | | `answers` | jsonb | NOT NULL | |
 | | `scores` | jsonb | NOT NULL | 5개 축 |
@@ -438,7 +440,7 @@ refresh_tokens : id(PK, uuid = gen_random_uuid()) · user_id(FK) · token_hash
 | `idx_ingredients_code` | ingredients | `btree (code)` | 사전 갱신 대조 |
 | `idx_similarities_lookup` | similarities | `btree (product_id, method, score DESC)` | 상위 N개 추천 조회 |
 | `idx_diagnoses_user` | diagnoses | `btree (user_id, created_at)` | 최근 진단 조회 |
-| `idx_diagnoses_guest` | diagnoses | `btree (guest_token)` | 비회원 진단 이어받기 |
+| `idx_diagnoses_guest` | diagnoses | `btree (guest_token)` | Soft-gate 시절의 흔적 |
 | `idx_quiz_questions_version` | quiz_questions | `btree (version_id, order_no)` | 문항 순서 조회 |
 | `idx_refresh_tokens_hash` | refresh_tokens | `btree (token_hash)` | 토큰 검증 |
 | `idx_refresh_tokens_user` | refresh_tokens | `btree (user_id)` | 전체 로그아웃 |

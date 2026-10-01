@@ -59,7 +59,8 @@ export default function App() {
           <Route path="/login"      element={<LoginPage />} />
           <Route path="/signup"     element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/onboarding" element={<OnboardingPage />} />
+          {/* 진단은 로그인 이후에만 한다. /qna·/result도 여기로 오므로 함께 막힌다. */}
+          <Route path="/onboarding" element={mine(<OnboardingPage />)} />
           {/* 마이페이지 '피부타입 재진단'은 질문창부터 시작.
               replace로 /qna 엔트리를 소진해야 Q1에서 뒤로가기가 마이페이지로 간다.
               또 OnboardingPage를 렌더하는 <Route>가 하나로 유지돼 리마운트가 없다. */}
@@ -108,7 +109,10 @@ export default function App() {
           <Route path="/mypage/shipping"      element={<Navigate to="/mypage" replace />} />
           <Route path="/mypage/cancel-return" element={<Navigate to="/mypage" replace />} />
           <Route path="/mypage/restock"       element={<Navigate to="/mypage" replace />} />
-          <Route path="*"           element={<Navigate to="/onboarding" replace />} />
+          {/* 모르는 주소는 홈으로. 예전에는 /onboarding이었는데 그 화면이
+              로그인 전용이 되면서, 게스트가 주소를 잘못 입력할 때마다
+              로그인으로 튕기게 된다. */}
+          <Route path="*"           element={<Navigate to="/home" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

@@ -49,13 +49,8 @@ const BASE = '/api/v1/profile/skin-quiz';
 
 export const fetchQuiz = () => request<QuizDto>(`${BASE}/questions`);
 
-export const submitDiagnosis = (
-  answers: Record<string, number>,
-  guestToken?: string,
-) => postJson<DiagnosisDto>(BASE, { answers, guestToken });
+/** 진단 제출. **로그인이 필요합니다** — 비회원이 보내면 서버가 401입니다. */
+export const submitDiagnosis = (answers: Record<string, number>) =>
+  postJson<DiagnosisDto>(BASE, { answers });
 
 export const fetchLatestDiagnosis = () => request<DiagnosisDto>(`${BASE}/latest`);
-
-/** 가입 전 비회원 진단을 계정에 붙입니다. */
-export const claimDiagnosis = (guestToken: string) =>
-  postJson<DiagnosisDto>(`${BASE}/claim`, { answers: {}, guestToken });

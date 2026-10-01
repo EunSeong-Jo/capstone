@@ -37,16 +37,6 @@ async def codes(client: AsyncClient) -> list[str]:
 
 
 @pytest_asyncio.fixture(loop_scope="session")
-async def guest_token():
-    """비회원 진단용 토큰. 끝나면 그 진단을 지운다."""
-    token = uuid.uuid4().hex
-    yield token
-    async with AsyncSessionLocal() as db:
-        await db.execute(delete(Diagnosis).where(Diagnosis.guest_token == token))
-        await db.commit()
-
-
-@pytest_asyncio.fixture(loop_scope="session")
 async def account(client: AsyncClient):
     email = f"pytest-{uuid.uuid4().hex[:12]}@example.com"
     res = await client.post(f"{AUTH}/signup", json={"email": email, "password": PASSWORD})
@@ -88,13 +78,11 @@ async def test_questions_never_expose_weights(client: AsyncClient) -> None:
 # ── 제출 ──────────────────────────────────────────────────────
 
 
-async def test_guest_submit_returns_ranks(
-    client: AsyncClient, codes: list[str], guest_token: str
+async def test_submit_returns_ranks(
+    client: AsyncClient, codes: list[str], account
 ) -> None:
     answers = {c: 0 for c in codes}
-    res = await client.post(
-        QUIZ, json={"answers": answers, "guestToken": guest_token}
-    )
+    res = await client.post(QUIZ, json={"answers": answers}, **account)
     assert res.status_code == 201
 
     body = res.json()
@@ -109,27 +97,31 @@ async def test_guest_submit_returns_ranks(
     assert all(0 <= v <= 10 for v in body["scores"].values())
 
 
-async def test_submit_rejects_empty_answers(
-    client: AsyncClient, guest_token: str
-) -> None:
-    res = await client.post(QUIZ, json={"answers": {}, "guestToken": guest_token})
+async def test_submit_rejects_empty_answers(client: AsyncClient, account) -> None:
+    res = await client.post(QUIZ, json={"answers": {}}, **account)
     assert res.status_code == 422
 
 
-async def test_anonymous_submit_requires_guest_token(
-    client: AsyncClient, codes: list[str]
-) -> None:
-    """토큰이 없으면 그 진단은 아무도 다시 찾을 수 없는 행이 된다."""
-    res = await client.post(QUIZ, json={"answers": {c: 0 for c in codes}})
-    assert res.status_code == 422
+async def test_submit_requires_login(client: AsyncClient, codes: list[str]) -> None:
+    """진단은 로그인 이후에만 한다.
+
+    예전에는 guestToken만 붙이면 비회원도 제출할 수 있었다(Soft-gate).
+    그때 만들어진 주인 없는 진단이 브라우저에 남아, 둘러보기만 한 사람에게
+    "당신은 수부지"가 계속 보이는 일이 있었다.
+    """
+    answers = {c: 0 for c in codes}
+    assert (await client.post(QUIZ, json={"answers": answers})).status_code == 401
+    # guestToken을 붙여도 마찬가지다 — 스키마가 그 필드를 더 받지 않는다.
+    res = await client.post(QUIZ, json={"answers": answers, "guestToken": "deadbeef"})
+    assert res.status_code == 401
 
 
 async def test_unknown_answers_are_ignored_not_fatal(
-    client: AsyncClient, guest_token: str
+    client: AsyncClient, account
 ) -> None:
     """문항이 바뀐 뒤 옛 응답이 들어올 수 있다. 오류로 막으면 진단이 통째로 실패한다."""
     res = await client.post(
-        QUIZ, json={"answers": {"q999": 3}, "guestToken": guest_token}
+        QUIZ, json={"answers": {"q999": 3}}, **account
     )
     assert res.status_code == 201
     # 아무것도 반영되지 않았으므로 전 축이 기본값이다.
@@ -178,33 +170,6 @@ async def test_latest_404_without_history(client: AsyncClient, account) -> None:
         async with AsyncSessionLocal() as db:
             await db.execute(delete(User).where(User.email == fresh_email))
             await db.commit()
-
-
-# ── 승계 (Soft-gate) ──────────────────────────────────────────
-
-
-async def test_guest_diagnosis_is_claimed_on_login(
-    client: AsyncClient, codes: list[str], account
-) -> None:
-    """가입 전 진단이 계정에 붙는다. diagnoses.guest_token이 그 용도로 있다."""
-    token = uuid.uuid4().hex
-    guest = await client.post(
-        QUIZ, json={"answers": {c: 1 for c in codes}, "guestToken": token}
-    )
-    assert guest.status_code == 201
-
-    claimed = await client.post(QUIZ + "/claim", json={"answers": {}, "guestToken": token}, **account)
-    assert claimed.status_code == 200
-    assert claimed.json()["id"] == guest.json()["id"]
-
-    # 같은 토큰으로 두 번 승계할 수는 없다 — 이미 계정에 붙었다.
-    again = await client.post(QUIZ + "/claim", json={"answers": {}, "guestToken": token}, **account)
-    assert again.status_code == 404
-
-
-async def test_claim_requires_login(client: AsyncClient) -> None:
-    res = await client.post(QUIZ + "/claim", json={"answers": {}, "guestToken": "x"})
-    assert res.status_code == 401
 
 
 # ── 채점 로직 (DB 불필요) ─────────────────────────────────────
