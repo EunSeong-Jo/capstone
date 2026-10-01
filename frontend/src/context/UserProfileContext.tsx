@@ -3,20 +3,32 @@ import { ProfileUser } from '../types';
 import { useAuth } from './auth';
 import { UserProfileContext } from './userProfile';
 
-const STORAGE_KEY = 'dcmy:userProfile:v1';
+/**
+ * 계정별로 나눈다.
+ *
+ * 예전에는 `dcmy:userProfile:v1` 한 칸이었고 아무도 지우지 않았다
+ * (`resetProfile`을 호출하는 화면이 없다). 그래서 로그인해서 닉네임을 고친
+ * 뒤 "로그인 없이 둘러보기"를 고르면 **그 닉네임이 게스트 화면에 그대로
+ * 남았다.** 저장소의 다른 개인 데이터는 전부 이 규칙을 쓴다
+ * (`closet`·`cart`·`likes`·`recent`·`decoration`·`diag`).
+ *
+ * 옛 키는 이관하지 않는다. 어느 계정이 쓴 값인지 알 수 없어서, 옮기면
+ * 지금 고치려는 그 유출을 그대로 보존하게 된다.
+ */
+const keyOf = (scope: string) => `swappy:profile:v1:${scope}`;
 
-function readStorage(): Partial<ProfileUser> {
+function readStorage(scope: string): Partial<ProfileUser> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(keyOf(scope));
     return raw ? (JSON.parse(raw) as Partial<ProfileUser>) : {};
   } catch {
     return {};
   }
 }
 
-function writeStorage(patch: Partial<ProfileUser>) {
+function writeStorage(scope: string, patch: Partial<ProfileUser>) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(patch));
+    localStorage.setItem(keyOf(scope), JSON.stringify(patch));
   } catch {
     // localStorage 사용 불가 시 조용히 무시
   }
@@ -50,18 +62,33 @@ const GUEST_PROFILE: ProfileUser = {
 };
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
-  const { user: persona, isUser } = useAuth();
-  const [patch, setPatch] = useState<Partial<ProfileUser>>(() => readStorage());
+  const { user: persona, isUser, scope } = useAuth();
+
+  /** 수정한 값 + 그것이 어느 계정의 것인지. 계정이 바뀌면 남의 값이다. */
+  const [store, setStore] = useState<{ scope: string; patch: Partial<ProfileUser> }>(
+    () => ({ scope, patch: readStorage(scope) }),
+  );
+
+  // 계정 전환은 렌더 중에 반영한다 — effect에서 하면 렌더가 한 번 더 돈다
+  // (ClosetContext·CharacterContext와 같은 형태다).
+  if (store.scope !== scope) {
+    setStore({ scope, patch: readStorage(scope) });
+  }
+
+  const patch = store.patch;
 
   useEffect(() => {
-    writeStorage(patch);
-  }, [patch]);
+    writeStorage(store.scope, store.patch);
+  }, [store]);
 
   const updateProfile = useCallback((next: Partial<ProfileUser>) => {
-    setPatch((prev) => ({ ...prev, ...next }));
+    setStore((prev) => ({ scope: prev.scope, patch: { ...prev.patch, ...next } }));
   }, []);
 
-  const resetProfile = useCallback(() => setPatch({}), []);
+  const resetProfile = useCallback(
+    () => setStore((prev) => ({ scope: prev.scope, patch: {} })),
+    [],
+  );
 
   const base = useMemo<ProfileUser>(
     () =>
