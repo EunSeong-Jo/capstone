@@ -79,11 +79,11 @@ function SwapProduct({
 
 export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
   const navigate = useNavigate();
-  const { items, analyzedItems, loading: closetLoading } = useCloset();
+  const { items, loading: closetLoading } = useCloset();
   const { addToCart } = useCart();
   const { showToast } = useToast();
   const { suggestion, outcome, variantHint, loading, error, reload } = useSwapSuggestion(
-    analyzedItems,
+    items,
     skinType,
   );
 
@@ -108,26 +108,6 @@ export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
           className="mt-3 w-full rounded-xl bg-primary py-2.5 text-[13px] font-bold text-white transition-transform active:scale-[.98]"
         >
           제품 등록하기
-        </button>
-      </SectionFrame>
-    );
-  }
-
-  // 등록은 했지만 분석한 제품이 없으면 대체품을 찾지 않는다.
-  if (!closetLoading && analyzedItems.length === 0) {
-    return (
-      <SectionFrame>
-        <p className="text-[13px] leading-relaxed text-oy-sub">
-          아직 분석한 제품이 없어요.
-          <br />
-          화장대에서 분석하기를 누르면 더 싼 대체품을 찾아드려요.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate('/closet')}
-          className="mt-3 w-full rounded-xl bg-primary py-2.5 text-[13px] font-bold text-white transition-transform active:scale-[.98]"
-        >
-          화장대에서 분석하기
         </button>
       </SectionFrame>
     );

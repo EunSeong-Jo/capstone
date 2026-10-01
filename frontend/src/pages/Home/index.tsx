@@ -89,7 +89,7 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { user: persona, isUser } = useAuth();
   const { justSucceeded, acknowledgeSuccession } = useDiagnosis();
-  const { items: closetItems, analyzedItems, loading: closetLoading } = useCloset();
+  const { items: closetItems, loading: closetLoading } = useCloset();
   const { stats, loading: statsLoading } = useStats();
   const { addToCart } = useCart();
   const [setOpen, setSetOpen] = useState(false);
@@ -132,12 +132,11 @@ export default function HomePage() {
   const { tip: careTip } = useCareTip(skinType, skinPending, weather?.condition ?? 'sunny');
 
   // 화장대 조회 중에는 seed가 없다 — 빈 배열을 "화장대가 비었다"로 읽으면 안 된다.
-  // 대체품은 분석 완료된 제품만 기준으로 삼는다.
-  const registrySeedId = closetLoading ? undefined : analyzedItems[0]?.id;
+  const registrySeedId = closetLoading ? undefined : closetItems[0]?.id;
 
   // 화장대 첫 항목의 실제 성분 유사도. 화장대 id가 카탈로그 id가 된 뒤로
   // 여기서 진짜 점수를 쓸 수 있다.
-  const registrySeed = analyzedItems[0];
+  const registrySeed = closetItems[0];
   const registrySimilar = useSimilarProducts(
     registrySeedId,
     {
@@ -152,7 +151,7 @@ export default function HomePage() {
   // 예전에는 이 자리에 mocks/alternatives.ts의 고정 목업이 있었는데, 가짜
   // 제품에 붙은 id(102~109)가 실재 카탈로그 id와 겹쳐 카드를 탭하면 전혀
   // 다른 제품 상세가 열렸다.
-  const swap = useSwapSuggestion(analyzedItems, skinType ?? undefined);
+  const swap = useSwapSuggestion(closetItems, skinType ?? undefined);
 
   // 화장대 제품들을 실제로 바꿨을 때 아낄 수 있는 금액. 후보가 없으면
   // undefined이고 대시보드가 문구를 바꾼다 — 고정값을 그리지 않는다.

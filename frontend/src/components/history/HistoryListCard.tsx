@@ -1,47 +1,19 @@
 import { useNavigate } from 'react-router-dom';
 import { Product } from '../../types';
-import { CartActionIcon, LikeIcon } from '../ui/ProductActionIcons';
-import { useCart } from '../../context/cart';
-import { useToast } from '../../context/toast';
+import { HeartIcon } from '../ui/OutlineIcons';
 
 interface HistoryListCardProps {
   product: Product;
   liked: boolean;
   onToggleLike: () => void;
+  added?: boolean;
+  onAddToCart?: () => void;
   /** 예: "3회 구매" — 자주 구매 탭에서만 사용 */
   extraBadge?: string;
 }
 
-export function HistoryListCard({ product, liked, onToggleLike, extraBadge }: HistoryListCardProps) {
+export function HistoryListCard({ product, liked, onToggleLike, added, onAddToCart, extraBadge }: HistoryListCardProps) {
   const navigate = useNavigate();
-  const { inCart, addToCart, removeLine } = useCart();
-  const { showToast } = useToast();
-  const carted = inCart(product.id);
-
-  const handleLike = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onToggleLike();
-    showToast(liked ? '좋아요를 취소했어요' : '좋아요에 담았어요');
-  };
-
-  // 홈 카드(ProductCardV)와 같은 토글. 예전에는 담긴 상태에서 누르면 수량만
-  // 조용히 늘어서 아무 반응이 없는 것처럼 보였다.
-  const handleCart = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (carted) {
-      removeLine(product.id);
-      showToast('장바구니에서 뺐어요');
-      return;
-    }
-    addToCart({
-      id: product.id,
-      name: product.name,
-      brand: product.brand,
-      price: product.price,
-      imageUrl: product.imageUrl,
-    });
-    showToast('장바구니에 담았어요', { label: '장바구니로 이동', onClick: () => navigate('/cart') });
-  };
 
   return (
     <div
@@ -80,23 +52,28 @@ export function HistoryListCard({ product, liked, onToggleLike, extraBadge }: Hi
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-3 shrink-0">
+      <div className="flex flex-col items-center gap-2 shrink-0">
         <button
-          onClick={handleLike}
-          aria-label={liked ? '좋아요 취소' : '좋아요'}
-          aria-pressed={liked}
+          onClick={(e) => { e.stopPropagation(); onToggleLike(); }}
+          aria-label="찜하기"
           className="active:scale-90 transition-transform"
         >
-          <LikeIcon on={liked} />
+          <HeartIcon size={20} filled={liked} className="text-[var(--accent)]" />
         </button>
-        <button
-          onClick={handleCart}
-          aria-label={carted ? '장바구니에서 빼기' : '장바구니 담기'}
-          aria-pressed={carted}
-          className="active:scale-90 transition-transform"
-        >
-          <CartActionIcon on={carted} />
-        </button>
+        {onAddToCart && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAddToCart(); }}
+            aria-label="장바구니 담기"
+            className={`w-8 h-8 rounded-lg flex items-center justify-center active:scale-90 transition-transform ${
+              added ? 'bg-gray-20' : 'bg-primary'
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M6 8h12l-1 12H7L6 8z" stroke="white" strokeWidth="1.6" strokeLinejoin="round" />
+              <path d="M9 8V6a3 3 0 016 0v2" stroke="white" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );

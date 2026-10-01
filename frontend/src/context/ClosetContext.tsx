@@ -10,7 +10,6 @@ import {
   addClosetItem,
   fetchCloset,
   removeClosetItem,
-  setClosetStatus,
 } from '../api/personal';
 import { fetchProduct } from '../api/products';
 import {
@@ -246,21 +245,15 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
 
   const setStatus = useCallback(
     (id: number, status: ClosetStatus) => {
-      // 분석 완료는 서버에 남긴다. 화면에서만 바꾸면 새로고침에 사라지고
-      // 대체품 찾기가 다시 막힌다.
-      const before = items.find((i) => i.id === id)?.status;
+      // 서버에 상태 변경 엔드포인트를 따로 두지 않았다. 화면에서만 쓰는
+      // 일시 상태('분석 중')라 새로고침하면 서버 값으로 돌아가면 된다.
       setItems((prev) => {
         const next = prev.map((i) => (i.id === id ? { ...i, status } : i));
         persistGuest(next);
         return next;
       });
-      if (isUser && before !== undefined) {
-        setClosetStatus(id, status).catch(() => {
-          setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status: before } : i)));
-        });
-      }
     },
-    [items, isUser, persistGuest, setItems],
+    [persistGuest, setItems],
   );
 
   const clearCloset = useCallback(() => {
@@ -273,15 +266,9 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     Promise.allSettled(snapshot.map((i) => removeClosetItem(i.id))).then(() => undefined);
   }, [items, isUser, setItems]);
 
-  const analyzedItems = useMemo(
-    () => items.filter((i) => i.status === 'analyzed'),
-    [items],
-  );
-
   const value = useMemo<ClosetContextValue>(
     () => ({
       items,
-      analyzedItems,
       count: items.length,
       // 비회원은 서버에 물을 것이 없다 — localStorage가 곧 답이다.
       loading: authLoading || (isUser && settledScope !== scope),
@@ -293,7 +280,6 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     }),
     [
       items,
-      analyzedItems,
       authLoading,
       isUser,
       settledScope,

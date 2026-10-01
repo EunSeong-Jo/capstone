@@ -11,15 +11,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy import delete, update
+from sqlalchemy import delete
 
 from app.db.session import AsyncSessionLocal
-from app.models.personal import Order
 from app.models.user import User
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -44,24 +42,6 @@ async def account(client: AsyncClient):
     body = res.json()
     yield {"headers": {"Authorization": f"Bearer {body['accessToken']}"}}
 
-    async with AsyncSessionLocal() as db:
-        await db.execute(delete(User).where(User.email == email))
-        await db.commit()
-
-
-@pytest_asyncio.fixture(loop_scope="session")
-async def recipient(client: AsyncClient):
-    """선물 받는 계정. 닉네임으로 찾으므로 겹치지 않게 만든다."""
-    email = f"pytest-{uuid.uuid4().hex[:12]}@example.com"
-    nickname = f"받는이{uuid.uuid4().hex[:6]}"
-    res = await client.post(
-        f"{AUTH}/signup", json={"email": email, "password": PASSWORD, "nickname": nickname}
-    )
-    assert res.status_code == 201, res.text
-    yield {
-        "headers": {"Authorization": f"Bearer {res.json()['accessToken']}"},
-        "nickname": nickname,
-    }
     async with AsyncSessionLocal() as db:
         await db.execute(delete(User).where(User.email == email))
         await db.commit()
@@ -123,33 +103,6 @@ async def test_closet_add_is_idempotent(client: AsyncClient, account, product_id
 
     listed = await client.get(f"{ME}/closet", **account)
     assert len(listed.json()) == 1
-
-
-async def test_closet_status_update(client: AsyncClient, account, product_ids) -> None:
-    """분석 완료가 서버에 남아야 새로고침 뒤에도 대체품을 찾을 수 있다."""
-    pid = product_ids[0]
-    await client.post(f"{ME}/closet", json={"productId": pid}, **account)
-
-    res = await client.patch(f"{ME}/closet/{pid}", json={"status": "analyzed"}, **account)
-    assert res.status_code == 200
-    assert res.json()["status"] == "analyzed"
-
-    listed = await client.get(f"{ME}/closet", **account)
-    assert listed.json()[0]["status"] == "analyzed"
-
-
-async def test_closet_status_rejects_unknown_value(client: AsyncClient, account, product_ids) -> None:
-    pid = product_ids[0]
-    await client.post(f"{ME}/closet", json={"productId": pid}, **account)
-    res = await client.patch(f"{ME}/closet/{pid}", json={"status": "done"}, **account)
-    assert res.status_code == 422
-
-
-async def test_closet_status_needs_item_in_closet(client: AsyncClient, account, product_ids) -> None:
-    res = await client.patch(
-        f"{ME}/closet/{product_ids[0]}", json={"status": "analyzed"}, **account
-    )
-    assert res.status_code == 404
 
 
 async def test_closet_rejects_unknown_product(client: AsyncClient, account) -> None:
@@ -384,7 +337,7 @@ GIFTS = "/api/v1/gifts"
 
 async def test_gift_requires_auth(client: AsyncClient, product_ids: list[int]) -> None:
     res = await client.post(
-        GIFTS, json={"productId": product_ids[0], "recipientNickname": "친구"}
+        GIFTS, json={"productId": product_ids[0], "recipientName": "친구"}
     )
     assert res.status_code == 401
 
@@ -392,11 +345,11 @@ async def test_gift_requires_auth(client: AsyncClient, product_ids: list[int]) -
     assert res.status_code == 401
 
 
-async def test_gift_rejects_unknown_product(client: AsyncClient, account, recipient) -> None:
+async def test_gift_rejects_unknown_product(client: AsyncClient, account) -> None:
     res = await client.post(
         GIFTS,
         headers=account["headers"],
-        json={"productId": NO_SUCH_PRODUCT, "recipientNickname": recipient["nickname"]},
+        json={"productId": NO_SUCH_PRODUCT, "recipientName": "친구"},
     )
     assert res.status_code == 404
 
@@ -407,20 +360,20 @@ async def test_gift_requires_recipient_name(
     res = await client.post(
         GIFTS,
         headers=account["headers"],
-        json={"productId": product_ids[0], "recipientNickname": ""},
+        json={"productId": product_ids[0], "recipientName": ""},
     )
     assert res.status_code == 422
 
 
 async def test_gift_records_and_lists(
-    client: AsyncClient, account, recipient, product_ids: list[int]
+    client: AsyncClient, account, product_ids: list[int]
 ) -> None:
     res = await client.post(
         GIFTS,
         headers=account["headers"],
         json={
             "productId": product_ids[0],
-            "recipientNickname": f"  {recipient['nickname']}  ",
+            "recipientName": "  친구  ",
             "message": "생일 축하해",
         },
     )
@@ -431,7 +384,7 @@ async def test_gift_records_and_lists(
     assert gift["productId"] == product_ids[0]
     assert gift["productName"]
     assert gift["unitPrice"] >= 0
-    assert gift["recipientName"] == recipient["nickname"]  # 앞뒤 공백은 서버가 다듬는다
+    assert gift["recipientName"] == "친구"  # 앞뒤 공백은 서버가 다듬는다
     assert gift["status"] == "pending"
 
     listed = await client.get(f"{ME}/gifts/sent", headers=account["headers"])
@@ -440,7 +393,7 @@ async def test_gift_records_and_lists(
 
 
 async def test_gift_never_stores_contact_details(
-    client: AsyncClient, account, recipient, product_ids: list[int]
+    client: AsyncClient, account, product_ids: list[int]
 ) -> None:
     """연락처는 받지도 돌려주지도 않는다.
 
@@ -452,7 +405,7 @@ async def test_gift_never_stores_contact_details(
         headers=account["headers"],
         json={
             "productId": product_ids[0],
-            "recipientNickname": recipient["nickname"],
+            "recipientName": "친구",
             "recipientPhone": "010-1234-5678",
         },
     )
@@ -461,13 +414,13 @@ async def test_gift_never_stores_contact_details(
 
 
 async def test_gift_list_is_scoped_to_sender(
-    client: AsyncClient, account, recipient, product_ids: list[int]
+    client: AsyncClient, account, product_ids: list[int]
 ) -> None:
     """남이 보낸 선물이 내 목록에 보이면 안 된다."""
     await client.post(
         GIFTS,
         headers=account["headers"],
-        json={"productId": product_ids[0], "recipientNickname": recipient["nickname"]},
+        json={"productId": product_ids[0], "recipientName": "친구"},
     )
 
     other_email = f"pytest-{uuid.uuid4().hex[:12]}@example.com"
@@ -501,7 +454,7 @@ async def test_stats_starts_at_level_one(client: AsyncClient, account) -> None:
 
 
 async def test_stats_counts_exp_from_records(
-    client: AsyncClient, account, recipient, product_ids: list[int]
+    client: AsyncClient, account, product_ids: list[int]
 ) -> None:
     """경험치는 **기록에서 센다.**
 
@@ -532,7 +485,7 @@ async def test_stats_counts_exp_from_records(
     await client.post(
         "/api/v1/gifts",
         headers=account["headers"],
-        json={"productId": product_ids[0], "recipientNickname": recipient["nickname"]},
+        json={"productId": product_ids[0], "recipientName": "친구"},
     )
 
     after = (await client.get(f"{ME}/stats", headers=account["headers"])).json()
@@ -691,179 +644,3 @@ async def test_notifications_are_scoped_to_user(
         async with AsyncSessionLocal() as db:
             await db.execute(delete(User).where(User.email == other_email))
             await db.commit()
-
-
-# ── 받은 선물 ──────────────────────────────────────────────────
-
-
-async def test_gift_shows_in_recipient_received(
-    client: AsyncClient, account, recipient, product_ids: list[int]
-) -> None:
-    res = await client.post(
-        GIFTS,
-        headers=account["headers"],
-        json={"productId": product_ids[0], "recipientNickname": recipient["nickname"]},
-    )
-    assert res.status_code == 201, res.text
-
-    got = (await client.get(f"{ME}/gifts/received", headers=recipient["headers"])).json()
-    assert [g["id"] for g in got] == [res.json()["id"]]
-    assert got[0]["senderNickname"] == "테스트"
-
-    # 보낸 사람의 받은 선물함에는 없다.
-    mine = (await client.get(f"{ME}/gifts/received", headers=account["headers"])).json()
-    assert mine == []
-
-
-async def test_gift_unknown_nickname_is_404(
-    client: AsyncClient, account, product_ids: list[int]
-) -> None:
-    res = await client.post(
-        GIFTS,
-        headers=account["headers"],
-        json={"productId": product_ids[0], "recipientNickname": f"없는사람{uuid.uuid4().hex[:10]}"},
-    )
-    assert res.status_code == 404
-
-
-# ── 주문 취소·반품 ────────────────────────────────────────────
-
-
-async def _place_order(client: AsyncClient, account, pid: int) -> dict:
-    await client.post(f"{ME}/cart", headers=account["headers"], json={"productId": pid, "qty": 1})
-    res = await client.post(ORDERS, headers=account["headers"])
-    assert res.status_code == 201, res.text
-    return res.json()
-
-
-async def test_new_order_is_paid_and_cancellable(
-    client: AsyncClient, account, product_ids: list[int]
-) -> None:
-    order = await _place_order(client, account, product_ids[0])
-    assert order["stage"] == "paid"
-    assert order["canCancel"] is True
-    assert order["canReturn"] is False
-
-    res = await client.post(
-        f"{ME}/orders/{order['id']}/cancel", headers=account["headers"], json={"reason": "단순 변심"}
-    )
-    assert res.status_code == 200, res.text
-    body = res.json()
-    assert body["status"] == "cancelled"
-    assert body["stage"] == "cancelled"
-    assert body["closeReason"] == "단순 변심"
-    assert body["closedAt"]
-
-    # 적립 포인트를 회수한다 — 잔액이 주문 전으로 돌아간다.
-    points = (await client.get(f"{ME}/points", headers=account["headers"])).json()
-    assert points["balance"] == 0
-
-    # 두 번 취소할 수 없고, 취소한 주문에는 후기를 쓸 수 없다.
-    again = await client.post(f"{ME}/orders/{order['id']}/cancel", headers=account["headers"], json={})
-    assert again.status_code == 409
-    review = await client.post(
-        f"{ME}/reviews", headers=account["headers"],
-        json={"orderItemId": order["items"][0]["id"], "rating": 5},
-    )
-    assert review.status_code == 409
-
-
-async def test_return_needs_delivered_order(
-    client: AsyncClient, account, product_ids: list[int]
-) -> None:
-    order = await _place_order(client, account, product_ids[0])
-    res = await client.post(f"{ME}/orders/{order['id']}/return", headers=account["headers"], json={})
-    assert res.status_code == 409
-
-
-async def test_return_after_delivery(
-    client: AsyncClient, account, product_ids: list[int]
-) -> None:
-    order = await _place_order(client, account, product_ids[0])
-    # 배송 단계는 주문 시각에서 계산한다. 시각을 과거로 돌려 배송완료를 만든다.
-    async with AsyncSessionLocal() as db:
-        await db.execute(
-            update(Order)
-            .where(Order.id == uuid.UUID(order["id"]))
-            .values(placed_at=datetime.now(timezone.utc) - timedelta(hours=1))
-        )
-        await db.commit()
-
-    listed = (await client.get(f"{ME}/orders", headers=account["headers"])).json()
-    assert listed[0]["stage"] == "delivered"
-    assert listed[0]["canCancel"] is False
-    assert listed[0]["canReturn"] is True
-    assert all(step["at"] for step in listed[0]["tracking"])
-
-    res = await client.post(f"{ME}/orders/{order['id']}/return", headers=account["headers"], json={})
-    assert res.status_code == 200
-    assert res.json()["status"] == "returned"
-
-
-# ── 후기 사진 ──────────────────────────────────────────────────
-
-# 1x1 PNG
-_PNG = (
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlE"
-    "QVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
-)
-
-
-async def test_review_with_photos(client: AsyncClient, account, product_ids: list[int]) -> None:
-    order = await _place_order(client, account, product_ids[0])
-    res = await client.post(
-        f"{ME}/reviews", headers=account["headers"],
-        json={"orderItemId": order["items"][0]["id"], "rating": 4, "photos": [_PNG, _PNG]},
-    )
-    assert res.status_code == 201, res.text
-    urls = res.json()["photoUrls"]
-    assert len(urls) == 2
-
-    photo = await client.get(urls[0])
-    assert photo.status_code == 200
-    assert photo.headers["content-type"] == "image/png"
-
-    listed = (await client.get(f"{ME}/reviews", headers=account["headers"])).json()
-    assert listed[0]["photoUrls"] == urls
-
-
-async def test_review_rejects_non_image(client: AsyncClient, account, product_ids: list[int]) -> None:
-    order = await _place_order(client, account, product_ids[0])
-    res = await client.post(
-        f"{ME}/reviews", headers=account["headers"],
-        json={"orderItemId": order["items"][0]["id"], "rating": 4,
-              "photos": ["data:text/plain;base64,aGk="]},
-    )
-    assert res.status_code == 422
-
-
-async def test_product_reviews_filter_and_sort(
-    client: AsyncClient, account, product_ids: list[int]
-) -> None:
-    """별점·피부타입 필터와 정렬. 작성자 피부타입이 함께 온다."""
-    pid = product_ids[1]
-    order = await _place_order(client, account, pid)
-    res = await client.post(
-        f"{ME}/reviews", headers=account["headers"],
-        json={"orderItemId": order["items"][0]["id"], "rating": 3, "body": "보통이에요"},
-    )
-    assert res.status_code == 201
-    my_id = res.json()["id"]
-    url = f"/api/v1/products/{pid}/reviews"
-
-    three = (await client.get(url, params={"rating": 3, "limit": 100})).json()
-    assert my_id in [r["id"] for r in three["items"]]
-    assert all(r["rating"] == 3 for r in three["items"])
-    assert three["matched"] == len(three["items"]) or three["matched"] > 100
-
-    four = (await client.get(url, params={"rating": 4, "limit": 100})).json()
-    assert my_id not in [r["id"] for r in four["items"]]
-
-    # 이 계정은 진단 전이라 피부타입이 없다 — 피부타입 필터에 걸리지 않는다.
-    mine = next(r for r in three["items"] if r["id"] == my_id)
-    assert mine["skinType"] is None
-    typed = (await client.get(url, params={"skinType": "mulgae", "limit": 100})).json()
-    assert my_id not in [r["id"] for r in typed["items"]]
-
-    asc = (await client.get(url, params={"sort": "rating_asc", "limit": 100})).json()["items"]
-    assert [r["rating"] for r in asc] == sorted(r["rating"] for r in asc)
