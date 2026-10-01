@@ -41,6 +41,18 @@ export interface ProductIngredient {
   grade?: 'key' | 'normal' | 'warn' | null;
   /** 식약처 표시 의무 알레르기 유발 착향제 26종 여부 */
   isAllergen?: boolean;
+  /**
+   * 성분 설명. `scripts/seed_ingredient_descriptions.py`가 적재합니다.
+   * 설명이 없는 성분(파싱 잔해 등)은 셋 다 비어 있습니다.
+   *
+   *   description        한 줄 설명
+   *   keywords           효능·역할 키워드, 고정 어휘에서 최대 2개
+   *   descriptionSource  llm(생성 초안) | reviewed(검수 완료).
+   *                      llm이면 화면이 '참고용' 문구를 붙입니다
+   */
+  description?: string | null;
+  keywords?: string[];
+  descriptionSource?: 'llm' | 'reviewed' | null;
 }
 
 export interface ProductDetail extends Product {

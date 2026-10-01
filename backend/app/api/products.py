@@ -26,6 +26,7 @@ from app.models.product import (
     Brand,
     Category,
     Ingredient,
+    IngredientDescription,
     Product,
     ProductIngredient,
 )
@@ -361,10 +362,16 @@ async def get_product(
         # 생겨도 TTL이 지날 때까지 계속 404가 나갈 수 있다.
         raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
 
+    # 설명은 LEFT JOIN이다. 설명이 없는 성분(파싱 잔해 등)도 전성분에서
+    # 빠지면 안 된다 — 화면은 description이 None이면 '준비 중'을 그린다.
     rows = await db.execute(
         select(Ingredient.id, Ingredient.name_ko, Ingredient.name_en,
-               ProductIngredient.position, Ingredient.grade, Ingredient.is_allergen)
+               ProductIngredient.position, Ingredient.grade, Ingredient.is_allergen,
+               IngredientDescription.description, IngredientDescription.keywords,
+               IngredientDescription.source)
         .join(ProductIngredient, ProductIngredient.ingredient_id == Ingredient.id)
+        .outerjoin(IngredientDescription,
+                   IngredientDescription.ingredient_id == Ingredient.id)
         .where(ProductIngredient.product_id == product_id)
         .order_by(ProductIngredient.position)
     )
@@ -383,8 +390,9 @@ async def get_product(
             IngredientOut(
                 id=i, name=ko, name_en=en, position=pos,
                 grade=grade, is_allergen=allergen,
+                description=desc, keywords=kws or [], description_source=src,
             )
-            for i, ko, en, pos, grade, allergen in rows.all()
+            for i, ko, en, pos, grade, allergen, desc, kws, src in rows.all()
         ],
     )
 
