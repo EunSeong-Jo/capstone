@@ -62,6 +62,12 @@
   이름은 `기능_작업자이니셜` (`unitprice_es`, `category_yb`) — 자세한 내용은 [frontend/README.md](frontend/README.md) 8절
 - DB 스키마 원본은 `backend/app/models/`이고, 변경은 **Alembic 마이그레이션으로만** 합니다.
   `alembic revision --autogenerate`는 **rename을 감지하지 못해 DROP + CREATE를 만듭니다.** 테이블·컬럼 이름을 바꿀 때는 마이그레이션을 직접 작성하세요 — 자세한 내용은 [backend/README.md](backend/README.md)
+- **마이그레이션이 포함된 PR을 revert할 때는 DB를 먼저 되돌립니다.** PR을 revert해도 DB는 따라오지 않습니다 —
+  파일만 사라지고 `alembic_version`은 그 revision에 남아, **alembic이 길을 잃고 `current`·`upgrade`·`check`가 전부 멈춥니다.**
+  순서는 `alembic downgrade <직전 revision>` → revert입니다. 이미 revert했다면 `git show <머지 전 커밋>:<마이그레이션 파일>`로
+  파일을 임시 복구해 downgrade한 뒤 파일을 다시 지우면 됩니다 (2026-10-01 PR #64에서 실제로 겪었습니다)
+- **DB는 공용입니다.** 한 사람이 `alembic upgrade head`를 돌리면 팀 전원의 스키마가 바뀝니다. 남의 데이터를 지우는
+  마이그레이션은 돌리기 전에 알리세요
 - `.env`는 커밋하지 않습니다. Neon 조직 `dmu` 초대로 각자 DSN을 받습니다
 - 프론트엔드 규격·컨벤션은 [frontend/README.md](frontend/README.md)의 `7-1 화면 규격 표준`을 따릅니다
 

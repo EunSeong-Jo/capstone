@@ -96,6 +96,37 @@ alembic check          # "No new upgrade operations detected" 여야 한다
 # 5) docs/db-schema.md 를 함께 갱신한다
 ```
 
+### ⚠️ 마이그레이션이 든 PR을 revert하기 전에 DB를 되돌립니다
+
+**PR을 revert해도 DB는 따라오지 않습니다.** 파일만 사라지고 `alembic_version`은 그 revision에 남습니다. 그러면 alembic이 "지금 어디인지"를 그래프에서 찾지 못해 **`current`·`upgrade`·`downgrade`·`check`가 전부 멈춥니다.**
+
+```
+$ alembic current
+FAILED: Can't locate revision identified by 'a9c1e2f3d4b5'
+```
+
+DB가 공용이라 **그 순간 팀 전원이 같은 상태가 됩니다.** 올바른 순서는 이것입니다.
+
+```bash
+alembic downgrade <직전 revision>   # 1) DB를 먼저 되돌린다
+# 2) 그 다음 PR을 revert
+```
+
+이미 revert해 버렸다면 지워진 파일을 임시로 되살려 downgrade합니다 — alembic은 파일이 있어야 그래프를 걸을 수 있어서, 이 단계를 건너뛸 수 없습니다.
+
+```bash
+F=backend/alembic/versions/<revision>_<이름>.py
+git show <머지되기 전 커밋>:$F > $F   # 임시 복구
+cd backend && alembic downgrade <직전 revision>
+rm $F                                 # 다시 지운다 — 남기면 head가 둘이 되고
+                                      # 다음 사람이 upgrade head로 되살린다
+alembic current && alembic check      # 확인
+```
+
+손으로 `DROP`/`ALTER`를 쓰지 말고 **작성자가 쓴 `downgrade()`를 그대로 실행하세요.** FK 제약과 인덱스처럼 놓치기 쉬운 것이 순서대로 처리됩니다.
+
+> 2026-10-01에 PR #64를 revert하면서 실제로 겪었습니다. 지워질 행을 먼저 덤프해 두는 것도 함께 권합니다.
+
 ### ⚠️ autogenerate는 rename을 감지하지 못합니다
 
 테이블·컬럼 이름을 바꾸면 **DROP + CREATE를 만들어 데이터가 사라집니다.** 이 프로젝트에서 이미 세 번 겪었고, 그때마다 마이그레이션을 직접 작성했습니다.
@@ -134,8 +165,14 @@ e5f6a7b8c9d0  products.display_name
 f6a7b8c9d0e1  products.volume_ml / volume_g
 a7b8c9d0e1f2  products.volume_uncertain
 b8c9d0e1f2a3  products.unit_count/unit_kind/unit_price/unit_label
-d07012ddaaa9  Phase 2 개인 데이터 테이블 9개   ← head
+d07012ddaaa9  Phase 2 개인 데이터 테이블 9개
+929b93541c4a  gifts 테이블
+2425accbef26  profiles.decoration_id          캐릭터 꾸미기
+3f3233afae88  profiles.notifications_seen_at   알림 읽음 시각
+952adbaa9665  ingredient_descriptions         ← head
 ```
+
+`alembic history`로 언제든 실제 체인을 볼 수 있습니다. 이 표는 설명용이라 어긋나면 그때 고칩니다.
 
 `d07012ddaaa9`는 신규 테이블만 만듭니다. 기존 18개를 건드리지 않으므로
 `downgrade`로 정확히 되돌아갑니다.
