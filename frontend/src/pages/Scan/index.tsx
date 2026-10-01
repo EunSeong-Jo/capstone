@@ -1,11 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCamera } from '../../hooks/useCamera';
 import { useSearchProducts } from '../../hooks/useSearchProducts';
 import type { Product } from '../../types';
-import { addScan } from '../../api/personal';
-import { useScanHistory } from '../../hooks/useScanHistory';
-import { useToast } from '../../context/toast';
+import { ScanDto, addScan, fetchScans } from '../../api/personal';
 import { useAuth } from '../../context/auth';
 import { useCloset } from '../../context/closet';
 
@@ -34,19 +32,49 @@ const MODES: [ScanMode, string][] = [
  */
 export default function ScanPage() {
   const navigate = useNavigate();
-  const { addItem, hasItem } = useCloset();
+  const { addItem, items: closetItems } = useCloset();
 
+  /**
+   * 최근 스캔. 로그인 상태면 서버 기록(`GET /me/scans`)을, 비회원이면
+   * 화장대에서 스캔으로 등록된 항목을 쓴다.
+   *
+   * 예전에는 mocks/search.ts의 RECENT_SCANS였다. 거기 적힌 seedId 8은
+   * "라로슈포제 시카플라스트"라고 표시되지만 실제 8번 제품은 유세린
+   * 토너다 — 탭하면 엉뚱한 기준제품으로 대체품 화면이 열렸다.
+   */
   const { isUser } = useAuth();
-  // 최근 스캔 3건. 전체는 /scan/history(ScanHistoryPage)에서 본다.
-  const { items: scanHistory } = useScanHistory();
-  const recentScans = scanHistory.slice(0, 3);
-  const { showToast } = useToast();
+  const [serverScans, setServerScans] = useState<ScanDto[]>([]);
+
+  useEffect(() => {
+    if (!isUser) return;
+    let alive = true;
+    fetchScans()
+      .then((s) => {
+        if (alive) setServerScans(s);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [isUser]);
+
+  const recentScans = isUser
+    ? serverScans
+        .filter((s) => s.product !== null)
+        .slice(0, 3)
+        .map((s) => ({
+          id: s.product!.id,
+          name: s.product!.name,
+          brand: s.product!.brand,
+          imageUrl: s.product!.imageUrl,
+          keyIngredients: undefined as string[] | undefined,
+        }))
+    : closetItems.filter((c) => c.addedVia === 'scan').slice(0, 3);
   const [mode, setMode] = useState<ScanMode>('label');
   const [phase, setPhase] = useState<'idle' | 'search' | 'result'>('idle');
   const [result, setResult] = useState<Product | null>(null);
   const [query, setQuery] = useState('');
-  // 목록으로 길게 보여 준다. 끝까지 내려 보며 고를 수 있게 넉넉히 받는다.
-  const { products: found, total: foundTotal, loading: searching } = useSearchProducts(query, { size: 50 });
+  const { products: found, loading: searching } = useSearchProducts(query);
   // 사진 인식을 눌렀을 때의 안내. 준비 중임을 숨기지 않는다.
   const [notice, setNotice] = useState<string | null>(null);
   // 검색·결과 단계에서는 카메라를 끈다. 가려져 보이지도 않는데 켜 두면
@@ -65,35 +93,21 @@ export default function ScanPage() {
     setPhase('result');
   };
 
-  const saveToCloset = (product: Product) => {
+  const addToCloset = () => {
+    if (!result) return;
     addItem({
-      id: product.id,
-      brand: product.brand,
-      name: product.name,
-      category: product.category,
-      price: product.price,
-      imageUrl: product.imageUrl,
+      id: result.id,
+      brand: result.brand,
+      name: result.name,
+      category: result.category,
+      price: result.price,
+      imageUrl: result.imageUrl,
       addedVia: 'scan',
       status: 'scanned',
     });
     // 스캔 기록도 남긴다. '최근 스캔'은 이 기록에서 온다.
-    if (isUser) void addScan(product.id, 'search').catch(() => undefined);
-  };
-
-  const addToCloset = () => {
-    if (!result) return;
-    saveToCloset(result);
+    if (isUser) void addScan(result.id, 'search').catch(() => undefined);
     navigate('/closet');
-  };
-
-  /** 검색 목록의 + 버튼. 화면을 떠나지 않고 이어서 더 담을 수 있게 한다. */
-  const quickAdd = (product: Product) => {
-    if (hasItem(product.id)) {
-      showToast('이미 화장대에 있어요');
-      return;
-    }
-    saveToCloset(product);
-    showToast('화장대에 담았어요', { label: '화장대 보기', onClick: () => navigate('/closet') });
   };
 
   const reset = () => {
@@ -266,62 +280,40 @@ export default function ScanPage() {
         </div>
 
         {query.trim().length >= 2 && (
-          <div className="mb-3">
-            {!searching && found.length > 0 && (
-              <p className="mb-1 text-[11px] text-gray-50">
-                '{query.trim()}' 검색 결과 {foundTotal.toLocaleString()}개
-                {foundTotal > found.length ? ` 중 ${found.length}개` : ''}
+          <div className="mb-3 max-h-[188px] overflow-y-auto">
+            {searching ? (
+              <p className="py-4 text-center text-[11px] text-gray-50">찾는 중…</p>
+            ) : found.length === 0 ? (
+              <p className="py-4 text-center text-[11px] text-gray-50">
+                검색 결과가 없어요
               </p>
+            ) : (
+              found.slice(0, 8).map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => pick(p)}
+                  className="flex w-full items-center gap-3 border-b border-gray-5 py-2.5 text-left active:opacity-70"
+                >
+                  <span className="h-10 w-10 shrink-0 overflow-hidden rounded-[10px] bg-gray-10">
+                    {p.imageUrl && (
+                      <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-bold text-gray-100">{p.name}</span>
+                    <span className="mt-0.5 block text-[10px] text-gray-50">
+                      {p.brand} · {p.price.toLocaleString()}원
+                    </span>
+                  </span>
+                </button>
+              ))
             )}
-            <div className="max-h-[42vh] overflow-y-auto">
-              {searching ? (
-                <p className="py-4 text-center text-[11px] text-gray-50">찾는 중…</p>
-              ) : found.length === 0 ? (
-                <p className="py-4 text-center text-[11px] text-gray-50">
-                  검색 결과가 없어요
-                </p>
-              ) : (
-                found.map((p) => {
-                  const inCloset = hasItem(p.id);
-                  return (
-                    <div key={p.id} className="flex items-center gap-3 border-b border-gray-5 py-2.5">
-                      <button
-                        onClick={() => pick(p)}
-                        className="flex min-w-0 flex-1 items-center gap-3 text-left active:opacity-70"
-                      >
-                        <span className="h-10 w-10 shrink-0 overflow-hidden rounded-[10px] bg-gray-10">
-                          {p.imageUrl && (
-                            <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
-                          )}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-xs font-bold text-gray-100">{p.name}</span>
-                          <span className="mt-0.5 block text-[10px] text-gray-50">
-                            {p.brand} · {p.price.toLocaleString()}원
-                          </span>
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => quickAdd(p)}
-                        aria-label={inCloset ? `${p.name} 화장대에 있음` : `${p.name} 화장대에 추가`}
-                        aria-pressed={inCloset}
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-base font-bold active:scale-90 transition-transform ${
-                          inCloset ? 'border-[#00916D] bg-[#00916D] text-white' : 'border-gray-20 text-gray-70'
-                        }`}
-                      >
-                        {inCloset ? '✓' : '+'}
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
           </div>
         )}
 
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-extrabold text-gray-100">최근 스캔</h3>
-          <button onClick={() => navigate('/scan/history')} className="text-[11px] font-semibold text-gray-50 active:opacity-60">
+          <button onClick={() => navigate('/history')} className="text-[11px] font-semibold text-gray-50 active:opacity-60">
             전체보기
           </button>
         </div>
@@ -332,7 +324,7 @@ export default function ScanPage() {
         ) : (
           recentScans.map((item, i) => (
             <button
-              key={item.key}
+              key={item.id}
               onClick={() => navigate(`/alternatives?seed=${item.id}&from=scan`)}
               className={`flex w-full items-center gap-3 py-2.5 text-left active:opacity-70 transition-opacity ${
                 i < recentScans.length - 1 ? 'border-b border-gray-5' : ''
@@ -347,6 +339,7 @@ export default function ScanPage() {
                 <span className="block truncate text-xs font-bold text-gray-100">{item.name}</span>
                 <span className="mt-0.5 block text-[10px] text-gray-50">
                   {item.brand}
+                  {item.keyIngredients?.length ? ` · 성분 ${item.keyIngredients.length}개 인식` : ''}
                 </span>
               </span>
             </button>
