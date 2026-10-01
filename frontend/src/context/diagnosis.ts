@@ -17,7 +17,6 @@ export interface DiagnosisResult {
   source: 'quiz' | 'persona' | 'preset';
   ts: number;
   /** 게스트 진단이 이 계정으로 승계돼 들어왔는지 */
-  succeededFromGuest?: boolean;
 }
 
 export interface DiagnosisContextValue {
@@ -33,11 +32,8 @@ export interface DiagnosisContextValue {
    * 퀴즈를 다시 본다. 판정하는 화면은 이 값이 false가 될 때까지 기다린다.
    */
   loading: boolean;
-  /** 직전 로그인에서 게스트 진단이 승계됐다 — 배너 1회 노출용 */
-  justSucceeded: boolean;
   saveDiagnosis: (r: Omit<DiagnosisResult, 'ts'>) => void;
   clearDiagnosis: () => void;
-  acknowledgeSuccession: () => void;
 }
 
 export const DiagnosisContext = createContext<DiagnosisContextValue | null>(null);

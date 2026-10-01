@@ -7,7 +7,6 @@ import {
 } from 'react';
 import {
   DiagnosisDto,
-  claimDiagnosis,
   fetchLatestDiagnosis,
   submitDiagnosis,
 } from '../api/diagnosis';
@@ -35,23 +34,17 @@ import { readJSON, removeKey, writeJSON } from './storage';
 const keyOf = (scope: string) => `swappy:diag:v1:${scope}`;
 
 /**
- * 비회원 진단을 나중에 계정에 붙이기 위한 토큰.
+ * Soft-gate 시절에 쓰던 키들.
  *
- * 브라우저마다 하나면 충분하고, 승계에 성공하면 지운다.
+ * 비회원도 진단하고 로그인할 때 계정에 붙이는 구조였는데, 승계 장치가
+ * 생기기 전에 저장된 값이 주인을 찾지 못한 채 남아 **둘러보기만 한 사람에게
+ * "당신은 수부지"가 계속 보였다.** 진단을 로그인 이후로 제한하면서 이
+ * 경로를 없앴고, 남아 있는 값은 마운트 때 지운다.
  */
-const GUEST_TOKEN_KEY = 'swappy:diag:guestToken:v1';
-
-function guestToken(): string {
-  let token = readJSON<string | null>(GUEST_TOKEN_KEY, null);
-  if (!token) {
-    token = crypto.randomUUID().replace(/-/g, '');
-    writeJSON(GUEST_TOKEN_KEY, token);
-  }
-  return token;
-}
+const LEGACY_GUEST_KEYS = ['swappy:diag:v1:guest', 'swappy:diag:guestToken:v1'];
 
 /** 서버 응답 → 화면이 쓰는 모양 */
-function toResult(dto: DiagnosisDto, succeeded: boolean): DiagnosisResult {
+function toResult(dto: DiagnosisDto): DiagnosisResult {
   return {
     skinType: dto.skinType,
     scores: dto.scores as unknown as AxisScores,
@@ -62,7 +55,6 @@ function toResult(dto: DiagnosisDto, succeeded: boolean): DiagnosisResult {
     })),
     source: 'quiz',
     ts: new Date(dto.createdAt).getTime(),
-    succeededFromGuest: succeeded || undefined,
   };
 }
 
@@ -97,8 +89,6 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const [justSucceeded, setJustSucceeded] = useState(false);
-
   /**
    * 서버 조회를 끝낸 scope. 지금 scope와 다르면 아직 확인 전이다.
    *
@@ -108,32 +98,24 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
    */
   const [settledScope, setSettledScope] = useState<string | null>(null);
 
-  // 로그인 계정의 서버 진단 조회 — 게스트 결과는 위에서 이미 읽었다.
+  // Soft-gate 시절에 남은 게스트 진단을 지운다. 진단이 로그인 전용이 된
+  // 지금은 이 키들이 있을 이유가 없고, 남아 있으면 둘러보기만 한 사람에게
+  // 남의 진단처럼 보인다.
+  useEffect(() => {
+    LEGACY_GUEST_KEYS.forEach(removeKey);
+  }, []);
+
+  // 로그인 계정의 서버 진단 조회.
   useEffect(() => {
     if (status !== 'user') return;
 
     let alive = true;
     (async () => {
-      // 비회원으로 한 진단이 서버에 있으면 계정에 붙인다(Soft-gate).
-      const token = readJSON<string | null>(GUEST_TOKEN_KEY, null);
-      if (token) {
-        const claimed = await claimDiagnosis(token).catch(() => null);
-        if (claimed && alive) {
-          const next = toResult(claimed, true);
-          writeJSON(keyOf(scope), next);
-          removeKey(keyOf('guest'));
-          removeKey(GUEST_TOKEN_KEY);
-          setResult(next);
-          setJustSucceeded(true);
-          return;
-        }
-      }
-
       const latest = await fetchLatestDiagnosis().catch(() => null);
       if (!alive) return;
 
       if (latest) {
-        const next = toResult(latest, false);
+        const next = toResult(latest);
         writeJSON(keyOf(scope), next);
         setResult(next);
         return;
@@ -188,9 +170,9 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       });
       if (Object.keys(answers).length === 0) return;
 
-      submitDiagnosis(answers, status === 'user' ? undefined : guestToken())
+      submitDiagnosis(answers)
         .then((dto) => {
-          const next = toResult(dto, false);
+          const next = toResult(dto);
           writeJSON(keyOf(scope), next);
           setResult(next);
         })
@@ -198,15 +180,13 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
           // 서버 저장에 실패해도 화면은 로컬 결과로 계속 간다.
         });
     },
-    [scope, status, setResult],
+    [scope, setResult],
   );
 
   const clearDiagnosis = useCallback(() => {
     setResult(null);
     removeKey(keyOf(scope));
   }, [scope, setResult]);
-
-  const acknowledgeSuccession = useCallback(() => setJustSucceeded(false), []);
 
   const value = useMemo<DiagnosisContextValue>(
     () => ({
@@ -215,10 +195,8 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       hasDiagnosis: !!result,
       // 비회원은 서버에 물을 것이 없다 — 로컬 값이 곧 답이다.
       loading: authLoading || (status === 'user' && settledScope !== scope),
-      justSucceeded,
       saveDiagnosis,
       clearDiagnosis,
-      acknowledgeSuccession,
     }),
     [
       result,
@@ -226,10 +204,8 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       status,
       settledScope,
       scope,
-      justSucceeded,
       saveDiagnosis,
       clearDiagnosis,
-      acknowledgeSuccession,
     ],
   );
 

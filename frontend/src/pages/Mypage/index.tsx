@@ -10,6 +10,7 @@ import { useStats } from '../../hooks/useStats';
 import { CartIcon } from '../../components/ui/OutlineIcons';
 import { CharacterAvatar } from '../../components/character/CharacterAvatar';
 import { useCharacter } from '../../context/character';
+import { useAuth } from '../../context/auth';
 
 
 
@@ -73,6 +74,17 @@ export default function MypagePage() {
   const { count: closetCount } = useCloset();
   const { likedProducts } = useLikedProducts();
   const { decorationId } = useCharacter();
+  const { logout } = useAuth();
+
+  /**
+   * 예전에는 `navigate('/')`만 했다 — **세션이 그대로 남아** 토큰도 계정
+   * 정보도 살아 있었고, 스플래시를 지나 홈으로 돌아오면 여전히 로그인
+   * 상태였다. 로그아웃은 화면 이동이 아니라 세션 종료다.
+   */
+  const signOut = () => {
+    logout();
+    navigate('/');
+  };
 
   // 취소·반품·배송지·재입고는 뺐다. 실제 결제와 배송이 없어 화면에 채울
   // 근거가 아예 없는 항목들이고, 지금까지는 각자 하드코딩된 예시를 들고
@@ -93,7 +105,7 @@ export default function MypagePage() {
   const settings: MenuItem[] = [
     { icon: <LineIcon><path d="M10 3v6l-5 8.5A2 2 0 006.7 21h10.6a2 2 0 001.7-3.5L14 9V3" /><path d="M8.5 3h7" /></LineIcon>, label: '피부타입 재진단', onClick: () => navigate('/qna') },
     { icon: <LineIcon><rect x="3" y="7" width="18" height="10" rx="5" /><circle cx="16" cy="12" r="3" /></LineIcon>, label: '알림 설정', onClick: () => alert('준비 중이에요') },
-    { icon: <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FF5C7A" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H6a2 2 0 00-2 2v10a2 2 0 002 2h3" /><path d="M15 8l4 4-4 4M19 12H9" /></svg>, label: '로그아웃', danger: true, onClick: () => navigate('/') },
+    { icon: <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FF5C7A" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H6a2 2 0 00-2 2v10a2 2 0 002 2h3" /><path d="M15 8l4 4-4 4M19 12H9" /></svg>, label: '로그아웃', danger: true, onClick: signOut },
   ];
 
   return (

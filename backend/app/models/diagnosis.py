@@ -80,9 +80,14 @@ class QuizOption(Base):
 class Diagnosis(Base):
     """진단 1회 = 1행.
 
-    user_id가 NULL이면 게스트 진단(Soft-gate). 가입 시 guest_token으로 찾아
-    user_id를 채워 승계한다. answers 원본을 남기므로 QnA 룰이 바뀌면
-    과거 진단도 재산정할 수 있다 (PRD §7.2.2).
+    answers 원본을 남기므로 QnA 룰이 바뀌면 과거 진단도 재산정할 수 있다
+    (PRD §7.2.2).
+
+    `guest_token`과 `user_id` NULL 허용은 **Soft-gate 시절의 흔적**이다.
+    비회원도 진단하고 가입할 때 계정에 붙이는 구조였는데, 주인을 찾지 못한
+    게스트 진단이 브라우저에 남아 둘러보기만 한 사람에게 표시되는 일이
+    있어 걷어냈다. 지금 진단은 로그인 이후에만 가능하고 이 컬럼은 더
+    채워지지 않는다 — 과거 행을 지우지 않으려고 컬럼만 남겨 두었다.
     """
 
     __tablename__ = "diagnoses"

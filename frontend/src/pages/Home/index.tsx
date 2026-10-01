@@ -25,7 +25,6 @@ import { useSwapSuggestion } from '../../hooks/useSwapSuggestion';
 import { useWeather } from '../../hooks/useWeather';
 import { useCareTip } from '../../hooks/useCareTip';
 import { useAuth } from '../../context/auth';
-import { useDiagnosis } from '../../context/diagnosis';
 import { useCloset } from '../../context/closet';
 import { useCart } from '../../context/cart';
 
@@ -88,7 +87,6 @@ function MockBanner() {
 export default function HomePage() {
   const navigate = useNavigate();
   const { user: persona, isUser } = useAuth();
-  const { justSucceeded, acknowledgeSuccession } = useDiagnosis();
   const { items: closetItems, loading: closetLoading } = useCloset();
   const { stats, loading: statsLoading } = useStats();
   const { addToCart } = useCart();
@@ -214,15 +212,6 @@ export default function HomePage() {
 
       <main>
         {isMock && <MockBanner />}
-        {justSucceeded && (
-          <button
-            onClick={acknowledgeSuccession}
-            className="block w-full bg-primary-light px-4 py-2.5 text-left text-[12px] font-semibold text-primary-dark"
-          >
-            ✅ 로그인 전 진단한 피부타입{skinLabel !== null ? `(${skinLabel})` : ''}을
-            계정으로 가져왔어요. 탭하여 닫기
-          </button>
-        )}
 
         {/* 개인 대시보드: 날씨 + 마스코트(탭→옷장) + 경험치
 

@@ -11,11 +11,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.deps import get_current_user, get_optional_user
+from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.diagnosis import (
     Diagnosis,
@@ -98,15 +98,19 @@ def _to_out(diagnosis: Diagnosis, ranks: list[DiagnosisRank]) -> DiagnosisOut:
 @router.post("", response_model=DiagnosisOut, status_code=201, summary="진단 제출")
 async def submit(
     body: DiagnosisIn,
-    user: User | None = Depends(get_optional_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> DiagnosisOut:
+    """진단은 **로그인 이후에만** 할 수 있다.
+
+    예전에는 비회원도 `guestToken`을 붙여 제출하고 나중에 계정에 붙이는
+    Soft-gate였다. 그런데 토큰이 생기기 전에 저장된 게스트 진단이 주인을
+    찾지 못한 채 브라우저에 남아, 둘러보기만 한 사람에게 "당신은 수부지"가
+    계속 보이는 일이 있었다. 결과를 누구 것인지 확실히 할 수 없는 기록은
+    만들지 않는다.
+    """
     if not body.answers:
         raise HTTPException(status_code=422, detail="응답이 비어 있습니다")
-    if user is None and not body.guest_token:
-        # 비회원 진단은 나중에 계정에 붙일 수 있어야 한다. 토큰이 없으면
-        # 그 결과는 아무도 다시 찾을 수 없는 행이 된다.
-        raise HTTPException(status_code=422, detail="guestToken이 필요합니다")
 
     version = await _active_version(db)
 
@@ -122,8 +126,8 @@ async def submit(
     ranks = rank_types(scores)
 
     diagnosis = Diagnosis(
-        user_id=user.id if user else None,
-        guest_token=None if user else body.guest_token,
+        user_id=user.id,
+        guest_token=None,
         version_id=version.id,
         answers=body.answers,
         scores=scores,
@@ -142,15 +146,14 @@ async def submit(
     ]
     db.add_all(rank_rows)
 
-    if user is not None:
-        # profiles.skin_type은 최신 1순위를 복사해 둔 캐시다(모델 주석 참고).
-        # 매 요청마다 diagnoses를 조회하지 않기 위한 것이다.
-        profile = await db.scalar(select(Profile).where(Profile.user_id == user.id))
-        if profile is None:
-            profile = Profile(user_id=user.id)
-            db.add(profile)
-        profile.skin_type = ranks[0]["skin_type"]
-        profile.scores = scores
+    # profiles.skin_type은 최신 1순위를 복사해 둔 캐시다(모델 주석 참고).
+    # 매 요청마다 diagnoses를 조회하지 않기 위한 것이다.
+    profile = await db.scalar(select(Profile).where(Profile.user_id == user.id))
+    if profile is None:
+        profile = Profile(user_id=user.id)
+        db.add(profile)
+    profile.skin_type = ranks[0]["skin_type"]
+    profile.scores = scores
 
     await db.commit()
     await db.refresh(diagnosis)
@@ -170,40 +173,4 @@ async def latest(
     )
     if diagnosis is None:
         raise HTTPException(status_code=404, detail="진단 기록이 없습니다")
-    return _to_out(diagnosis, diagnosis.ranks)
-
-
-@router.post("/claim", response_model=DiagnosisOut, summary="게스트 진단 승계")
-async def claim(
-    body: DiagnosisIn,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> DiagnosisOut:
-    """가입 전 비회원으로 한 진단을 계정에 붙인다 (Soft-gate).
-
-    응답 본문에서는 guestToken만 쓴다. answers를 다시 받지 않는 이유는
-    이미 저장된 진단을 옮기는 것이지 새로 채점하는 게 아니기 때문이다.
-    """
-    if not body.guest_token:
-        raise HTTPException(status_code=422, detail="guestToken이 필요합니다")
-
-    diagnosis = await db.scalar(
-        select(Diagnosis)
-        .where(Diagnosis.guest_token == body.guest_token, Diagnosis.user_id.is_(None))
-        .order_by(Diagnosis.created_at.desc())
-        .options(selectinload(Diagnosis.ranks))
-    )
-    if diagnosis is None:
-        raise HTTPException(status_code=404, detail="승계할 진단이 없습니다")
-
-    diagnosis.user_id = user.id
-    diagnosis.guest_token = None
-
-    top = sorted(diagnosis.ranks, key=lambda r: r.rank)[0]
-    await db.execute(
-        update(Profile)
-        .where(Profile.user_id == user.id)
-        .values(skin_type=top.skin_type, scores=diagnosis.scores)
-    )
-    await db.commit()
     return _to_out(diagnosis, diagnosis.ranks)

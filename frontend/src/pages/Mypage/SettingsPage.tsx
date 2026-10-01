@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { useUserProfile } from '../../context/userProfile';
+import { useAuth } from '../../context/auth';
 
 const APP_VERSION = '1.0.0';
 
@@ -69,6 +70,16 @@ function Section({ title, rows }: { title: string; rows: Row[] }) {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  /**
+   * 예전에는 `navigate('/')`만 했다 — **세션이 그대로 남아** 토큰도 계정
+   * 정보도 살아 있었다. 로그아웃은 화면 이동이 아니라 세션 종료다.
+   */
+  const signOut = () => {
+    logout();
+    navigate('/');
+  };
   const { profile } = useUserProfile();
   const [pushNoti, setPushNoti] = useState(true);
   const [marketingNoti, setMarketingNoti] = useState(false);
@@ -117,7 +128,7 @@ export default function SettingsPage() {
       <Section
         title="기타"
         rows={[
-          { label: '로그아웃', danger: true, onClick: () => navigate('/') },
+          { label: '로그아웃', danger: true, onClick: signOut },
           { label: '회원 탈퇴', danger: true, onClick: () => navigate('/mypage/settings/withdraw') },
         ]}
       />

@@ -84,9 +84,17 @@ function toAccount(user: AuthUser): Account {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<StoredAuth>(() => readJSON(STORAGE_KEY, DEFAULT));
   const [account, setAccount] = useState<Account | null>(null);
-  // 새로고침 직후에는 토큰만 있고 계정 정보가 없다. 그동안 화면이 게스트로
-  // 잘못 그리지 않도록 로딩을 알린다.
-  const [loading, setLoading] = useState(() => getRefreshToken() !== null);
+  /**
+   * 새로고침 직후에는 토큰만 있고 계정 정보가 없다. 그동안 화면이 게스트로
+   * 잘못 그리지 않도록 로딩을 알린다.
+   *
+   * 단 '둘러보기'를 고른 브라우저는 복원하지 않으므로(아래 effect) 기다릴
+   * 것도 없다 — 토큰이 남아 있어도 처음부터 로딩이 아니다.
+   */
+  const [loading, setLoading] = useState(
+    () => readJSON<StoredAuth>(STORAGE_KEY, DEFAULT).status !== 'guest'
+      && getRefreshToken() !== null,
+  );
   const [prevScope, setPrevScope] = useState<string | null>(null);
 
   useEffect(() => {
@@ -101,6 +109,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 토큰이 없으면 복원할 세션도 없다. loading 초기값이 이미
     // `getRefreshToken() !== null`이라 여기서 끄지 않아도 false다.
     if (getRefreshToken() === null) return;
+
+    /**
+     * 사용자가 '로그인 없이 둘러보기'를 고른 브라우저는 복원하지 않는다.
+     *
+     * 예전 `continueAsGuest`가 토큰을 남겨서 **게스트 상태 + 살아 있는
+     * 토큰**이라는 조합이 만들어졌다. 그 브라우저는 새로고침할 때마다
+     * 여기서 다시 로그인돼, 둘러보기를 골랐는데도 이전 계정의 피부타입·
+     * 화장대가 계속 보였다. 남은 토큰을 지워 스스로 낫게 한다.
+     *
+     * 상태를 state가 아니라 저장소에서 직접 읽는다 — 이 effect는 마운트
+     * 때 한 번만 돌고, 필요한 것은 "그때 저장돼 있던 의사"다.
+     */
+    const stored = readJSON<StoredAuth>(STORAGE_KEY, DEFAULT);
+    if (stored.status === 'guest') {
+      const refresh = getRefreshToken();
+      if (refresh) void apiLogout(refresh).catch(() => undefined);
+      clearTokens();
+      return;
+    }
 
     let alive = true;
     fetchMe()
@@ -239,14 +266,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuth((prev) => (prev.status === 'user' ? { ...prev, email: user.email } : prev));
   }, []);
 
-  const continueAsGuest = useCallback(() => {
-    setAuth((prev) => {
-      setPrevScope(scopeOf(prev));
-      return { status: 'guest', email: null };
-    });
-  }, []);
-
-  const logout = useCallback(() => {
+  /**
+   * 세션을 끝낸다.
+   *
+   * '로그아웃'과 '로그인 없이 둘러보기'는 사용자가 누른 버튼만 다르고
+   * **해야 할 정리는 같다.** 예전에는 continueAsGuest가 status만 뒤집어서
+   * 토큰과 account가 그대로 남았고, 그 결과
+   *
+   *   - user·scope가 이전 계정을 가리켜 피부타입·화장대·장식이 샜고
+   *   - 새로고침하면 남은 토큰으로 **조용히 다시 로그인**됐다
+   *
+   * 둘러보기를 골랐는데 실제로는 그 계정으로 로그인된 상태가 됐다는 뜻이다.
+   */
+  const endSession = useCallback(() => {
     const refresh = getRefreshToken();
     // 서버의 리프레시 토큰을 끊는다. 실패해도 로컬은 지운다 —
     // 네트워크 때문에 로그아웃이 안 되면 더 이상하다.
@@ -259,14 +291,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const continueAsGuest = endSession;
+  const logout = endSession;
+
   const value = useMemo<AuthContextValue>(
     () => ({
       status: auth.status,
-      user: account,
+      /**
+       * `auth.ts`의 주석이 약속한 대로 **게스트·초기 상태면 null**이다.
+       *
+       * 예전에는 `account`를 그대로 내보내서, 세션 정리를 빠뜨린 경로가
+       * 있으면 게스트 화면에 이전 계정 정보가 새어 나왔다. 여기서 막으면
+       * 앞으로 어떤 경로가 `setAccount(null)`을 잊어도 새지 않는다.
+       */
+      user: auth.status === 'user' ? account : null,
       isUser: auth.status === 'user' && account !== null,
       isGuest: auth.status === 'guest',
       loading,
-      scope: account ? account.id : 'guest',
+      scope: auth.status === 'user' && account ? account.id : 'guest',
       prevScope,
       login,
       register,

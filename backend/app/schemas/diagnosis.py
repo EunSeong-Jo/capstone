@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import Field
-
 from app.schemas.product import _CamelModel
 
 
@@ -32,12 +30,12 @@ class QuizOut(_CamelModel):
 class DiagnosisIn(_CamelModel):
     """응답. {문항 code: 선택지 order_no}.
 
-    비회원은 guestToken을 함께 보낸다. 나중에 가입하면 그 토큰으로 찾아
-    계정에 붙인다(Soft-gate).
+    진단은 로그인 이후에만 할 수 있다. 예전에는 비회원도 `guestToken`을
+    붙여 제출하고 나중에 계정에 붙이는 Soft-gate였는데, 주인을 찾지 못한
+    게스트 진단이 남는 문제가 있어 걷어냈다.
     """
 
     answers: dict[str, int]
-    guest_token: str | None = Field(default=None, max_length=64)
 
 
 class RankOut(_CamelModel):
