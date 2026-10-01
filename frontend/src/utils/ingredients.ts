@@ -71,15 +71,22 @@ export function groupIngredients(ingredients: ProductIngredient[]): IngredientGr
   for (const ing of ingredients) {
     const { before, label, after } = splitLabel(ing.name);
 
+    // 라벨로 쪼갠 조각은 원본 항목(파싱 잔해)의 id를 물려받을 뿐 그 성분이 아니다.
+    // 원본의 설명을 그대로 두면 '정제수' 칩에 엉뚱한 설명이 뜨므로 비워 둔다.
+    const piece = (name: string): ProductIngredient =>
+      label === null
+        ? { ...ing, name }
+        : { ...ing, name, description: null, keywords: [], descriptionSource: null };
+
     // 라벨 앞에 붙어 있던 성분은 아직 직전 묶음 소속이다.
-    if (before) tail().items.push({ ...ing, name: before });
+    if (before) tail().items.push(piece(before));
 
     // 같은 라벨이 연달아 나오면 묶음을 새로 열지 않는다.
     if (label !== null && (groups.length === 0 || tail().label !== label)) {
       groups.push({ label, items: [] });
     }
 
-    if (after) tail().items.push({ ...ing, name: after });
+    if (after) tail().items.push(piece(after));
   }
 
   // 라벨만 있고 성분이 하나도 안 붙은 빈 묶음은 버린다.
