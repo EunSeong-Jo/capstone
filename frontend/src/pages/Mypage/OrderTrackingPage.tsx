@@ -3,15 +3,20 @@ import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { useOrders } from '../../hooks/useOrders';
 
-import { STAGE_LABEL, fmtDateTime, isClosed } from '../../utils/orderStage';
-
 /**
  * 배송조회.
  *
- * 택배 연동이 없어 단계는 서버가 주문 시각에서 계산한다
- * (`services/order_stage.py`). 각 단계가 된 시각도 서버가 준다.
- * 취소·반품된 주문은 그 시점까지 지나간 단계만 표시한다.
+ * **서버가 아는 것은 '결제완료'까지다.** `orders.status`는 주문을 만들 때
+ * `placed`로 박히고 그 뒤로 바뀌지 않는다 — 배송사도 송장도 붙인 적이 없다.
+ * 그래서 이 화면은 이후 단계를 '완료'로 그리지 않고 예정으로만 보여주고,
+ * 그렇다는 것을 화면에도 적는다. 실제 배송 연동이 붙으면 STAGE_BY_STATUS에
+ * 상태를 더하면 된다.
  */
+const STAGES = ['주문접수', '결제완료', '배송준비중', '배송중', '배송완료'];
+
+/** 서버 status → STAGES의 인덱스. 지금 서버가 내는 값은 'placed' 하나뿐이다. */
+const STAGE_BY_STATUS: Record<string, number> = { placed: 1 };
+
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
 
 export default function OrderTrackingPage() {
@@ -50,10 +55,7 @@ export default function OrderTrackingPage() {
     );
   }
 
-  const steps = order.tracking;
-  // 시각이 있는 마지막 단계가 지금 단계다.
-  const currentIndex = steps.reduce((last, step, i) => (step.at ? i : last), 0);
-  const closed = isClosed(order.status);
+  const currentIndex = STAGE_BY_STATUS[order.status] ?? 0;
 
   return (
     <PageWrapper className="bg-surface-warm">
@@ -69,11 +71,11 @@ export default function OrderTrackingPage() {
         </div>
 
         <div className="mt-5 rounded-2xl border border-[#ECEEE8] bg-white p-5">
-          {steps.map((step, i) => {
-            const done = step.at !== null;
-            const isLast = i === steps.length - 1;
+          {STAGES.map((stage, i) => {
+            const done = i <= currentIndex;
+            const isLast = i === STAGES.length - 1;
             return (
-              <div key={step.stage} className="flex gap-3">
+              <div key={stage} className="flex gap-3">
                 <div className="flex flex-col items-center">
                   <span
                     className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
@@ -91,27 +93,22 @@ export default function OrderTrackingPage() {
                 </div>
                 <div className={isLast ? 'pb-0' : 'pb-7'}>
                   <p className={`text-sm font-bold ${done ? 'text-gray-100' : 'text-gray-50'}`}>
-                    {STAGE_LABEL[step.stage] ?? step.stage}
+                    {stage}
                   </p>
-                  {step.at && <p className="mt-0.5 text-xs text-gray-50">{fmtDateTime(step.at)}</p>}
-                  {!closed && i === currentIndex && (
+                  {i === currentIndex && (
                     <p className="mt-0.5 text-xs font-semibold text-primary-dark">현재 상태예요</p>
                   )}
-                  {!done && <p className="mt-0.5 text-xs text-gray-50">{closed ? '진행 안 함' : '예정'}</p>}
+                  {i > currentIndex && <p className="mt-0.5 text-xs text-gray-50">예정</p>}
                 </div>
               </div>
             );
           })}
         </div>
 
-        {closed && (
-          <p className="mt-4 rounded-xl bg-white p-3 text-center text-xs font-semibold text-gray-70">
-            {order.status === 'cancelled' ? '취소된 주문이에요' : '반품된 주문이에요'}
-            {order.closedAt && ` · ${fmtDateTime(order.closedAt)}`}
-          </p>
-        )}
         <p className="mt-4 text-center text-xs leading-relaxed text-gray-50">
-          택배사 연동 전이라 배송 단계는 주문 시각 기준으로 진행돼요.
+          지금 기록되는 주문 상태는 결제완료까지예요.
+          <br />
+          택배사 배송 조회는 아직 연동 전이라 이후 단계는 표시만 해 둔 거예요.
         </p>
       </div>
     </PageWrapper>

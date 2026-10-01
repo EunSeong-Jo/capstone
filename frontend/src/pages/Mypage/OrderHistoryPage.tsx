@@ -2,10 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
-import { OrderDto, OrderItemDto, cancelOrder, returnOrder, writeReview } from '../../api/personal';
-import { ApiError } from '../../api/client';
-import { OrderCloseSheet } from '../../components/orders/OrderCloseSheet';
-import { STAGE_BADGE, STAGE_LABEL, isClosed } from '../../utils/orderStage';
+import { OrderItemDto, writeReview } from '../../api/personal';
 import { ReviewDraft, ReviewWriteSheet } from '../../components/reviews/ReviewWriteSheet';
 import { useCart } from '../../context/cart';
 import { useToast } from '../../context/toast';
@@ -38,57 +35,12 @@ export default function OrderHistoryPage() {
   /** 후기를 쓰는 중인 품목. null이면 시트가 닫혀 있다. */
   const [target, setTarget] = useState<OrderItemDto | null>(null);
   const [saving, setSaving] = useState(false);
-  /**
-   * 재구매 — 그때 산 수량만큼 장바구니에 다시 담는다. 가격은 장바구니가
-   * 지금 가격으로 다시 계산한다(주문의 unitPrice는 그 시점 기록일 뿐이다).
-   * 예전에는 담기기만 하고 아무 표시가 없어서 눌렀는지 알 수 없었다.
-   */
-  const reorder = (item: OrderItemDto) => {
-    if (item.productId === null) return;
-    addToCart(
-      {
-        id: item.productId,
-        name: item.productName,
-        brand: item.brandName ?? '',
-        price: item.unitPrice,
-      },
-      item.qty,
-    );
-    showToast(`장바구니에 ${item.qty}개 담았어요`, {
-      label: '장바구니로 이동',
-      onClick: () => navigate('/cart'),
-    });
-  };
-
-  /** 취소·반품 신청 중인 주문 */
-  const [closing, setClosing] = useState<{ order: OrderDto; kind: 'cancel' | 'return' } | null>(null);
-
-  const submitClose = async (reason: string | undefined) => {
-    if (closing === null) return;
-    setSaving(true);
-    try {
-      await (closing.kind === 'cancel' ? cancelOrder : returnOrder)(closing.order.id, reason);
-      showToast(closing.kind === 'cancel' ? '주문을 취소했어요' : '반품을 신청했어요', {
-        label: '취소/반품 내역',
-        onClick: () => navigate('/mypage/cancel-return'),
-      });
-      setClosing(null);
-      reload();
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : '처리하지 못했어요');
-      // 단계가 넘어가 버튼이 사라져야 하는 경우라 목록을 새로 받는다.
-      setClosing(null);
-      reload();
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const submitReview = async (draft: ReviewDraft) => {
     if (target === null) return;
     setSaving(true);
     try {
-      await writeReview(target.id, draft.rating, draft.body, draft.photos);
+      await writeReview(target.id, draft.rating, draft.body);
       setTarget(null);
       showToast('후기를 등록했어요');
       reload();
@@ -130,11 +82,8 @@ export default function OrderHistoryPage() {
                 onClick={() => navigate(`/mypage/order-history/${order.id}`)}
                 className="flex w-full items-center justify-between border-b border-gray-10 bg-white px-4 py-3 text-left active:bg-gray-5"
               >
-                <span className="flex items-center gap-2">
-                  <span className="text-[15px] font-bold text-gray-100">{fmtDate(order.placedAt)}</span>
-                  <span className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${STAGE_BADGE[order.stage] ?? STAGE_BADGE.paid}`}>
-                    {STAGE_LABEL[order.stage] ?? order.stage}
-                  </span>
+                <span className="text-[15px] font-bold text-gray-100">
+                  {fmtDate(order.placedAt)}
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="text-[13px] font-bold text-gray-100">
@@ -165,13 +114,24 @@ export default function OrderHistoryPage() {
                   <div className="grid grid-cols-2 gap-1.5 px-4 pb-3.5">
                     <button
                       disabled={item.productId === null}
-                      onClick={() => reorder(item)}
-                      className="rounded-lg border border-gray-20 py-2 text-[13px] font-medium text-gray-100 active:scale-[.98] disabled:opacity-40"
+                      onClick={() =>
+                        item.productId !== null &&
+                        addToCart(
+                          {
+                            id: item.productId,
+                            name: item.productName,
+                            brand: item.brandName ?? '',
+                            price: item.unitPrice,
+                          },
+                          item.qty,
+                        )
+                      }
+                      className="rounded-lg border border-gray-20 py-2 text-[13px] font-medium text-gray-100 disabled:opacity-40"
                     >
                       재구매
                     </button>
                     <button
-                      disabled={item.reviewed || item.productId === null || isClosed(order.status)}
+                      disabled={item.reviewed || item.productId === null}
                       onClick={() => setTarget(item)}
                       className="rounded-lg border border-gray-20 py-2 text-[13px] font-medium text-gray-100 disabled:opacity-40"
                     >
@@ -180,47 +140,6 @@ export default function OrderHistoryPage() {
                   </div>
                 </div>
               ))}
-
-              {/* 주문 단위 동작: 배송조회 · 취소(결제완료) · 반품(배송완료) */}
-              <div className="flex gap-1.5 border-t border-gray-10 bg-white px-4 py-3">
-                {!isClosed(order.status) && (
-                  <button
-                    onClick={() => navigate(`/mypage/order-history/${order.id}/tracking`)}
-                    className="flex-1 rounded-lg border border-gray-20 py-2 text-[13px] font-medium text-gray-100"
-                  >
-                    배송조회
-                  </button>
-                )}
-                {order.canCancel && (
-                  <button
-                    onClick={() => setClosing({ order, kind: 'cancel' })}
-                    className="flex-1 rounded-lg border border-[#F8174A]/40 py-2 text-[13px] font-bold text-[#F8174A]"
-                  >
-                    주문 취소
-                  </button>
-                )}
-                {order.canReturn && (
-                  <button
-                    onClick={() => setClosing({ order, kind: 'return' })}
-                    className="flex-1 rounded-lg border border-[#F8174A]/40 py-2 text-[13px] font-bold text-[#F8174A]"
-                  >
-                    반품 신청
-                  </button>
-                )}
-                {isClosed(order.status) && (
-                  <button
-                    onClick={() => navigate('/mypage/cancel-return')}
-                    className="flex-1 rounded-lg border border-gray-20 py-2 text-[13px] font-medium text-gray-70"
-                  >
-                    {order.status === 'cancelled' ? '취소' : '반품'} 내역 보기
-                  </button>
-                )}
-              </div>
-              {!isClosed(order.status) && !order.canCancel && !order.canReturn && (
-                <p className="bg-white px-4 pb-3 text-[11px] text-gray-50">
-                  배송이 시작돼 취소할 수 없어요. 배송완료 후 반품을 신청할 수 있어요.
-                </p>
-              )}
             </div>
           ))
         )}
@@ -237,21 +156,6 @@ export default function OrderHistoryPage() {
           saving={saving}
           onClose={() => setTarget(null)}
           onSubmit={submitReview}
-        />
-      )}
-
-      {closing && (
-        <OrderCloseSheet
-          key={closing.order.id + closing.kind}
-          kind={closing.kind}
-          orderLabel={
-            closing.order.items[0]?.productName +
-            (closing.order.items.length > 1 ? ` 외 ${closing.order.items.length - 1}건` : '')
-          }
-          total={closing.order.total}
-          saving={saving}
-          onClose={() => setClosing(null)}
-          onSubmit={submitClose}
         />
       )}
     </PageWrapper>
