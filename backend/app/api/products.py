@@ -1,13 +1,15 @@
 """제품 조회 API (Task 6.1).
 
-읽기 전용 3개. 프론트엔드가 src/mocks/를 벗고 실제 데이터로 붙는 통로다.
+읽기 전용. 프론트엔드가 src/mocks/를 벗고 실제 데이터로 붙는 통로다.
 
-    GET /api/v1/products          목록 · 필터 · 정렬 · 페이지네이션
-    GET /api/v1/products/search   제품명 부분일치
-    GET /api/v1/products/{id}     상세 + 전성분
+    GET /api/v1/products              목록 · 필터 · 정렬 · 페이지네이션
+    GET /api/v1/products/search       제품명 부분일치 (ILIKE)
+    GET /api/v1/products/match        OCR 텍스트로 찾기 (trgm 유사도)
+    GET /api/v1/products/{id}         상세 + 전성분
+    GET /api/v1/products/{id}/reviews 이 제품의 후기
 
-경로 순서 주의: /search가 /{id}보다 먼저 선언돼야 한다. 뒤에 두면
-FastAPI가 "search"를 id로 해석해 422를 낸다.
+경로 순서 주의: /search·/match가 /{id}보다 먼저 선언돼야 한다. 뒤에 두면
+FastAPI가 "search"·"match"를 id로 해석해 422를 낸다.
 """
 from __future__ import annotations
 
@@ -16,7 +18,7 @@ import json
 from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -34,12 +36,15 @@ from app.services.skin_type import SkinRule, apply_exclusions, fit_score, load_r
 from app.models.personal import Review
 from app.models.user import User
 from app.schemas.product import (
-    ProductReviewOut,
-    ProductReviewsOut,
     IngredientOut,
+    MatchSignalOut,
+    MatchSignalsOut,
     ProductDetailOut,
     ProductListOut,
+    ProductMatchOut,
     ProductOut,
+    ProductReviewOut,
+    ProductReviewsOut,
 )
 
 router = APIRouter(prefix="/api/v1/products", tags=["products"])
@@ -334,6 +339,108 @@ async def search_products(
     response.headers["Cache-Control"] = "public, max-age=60"
     response.headers["X-Cache"] = "MISS"
     return result
+
+
+# OCR 텍스트와 제품명의 trgm 유사도 하한.
+#
+# pg_trgm 기본 임계값은 0.3인데, OCR이 0↔O·1↔l을 섞고 용량·원산지 문구까지
+# 끌고 오면 정답도 0.3 아래로 내려간다(실측 0.47~0.51). 낮게 잡아 후보를
+# 넓히고, "자동 선택할 만큼 확실한가"는 점수를 받은 호출 측이 정한다.
+MATCH_THRESHOLD = 0.15
+
+# 한글명과 영문명을 한 번에 훑는다.
+#
+# 두 쿼리로 나누면 왕복이 두 번이고, 이 DB는 왕복 한 번이 실측 212ms다
+# (Neon 원격). 4,013 + 3,175행이라 순차 스캔 비용은 왕복보다 훨씬 싸다 —
+# 그래서 인덱스를 타는 `%` 연산자 대신 임계값 비교를 쓴다. `%`는
+# set_limit()으로 세션 상태를 바꿔야 하는데 커넥션 풀에서는 신뢰할 수 없다.
+_MATCH_SQL = """
+with hits as (
+  select p.id as product_id, 'ko' as src,
+         similarity(lower(coalesce(p.display_name, p.name)), lower(:q)) as s,
+         coalesce(p.display_name, p.name) as matched_text
+  from products p
+  where similarity(lower(coalesce(p.display_name, p.name)), lower(:q)) >= :th
+  union all
+  select e.product_id, 'en',
+         similarity(lower(e.name_en), lower(:q)), e.name_en
+  from product_names_en e
+  where similarity(lower(e.name_en), lower(:q)) >= :th
+),
+ranked as (
+  select *, row_number() over (partition by product_id order by s desc) rn from hits
+)
+select product_id, src, s, matched_text
+from ranked where rn = 1
+order by s desc, product_id
+limit :lim
+"""
+
+
+@router.get("/match", response_model=list[ProductMatchOut], summary="OCR 텍스트로 제품 찾기")
+async def match_products(
+    q: str = Query(..., min_length=2, description="OCR로 읽은 텍스트"),
+    limit: int = Query(5, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+) -> list[ProductMatchOut]:
+    """포장에서 읽은 텍스트로 비슷한 제품을 찾는다.
+
+    `/search`와 다른 이유
+    --------------------
+    `/search`는 `ILIKE '%q%'`다. **OCR이 한 글자만 틀려도 0건**이 된다 —
+    `T0RRIDEN`은 아무것도 반환하지 않는다. 여기서는 trgm 유사도로 대조하고
+    점수를 함께 내므로, 호출 측이 "자동 선택할까 목록을 보여줄까"를 정할 수
+    있다. 지금 OCR은 완전 실패가 44.4%여서(scripts/OCR_SUMMARY.md) 그
+    판단이 호출 측에 있어야 한다.
+
+    영문명을 함께 보는 이유
+    ----------------------
+    예전에는 영문을 한글 발음으로 근사 전사해 대조했다(extract_product_name.py의
+    transliterate). 그러면 점수가 0.15 구간에 깔려 임계값을 정할 수 없고,
+    `Low Molecular → 저분자`처럼 음차가 아니라 번역인 이름은 아예 빗나갔다.
+    `product_names_en`에 실제 영문명이 들어온 뒤로는 원문 그대로 맞춘다.
+
+    **브랜드를 지우지 말고 통짜로 넘기는 게 낫다.** 제품명 줄만 남기면
+    오답이 1위로 올라온다 — '어성초 77 토너'는 블랑네이처를, 브랜드를 포함한
+    '아누아 어성초 77 토너'는 아누아를 1위로 낸다.
+
+    캐시는 두지 않는다. 질의가 매번 다른 OCR 텍스트라 적중률이 없다.
+    """
+    rows = (
+        await db.execute(
+            text(_MATCH_SQL), {"q": q, "th": MATCH_THRESHOLD, "lim": limit}
+        )
+    ).all()
+    if not rows:
+        return []
+
+    products = {
+        p.id: p
+        for p in await db.scalars(
+            select(Product)
+            .where(Product.id.in_([r.product_id for r in rows]))
+            .options(joinedload(Product.brand), joinedload(Product.category))
+        )
+    }
+
+    out = []
+    for r in rows:
+        product = products.get(r.product_id)
+        if product is None:  # 조회 사이에 지워진 제품
+            continue
+        out.append(
+            ProductMatchOut(
+                product=_to_out(product),
+                signals=MatchSignalsOut(
+                    text=MatchSignalOut(
+                        score=round(float(r.s), 4),
+                        matched_on=r.src,
+                        matched_text=r.matched_text,
+                    )
+                ),
+            )
+        )
+    return out
 
 
 @router.get("/{product_id}", response_model=ProductDetailOut, summary="제품 상세")

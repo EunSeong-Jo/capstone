@@ -147,3 +147,35 @@ class ProductReviewsOut(_CamelModel):
     # "아직 없음"이 같아 보인다.
     average: float | None = None
     distribution: dict[int, int]
+
+
+class MatchSignalOut(_CamelModel):
+    """텍스트 대조 신호.
+
+    `matched_on`은 어느 이름에서 맞았는지다 — 'ko'면 `products.name`
+    (또는 display_name), 'en'이면 `product_names_en.name_en`이다.
+    `matched_text`는 그 이름 원문이라, 왜 이 제품이 걸렸는지 눈으로
+    확인할 수 있다.
+    """
+
+    score: float
+    matched_on: str
+    matched_text: str
+
+
+class MatchSignalsOut(_CamelModel):
+    """후보가 걸린 근거들.
+
+    지금은 텍스트 하나뿐이지만 묶음으로 내는 이유는, 촬영 이미지 ↔ 제품
+    이미지 유사도를 두 번째 신호로 더할 때 응답 모양을 깨지 않기 위해서다.
+    그때 `image`가 붙고 호출 측은 둘을 함께 보고 판단한다.
+    """
+
+    text: MatchSignalOut
+
+
+class ProductMatchOut(_CamelModel):
+    """OCR 텍스트로 찾은 제품 후보."""
+
+    product: ProductOut
+    signals: MatchSignalsOut

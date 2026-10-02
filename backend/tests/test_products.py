@@ -15,6 +15,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 LIST = "/api/v1/products"
 SEARCH = "/api/v1/products/search"
+MATCH = "/api/v1/products/match"
 
 # 프론트 src/types/index.ts의 Product가 필수로 요구하는 필드
 REQUIRED = ("id", "name", "brand", "category", "price")
@@ -343,3 +344,74 @@ async def test_product_reviews_never_expose_email(client: AsyncClient) -> None:
     res = await client.get(f"/api/v1/products/{product_id}/reviews")
     for item in res.json()["items"]:
         assert "email" not in item and "userId" not in item
+
+
+# ── OCR 텍스트 매칭 ───────────────────────────────────────────
+
+
+async def test_match_requires_two_chars(client: AsyncClient) -> None:
+    assert (await client.get(MATCH, params={"q": "a"})).status_code == 422
+
+
+async def test_match_returns_empty_not_error(client: AsyncClient) -> None:
+    """아무것도 못 찾으면 빈 배열이다 — 404가 아니다.
+
+    OCR은 완전 실패가 44.4%다(scripts/OCR_SUMMARY.md). "못 찾았다"는 오류가
+    아니라 정상적인 결과이고, 화면은 수동 검색으로 안내해야 한다.
+    """
+    res = await client.get(MATCH, params={"q": "zzzz99999999"})
+    assert res.status_code == 200
+    assert res.json() == []
+
+
+async def test_match_finds_product_by_korean_name(client: AsyncClient) -> None:
+    """DB에 있는 한글명 일부로 그 제품이 나와야 한다."""
+    name = (await _items(client, size=1))[0]["name"]
+    # 앞 두 토큰(브랜드 + 첫 단어)만 넘긴다 — OCR이 포장에서 읽는 분량에 가깝다
+    q = " ".join(name.split()[:2])
+
+    res = await client.get(MATCH, params={"q": q, "limit": 5})
+    assert res.status_code == 200
+    body = res.json()
+    assert body, f"'{q}'로 아무것도 찾지 못했다"
+    assert any(m["product"]["name"] == name for m in body)
+
+
+async def test_match_response_shape(client: AsyncClient) -> None:
+    name = (await _items(client, size=1))[0]["name"]
+    body = (
+        await client.get(MATCH, params={"q": " ".join(name.split()[:2]), "limit": 5})
+    ).json()
+    assert body
+
+    for m in body:
+        # product는 목록과 같은 모양이어야 한다 — 프론트가 같은 카드로 그린다
+        for key in REQUIRED:
+            assert m["product"].get(key) is not None
+
+        # 점수를 signals 묶음으로 낸다. 나중에 이미지 유사도를 두 번째 신호로
+        # 더할 때 응답 모양이 깨지지 않도록 한 약속이다.
+        text = m["signals"]["text"]
+        assert text["matchedOn"] in ("ko", "en")
+        assert 0 < text["score"] <= 1
+        assert text["matchedText"]
+
+
+async def test_match_is_sorted_by_score(client: AsyncClient) -> None:
+    """점수 내림차순이어야 한다 — 호출 측이 1위만 보고 판단할 수 있어야 한다."""
+    name = (await _items(client, size=1))[0]["name"]
+    body = (
+        await client.get(MATCH, params={"q": " ".join(name.split()[:2]), "limit": 10})
+    ).json()
+    scores = [m["signals"]["text"]["score"] for m in body]
+    assert scores == sorted(scores, reverse=True)
+
+
+async def test_match_never_returns_same_product_twice(client: AsyncClient) -> None:
+    """한 제품에 영문명이 여러 개 붙을 수 있다. 후보 목록에는 한 번만 나와야 한다."""
+    name = (await _items(client, size=1))[0]["name"]
+    body = (
+        await client.get(MATCH, params={"q": " ".join(name.split()[:2]), "limit": 20})
+    ).json()
+    ids = [m["product"]["id"] for m in body]
+    assert len(ids) == len(set(ids))
