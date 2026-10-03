@@ -17,10 +17,10 @@
 
 | 영역 | 상태 |
 |---|---|
-| **DB** | Neon PostgreSQL 16 · 테이블 31개 · **제품 4,013 / 성분 23,147 / 연결 163,103 / 유사도 146,940 / 성분 설명 3,687 / 영문 제품명 3,175 / 계정 5** → [docs/db-schema.md](docs/db-schema.md) |
-| **백엔드 API** | **엔드포인트 51개** — 제품(목록·검색·상세·후기)·대체품·추천·인증(가입·로그인·갱신·로그아웃·비밀번호 변경)·프로필(닉네임·이메일)·진단·개인 데이터(화장대·장바구니·찜·최근본·주문·후기·포인트·스캔·선물)·알림·성분 설명·OCR 제품 매칭·챗봇·날씨·케어문구·`GET /health` |
-| **프론트엔드** | 화면 라우트 39개(+리다이렉트 11) · 페이지 파일 37개. **제품 데이터는 전 화면이 실 API**를 봅니다. 개인 데이터는 로그인 시 서버, 비회원은 localStorage. 계정 화면은 `RequireAuth`가 게스트를 막습니다 |
-| **테스트** | 백엔드 pytest **334건** 통과 (`backend/tests/` 11개 파일, `test_volume_parsing.py` 제외 — 컨테이너에 `scripts/`가 없어 수집 실패). 프론트는 여전히 0건 |
+| **DB** | Neon PostgreSQL 16 · 테이블 32개 · **제품 4,013 / 성분 23,147 / 연결 163,103 / 유사도 146,940 / 성분 설명 3,687 / 영문 제품명 3,175 / 계정 5** → [docs/db-schema.md](docs/db-schema.md) |
+| **백엔드 API** | **엔드포인트 56개** — 제품(목록·검색·성분 검색·상세·후기)·대체품·추천·인증(가입·로그인·갱신·로그아웃·비밀번호 변경)·프로필(닉네임·이메일)·진단·개인 데이터(화장대·장바구니·찜·최근본·주문·취소·반품·후기·후기 사진·포인트·스캔·보낸/받은 선물)·알림·성분 설명·OCR 제품 매칭·챗봇·날씨·케어문구·`GET /health` |
+| **프론트엔드** | 화면 라우트 41개(+리다이렉트 10) · 페이지 파일 39개. **제품 데이터는 전 화면이 실 API**를 봅니다. 개인 데이터는 로그인 시 서버, 비회원은 localStorage. 계정 화면은 `RequireAuth`가 게스트를 막습니다 |
+| **테스트** | 백엔드 pytest **342건** 통과 (`backend/tests/` 11개 파일, `test_volume_parsing.py` 제외 — 컨테이너에 `scripts/`가 없어 수집 실패). 프론트는 여전히 0건 |
 
 **제품 더미 데이터는 전부 걷어냈습니다.** 이전에는 `src/mocks/alternatives.ts` 등의 가짜 제품에 붙은 id(102~109 등)가 실재 카탈로그 id와 겹쳐, 카드에 적힌 것과 **전혀 다른 제품의 상세가 조용히 열렸습니다**. `npm run check:dummy`가 재발을 막습니다 — 배경은 [frontend/README.md](frontend/README.md) 7-2절.
 
@@ -73,8 +73,11 @@
   `alembic revision --autogenerate`는 **rename을 감지하지 못해 DROP + CREATE를 만듭니다.** 테이블·컬럼 이름을 바꿀 때는 마이그레이션을 직접 작성하세요 — 자세한 내용은 [backend/README.md](backend/README.md)
 - **마이그레이션이 포함된 PR을 revert할 때는 DB를 먼저 되돌립니다.** PR을 revert해도 DB는 따라오지 않습니다 —
   파일만 사라지고 `alembic_version`은 그 revision에 남아, **alembic이 길을 잃고 `current`·`upgrade`·`check`가 전부 멈춥니다.**
-  순서는 `alembic downgrade <직전 revision>` → revert입니다. 이미 revert했다면 `git show <머지 전 커밋>:<마이그레이션 파일>`로
-  파일을 임시 복구해 downgrade한 뒤 파일을 다시 지우면 됩니다 (2026-10-01 PR #64에서 실제로 겪었습니다)
+  순서는 `alembic downgrade <그 마이그레이션 파일의 down_revision>` → revert입니다. 특정 revision id를 외워 두지 말고 매번 파일에서 읽으세요.
+  단, **먼저 `alembic current`가 그 revision인지(= 그것이 head인지) 확인합니다.** 그 위에 다른 마이그레이션이 이미 쌓였다면
+  downgrade하지 마세요 — 공용 DB라 남의 마이그레이션과 데이터까지 함께 내려갑니다. 그때는 revert 대신 되돌리는 마이그레이션을 새로 씁니다.
+  이미 revert했다면 `git show <머지 전 커밋>:<마이그레이션 파일>`로 파일을 임시 복구해 같은 확인을 거쳐 downgrade한 뒤 파일을 다시 지우면 됩니다
+  (2026-10-01 PR #64에서 실제로 겪었습니다) — 절차는 [backend/README.md](backend/README.md)
 - **DB는 공용입니다.** 한 사람이 `alembic upgrade head`를 돌리면 팀 전원의 스키마가 바뀝니다. 남의 데이터를 지우는
   마이그레이션은 돌리기 전에 알리세요
 - `.env`는 커밋하지 않습니다. Neon 조직 `dmu` 초대로 각자 DSN을 받습니다

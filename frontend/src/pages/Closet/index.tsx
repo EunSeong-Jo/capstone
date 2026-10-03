@@ -114,6 +114,9 @@ function VanityView() {
 
           {/* 제품 목록 */}
           <div className="rounded-[20px] bg-white border border-[#ECEEE8] px-4">
+            {shown.length === 0 && (
+              <p className="py-8 text-center text-xs text-gray-50">해당하는 제품이 없어요</p>
+            )}
             {shown.map((item, i) => {
               const s = STATUS_STYLE[item.status];
               const via = SOURCE_LABEL[item.addedVia];

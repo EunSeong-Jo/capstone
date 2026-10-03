@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ProductReviews as Reviews, fetchProductReviews } from '../../api/products';
+import {
+  ProductReviews as Reviews,
+  ReviewSort,
+  fetchProductReviews,
+} from '../../api/products';
+import { useSkinType } from '../../hooks/useSkinType';
+import { SKIN_TYPE_META, SkinType } from '../../types';
 
 /**
  * 제품 상세의 후기 섹션.
@@ -36,28 +42,54 @@ const Stars = ({ rating }: { rating: number }) => (
  * 방식이다(useStats·useOrders 주석 참고).
  */
 interface Loaded {
-  productId: number;
+  key: string;
   reviews: Reviews | null;
 }
 
+const SORTS: [ReviewSort, string][] = [
+  ['latest', '최신순'],
+  ['rating_desc', '별점 높은순'],
+  ['rating_asc', '별점 낮은순'],
+  ['oldest', '오래된순'],
+];
+
+/** 작성자 피부타입 표시 — "겉바속촉 수부지" */
+const skinLabel = (code: string | null) =>
+  code && code in SKIN_TYPE_META ? SKIN_TYPE_META[code as SkinType].label : null;
+
 export function ProductReviews({ productId }: { productId: number }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [sort, setSort] = useState<ReviewSort>('latest');
+  const [rating, setRating] = useState<number | null>(null);
+  const [sameSkin, setSameSkin] = useState(false);
+  const { skinType: mySkin } = useSkinType();
+
+  const skinFilter = sameSkin && mySkin ? mySkin : undefined;
+  const key = `${productId}:${sort}:${rating ?? ''}:${skinFilter ?? ''}`;
 
   useEffect(() => {
     const controller = new AbortController();
 
-    fetchProductReviews(productId, controller.signal)
-      .then((reviews) => setLoaded({ productId, reviews }))
+    fetchProductReviews(
+      productId,
+      { sort, rating: rating ?? undefined, skinType: skinFilter },
+      controller.signal,
+    )
+      .then((reviews) => setLoaded({ key, reviews }))
       .catch((err: unknown) => {
         if (err instanceof DOMException && err.name === 'AbortError') return;
         // 후기를 못 불러왔다고 제품 상세 전체를 막을 이유는 없다.
-        setLoaded({ productId, reviews: null });
+        setLoaded({ key, reviews: null });
       });
 
     return () => controller.abort();
-  }, [productId]);
+  }, [key, productId, sort, rating, skinFilter]);
 
-  const current = loaded?.productId === productId ? loaded : null;
+  // 정렬·필터를 바꾸는 동안에는 이전 결과를 그대로 둔다 — 요약 카드가
+  // 스켈레톤으로 깜빡이지 않게. 제품이 바뀌면 이전 결과는 남의 것이다.
+  const sameProduct = loaded?.key.startsWith(`${productId}:`) ?? false;
+  const current = sameProduct ? loaded : null;
+  const refreshing = loaded !== null && loaded.key !== key;
   const data = current?.reviews ?? null;
   // 조회가 끝났는데 결과가 없으면 실패다 — 섹션을 통째로 숨긴다.
   if (current !== null && data === null) return null;
@@ -107,18 +139,77 @@ export function ProductReviews({ productId }: { productId: number }) {
             </div>
           </div>
 
-          <ul className="mt-3 divide-y divide-gray-10">
+          {/* 정렬 · 필터 */}
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-[12px] text-gray-50">
+              {rating !== null || skinFilter ? `조건에 맞는 후기 ${data.matched}개` : `전체 ${data.total}개`}
+            </span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as ReviewSort)}
+              aria-label="후기 정렬"
+              className="rounded-lg border border-gray-20 bg-white px-2 py-1 text-[12px] font-semibold text-gray-100 outline-none"
+            >
+              {SORTS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 pb-1 scrollbar-hide">
+            <button
+              type="button"
+              disabled={!mySkin}
+              onClick={() => setSameSkin((v) => !v)}
+              title={mySkin ? undefined : '피부타입 진단 후 쓸 수 있어요'}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-[12px] font-semibold disabled:opacity-40 ${
+                sameSkin && mySkin ? 'border-primary bg-primary-light text-primary-dark' : 'border-gray-20 bg-white text-gray-70'
+              }`}
+            >
+              내 피부타입과 같은 사람
+            </button>
+            {[5, 4, 3, 2, 1].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setRating(rating === n ? null : n)}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-[12px] font-semibold ${
+                  rating === n ? 'border-primary bg-primary-light text-primary-dark' : 'border-gray-20 bg-white text-gray-70'
+                }`}
+              >
+                ★ {n}점
+              </button>
+            ))}
+          </div>
+
+          {data.items.length === 0 && (
+            <p className="py-8 text-center text-[13px] text-gray-50">조건에 맞는 후기가 없어요</p>
+          )}
+          <ul className={`mt-1 divide-y divide-gray-10 transition-opacity ${refreshing ? 'opacity-50' : ''}`}>
             {data.items.map((r) => (
               <li key={r.id} className="py-3.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <Stars rating={r.rating} />
                     <span className="text-[12px] font-semibold text-gray-100">{r.nickname}</span>
+                    {skinLabel(r.skinType) && (
+                      <span className="text-[11px] text-gray-50">{skinLabel(r.skinType)}</span>
+                    )}
                   </div>
                   <span className="shrink-0 text-[11px] text-gray-50">{fmtDate(r.createdAt)}</span>
                 </div>
                 {r.body && (
                   <p className="mt-1.5 text-[13px] leading-relaxed text-gray-70">{r.body}</p>
+                )}
+                {r.photoUrls?.length > 0 && (
+                  <div className="mt-2 flex gap-1.5">
+                    {r.photoUrls.map((url) => (
+                      <a key={url} href={url} target="_blank" rel="noreferrer">
+                        <img src={url} alt="후기 사진" className="h-20 w-20 rounded-lg object-cover" />
+                      </a>
+                    ))}
+                  </div>
                 )}
               </li>
             ))}

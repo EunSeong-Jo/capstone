@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { useOrders } from '../../hooks/useOrders';
+import { STAGE_BADGE, STAGE_LABEL } from '../../utils/orderStage';
 
 /**
  * 주문 상세 — 영수증 형태로 품목·결제 내역을 보여준다.
@@ -74,8 +75,8 @@ export default function OrderDetailPage() {
           </div>
           <div className="mt-1.5 flex items-center justify-between">
             <span className="text-xs text-gray-50">주문상태</span>
-            <span className="inline-block rounded bg-primary px-2 py-0.5 text-[11px] font-bold text-white">
-              결제완료
+            <span className={`inline-block rounded px-2 py-0.5 text-[11px] font-bold ${STAGE_BADGE[order.stage] ?? STAGE_BADGE.paid}`}>
+              {STAGE_LABEL[order.stage] ?? order.stage}
             </span>
           </div>
         </div>
