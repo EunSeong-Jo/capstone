@@ -136,11 +136,9 @@ export default function AlternativesPage() {
 
   const { items: closetItems } = useCloset();
   const closetMatch = closetItems.find((c) => c.id === seedId);
-  // 화장대 제품은 분석을 마쳐야 대체품을 찾는다. 막힌 동안은 조회도 하지 않는다.
-  const notAnalyzed = !!closetMatch && closetMatch.status !== 'analyzed';
 
   const seedProduct = useProduct(seedId);
-  const similar = useSimilarProducts(notAnalyzed ? undefined : seedId, {
+  const similar = useSimilarProducts(seedId, {
     limit: 20,
     method,
     seedProduct: seedProduct.product,
@@ -184,21 +182,6 @@ export default function AlternativesPage() {
       <PageWrapper>
         <Header showBack title="내 화장대 대체품 찾기" />
         <ClosetSeedPicker />
-      </PageWrapper>
-    );
-  }
-
-  if (notAnalyzed) {
-    return (
-      <PageWrapper>
-        <Header showBack title="대체품 추천" />
-        <Notice
-          emoji="🔬"
-          title="아직 분석이 안 됐어요"
-          description={`'${closetMatch.name}'은(는) 분석 전이에요. 내 화장대에서 분석하기를 누르면 대체품을 찾을 수 있어요.`}
-          actionLabel="화장대에서 분석하기"
-          onAction={() => navigate('/closet')}
-        />
       </PageWrapper>
     );
   }

@@ -537,7 +537,6 @@ Neon에는 컨테이너 초기화 훅이 없어 `CREATE EXTENSION`을 첫 마이
 | `point_transactions.reason` | `order_cancel` / `order_return`이 더해졌습니다. 취소·반품 시 그 주문의 적립을 음수로 회수합니다 |
 | `gifts.recipient_user_id` | 받는 사람 계정(닉네임으로 찾음, FK SET NULL). '받은 선물'이 여기서 나옵니다. 이전 행은 NULL — 이름만 적었던 선물입니다 |
 | `review_photos` | 후기 사진. 파일 서버가 없어 **바이트를 DB에 둡니다**(장당 2MB, 후기당 3장, `reviews` CASCADE). `GET /api/v1/reviews/photos/{id}`로 공개 |
-| `closet_items.status` | `analyzed`가 더해졌습니다. **대체품은 `analyzed` 제품만 기준으로 찾습니다.** 마이그레이션이 성분표가 있는 기존 `owned` 행을 `analyzed`로 올렸습니다 |
 
 PR #64로 들어왔다가 revert됐고(PR #67), dev 위에 다시 얹으며 `Revises`를 `a0fd1f8a5d3a`로 옮겼습니다.
 

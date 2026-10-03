@@ -9,8 +9,6 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from typing import Literal
-
 from pydantic import Field
 
 from app.schemas.product import ProductOut, _CamelModel
@@ -29,14 +27,6 @@ class ClosetItemIn(_CamelModel):
     # search / scan / chatbot / seed
     added_via: str = "search"
     status: str = "owned"
-
-
-# 화장대 제품 상태. analyzed(분석 완료)여야 대체품을 찾을 수 있다.
-ClosetStatus = Literal["owned", "scanned", "analyzing", "analyzed"]
-
-
-class ClosetStatusIn(_CamelModel):
-    status: ClosetStatus
 
 
 class CartLineOut(_CamelModel):

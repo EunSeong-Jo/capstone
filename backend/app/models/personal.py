@@ -70,8 +70,7 @@ class ClosetItem(Base):
     user_id: Mapped[uuid.UUID] = _user_fk()
     product_id: Mapped[int] = _product_fk()
 
-    # owned / scanned / analyzing / analyzed — 프론트 ClosetStatus와 같은 집합.
-    # analyzed(분석 완료)여야 대체품을 찾을 수 있다.
+    # owned / analyzing / scanned — 프론트 ClosetStatus와 같은 집합
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="owned")
     # seed / scan / chatbot / search — 어느 경로로 들어왔는지
     added_via: Mapped[str] = mapped_column(Text, nullable=False, server_default="search")

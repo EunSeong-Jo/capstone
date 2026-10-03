@@ -10,11 +10,7 @@ import { createContext, useContext } from 'react';
  * 다시 시작합니다. `userProfile.ts`가 먼저 쓴 방식을 따릅니다.
  */
 
-/**
- * analyzed(분석 완료)여야 대체품을 찾을 수 있다. 나머지는 전부 '분석 전'이다.
- * analyzing은 예전 데이터 호환용 — 분석 중 표시는 화면이 따로 들고 있다.
- */
-export type ClosetStatus = 'owned' | 'analyzing' | 'scanned' | 'analyzed';
+export type ClosetStatus = 'owned' | 'analyzing' | 'scanned';
 export type ClosetSource = 'seed' | 'scan' | 'chatbot' | 'search';
 
 export interface ClosetItem {
@@ -36,8 +32,6 @@ export type ClosetDraft = Omit<ClosetItem, 'addedAt' | 'status'> & {
 
 export interface ClosetContextValue {
   items: ClosetItem[];
-  /** 분석 완료된 제품만. 대체품 추천의 기준으로는 이것만 쓴다 */
-  analyzedItems: ClosetItem[];
   count: number;
   /** 서버에서 불러오는 중. 화면은 스켈레톤을 보여주면 된다. */
   loading: boolean;

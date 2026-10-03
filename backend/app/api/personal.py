@@ -55,7 +55,6 @@ from app.schemas.personal import (
     CartLineOut,
     CartOut,
     ClosetItemIn,
-    ClosetStatusIn,
     ClosetItemOut,
     FrequentItemOut,
     GiftIn,
@@ -192,36 +191,6 @@ async def add_closet(
         status=existing.status,
         added_via=existing.added_via,
         added_at=existing.added_at,
-    )
-
-
-@router.patch("/closet/{product_id}", response_model=ClosetItemOut, summary="화장대 제품 상태 변경")
-async def update_closet_status(
-    product_id: int,
-    body: ClosetStatusIn,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> ClosetItemOut:
-    """분석하기 → 분석 완료를 남긴다. 화면에서만 바꾸면 새로고침에 사라지고,
-    대체품 찾기가 다시 막힌다."""
-    item = await db.scalar(
-        select(ClosetItem).where(
-            ClosetItem.user_id == user.id, ClosetItem.product_id == product_id
-        )
-    )
-    if item is None:
-        raise HTTPException(status_code=404, detail="화장대에 없는 제품입니다")
-    item.status = body.status
-    await db.commit()
-    await db.refresh(item)
-
-    products = await _products_of(db, [item.product_id])
-    return ClosetItemOut(
-        id=item.id,
-        product=products[item.product_id],
-        status=item.status,
-        added_via=item.added_via,
-        added_at=item.added_at,
     )
 
 

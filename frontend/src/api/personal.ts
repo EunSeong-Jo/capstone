@@ -157,8 +157,6 @@ async function send(path: string, method: string, body?: unknown): Promise<void>
 export const fetchCloset = () => request<ClosetItemDto[]>('/api/v1/me/closet');
 export const addClosetItem = (productId: number, addedVia = 'search') =>
   postJson<ClosetItemDto>('/api/v1/me/closet', { productId, addedVia });
-export const setClosetStatus = (productId: number, status: string) =>
-  patchJson<ClosetItemDto>(`/api/v1/me/closet/${productId}`, { status });
 export const removeClosetItem = (productId: number) =>
   send(`/api/v1/me/closet/${productId}`, 'DELETE');
 

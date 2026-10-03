@@ -125,33 +125,6 @@ async def test_closet_add_is_idempotent(client: AsyncClient, account, product_id
     assert len(listed.json()) == 1
 
 
-async def test_closet_status_update(client: AsyncClient, account, product_ids) -> None:
-    """분석 완료가 서버에 남아야 새로고침 뒤에도 대체품을 찾을 수 있다."""
-    pid = product_ids[0]
-    await client.post(f"{ME}/closet", json={"productId": pid}, **account)
-
-    res = await client.patch(f"{ME}/closet/{pid}", json={"status": "analyzed"}, **account)
-    assert res.status_code == 200
-    assert res.json()["status"] == "analyzed"
-
-    listed = await client.get(f"{ME}/closet", **account)
-    assert listed.json()[0]["status"] == "analyzed"
-
-
-async def test_closet_status_rejects_unknown_value(client: AsyncClient, account, product_ids) -> None:
-    pid = product_ids[0]
-    await client.post(f"{ME}/closet", json={"productId": pid}, **account)
-    res = await client.patch(f"{ME}/closet/{pid}", json={"status": "done"}, **account)
-    assert res.status_code == 422
-
-
-async def test_closet_status_needs_item_in_closet(client: AsyncClient, account, product_ids) -> None:
-    res = await client.patch(
-        f"{ME}/closet/{product_ids[0]}", json={"status": "analyzed"}, **account
-    )
-    assert res.status_code == 404
-
-
 async def test_closet_rejects_unknown_product(client: AsyncClient, account) -> None:
     """**이 도메인이 서버로 온 이유.** localStorage에는 아무 숫자나 들어갔다."""
     res = await client.post(f"{ME}/closet", json={"productId": NO_SUCH_PRODUCT}, **account)
