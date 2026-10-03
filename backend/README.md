@@ -169,7 +169,8 @@ d07012ddaaa9  Phase 2 개인 데이터 테이블 9개
 929b93541c4a  gifts 테이블
 2425accbef26  profiles.decoration_id          캐릭터 꾸미기
 3f3233afae88  profiles.notifications_seen_at   알림 읽음 시각
-952adbaa9665  ingredient_descriptions         ← head
+952adbaa9665  ingredient_descriptions
+a0fd1f8a5d3a  product_names_en                영문 제품명 (OCR 대조)  ← head
 ```
 
 `alembic history`로 언제든 실제 체인을 볼 수 있습니다. 이 표는 설명용이라 어긋나면 그때 고칩니다.
