@@ -5,3 +5,11 @@
 
 # 성분사전 PDF 추출 (scripts/extract_ingredient_dict.py)
 pdfplumber==0.11.10
+
+# 제품 이미지 유사도 (scripts/download_product_images.py ·
+# embed_product_images.py · eval_image_match.py)
+# onnxruntime은 CPU 전용 빌드다 — 이 환경에 GPU가 없고, 측정 결과 CPU로 충분하다
+# (DINOv2-small 장당 p90 62ms). backend/requirements.txt에 넣지 않는 이유는
+# API가 아직 이 모델을 쓰지 않기 때문이다.
+onnxruntime==1.30.0
+pillow==12.3.0
