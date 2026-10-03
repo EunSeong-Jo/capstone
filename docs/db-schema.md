@@ -10,9 +10,9 @@
 | DBMS | PostgreSQL 16.15 |
 | 호스팅 | Neon (serverless) · branch `production` · db `neondb` |
 | 확장 | `pg_trgm` 1.6 |
-| alembic head | `952adbaa9665` |
-| 테이블 | 29 (Phase 1 18 + 개인 데이터 10 + 성분 설명 1) |
-| 기준일 | 2026-09-30 |
+| alembic head | `a9c1e2f3d4b5` |
+| 테이블 | 31 (Phase 1 18 + 개인 데이터 11 + 성분 설명 1 + 영문 제품명 1) |
+| 기준일 | 2026-10-03 |
 
 ---
 
@@ -528,6 +528,18 @@ Neon에는 컨테이너 초기화 훅이 없어 `CREATE EXTENSION`을 첫 마이
 전부 `user_id` FK(ON DELETE CASCADE)이고, 제품을 가리키는 컬럼은 `products.id` FK입니다. **없는 제품이 들어갈 수 없다**는 것이 이 테이블들을 만든 이유입니다 — 이전까지 이 데이터는 프론트 localStorage에 있었고, 목업 시절의 가짜 제품 id(102·960001 등)가 그대로 저장돼 화면이 엉뚱한 제품 상세를 열었습니다.
 
 예외는 `order_items`로, 제품명·가격을 행에 복사해 둡니다. 주문은 "그때 그 가격에 샀다"는 기록이라 제품 가격이 바뀌어도 과거 금액이 따라 움직이면 안 됩니다. `product_id`는 SET NULL이라 제품이 카탈로그에서 내려가도 기록이 남습니다.
+
+**주문 취소·반품, 받은 선물, 후기 사진을 추가했습니다** (`a9c1e2f3d4b5`).
+
+| 대상 | 내용 |
+|---|---|
+| `orders.closed_at` · `close_reason` | 취소·반품 시각과 사유. `status`는 `placed` / `cancelled` / `returned`. 배송 단계(결제완료~배송완료)는 **저장하지 않고** `placed_at`에서 계산합니다(`services/order_stage.py`) — 택배 연동이 없기 때문입니다 |
+| `point_transactions.reason` | `order_cancel` / `order_return`이 더해졌습니다. 취소·반품 시 그 주문의 적립을 음수로 회수합니다 |
+| `gifts.recipient_user_id` | 받는 사람 계정(닉네임으로 찾음, FK SET NULL). '받은 선물'이 여기서 나옵니다. 이전 행은 NULL — 이름만 적었던 선물입니다 |
+| `review_photos` | 후기 사진. 파일 서버가 없어 **바이트를 DB에 둡니다**(장당 2MB, 후기당 3장, `reviews` CASCADE). `GET /api/v1/reviews/photos/{id}`로 공개 |
+| `closet_items.status` | `analyzed`가 더해졌습니다. **대체품은 `analyzed` 제품만 기준으로 찾습니다.** 마이그레이션이 성분표가 있는 기존 `owned` 행을 `analyzed`로 올렸습니다 |
+
+PR #64로 들어왔다가 revert됐고(PR #67), dev 위에 다시 얹으며 `Revises`를 `a0fd1f8a5d3a`로 옮겼습니다.
 
 **`product_names_en`을 추가했습니다** (`a0fd1f8a5d3a`).
 
