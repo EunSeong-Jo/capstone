@@ -25,6 +25,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     SmallInteger,
     Text,
     UniqueConstraint,
@@ -69,7 +70,8 @@ class ClosetItem(Base):
     user_id: Mapped[uuid.UUID] = _user_fk()
     product_id: Mapped[int] = _product_fk()
 
-    # owned / analyzing / scanned — 프론트 ClosetStatus와 같은 집합
+    # owned / scanned / analyzing / analyzed — 프론트 ClosetStatus와 같은 집합.
+    # analyzed(분석 완료)여야 대체품을 찾을 수 있다.
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="owned")
     # seed / scan / chatbot / search — 어느 경로로 들어왔는지
     added_via: Mapped[str] = mapped_column(Text, nullable=False, server_default="search")
@@ -154,10 +156,15 @@ class Order(Base):
     # 결제 시점의 합계. order_items에서 다시 계산할 수 있지만, 그러면 제품
     # 가격이 바뀔 때마다 과거 주문 금액이 따라 움직인다.
     total: Mapped[int] = mapped_column(Integer, nullable=False)
+    # placed / cancelled / returned. 배송 단계(결제완료~배송완료)는 저장하지 않고
+    # placed_at에서 계산한다 — services/order_stage.py.
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="placed")
     placed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
+    # 취소·반품한 시각과 사유. placed인 동안은 NULL이다.
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    close_reason: Mapped[str | None] = mapped_column(Text)
 
     items: Mapped[list["OrderItem"]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
@@ -224,7 +231,8 @@ class PointTransaction(Base):
     user_id: Mapped[uuid.UUID] = _user_fk()
     # 적립은 양수, 사용은 음수. 부호로 구분하면 합계가 곧 잔액이 된다.
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
-    reason: Mapped[str] = mapped_column(Text, nullable=False)  # order / review
+    # order / review / order_cancel / order_return (뒤의 둘은 적립 회수, 음수)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
     order_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("orders.id", ondelete="SET NULL")
     )
@@ -279,6 +287,10 @@ class Gift(Base):
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     sender_user_id: Mapped[uuid.UUID] = _user_fk()
+    # 받는 사람 계정. 닉네임으로 찾는다. 이 컬럼이 생기기 전의 선물은 NULL이다.
+    recipient_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
     # 제품이 카탈로그에서 빠져도 기록은 남는다 — 이름·가격이 박제돼 있다.
     product_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("products.id", ondelete="SET NULL")
@@ -292,4 +304,26 @@ class Gift(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+
+class ReviewPhoto(Base):
+    """후기 사진.
+
+    파일 서버가 없어 바이트를 DB에 둔다. 화면이 올리기 전에 줄여서(긴 변
+    1080px JPEG) 장당 수백 KB 안쪽이고, 후기 한 건에 3장까지다.
+    """
+
+    __tablename__ = "review_photos"
+    __table_args__ = (Index("idx_review_photos_review", "review_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    review_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("reviews.id", ondelete="CASCADE"), nullable=False
+    )
+    position: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    content_type: Mapped[str] = mapped_column(Text, nullable=False)
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
     )

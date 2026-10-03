@@ -35,6 +35,7 @@ const UNSUPPORTED =
 
 export function useCamera(enabled = true): UseCameraResult {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -52,6 +53,7 @@ export function useCamera(enabled = true): UseCameraResult {
           return;
         }
         stream = s;
+        streamRef.current = s;
         if (videoRef.current) videoRef.current.srcObject = s;
         setReady(true);
       })
@@ -62,8 +64,22 @@ export function useCamera(enabled = true): UseCameraResult {
     return () => {
       cancelled = true;
       stream?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      setReady(false);
     };
   }, [enabled]);
+
+  /**
+   * 화면은 ready가 된 **뒤에** <video>를 그린다. 스트림이 도착한 순간에는
+   * videoRef가 아직 비어 있어서 srcObject를 못 붙였고, 카메라 표시등만 켜진 채
+   * 검은 화면이 나왔다. 요소가 생긴 뒤(이 effect는 커밋 후에 돈다) 붙인다.
+   */
+  useEffect(() => {
+    const video = videoRef.current;
+    if (ready && video && streamRef.current && video.srcObject !== streamRef.current) {
+      video.srcObject = streamRef.current;
+    }
+  });
 
   return { videoRef, ready, denied: UNSUPPORTED || failed };
 }

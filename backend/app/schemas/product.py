@@ -131,6 +131,9 @@ class ProductReviewOut(_CamelModel):
     rating: int
     body: str | None = None
     created_at: datetime
+    photo_urls: list[str] = []
+    # 작성자 피부타입 코드(8종). 진단 전이면 None.
+    skin_type: str | None = None
 
 
 class ProductReviewsOut(_CamelModel):
@@ -142,7 +145,10 @@ class ProductReviewsOut(_CamelModel):
     """
 
     items: list[ProductReviewOut]
+    # 이 제품의 후기 전체 수(필터와 무관). 제목의 '후기 (N)'.
     total: int
+    # 지금 필터(별점·피부타입)에 맞는 수. 필터가 없으면 total과 같다.
+    matched: int = 0
     # 소수 첫째 자리까지. 후기가 없으면 None이다 — 0.0으로 내면 "최악"과
     # "아직 없음"이 같아 보인다.
     average: float | None = None

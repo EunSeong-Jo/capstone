@@ -43,15 +43,16 @@ export default function GiftComposePage() {
     try {
       await sendGift(product.id, name.trim(), message.trim() || undefined);
       showToast('선물 기록을 남겼어요', {
-        label: '보낸 선물',
+        label: '보낸/받은 선물',
         onClick: () => navigate('/mypage/gifts'),
       });
       navigate(-1);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError('로그인 후에 보낼 수 있어요.');
-      } else if (err instanceof ApiError && err.status === 404) {
-        setError('제품을 찾을 수 없어요.');
+      } else if (err instanceof ApiError && [404, 409, 422].includes(err.status)) {
+        // 없는 닉네임·겹치는 닉네임·나 자신 — 서버 문구가 그대로 안내가 된다.
+        setError(err.message);
       } else {
         setError('선물을 보내지 못했어요.');
       }
@@ -87,7 +88,7 @@ export default function GiftComposePage() {
       )}
 
       <div className="flex-1 px-4 py-5">
-        <label className="mb-1.5 block text-[13px] font-bold text-oy-text">받는 분 이름</label>
+        <label className="mb-1.5 block text-[13px] font-bold text-oy-text">받는 분 닉네임</label>
         <input
           value={name}
           disabled={sending}
@@ -95,7 +96,7 @@ export default function GiftComposePage() {
             setName(e.target.value.slice(0, MAX_NAME));
             setError(null);
           }}
-          placeholder="이름을 입력해 주세요"
+          placeholder="받는 분의 swappy 닉네임"
           className="mb-4 h-12 w-full rounded-xl border border-oy-line bg-white px-3.5 text-sm text-oy-text outline-none focus:border-primary disabled:opacity-60"
         />
 
@@ -114,9 +115,8 @@ export default function GiftComposePage() {
         </p>
 
         <p className="mt-4 rounded-xl bg-white p-3.5 text-[12px] leading-relaxed text-gray-50">
-          지금은 <span className="font-semibold text-gray-100">보낼 선물을 기록해 두는 것</span>
-          까지예요. 결제와 실제 전달은 아직 연결하지 않아서, 받는 분께 바로
-          가지는 않아요.
+          선물은 받는 분의 <span className="font-semibold text-gray-100">받은 선물함</span>에
+          기록돼요. 결제와 실물 배송은 아직 연결하지 않았어요.
         </p>
 
         {error && <p className="mt-3 text-[12px] font-semibold text-[#D64545]">{error}</p>}
