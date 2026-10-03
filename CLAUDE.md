@@ -73,8 +73,11 @@
   `alembic revision --autogenerate`는 **rename을 감지하지 못해 DROP + CREATE를 만듭니다.** 테이블·컬럼 이름을 바꿀 때는 마이그레이션을 직접 작성하세요 — 자세한 내용은 [backend/README.md](backend/README.md)
 - **마이그레이션이 포함된 PR을 revert할 때는 DB를 먼저 되돌립니다.** PR을 revert해도 DB는 따라오지 않습니다 —
   파일만 사라지고 `alembic_version`은 그 revision에 남아, **alembic이 길을 잃고 `current`·`upgrade`·`check`가 전부 멈춥니다.**
-  순서는 `alembic downgrade <직전 revision>` → revert입니다. 이미 revert했다면 `git show <머지 전 커밋>:<마이그레이션 파일>`로
-  파일을 임시 복구해 downgrade한 뒤 파일을 다시 지우면 됩니다 (2026-10-01 PR #64에서 실제로 겪었습니다)
+  순서는 `alembic downgrade <그 마이그레이션 파일의 down_revision>` → revert입니다. 특정 revision id를 외워 두지 말고 매번 파일에서 읽으세요.
+  단, **먼저 `alembic current`가 그 revision인지(= 그것이 head인지) 확인합니다.** 그 위에 다른 마이그레이션이 이미 쌓였다면
+  downgrade하지 마세요 — 공용 DB라 남의 마이그레이션과 데이터까지 함께 내려갑니다. 그때는 revert 대신 되돌리는 마이그레이션을 새로 씁니다.
+  이미 revert했다면 `git show <머지 전 커밋>:<마이그레이션 파일>`로 파일을 임시 복구해 같은 확인을 거쳐 downgrade한 뒤 파일을 다시 지우면 됩니다
+  (2026-10-01 PR #64에서 실제로 겪었습니다) — 절차는 [backend/README.md](backend/README.md)
 - **DB는 공용입니다.** 한 사람이 `alembic upgrade head`를 돌리면 팀 전원의 스키마가 바뀝니다. 남의 데이터를 지우는
   마이그레이션은 돌리기 전에 알리세요
 - `.env`는 커밋하지 않습니다. Neon 조직 `dmu` 초대로 각자 DSN을 받습니다
