@@ -280,7 +280,11 @@ class Gift(Base):
     """
 
     __tablename__ = "gifts"
-    __table_args__ = (Index("idx_gifts_sender_created", "sender_user_id", "created_at"),)
+    __table_args__ = (
+        Index("idx_gifts_sender_created", "sender_user_id", "created_at"),
+        # 받은 선물 목록(GET /me/gifts/received). 마이그레이션 a9c1e2f3d4b5가 만든다.
+        Index("idx_gifts_recipient_created", "recipient_user_id", "created_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
