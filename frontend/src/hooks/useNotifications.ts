@@ -1,6 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchNotifications } from '../api/personal';
 import { useAuth } from '../context/auth';
+import { invalidate, load, meKey, peek, put } from '../api/queryCache';
+
+/**
+ * 배지는 홈에 들어올 때마다 그려지는데, 알림은 내 행동에서만 생긴다.
+ * 1분 안에는 다시 묻지 않는다(목록을 만드는 데 서버 쿼리가 여섯 번 돈다).
+ */
+const UNREAD_FRESH_MS = 60 * 1000;
+
+const unreadKey = (scope: string) => meKey(scope, 'unread');
+
+/** 알림함을 열어 읽음 처리하면 배지를 바로 0으로 */
+export function markUnreadSeen(scope: string) {
+  put(unreadKey(scope), 0);
+}
 
 /**
  * 안 읽은 알림 수 — 상단 앱바의 배지용.
@@ -22,14 +36,15 @@ export function useUnreadNotifications() {
   const [nonce, setNonce] = useState(0);
 
   const key = `${scope}:${nonce}`;
+  const cacheKey = unreadKey(scope);
 
   useEffect(() => {
     if (authLoading || !isUser) return;
 
     let alive = true;
-    fetchNotifications()
-      .then((res) => {
-        if (alive) setLoaded({ key, unreadCount: res.unreadCount });
+    load(cacheKey, () => fetchNotifications().then((res) => res.unreadCount), UNREAD_FRESH_MS)
+      .then((unreadCount) => {
+        if (alive) setLoaded({ key, unreadCount });
       })
       .catch(() => {
         if (alive) setLoaded({ key, unreadCount: 0 });
@@ -38,15 +53,20 @@ export function useUnreadNotifications() {
     return () => {
       alive = false;
     };
-  }, [key, isUser, authLoading]);
+  }, [key, cacheKey, isUser, authLoading]);
 
-  const reload = useCallback(() => setNonce((n) => n + 1), []);
+  const reload = useCallback(() => {
+    invalidate(cacheKey);
+    setNonce((n) => n + 1);
+  }, [cacheKey]);
 
   // 비회원은 셀 대상이 서버에 없다.
   if (!isUser) return { unreadCount: 0, reload };
 
+  // 캐시가 정본이다 — 알림함에서 읽음 처리하면(put 0) 다시 받지 않아도 배지가 꺼진다.
+  const cached = peek<number>(cacheKey)?.value;
   return {
-    unreadCount: loaded?.key === key ? loaded.unreadCount : 0,
+    unreadCount: cached ?? (loaded?.key === key ? loaded.unreadCount : 0),
     reload,
   };
 }

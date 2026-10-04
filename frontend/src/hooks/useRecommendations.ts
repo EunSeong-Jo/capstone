@@ -4,6 +4,7 @@ import {
   fetchRecommendationSet,
 } from '../api/recommendations';
 import type { Product, SkinType } from '../types';
+import { load, peek } from '../api/queryCache';
 
 /**
  * 피부타입 맞춤 추천 (`/api/v1/recommendations/main`, `/set`).
@@ -62,6 +63,22 @@ interface Loaded {
  * 진단을 한 적이 없는 계정(`skinType === null`, `skinPending === false`)은
  * 요청한다 — 서버가 skinType 없이도 인기순으로 응답하므로 빈 화면보다 낫다.
  */
+interface RecoPair {
+  forYou: Product[];
+  set: Product[];
+}
+
+/** 추천은 카탈로그·피부타입이 바뀔 때만 달라진다 */
+const RECO_FRESH_MS = 30 * 60 * 1000;
+
+async function fetchBoth(skinType: SkinType | null): Promise<RecoPair> {
+  const [main, set] = await Promise.all([
+    fetchMainRecommendations(skinType ?? undefined, 12),
+    fetchRecommendationSet(skinType ?? undefined),
+  ]);
+  return { forYou: main.items, set };
+}
+
 export function useRecommendations(
   skinType: SkinType | null,
   skinPending: boolean,
@@ -71,22 +88,20 @@ export function useRecommendations(
   const [nonce, setNonce] = useState(0);
 
   const key = `${skinType ?? 'none'}:${skinPending}#${nonce}`;
+  const cacheKey = `reco:${skinType ?? 'none'}`;
 
   useEffect(() => {
     // 타입을 아직 모르는 동안은 묻지 않는다. 지금 물으면 곧 다시 물어야 한다.
     if (skinPending) return;
 
-    const controller = new AbortController();
+    let alive = true;
 
-    Promise.all([
-      fetchMainRecommendations(skinType ?? undefined, 12, controller.signal),
-      fetchRecommendationSet(skinType ?? undefined, controller.signal),
-    ])
-      .then(([main, set]) => {
-        setLoaded({ key, forYou: main.items, set, error: null });
+    load(cacheKey, () => fetchBoth(skinType), RECO_FRESH_MS)
+      .then(({ forYou, set }) => {
+        if (alive) setLoaded({ key, forYou, set, error: null });
       })
       .catch((err: unknown) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (!alive) return;
         setLoaded({
           key,
           forYou: [],
@@ -95,12 +110,16 @@ export function useRecommendations(
         });
       });
 
-    return () => controller.abort();
-  }, [key, skinType, skinPending]);
+    return () => {
+      alive = false;
+    };
+  }, [key, cacheKey, skinType, skinPending]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  const current = loaded?.key === key ? loaded : null;
+  // 탭을 오가도 첫 렌더부터 지난 결과를 쓴다. 서버도 피부타입별로 24시간 캐시한다.
+  const cached = skinPending ? undefined : peek<RecoPair>(cacheKey)?.value;
+  const current = loaded?.key === key ? loaded : cached ? { key, ...cached, error: null } : null;
 
   // 이미 쓰고 있는 제품을 다시 추천하지 않는다.
   const ownedIds = new Set(owned.map((o) => o.id));

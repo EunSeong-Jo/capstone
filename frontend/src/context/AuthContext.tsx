@@ -28,6 +28,7 @@ import {
 } from './auth';
 import { findPersonaById, PERSONAS, Persona } from '../data/personas';
 import { readJSON, writeJSON } from './storage';
+import { invalidate } from '../api/queryCache';
 
 /**
  * 인증 (Task 12).
@@ -284,6 +285,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 네트워크 때문에 로그아웃이 안 되면 더 이상하다.
     if (refresh) void apiLogout(refresh).catch(() => undefined);
     clearTokens();
+    // 화면 캐시에 남은 이 계정의 통계·예산·알림 등을 지운다. 다음 사람이
+    // 같은 기기에서 보면 안 된다(키에 계정이 들어 있어 섞이진 않지만, 남길 이유도 없다).
+    invalidate('me:');
     setAccount(null);
     setAuth((prev) => {
       setPrevScope(scopeOf(prev));

@@ -10,6 +10,7 @@ import { useLikedProducts } from '../../context/liked';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
 import { FrequentItemDto, fetchFrequent } from '../../api/personal';
 import { useAuth } from '../../context/auth';
+import { load, meKey, peek } from '../../api/queryCache';
 
 type HistoryTab = 'recent' | 'liked' | 'frequent';
 
@@ -213,22 +214,37 @@ export function LikedTab() {
   );
 }
 
+/** 주문해야 바뀐다. 탭을 연달아 오갈 때는 다시 묻지 않는다 */
+const FREQUENT_FRESH_MS = 30 * 1000;
+
 export function FrequentTab() {
   // 실제 주문 기록에서 집계한다(GET /me/orders/frequent). 예전에는 이 탭
   // 전체가 mocks/frequentlyBought.ts의 고정 목업이었는데, id 201~303이 실재
   // 카탈로그 id와 겹쳐 "3회 구매"라고 적힌 카드를 탭하면 처음 보는 제품이
   // 열렸다.
-  const { isUser, loading: authLoading } = useAuth();
+  const { isUser, scope, loading: authLoading } = useAuth();
   const { isLiked, toggleLike } = useLikedProducts();
-  const [rows, setRows] = useState<FrequentItemDto[] | null>(null);
+  const cacheKey = meKey(scope, 'frequent');
+  // 앞서 받은 게 있으면 첫 렌더부터 그린다(탭 이동 깜빡임 제거).
+  const [rows, setRows] = useState<FrequentItemDto[] | null>(
+    () => peek<FrequentItemDto[]>(cacheKey)?.value ?? null,
+  );
 
   useEffect(() => {
     // 비회원은 조회하지 않는다. 주문 기록은 계정에 묶여 있다.
     if (authLoading || !isUser) return;
-    fetchFrequent()
-      .then(setRows)
-      .catch(() => setRows([]));
-  }, [isUser, authLoading]);
+    let alive = true;
+    load(cacheKey, () => fetchFrequent(), FREQUENT_FRESH_MS)
+      .then((r) => {
+        if (alive) setRows(r);
+      })
+      .catch(() => {
+        if (alive) setRows([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [isUser, authLoading, cacheKey]);
 
   // rows가 null이면 아직 응답이 오지 않은 것이다. 비회원은 조회 자체를
   // 하지 않으므로 로딩이 아니라 바로 빈 상태로 간다.

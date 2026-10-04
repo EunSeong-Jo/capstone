@@ -7,6 +7,8 @@ import {
   fetchNotifications,
   markNotificationsSeen,
 } from '../../api/personal';
+import { useAuth } from '../../context/auth';
+import { markUnreadSeen } from '../../hooks/useNotifications';
 
 /**
  * 알림함 (`GET /api/v1/me/notifications`).
@@ -48,6 +50,7 @@ function ago(iso: string): string {
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
+  const { scope } = useAuth();
   const [items, setItems] = useState<NotificationDto[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -65,11 +68,13 @@ export default function NotificationsPage() {
       .finally(() => alive && setLoading(false));
 
     void markNotificationsSeen().catch(() => undefined);
+    // 상단 바 배지는 캐시를 본다. 여기서 바로 꺼 둔다.
+    markUnreadSeen(scope);
 
     return () => {
       alive = false;
     };
-  }, []);
+  }, [scope]);
 
   return (
     <PageWrapper className="bg-surface-warm">

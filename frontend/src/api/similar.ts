@@ -20,6 +20,7 @@
  */
 import { Product, SkinType } from '../types';
 import { QueryParams, request } from './client';
+import { load, peek } from './queryCache';
 
 export const SIMILAR_METHODS = ['tfidf', 'jaccard', 'rbo'] as const;
 export type SimilarMethod = (typeof SIMILAR_METHODS)[number];
@@ -76,4 +77,23 @@ export function fetchSimilarProducts(
     params as QueryParams,
     signal,
   );
+}
+
+/** 유사도는 배치가 다시 돌기 전까지 바뀌지 않는다. 서버도 24시간 캐시한다 */
+const SIMILAR_FRESH_MS = 30 * 60 * 1000;
+
+/**
+ * 캐시를 거치는 `/similar`. 같은 제품·조건이면 화면이 여럿이어도 한 번만
+ * 요청한다(홈의 교체 제안·상단 대체품, 상세, 히스토리가 같은 제품을 묻는다).
+ */
+const similarKey = (id: number, q: SimilarQuery) =>
+  `similar:${id}:${q.method ?? ''}:${q.limit ?? ''}:${q.skinType ?? ''}`;
+
+export function loadSimilarProducts(id: number, query: SimilarQuery = {}): Promise<SimilarResponse> {
+  return load(similarKey(id, query), () => fetchSimilarProducts(id, query), SIMILAR_FRESH_MS);
+}
+
+/** 렌더 중 동기 조회. loadSimilarProducts와 같은 키를 쓴다 */
+export function peekSimilarProducts(id: number, query: SimilarQuery = {}): SimilarResponse | undefined {
+  return peek<SimilarResponse>(similarKey(id, query))?.value;
 }
