@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchProducts, ProductQuery } from '../api/products';
+import { fetchProducts, ProductQuery, ProductListResponse } from '../api/products';
+import { load, peek } from '../api/queryCache';
 import { Product } from '../types';
 import productsFixture from '../mocks/products.fixture.json';
 
@@ -86,18 +87,23 @@ interface Loaded {
   isMock: boolean;
 }
 
+/** 목록·정렬 결과. 서버가 1시간 캐시하므로 앱에서는 짧게 들고 있으면 된다 */
+const PRODUCTS_FRESH_MS = 5 * 60 * 1000;
+
 export function useProducts(query: ProductQuery = {}): UseProductsResult {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [nonce, setNonce] = useState(0);
 
   const queryKey = JSON.stringify(query);
   const key = `${queryKey}#${nonce}`;
+  const cacheKey = `products:${queryKey}`;
 
   useEffect(() => {
-    const controller = new AbortController();
+    let alive = true;
 
-    fetchProducts(JSON.parse(queryKey) as ProductQuery, controller.signal)
+    load(cacheKey, () => fetchProducts(JSON.parse(queryKey) as ProductQuery), PRODUCTS_FRESH_MS)
       .then((res) => {
+        if (!alive) return;
         setLoaded({
           key,
           products: res.items,
@@ -107,8 +113,7 @@ export function useProducts(query: ProductQuery = {}): UseProductsResult {
         });
       })
       .catch((err: unknown) => {
-        // 언마운트·재요청으로 인한 취소는 오류가 아닙니다.
-        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (!alive) return;
         if (MOCK_FALLBACK) {
           // 로컬 데모 — 서버가 없으면 목업으로 화면을 채운다
           const fallback = mockSlice(JSON.parse(queryKey) as ProductQuery);
@@ -130,12 +135,21 @@ export function useProducts(query: ProductQuery = {}): UseProductsResult {
         });
       });
 
-    return () => controller.abort();
-  }, [key, queryKey]);
+    return () => {
+      alive = false;
+    };
+  }, [key, cacheKey, queryKey]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  const current = loaded?.key === key ? loaded : null;
+  // 탭을 오가도 첫 렌더부터 지난 결과를 쓴다.
+  const cached = peek<ProductListResponse>(cacheKey)?.value;
+  const current =
+    loaded?.key === key
+      ? loaded
+      : cached
+        ? { key, products: cached.items, total: cached.total, error: null, isMock: false }
+        : null;
 
   return {
     products: current?.products ?? [],

@@ -16,11 +16,12 @@ from __future__ import annotations
 
 from enum import Enum
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.core.cache import cache_get, cache_set, get_cache_version
 from app.db.session import get_db
 from app.models.product import Product
 from app.models.recommendation import Similarity
@@ -30,6 +31,9 @@ from app.services.skin_type import apply_exclusions, load_rule
 router = APIRouter(prefix="/api/v1/products", tags=["recommendations"])
 
 MAX_LIMIT = 20  # 배치가 제품당 20개만 적재한다. 더 달라고 해도 줄 게 없다.
+# 유사도는 배치가 새로 돌기 전까지 바뀌지 않는다. 배치·적재 스크립트가
+# products:cache_version을 올리면 키가 바뀌어 저절로 새로 계산된다.
+CACHE_TTL = 60 * 60 * 24
 
 
 class Method(str, Enum):
@@ -46,6 +50,7 @@ class Method(str, Enum):
     summary="성분이 비슷한 제품",
 )
 async def list_similar(
+    response: Response,
     product_id: int = Path(..., ge=1),
     method: Method = Query(
         Method.tfidf,
@@ -64,11 +69,21 @@ async def list_similar(
     성분이 비슷하다고 다 권할 수 있는 건 아니다 — 민감성 사용자에게
     착향제가 든 제품을 대체품으로 내밀면 유사도가 높을수록 더 나쁘다.
 
-    캐싱을 붙이지 않았다. `core/cache.py`의 버전 키 방식을 쓰려면 배치
-    실행과 무효화 시점을 맞춰야 하는데, 지금은 데이터가 부분 적재라
-    이르다. 조회 자체는 idx_similarities_lookup 하나로 끝난다.
+    Redis에 24시간 캐시한다. 결과는 제품·방식·피부타입으로만 정해지고
+    계정과 무관해서, 한 번 계산하면 모든 사용자가 같이 쓴다. 홈의 교체
+    제안이 화장대 제품마다 이 API를 부르는데 한 번에 1~2초씩 걸렸다(Neon
+    왕복 여러 번). 무효화는 `products:cache_version` — 유사도 배치
+    (`scripts/compute_similarities.py`)와 제품 적재가 올린다.
     """
+    version = await get_cache_version()
+    key = f"similar:v{version}:{product_id}:{method.value}:{limit}:{skin_type or 'any'}"
+    cached = await cache_get(key)
+    if cached is not None:
+        response.headers["X-Cache"] = "HIT"
+        return SimilarListOut.model_validate_json(cached)
+
     # 제품이 실제로 없는 것과 유사도가 아직 없는 것을 구분한다.
+    # 404는 캐시하지 않는다 — 없는 id로 키를 채울 이유가 없다.
     exists = await db.scalar(select(Product.id).where(Product.id == product_id))
     if exists is None:
         raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
@@ -110,4 +125,7 @@ async def list_similar(
         for score, shared, p in rows.all()
     ]
 
-    return SimilarListOut(seed_id=product_id, method=method.value, items=items)
+    out = SimilarListOut(seed_id=product_id, method=method.value, items=items)
+    await cache_set(key, out.model_dump_json(by_alias=True), CACHE_TTL)
+    response.headers["X-Cache"] = "MISS"
+    return out

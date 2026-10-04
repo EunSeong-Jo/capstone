@@ -90,7 +90,10 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     });
   }
 
-  const items = store.items;
+  // 삭제된 제품까지 전부. 화면에는 둘로 나눠 내보낸다.
+  const all = store.items;
+  const items = useMemo(() => all.filter((i) => i.status !== 'removed'), [all]);
+  const removedItems = useMemo(() => all.filter((i) => i.status === 'removed'), [all]);
   const setItems = useCallback(
     (next: ClosetItem[] | ((prev: ClosetItem[]) => ClosetItem[])) => {
       setStore((prev) => ({
@@ -131,7 +134,8 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     (async () => {
       // 게스트로 담아 둔 것이 있으면 한 번 서버로 옮긴다. 옮긴 뒤 비워야
       // 다음 로그인에서 다시 올라가지 않는다.
-      const pending = readJSON<ClosetItem[]>(GUEST_KEY, []);
+      // 게스트가 지운 제품은 옮기지 않는다.
+      const pending = readJSON<ClosetItem[]>(GUEST_KEY, []).filter((p) => p.status !== 'removed');
       if (pending.length > 0) {
         await Promise.allSettled(
           pending.map((p) => addClosetItem(p.id, p.addedVia)),
@@ -140,6 +144,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
       }
 
       // 데모 계정의 보유 화장품 시드. 서버 화장대가 비었을 때만 한 번.
+      // 삭제된 제품도 행이 남으므로, 다 지운 계정에 다시 채우지 않는다.
       const current = await fetchCloset();
       if (current.length === 0 && account?.persona) {
         await Promise.allSettled(
@@ -176,7 +181,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
   const backfilled = useRef(new Set<number>());
   useEffect(() => {
     if (isUser) return;
-    const targets = items.filter((i) => !i.imageUrl && !backfilled.current.has(i.id));
+    const targets = all.filter((i) => !i.imageUrl && !backfilled.current.has(i.id));
     if (targets.length === 0) return;
 
     let alive = true;
@@ -203,12 +208,40 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, [items, isUser, setItems]);
+  }, [all, isUser, setItems]);
 
   const hasItem = useCallback((id: number) => items.some((i) => i.id === id), [items]);
 
+  /** 한 제품의 상태만 바꾼다. 게스트면 저장까지 */
+  const patchStatus = useCallback(
+    (id: number, status: ClosetStatus) => {
+      setItems((prev) => {
+        const next = prev.map((i) => (i.id === id ? { ...i, status } : i));
+        persistGuest(next);
+        return next;
+      });
+    },
+    [persistGuest, setItems],
+  );
+
+  const restoreItem = useCallback(
+    (id: number) => {
+      const target = all.find((i) => i.id === id);
+      if (!target || target.status !== 'removed') return;
+      patchStatus(id, 'owned');
+      if (!isUser) return;
+      // 서버는 삭제된 제품을 다시 담으면(POST) 복원한다.
+      addClosetItem(id, target.addedVia).catch(() => patchStatus(id, 'removed'));
+    },
+    [all, isUser, patchStatus],
+  );
+
   const addItem = useCallback(
     (draft: ClosetDraft) => {
+      if (all.find((i) => i.id === draft.id)?.status === 'removed') {
+        restoreItem(draft.id);
+        return;
+      }
       // 낙관적 반영 — 화면이 서버 왕복을 기다리지 않는다.
       setItems((prev) => {
         if (prev.some((i) => i.id === draft.id)) return prev;
@@ -227,59 +260,61 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
         setItems((prev) => prev.filter((i) => i.id !== draft.id));
       });
     },
-    [isUser, persistGuest, setItems],
+    [all, isUser, persistGuest, setItems, restoreItem],
   );
 
+  /** 화장대에서 빼기 — 지우지 않고 '삭제된 제품'으로 옮긴다 */
   const removeItem = useCallback(
     (id: number) => {
-      const snapshot = items;
+      const before = all.find((i) => i.id === id)?.status;
+      if (before === undefined || before === 'removed') return;
+      patchStatus(id, 'removed');
+      if (isUser) removeClosetItem(id).catch(() => patchStatus(id, before));
+    },
+    [all, isUser, patchStatus],
+  );
+
+  /** 영구 삭제. 되돌릴 수 없다 */
+  const purgeItem = useCallback(
+    (id: number) => {
+      const snapshot = all;
       setItems((prev) => {
         const next = prev.filter((i) => i.id !== id);
         persistGuest(next);
         return next;
       });
-      if (isUser) removeClosetItem(id).catch(() => setItems(snapshot));
+      if (isUser) removeClosetItem(id, true).catch(() => setItems(snapshot));
     },
-    [items, isUser, persistGuest, setItems],
-  );
-
-  const setStatus = useCallback(
-    (id: number, status: ClosetStatus) => {
-      // 서버에 상태 변경 엔드포인트를 따로 두지 않았다. 화면에서만 쓰는
-      // 일시 상태('분석 중')라 새로고침하면 서버 값으로 돌아가면 된다.
-      setItems((prev) => {
-        const next = prev.map((i) => (i.id === id ? { ...i, status } : i));
-        persistGuest(next);
-        return next;
-      });
-    },
-    [persistGuest, setItems],
+    [all, isUser, persistGuest, setItems],
   );
 
   const clearCloset = useCallback(() => {
-    const snapshot = items;
+    const snapshot = all;
     setItems([]);
     if (!isUser) {
       removeKey(GUEST_KEY);
       return;
     }
-    Promise.allSettled(snapshot.map((i) => removeClosetItem(i.id))).then(() => undefined);
-  }, [items, isUser, setItems]);
+    Promise.allSettled(snapshot.map((i) => removeClosetItem(i.id, true))).then(() => undefined);
+  }, [all, isUser, setItems]);
 
   const value = useMemo<ClosetContextValue>(
     () => ({
       items,
       count: items.length,
+      removedItems,
       // 비회원은 서버에 물을 것이 없다 — localStorage가 곧 답이다.
       loading: authLoading || (isUser && settledScope !== scope),
       hasItem,
       addItem,
       removeItem,
-      setStatus,
+      restoreItem,
+      purgeItem,
       clearCloset,
     }),
     [
       items,
+      removedItems,
       authLoading,
       isUser,
       settledScope,
@@ -287,7 +322,8 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
       hasItem,
       addItem,
       removeItem,
-      setStatus,
+      restoreItem,
+      purgeItem,
       clearCloset,
     ],
   );

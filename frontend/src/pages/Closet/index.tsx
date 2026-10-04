@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { RecentTab, LikedTab, FrequentTab } from '../History';
-import { useCloset, ClosetItem, ClosetStatus } from '../../context/closet';
+import { useCloset, ClosetItem } from '../../context/closet';
+import { useToast } from '../../context/toast';
+import { BudgetCard } from '../../components/closet/BudgetCard';
 
 type ClosetTab = 'vanity' | 'recent' | 'liked' | 'frequent';
 
@@ -14,19 +16,6 @@ const TABS: [ClosetTab, string][] = [
   ['frequent', '자주 구매'],
 ];
 
-/** 상태별 표시 (점 색 · 라벨 색 · 액션 뱃지) */
-const STATUS_STYLE: Record<ClosetStatus, { dot: string; label: string; badge: string }> = {
-  owned: { dot: 'bg-primary', label: 'text-primary-dark', badge: 'bg-primary-light text-primary-dark' },
-  scanned: { dot: 'bg-gray-50', label: 'text-gray-50', badge: 'bg-[#F0F1F3] text-gray-70' },
-  analyzing: { dot: 'bg-warning', label: 'text-[#C77700]', badge: 'border border-[#DCE8E1] text-primary-dark' },
-};
-
-const STATUS_LABEL: Record<ClosetStatus, string> = {
-  owned: '보유 중',
-  scanned: '스캔 완료',
-  analyzing: '분석 대기 중',
-};
-
 const SOURCE_LABEL: Record<ClosetItem['addedVia'], string> = {
   seed: '',
   scan: 'OCR 스캔으로 추가',
@@ -34,26 +23,35 @@ const SOURCE_LABEL: Record<ClosetItem['addedVia'], string> = {
   search: '검색으로 추가',
 };
 
-const FILTERS: { key: 'all' | ClosetStatus; label: string }[] = [
-  { key: 'all', label: '전체' },
-  { key: 'owned', label: '보유 중' },
-  { key: 'scanned', label: '스캔 완료' },
-  { key: 'analyzing', label: '분석 대기' },
-];
+type VanityFilter = 'owned' | 'removed';
 
-/** 4c — 내 화장대(보유 제품 상태 관리) */
+/** 4c — 내 화장대(보유 제품 · 삭제된 제품 · 예산) */
 function VanityView() {
   const navigate = useNavigate();
-  const { items, removeItem } = useCloset();
-  const [filter, setFilter] = useState<'all' | ClosetStatus>('all');
+  const { items, removedItems, removeItem, restoreItem, purgeItem } = useCloset();
+  const { showToast } = useToast();
+  const [filter, setFilter] = useState<VanityFilter>('owned');
 
-  const countOf = (key: 'all' | ClosetStatus) =>
-    key === 'all' ? items.length : items.filter((i) => i.status === key).length;
+  const shown = filter === 'owned' ? items : removedItems;
+  const filters: [VanityFilter, string, number][] = [
+    ['owned', '보유 중', items.length],
+    ['removed', '삭제된 제품', removedItems.length],
+  ];
 
-  const shown = useMemo(
-    () => (filter === 'all' ? items : items.filter((i) => i.status === filter)),
-    [items, filter],
-  );
+  const remove = (item: ClosetItem) => {
+    removeItem(item.id);
+    showToast('삭제된 제품으로 옮겼어요', { label: '되돌리기', onClick: () => restoreItem(item.id) });
+  };
+
+  const restore = (item: ClosetItem) => {
+    restoreItem(item.id);
+    showToast('화장대로 되돌렸어요');
+  };
+
+  const purge = (item: ClosetItem) => {
+    if (!window.confirm(`'${item.name}'을(를) 완전히 지울까요? 되돌릴 수 없어요.`)) return;
+    purgeItem(item.id);
+  };
 
   return (
     <div className="px-4 pt-1 pb-6">
@@ -78,7 +76,9 @@ function VanityView() {
         </span>
       </button>
 
-      {items.length === 0 ? (
+      <BudgetCard />
+
+      {items.length === 0 && removedItems.length === 0 ? (
         <div className="mt-6 rounded-[20px] border border-dashed border-[#C9CFC5] bg-white px-5 py-10 text-center">
           <p className="text-[13px] font-bold text-gray-70">화장대가 비어 있어요</p>
           <p className="mt-1 text-[11px] text-gray-50">
@@ -94,9 +94,9 @@ function VanityView() {
         </div>
       ) : (
         <>
-          {/* 상태 필터 칩 */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 py-3">
-            {FILTERS.map(({ key, label }) => {
+          {/* 보유 중 / 삭제된 제품 */}
+          <div className="flex items-center gap-2 -mx-4 px-4 py-3">
+            {filters.map(([key, label, count]) => {
               const active = filter === key;
               return (
                 <button
@@ -106,7 +106,7 @@ function VanityView() {
                     active ? 'bg-oy-black text-white font-bold' : 'bg-white border border-[#E1E4DD] text-gray-70 font-semibold'
                   }`}
                 >
-                  {label} {countOf(key)}
+                  {label} {count}
                 </button>
               );
             })}
@@ -115,15 +115,13 @@ function VanityView() {
           {/* 제품 목록 */}
           <div className="rounded-[20px] bg-white border border-[#ECEEE8] px-4">
             {shown.length === 0 && (
-              <p className="py-8 text-center text-xs text-gray-50">해당하는 제품이 없어요</p>
+              <p className="py-8 text-center text-xs text-gray-50">
+                {filter === 'owned' ? '화장대에 담긴 제품이 없어요' : '삭제된 제품이 없어요'}
+              </p>
             )}
             {shown.map((item, i) => {
-              const s = STATUS_STYLE[item.status];
               const via = SOURCE_LABEL[item.addedVia];
-              const to =
-                item.status === 'analyzing'
-                  ? '/scan'
-                  : `/alternatives?seed=${item.id}&from=closet`;
+              const removed = filter === 'removed';
               return (
                 <div
                   key={item.id}
@@ -131,31 +129,59 @@ function VanityView() {
                     i < shown.length - 1 ? 'border-b border-surface-warm' : ''
                   }`}
                 >
-                  <button onClick={() => navigate(to)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                    <span className="h-[54px] w-[54px] shrink-0 overflow-hidden rounded-[14px] bg-gray-10">
+                  <button
+                    onClick={() =>
+                      navigate(removed ? `/detail/${item.id}` : `/alternatives?seed=${item.id}&from=closet`)
+                    }
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  >
+                    <span className={`h-[54px] w-[54px] shrink-0 overflow-hidden rounded-[14px] bg-gray-10 ${removed ? 'opacity-50' : ''}`}>
                       <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[10px] font-bold text-gray-50">{item.brand}</span>
-                      <span className="block truncate text-[13px] font-semibold text-gray-100">{item.name}</span>
+                      <span className={`block truncate text-[13px] font-semibold ${removed ? 'text-gray-50' : 'text-gray-100'}`}>
+                        {item.name}
+                      </span>
                       <span className="mt-0.5 flex items-center gap-1">
-                        <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-                        <span className={`text-[11px] font-semibold ${s.label}`}>
-                          {STATUS_LABEL[item.status]}
+                        <span className={`h-1.5 w-1.5 rounded-full ${removed ? 'bg-gray-50' : 'bg-primary'}`} />
+                        <span className={`text-[11px] font-semibold ${removed ? 'text-gray-50' : 'text-primary-dark'}`}>
+                          {removed ? '삭제됨' : '보유 중'}
                           {via ? ` · ${via}` : ''}
                         </span>
                       </span>
                     </span>
                   </button>
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    aria-label="화장대에서 빼기"
-                    className="shrink-0 rounded-full p-1.5 text-gray-50 active:scale-90 transition-transform"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M6 6l12 12M18 6L6 18" stroke="#9AA0A6" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                  </button>
+
+                  {removed ? (
+                    <span className="flex shrink-0 items-center gap-1">
+                      <button
+                        onClick={() => restore(item)}
+                        className="inline-flex h-8 items-center rounded-lg border border-[#DCE8E1] px-3 text-[11px] font-bold text-primary-dark active:scale-95 transition-transform"
+                      >
+                        복원
+                      </button>
+                      <button
+                        onClick={() => purge(item)}
+                        aria-label="완전히 삭제"
+                        className="rounded-full p-1.5 active:scale-90 transition-transform"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9AA0A6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3" />
+                        </svg>
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => remove(item)}
+                      aria-label="화장대에서 빼기"
+                      className="shrink-0 rounded-full p-1.5 text-gray-50 active:scale-90 transition-transform"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M6 6l12 12M18 6L6 18" stroke="#9AA0A6" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -177,7 +203,7 @@ function VanityView() {
   );
 }
 
-/** 내 화장대 — 보유 제품 상태 관리(4c) + 최근 본/좋아요/자주 구매 히스토리(4b) */
+/** 내 화장대 — 보유 제품 관리·예산(4c) + 최근 본/좋아요/자주 구매 히스토리(4b) */
 export default function ClosetPage() {
   const [tab, setTab] = useState<ClosetTab>('vanity');
 

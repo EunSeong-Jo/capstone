@@ -3,7 +3,8 @@ import { ApiError } from '../api/client';
 import {
   SimilarItem,
   SimilarMethod,
-  fetchSimilarProducts,
+  loadSimilarProducts,
+  peekSimilarProducts,
 } from '../api/similar';
 import { Alternative, SkinType } from '../types';
 import {
@@ -87,14 +88,12 @@ export function useSimilarProducts(
   useEffect(() => {
     if (invalid) return;
 
-    const controller = new AbortController();
+    let alive = true;
 
-    fetchSimilarProducts(
-      seedId,
-      JSON.parse(queryKey) as UseSimilarProductsOptions,
-      controller.signal,
-    )
+    // 캐시를 거친다. 같은 제품을 홈·상세·히스토리가 물어도 한 번만 요청한다.
+    loadSimilarProducts(seedId, JSON.parse(queryKey) as UseSimilarProductsOptions)
       .then((res) => {
+        if (!alive) return;
         setLoaded({
           key,
           items: res.items,
@@ -104,8 +103,7 @@ export function useSimilarProducts(
         });
       })
       .catch((err: unknown) => {
-        // 언마운트·재요청으로 인한 취소는 오류가 아닙니다.
-        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (!alive) return;
         if (err instanceof ApiError && err.status === 404) {
           setLoaded({ key, items: [], method: null, error: null, notFound: true });
         } else {
@@ -119,10 +117,21 @@ export function useSimilarProducts(
         }
       });
 
-    return () => controller.abort();
+    return () => {
+      alive = false;
+    };
   }, [key, seedId, queryKey, invalid]);
 
-  const current = loaded?.key === key ? loaded : null;
+  // 다른 화면에서 이미 받은 결과가 있으면 첫 렌더부터 쓴다(탭 이동 깜빡임 제거).
+  const cached = invalid
+    ? undefined
+    : peekSimilarProducts(seedId, JSON.parse(queryKey) as UseSimilarProductsOptions);
+  const current =
+    loaded?.key === key
+      ? loaded
+      : cached
+        ? { key, items: cached.items, method: cached.method, error: null, notFound: false }
+        : null;
   const items = current?.items ?? EMPTY_ITEMS;
 
   // 기준제품이 늦게 도착해도 재요청 없이 절약액만 다시 계산됩니다.

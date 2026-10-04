@@ -131,11 +131,44 @@ async def test_closet_rejects_unknown_product(client: AsyncClient, account) -> N
     assert res.status_code == 404
 
 
-async def test_closet_remove(client: AsyncClient, account, product_ids) -> None:
+async def test_closet_remove_moves_to_removed(client: AsyncClient, account, product_ids) -> None:
+    """빼기는 '삭제된 제품'으로 옮기기다. 행은 남고 상태만 바뀐다."""
     pid = product_ids[0]
     await client.post(f"{ME}/closet", json={"productId": pid}, **account)
     assert (await client.delete(f"{ME}/closet/{pid}", **account)).status_code == 204
+
+    listed = (await client.get(f"{ME}/closet", **account)).json()
+    assert [(c["product"]["id"], c["status"]) for c in listed] == [(pid, "removed")]
+
+
+async def test_closet_add_restores_removed(client: AsyncClient, account, product_ids) -> None:
+    """삭제된 제품을 다시 담으면 새 행이 아니라 같은 행이 돌아온다."""
+    pid = product_ids[0]
+    first = await client.post(f"{ME}/closet", json={"productId": pid}, **account)
+    await client.delete(f"{ME}/closet/{pid}", **account)
+
+    again = await client.post(f"{ME}/closet", json={"productId": pid}, **account)
+    assert again.json()["id"] == first.json()["id"]
+    assert again.json()["status"] == "owned"
+
+
+async def test_closet_remove_permanently(client: AsyncClient, account, product_ids) -> None:
+    pid = product_ids[0]
+    await client.post(f"{ME}/closet", json={"productId": pid}, **account)
+    await client.delete(f"{ME}/closet/{pid}", **account)
+    res = await client.delete(f"{ME}/closet/{pid}", params={"permanent": "true"}, **account)
+    assert res.status_code == 204
     assert (await client.get(f"{ME}/closet", **account)).json() == []
+
+
+async def test_stats_skips_removed_closet_items(client: AsyncClient, account, product_ids) -> None:
+    """마이페이지 '내 화장대 N개'에 삭제된 제품이 섞이면 안 된다."""
+    await client.post(f"{ME}/closet", json={"productId": product_ids[0]}, **account)
+    await client.post(f"{ME}/closet", json={"productId": product_ids[1]}, **account)
+    await client.delete(f"{ME}/closet/{product_ids[0]}", **account)
+
+    stats = (await client.get(f"{ME}/stats", **account)).json()
+    assert stats["closetCount"] == 1
 
 
 # ── 장바구니 ──────────────────────────────────────────────────

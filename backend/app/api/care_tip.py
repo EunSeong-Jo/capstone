@@ -19,7 +19,7 @@ from datetime import datetime
 import structlog
 from fastapi import APIRouter, HTTPException, Query, Response
 
-from app.api.weather import SEOUL_TZ, fetch_weather_snapshot
+from app.api.weather import SEOUL_TZ, get_weather_snapshot
 from app.core.cache import cache_get, cache_set
 from app.schemas.care_tip import CareTipOut
 from app.services.llm import chat_completion
@@ -85,7 +85,7 @@ async def get_care_tip(
     if label is None:
         raise HTTPException(status_code=400, detail=f"알 수 없는 피부타입: {skin_type}")
 
-    snap = await fetch_weather_snapshot()
+    snap = await get_weather_snapshot()
     key = _cache_key(skin_type, snap.condition)
 
     cached = await cache_get(key)

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchCareTip } from '../api/careTip';
+import { load, peek } from '../api/queryCache';
 import { getSkinCareTip } from '../mocks/home';
 import { SkinType, WeatherCondition } from '../types';
 
@@ -28,6 +29,10 @@ interface UseCareTipResult {
  * `skinPending`이면 기다리고, 진단을 한 적이 없으면(`skinType === null`)
  * 진단을 권하는 문구를 낸다 — 남의 타입 문구를 보여주지 않는다.
  */
+/** 서버가 피부타입·날씨·날짜 단위로 캐시한다. 한 시간 안에는 다시 묻지 않는다 */
+const CARE_TIP_FRESH_MS = 60 * 60 * 1000;
+const careTipKey = (skinType: SkinType) => `caretip:${skinType}:${new Date().toDateString()}`;
+
 export function useCareTip(
   skinType: SkinType | null,
   skinPending: boolean,
@@ -40,20 +45,24 @@ export function useCareTip(
   useEffect(() => {
     if (skinPending || skinType === null) return;
 
-    const controller = new AbortController();
+    let alive = true;
 
-    fetchCareTip(skinType, controller.signal)
-      .then((res) => setTip(res.tip))
+    load(careTipKey(skinType), () => fetchCareTip(skinType), CARE_TIP_FRESH_MS)
+      .then((res) => {
+        if (alive) setTip(res.tip);
+      })
       .catch((err: unknown) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (!alive) return;
         setError(err instanceof Error ? err.message : '케어 문구를 불러오지 못했습니다.');
         setTip(getSkinCareTip(skinType, condition)); // 실패했을 때만 정적 폴백
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (alive) setLoading(false);
       });
 
-    return () => controller.abort();
+    return () => {
+      alive = false;
+    };
   }, [skinType, skinPending, condition]);
 
   // 진단 전에는 문구가 아니라 다음 할 일을 알린다. 이건 폴백이 아니라
@@ -65,6 +74,10 @@ export function useCareTip(
       error: null,
     };
   }
+
+  // 지난 결과가 있으면 첫 렌더부터 쓴다(탭 이동 깜빡임 제거).
+  const cached = skinType ? peek<{ tip: string }>(careTipKey(skinType))?.value.tip : undefined;
+  if (tip === null && cached !== undefined) return { tip: cached, loading: false, error: null };
 
   return { tip, loading: skinPending || loading, error };
 }

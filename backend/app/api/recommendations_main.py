@@ -24,12 +24,13 @@ from __future__ import annotations
 import math
 
 from fastapi import APIRouter, Depends, Query, Response
+from pydantic import TypeAdapter
 from sqlalchemy import Float, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.api.products import _to_out
-from app.core.cache import cache_get, cache_set
+from app.core.cache import cache_get, cache_set, get_cache_version
 from app.core.deps import get_optional_user
 from app.db.session import get_db
 from app.models.product import Product
@@ -56,6 +57,7 @@ REVIEW_LOG_CAP = math.log10(100_000)
 BRAND_PENALTY = 0.35
 
 CACHE_TTL = 60 * 60 * 24  # 24h. 카탈로그가 자주 바뀌지 않는다.
+_SET_ADAPTER = TypeAdapter(list[ProductOut])
 
 # 세트를 구성할 카테고리 순서. DB에 있는 4종 중 얼굴 루틴 순서다.
 SET_CATEGORIES = ("스킨케어", "선케어", "마스크팩", "클렌징")
@@ -156,6 +158,7 @@ async def main_recommendations(
 
 @router.get("/set", response_model=list[ProductOut], summary="피부타입 맞춤 세트")
 async def recommendation_set(
+    response: Response,
     skin_type: str | None = Query(default=None, alias="skinType"),
     user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
@@ -165,10 +168,20 @@ async def recommendation_set(
     한 카테고리에서 여러 개를 고르면 '세트'가 아니라 '토너 3종'이 된다.
     카테고리가 4개뿐이라 최대 4건이고, 해당 카테고리에 맞는 제품이 없으면
     그 자리는 비운다 — 억지로 채우지 않는다.
+
+    `/main`처럼 피부타입별로 캐시한다. 카테고리마다 쿼리를 순서대로 돌아
+    홈에 들어올 때마다 1초 넘게 걸렸다. 버전 키를 넣어 제품 적재가 끝나면
+    새로 계산되게 한다.
     """
     effective = skin_type
     if effective is None and user is not None and user.profile:
         effective = user.profile.skin_type
+
+    key = f"reco:set:v{await get_cache_version()}:{effective or 'any'}"
+    cached = await cache_get(key)
+    if cached:
+        response.headers["X-Cache"] = "HIT"
+        return _SET_ADAPTER.validate_json(cached)
 
     items: list[ProductOut] = []
     for category in SET_CATEGORIES:
@@ -177,4 +190,6 @@ async def recommendation_set(
             items.append(_to_out(picked[0]))
         if len(items) == 3:
             break
+    await cache_set(key, _SET_ADAPTER.dump_json(items, by_alias=True).decode(), CACHE_TTL)
+    response.headers["X-Cache"] = "MISS"
     return items

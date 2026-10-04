@@ -3,10 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useCamera } from '../../hooks/useCamera';
 import { useSearchProducts } from '../../hooks/useSearchProducts';
 import type { Product } from '../../types';
-import { addScan } from '../../api/personal';
 import { useScanHistory } from '../../hooks/useScanHistory';
 import { useToast } from '../../context/toast';
-import { useAuth } from '../../context/auth';
 import { useCloset } from '../../context/closet';
 
 type ScanMode = 'barcode' | 'label' | 'product';
@@ -18,7 +16,11 @@ const MODES: [ScanMode, string][] = [
 ];
 
 /**
- * 성분 스캔 화면 — 제품 찾아 화장대에 담기.
+ * 성분 스캔 화면 — 제품 찾기.
+ *
+ * 찾은 제품은 **스캔 기록**에 남는다(최근 스캔·`/scan/history`). 화장대에는
+ * 사용자가 '화장대에 추가'나 `+`를 누를 때만 '보유 중'으로 담긴다 — 찾아본
+ * 제품과 쓰고 있는 제품은 다르다.
  *
  * 예전에는 셔터를 누르면 `data/ocrFixtures.ts`의 고정 4건을 돌아가며
  * "인식된 것처럼" 보여줬다. 무엇을 찍든 같은 네 제품이 나왔다.
@@ -36,9 +38,8 @@ export default function ScanPage() {
   const navigate = useNavigate();
   const { addItem, hasItem } = useCloset();
 
-  const { isUser } = useAuth();
   // 최근 스캔 3건. 전체는 /scan/history(ScanHistoryPage)에서 본다.
-  const { items: scanHistory } = useScanHistory();
+  const { items: scanHistory, record } = useScanHistory();
   const recentScans = scanHistory.slice(0, 3);
   const { showToast } = useToast();
   const [mode, setMode] = useState<ScanMode>('label');
@@ -60,9 +61,11 @@ export default function ScanPage() {
     window.setTimeout(() => setNotice(null), 3000);
   };
 
+  /** 제품을 고르면 스캔한 것이다 — 스캔 기록에 남긴다 */
   const pick = (product: Product) => {
     setResult(product);
     setPhase('result');
+    record(product);
   };
 
   const saveToCloset = (product: Product) => {
@@ -74,10 +77,7 @@ export default function ScanPage() {
       price: product.price,
       imageUrl: product.imageUrl,
       addedVia: 'scan',
-      status: 'scanned',
     });
-    // 스캔 기록도 남긴다. '최근 스캔'은 이 기록에서 온다.
-    if (isUser) void addScan(product.id, 'search').catch(() => undefined);
   };
 
   const addToCloset = () => {
@@ -92,6 +92,8 @@ export default function ScanPage() {
       showToast('이미 화장대에 있어요');
       return;
     }
+    // 결과 시트를 거치지 않았어도 스캔 화면에서 찾은 제품이다.
+    record(product);
     saveToCloset(product);
     showToast('화장대에 담았어요', { label: '화장대 보기', onClick: () => navigate('/closet') });
   };
@@ -362,7 +364,7 @@ export default function ScanPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-gray-20" />
-            <p className="text-[11px] font-bold text-primary">화장대에 담을 제품</p>
+            <p className="text-[11px] font-bold text-primary">스캔 기록에 저장했어요</p>
             <p className="mt-1 text-[10px] font-bold text-gray-50">{result.brand}</p>
             <h3 className="text-[15px] font-extrabold text-gray-100">{result.name}</h3>
 
@@ -398,13 +400,22 @@ export default function ScanPage() {
               >
                 다시 스캔
               </button>
-              <button
-                onClick={addToCloset}
-                className="h-[48px] flex-[2] rounded-xl text-[13px] font-bold text-white active:scale-[.98] transition-transform"
-                style={{ background: '#00916D' }}
-              >
-                화장대에 추가
-              </button>
+              {hasItem(result.id) ? (
+                <button
+                  onClick={() => navigate('/closet')}
+                  className="h-[48px] flex-[2] rounded-xl border border-[#00916D] text-[13px] font-bold text-[#00916D] active:scale-[.98] transition-transform"
+                >
+                  화장대에 있어요 · 보러 가기
+                </button>
+              ) : (
+                <button
+                  onClick={addToCloset}
+                  className="h-[48px] flex-[2] rounded-xl text-[13px] font-bold text-white active:scale-[.98] transition-transform"
+                  style={{ background: '#00916D' }}
+                >
+                  화장대에 추가
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -26,8 +26,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import delete, func, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -131,6 +131,11 @@ async def _require_product(db: AsyncSession, product_id: int) -> None:
 # ── 화장대 ────────────────────────────────────────────────────
 
 
+# 화장대에서 뺀 제품. 행을 지우지 않고 이 상태로 두면 '삭제된 제품'에서
+# 다시 보고 복원할 수 있다. 영구 삭제만 행을 지운다.
+CLOSET_REMOVED = "removed"
+
+
 @router.get("/closet", response_model=list[ClosetItemOut], summary="내 화장대")
 async def list_closet(
     user: User = Depends(get_current_user),
@@ -183,6 +188,11 @@ async def add_closet(
         db.add(existing)
         await db.commit()
         await db.refresh(existing)
+    elif existing.status == CLOSET_REMOVED:
+        # 삭제된 제품을 다시 담으면 복원이다. 담은 경로·시각은 처음 것을 둔다.
+        existing.status = "owned"
+        await db.commit()
+        await db.refresh(existing)
 
     products = await _products_of(db, [existing.product_id])
     return ClosetItemOut(
@@ -198,14 +208,18 @@ async def add_closet(
                summary="화장대에서 빼기")
 async def remove_closet(
     product_id: int,
+    permanent: bool = Query(False, description="true면 '삭제된 제품'에서도 지운다"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    await db.execute(
-        delete(ClosetItem).where(
-            ClosetItem.user_id == user.id, ClosetItem.product_id == product_id
+    """기본은 '삭제된 제품'으로 옮기기다. 다시 담으면(POST) 복원된다."""
+    owned_by = (ClosetItem.user_id == user.id, ClosetItem.product_id == product_id)
+    if permanent:
+        await db.execute(delete(ClosetItem).where(*owned_by))
+    else:
+        await db.execute(
+            update(ClosetItem).where(*owned_by).values(status=CLOSET_REMOVED)
         )
-    )
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -872,11 +886,13 @@ async def read_stats(
 
     def rows_of(model) -> Any:
         """이 사용자의 행 수. 선물만 컬럼 이름이 다르다(보낸 사람).
-        주문은 취소·반품을 빼고 센다 — 산 것이 아니다."""
+        주문은 취소·반품을 빼고 센다 — 산 것이 아니다. 화장대는 삭제된 제품을 뺀다."""
         owner = Gift.sender_user_id if model is Gift else model.user_id
         stmt = select(func.count()).select_from(model).where(owner == user.id)
         if model is Order:
             stmt = stmt.where(Order.status.not_in(CLOSED_STATUSES))
+        if model is ClosetItem:
+            stmt = stmt.where(ClosetItem.status != CLOSET_REMOVED)
         return stmt.scalar_subquery()
 
     def sum_of(column, owner) -> Any:

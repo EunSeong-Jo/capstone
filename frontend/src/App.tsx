@@ -1,6 +1,7 @@
 import { lazy, ReactElement, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { RequireAuth } from './components/auth/RequireAuth';
+import { MascotPreloader } from './components/character/MascotPreloader';
 
 const SplashPage     = lazy(() => import('./pages/Splash'));
 const OnboardingPage = lazy(() => import('./pages/Onboarding'));
@@ -55,6 +56,8 @@ const mine = (el: ReactElement) => <RequireAuth>{el}</RequireAuth>;
 export default function App() {
   return (
     <BrowserRouter>
+      {/* 내 캐릭터 이미지를 미리 디코딩해 둔다 — 탭 이동 때 캐릭터가 늦게 뜨지 않게 */}
+      <MascotPreloader />
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           <Route path="/"           element={<SplashPage />} />

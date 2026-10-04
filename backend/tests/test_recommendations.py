@@ -165,3 +165,34 @@ async def test_shared_ingredients_avoid_ubiquitous_ones(client: AsyncClient, see
         shared = item["sharedIngredients"]
         if shared:
             assert shared[0] not in ubiquitous
+
+
+# ── 캐시 ──────────────────────────────────────────────────────
+
+
+async def test_similar_is_cached(client: AsyncClient, seed: int) -> None:
+    """두 번째 조회는 Redis에서 나오고 내용은 같다.
+
+    홈의 교체 제안이 화장대 제품마다 이 API를 불러 한 번에 1~2초씩 걸렸다.
+    """
+    params = {"limit": 5, "skinType": "hwasan"}
+    first = await client.get(_url(seed), params=params)
+    second = await client.get(_url(seed), params=params)
+    assert second.headers.get("X-Cache") == "HIT"
+    assert second.json() == first.json()
+
+
+async def test_unknown_product_is_not_cached(client: AsyncClient) -> None:
+    for _ in range(2):
+        res = await client.get(_url(99_999_999))
+        assert res.status_code == 404
+        assert "X-Cache" not in res.headers
+
+
+async def test_recommendation_set_is_cached(client: AsyncClient) -> None:
+    url = "/api/v1/recommendations/set"
+    first = await client.get(url, params={"skinType": "ondalsam"})
+    second = await client.get(url, params={"skinType": "ondalsam"})
+    assert first.status_code == 200
+    assert second.headers.get("X-Cache") == "HIT"
+    assert second.json() == first.json()
