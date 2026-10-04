@@ -187,3 +187,51 @@
     display: none;
   }
 }
+
+/*
+ * 손잡이 두 개짜리 범위 슬라이더 (화장대 예산).
+ * 같은 자리에 range 두 개를 겹친다. 트랙은 클릭을 흘려보내고 손잡이만 잡히게 해서
+ * 아래 슬라이더의 손잡이도 누를 수 있다.
+ */
+.dual-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.dual-range::-webkit-slider-thumb {
+  pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid #00916d;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+.dual-range::-moz-range-thumb {
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid #00916d;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+/* 벤더 의사 요소는 한 선택자 목록에 섞으면 규칙 전체가 무시된다. 나눠 쓴다. */
+.dual-range::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.dual-range::-moz-range-track {
+  background: transparent;
+}
+.dual-range:focus-visible::-webkit-slider-thumb {
+  outline: 3px solid rgba(0, 145, 109, 0.35);
+}
