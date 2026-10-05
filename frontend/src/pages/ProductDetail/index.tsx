@@ -8,6 +8,7 @@ import { useProduct } from '../../hooks/useProduct';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
 import { AlternativeCarousel } from '../../components/home/oy/sections/AlternativeCarousel';
 import { useRecentlyViewed } from '../../hooks/useRecentlyViewed';
+import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 import { Product } from '../../types';
 import { countIngredients, groupIngredients } from '../../utils/ingredients';
 import type { ProductIngredient } from '../../api/products';
@@ -129,6 +130,7 @@ function EmptyState({
 
 export default function ProductDetailPage() {
   const navigate = useNavigate();
+  const { requireLogin } = useLoginPrompt();
   const { id } = useParams();
   const productId = Number(id);
   const { product, loading, error, notFound, reload } = useProduct(productId);
@@ -427,7 +429,10 @@ export default function ProductDetailPage() {
           <button
             type="button"
             aria-label="선물하기"
-            onClick={() => navigate(`/gift/${product.id}`)}
+            onClick={() => {
+              if (requireLogin('선물하기는 로그인하면 할 수 있어요')) return;
+              navigate(`/gift/${product.id}`);
+            }}
             className="h-[46px] w-[46px] shrink-0 rounded-xl border border-oy-line text-lg active:scale-[.98]"
           >
             🎁
