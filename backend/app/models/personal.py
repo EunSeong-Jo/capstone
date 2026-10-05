@@ -74,7 +74,8 @@ class ClosetItem(Base):
     # 제품('삭제된 제품')이고 다시 담으면 owned로 돌아온다. scanned·analyzing은
     # 예전 값이라 owned와 같게 다룬다.
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="owned")
-    # seed / scan / chatbot / search — 어느 경로로 들어왔는지
+    # seed / scan / chatbot / search / order — 어느 경로로 들어왔는지.
+    # order는 주문하면 자동으로 담긴 것이고, 그 주문을 취소·반품하면 삭제된 제품이 된다.
     added_via: Mapped[str] = mapped_column(Text, nullable=False, server_default="search")
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
