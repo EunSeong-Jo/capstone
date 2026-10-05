@@ -8,6 +8,7 @@ import { OrderCloseSheet } from '../../components/orders/OrderCloseSheet';
 import { STAGE_BADGE, STAGE_LABEL, isClosed } from '../../utils/orderStage';
 import { ReviewDraft, ReviewWriteSheet } from '../../components/reviews/ReviewWriteSheet';
 import { useCart } from '../../context/cart';
+import { useCloset } from '../../context/closet';
 import { useToast } from '../../context/toast';
 import { useOrders } from '../../hooks/useOrders';
 
@@ -33,6 +34,7 @@ const fmtDate = (iso: string) =>
 export default function OrderHistoryPage() {
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const { reload: reloadCloset } = useCloset();
   const { orders, loading, reload } = useOrders();
   const { showToast } = useToast();
   /** 후기를 쓰는 중인 품목. null이면 시트가 닫혀 있다. */
@@ -74,6 +76,8 @@ export default function OrderHistoryPage() {
       });
       setClosing(null);
       reload();
+      // 서버가 이 주문으로 담긴 제품을 '삭제된 제품'으로 옮겼다. 화장대 목록도 다시 받는다.
+      void reloadCloset();
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : '처리하지 못했어요');
       // 단계가 넘어가 버튼이 사라져야 하는 경우라 목록을 새로 받는다.
