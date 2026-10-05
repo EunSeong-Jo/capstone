@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 
@@ -185,3 +185,22 @@ class ProductMatchOut(_CamelModel):
 
     product: ProductOut
     signals: MatchSignalsOut
+
+
+class ProductScanIn(_CamelModel):
+    """사진으로 화장품 찾기. 화면이 장변 1024px JPEG로 줄여 data URL로 보낸다."""
+
+    image: str = Field(max_length=4_000_000)
+    limit: int = Field(default=5, ge=1, le=10)
+
+
+class ProductScanOut(_CamelModel):
+    """인식한 글자와 후보.
+
+    자동으로 하나를 고르지 않는다 — 실사진에서 정답과 '카탈로그에 없는 제품'의
+    점수가 겹쳐 임계값이 서지 않았다(IMAGE_MATCH_SUMMARY ③). 화면은 후보를 보여 주고
+    "찾는 제품이 없어요"를 함께 둔다.
+    """
+
+    text: str
+    candidates: list[ProductMatchOut]
