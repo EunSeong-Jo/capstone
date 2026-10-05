@@ -51,3 +51,20 @@ async def get_cache_version() -> int:
     except Exception as exc:  # noqa: BLE001
         log.warning("cache_version_read_failed", error=str(exc)[:200])
         return 0
+
+
+async def cache_incr(key: str, ttl: int) -> int | None:
+    """카운터 +1. 처음 만든 키에만 만료를 건다. 실패하면 None(호출부가 판단).
+
+    호출 제한(`core/rate_limit.py`)이 쓴다. INCR과 EXPIRE를 한 파이프라인으로
+    보내 왕복을 한 번으로 줄인다.
+    """
+    try:
+        async with _client.pipeline(transaction=True) as pipe:
+            pipe.incr(key)
+            pipe.expire(key, ttl, nx=True)
+            count, _ = await pipe.execute()
+        return int(count)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("cache_incr_failed", key=key, error=str(exc)[:200])
+        return None
