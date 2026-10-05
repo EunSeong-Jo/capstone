@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScanDto, addScan, fetchScans } from '../api/personal';
 import { useAuth } from '../context/auth';
-import { readJSON, writeJSON } from '../context/storage';
+import { removeKey } from '../context/storage';
 import { load, meKey, peek, put } from '../api/queryCache';
 import type { Product } from '../types';
 
@@ -17,9 +17,8 @@ export interface ScanHistoryItem {
   scannedAt: number;
 }
 
+/** 예전 비회원 기록. 스캔이 로그인 전용이 되어 읽지 않고 지운다 */
 const GUEST_KEY = 'swappy:scans:v1:guest';
-/** 비회원 기록은 기기에만 쌓이니 끝없이 늘지 않게 자른다 */
-const GUEST_LIMIT = 50;
 
 const fromServer = (s: ScanDto): ScanHistoryItem => ({
   key: `scan-${s.id}`,
@@ -54,20 +53,17 @@ const SCANS_FRESH_MS = 30 * 1000;
  * 스캔 항목을 기록으로 대신 보여줬다. 이제 스캔하면 여기에 먼저 남고,
  * 화장대에는 사용자가 고를 때만 담긴다.
  *
- * 로그인 상태면 서버(`/me/scans`, 최신순), 비회원이면 localStorage.
+ * 로그인 전용이다 — 서버(`/me/scans`, 최신순)만 본다. 비회원은 스캔 화면에 들어오지 못한다.
  * 스캔 화면의 '최근 스캔'과 '전체보기'(ScanHistoryPage)가 같이 쓴다.
  */
 export function useScanHistory() {
   const { isUser, scope } = useAuth();
   const cacheKey = meKey(scope, 'scans');
-  // 남기면 version을 올려 캐시(회원)·localStorage(비회원)를 다시 읽게 한다.
-  const [version, setVersion] = useState(0);
+  // 남기면 version을 올려 캐시를 다시 읽게 한다.
+  const [, setVersion] = useState(0);
   const [fetched, setFetched] = useState<{ key: string } | null>(null);
-  const guestScans = useMemo(
-    () => readJSON<ScanHistoryItem[]>(GUEST_KEY, []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 남긴 뒤 다시 읽기 위한 키
-    [scope, version],
-  );
+
+  useEffect(() => removeKey(GUEST_KEY), []);
 
   useEffect(() => {
     if (!isUser) return;
@@ -89,25 +85,22 @@ export function useScanHistory() {
   /** 스캔 기록 남기기. 화면은 바로 반영하고 서버는 뒤따른다 */
   const record = useCallback(
     (product: Product) => {
+      if (!isUser) return;
       const item = fromProduct(product, `local-${Date.now()}-${product.id}`);
-      if (isUser) {
-        put(cacheKey, [item, ...(peek<ScanHistoryItem[]>(cacheKey)?.value ?? [])]);
-        void addScan(product.id, 'search').catch(() => {
-          put(
-            cacheKey,
-            (peek<ScanHistoryItem[]>(cacheKey)?.value ?? []).filter((s) => s.key !== item.key),
-          );
-          setVersion((v) => v + 1);
-        });
-      } else {
-        writeJSON(GUEST_KEY, [item, ...readJSON<ScanHistoryItem[]>(GUEST_KEY, [])].slice(0, GUEST_LIMIT));
-      }
+      put(cacheKey, [item, ...(peek<ScanHistoryItem[]>(cacheKey)?.value ?? [])]);
+      void addScan(product.id, 'search').catch(() => {
+        put(
+          cacheKey,
+          (peek<ScanHistoryItem[]>(cacheKey)?.value ?? []).filter((s) => s.key !== item.key),
+        );
+        setVersion((v) => v + 1);
+      });
       setVersion((v) => v + 1);
     },
     [isUser, cacheKey],
   );
 
-  if (!isUser) return { items: guestScans, loading: false, record };
+  if (!isUser) return { items: [] as ScanHistoryItem[], loading: false, record };
 
   const cached = peek<ScanHistoryItem[]>(cacheKey)?.value;
   return {
