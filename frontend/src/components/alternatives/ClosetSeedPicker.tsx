@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 import { useCloset } from '../../context/closet';
 
 /**
@@ -12,6 +13,7 @@ import { useCloset } from '../../context/closet';
  */
 export function ClosetSeedPicker() {
   const navigate = useNavigate();
+  const { requireLogin } = useLoginPrompt();
   const { items, loading } = useCloset();
 
   if (loading) {
@@ -31,7 +33,10 @@ export function ClosetSeedPicker() {
         <p className="mt-3 text-base font-semibold text-gray-100">화장대가 비어 있어요</p>
         <p className="mt-1 text-sm text-gray-50">쓰는 제품을 담으면 비슷한 대체품을 찾아드려요</p>
         <button
-          onClick={() => navigate('/scan')}
+          onClick={() => {
+            if (requireLogin('화장대는 로그인하면 쓸 수 있어요')) return;
+            navigate('/scan');
+          }}
           className="mt-4 rounded-xl px-5 py-2.5 text-sm font-bold text-white active:scale-95"
           style={{ background: '#00916D' }}
         >

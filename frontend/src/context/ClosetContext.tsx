@@ -68,9 +68,10 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
    * 두면 새 계정 데이터가 도착하기 전까지 한 프레임 동안 이전 계정의
    * 화장대가 보인다.
    */
+  // 화장대는 로그인 전용이다 — 비회원은 빈 화장대다. 서버 목록은 아래 effect가 채운다.
   const [store, setStore] = useState<{ scope: string; items: ClosetItem[] }>(() => ({
     scope,
-    items: readJSON<ClosetItem[]>(GUEST_KEY, []),
+    items: [],
   }));
 
   /**
@@ -84,11 +85,14 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
    * 로그인 계정이면 빈 목록으로 시작한다 — 서버 응답은 아래 effect가 채운다.
    */
   if (store.scope !== scope) {
-    setStore({
-      scope,
-      items: isUser ? [] : readJSON<ClosetItem[]>(GUEST_KEY, []),
-    });
+    setStore({ scope, items: [] });
   }
+
+  // 화장대가 비회원에게 열려 있던 시절의 기기 기록. 남아 있으면 '둘러보기'에서
+  // 예전 제품이 교체 제안 등에 쓰였다 — 지운다.
+  useEffect(() => {
+    removeKey(GUEST_KEY);
+  }, []);
 
   // 삭제된 제품까지 전부. 화면에는 둘로 나눠 내보낸다.
   const all = store.items;
@@ -238,6 +242,8 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
 
   const addItem = useCallback(
     (draft: ClosetDraft) => {
+      // 담는 화면들이 비회원을 먼저 막지만(로그인 안내), 여기서도 기록하지 않는다.
+      if (!isUser) return;
       if (all.find((i) => i.id === draft.id)?.status === 'removed') {
         restoreItem(draft.id);
         return;
@@ -288,6 +294,12 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     [all, isUser, persistGuest, setItems],
   );
 
+  const reload = useCallback(async () => {
+    if (!isUser) return;
+    const current = await fetchCloset().catch(() => null);
+    if (current) setItems(current.map(toItem));
+  }, [isUser, setItems]);
+
   const clearCloset = useCallback(() => {
     const snapshot = all;
     setItems([]);
@@ -311,6 +323,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
       restoreItem,
       purgeItem,
       clearCloset,
+      reload,
     }),
     [
       items,
@@ -325,6 +338,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
       restoreItem,
       purgeItem,
       clearCloset,
+      reload,
     ],
   );
 

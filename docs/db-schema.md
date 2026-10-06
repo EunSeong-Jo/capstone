@@ -531,7 +531,7 @@ Neon에는 컨테이너 초기화 훅이 없어 `CREATE EXTENSION`을 첫 마이
 
 예외는 `order_items`로, 제품명·가격을 행에 복사해 둡니다. 주문은 "그때 그 가격에 샀다"는 기록이라 제품 가격이 바뀌어도 과거 금액이 따라 움직이면 안 됩니다. `product_id`는 SET NULL이라 제품이 카탈로그에서 내려가도 기록이 남습니다.
 
-**`closet_items.status`는 `owned` / `removed`입니다.** 화장대에서 빼면 행을 지우지 않고 `removed`로 바꿔 '삭제된 제품'에 남깁니다. 다시 담으면(`POST /me/closet`) 같은 행이 `owned`로 돌아오고, 영구 삭제(`DELETE /me/closet/{id}?permanent=true`)만 행을 지웁니다. 대체품·추천·마이페이지 통계는 `removed`를 뺀 제품만 봅니다. 예전 값 `scanned`·`analyzing`은 `owned`와 같게 다룹니다 — 스캔한 제품은 이제 화장대가 아니라 `scan_results`에 먼저 남고, 사용자가 고를 때만 화장대에 `owned`로 담깁니다. 스키마는 그대로이고(text 컬럼) 마이그레이션 없이 값만 늘었습니다.
+**`closet_items.status`는 `owned` / `removed`입니다.** 화장대에서 빼면 행을 지우지 않고 `removed`로 바꿔 '삭제된 제품'에 남깁니다. 다시 담으면(`POST /me/closet`) 같은 행이 `owned`로 돌아오고, 영구 삭제(`DELETE /me/closet/{id}?permanent=true`)만 행을 지웁니다. 대체품·추천·마이페이지 통계는 `removed`를 뺀 제품만 봅니다. **주문하면 산 제품이 화장대에 자동으로 담깁니다**(`added_via = order`, 삭제된 제품이었으면 보유 중으로 복원). 그 주문을 취소·반품하면 주문으로 담긴 제품만 `removed`로 옮기고, 원래 화장대에 있던 제품과 다른 진행 중 주문에도 있는 제품은 그대로 둡니다. 예전 값 `scanned`·`analyzing`은 `owned`와 같게 다룹니다 — 스캔한 제품은 이제 화장대가 아니라 `scan_results`에 먼저 남고, 사용자가 고를 때만 화장대에 `owned`로 담깁니다. 스키마는 그대로이고(text 컬럼) 마이그레이션 없이 값만 늘었습니다.
 
 **주문 취소·반품, 받은 선물, 후기 사진을 추가했습니다** (`a9c1e2f3d4b5`).
 

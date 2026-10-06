@@ -28,6 +28,7 @@ import { useCareTip } from '../../hooks/useCareTip';
 import { useAuth } from '../../context/auth';
 import { useCloset } from '../../context/closet';
 import { useCart } from '../../context/cart';
+import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 
 /** 섹션 사이 굵은 회색 구분 띠 (올리브영식 리듬) */
 function Divider() {
@@ -91,6 +92,7 @@ export default function HomePage() {
   const { items: closetItems, loading: closetLoading } = useCloset();
   const { stats, loading: statsLoading } = useStats();
   const { addToCart } = useCart();
+  const { requireLogin } = useLoginPrompt();
   const [setOpen, setSetOpen] = useState(false);
 
   /**
@@ -294,7 +296,11 @@ export default function HomePage() {
 
       <OyFloatingActions
         onChatbot={() => navigate('/mypage/chat-support')}
-        onRecommendSet={() => setSetOpen(true)}
+        onRecommendSet={() => {
+          // 추천세트는 화장대 예산으로 짠다 — 로그인 전용.
+          if (requireLogin('추천세트는 로그인하면 볼 수 있어요')) return;
+          setSetOpen(true);
+        }}
       />
       <OyBottomNav />
 

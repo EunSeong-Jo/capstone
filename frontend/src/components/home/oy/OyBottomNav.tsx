@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useLoginPrompt } from '../../../hooks/useLoginPrompt';
 
 interface Tab {
   label: string;
@@ -69,10 +70,11 @@ const ScanIcon = (
 
 /**
  * swappy 5탭 하단 네비게이션 (홈·카테고리·검색·화장대·마이, 활성=블랙).
- * 검색 화면에 있을 땐 검색 탭이 1c·2c 스타일의 중앙 돌출 스캔 FAB로 변형되고, 누르면 /scan(성분 스캔)으로 이동한다.
+ * 검색 화면에 있을 땐 검색 탭이 1c·2c 스타일의 중앙 돌출 스캔 FAB로 변형되고, 누르면 /scan(화장품 스캔)으로 이동한다.
  */
 export function OyBottomNav() {
   const navigate = useNavigate();
+  const { requireLogin } = useLoginPrompt();
   const { pathname } = useLocation();
 
   return (
@@ -83,15 +85,18 @@ export function OyBottomNav() {
       <div className="flex">
         {TABS.map((tab) => {
           const active = pathname === tab.to;
-          // 검색 화면에 있을 땐 검색 탭이 중앙 돌출 스캔 FAB로 변형 (1c·2c 스타일) → 탭 시 성분 스캔(/scan)
+          // 검색 화면에 있을 땐 검색 탭이 중앙 돌출 스캔 FAB로 변형 (1c·2c 스타일) → 탭 시 화장품 스캔(/scan)
           const isScanMode = tab.to === '/search' && active;
 
           if (isScanMode) {
             return (
               <div key={tab.to} className="flex-1 relative h-14">
                 <button
-                  onClick={() => navigate('/scan')}
-                  aria-label="성분 스캔"
+                  onClick={() => {
+                    if (requireLogin('화장품 스캔은 로그인하면 쓸 수 있어요')) return;
+                    navigate('/scan');
+                  }}
+                  aria-label="화장품 스캔"
                   className="absolute left-1/2 -translate-x-1/2 top-[-22px] flex h-14 w-14 items-center justify-center rounded-full bg-primary-dark border-4 border-white active:scale-95 transition-transform"
                   style={{ boxShadow: '0 6px 18px rgba(43,107,82,.35)' }}
                 >

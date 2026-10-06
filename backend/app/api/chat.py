@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.weather import CACHE_KEY as WEATHER_CACHE_KEY
 from app.api.weather import fetch_weather_snapshot
+from app.config import settings
 from app.core.cache import cache_get
+from app.core.deps import get_optional_user
+from app.core.rate_limit import allow_daily, client_ip
 from app.db.session import get_db
+from app.models.user import User
 from app.schemas.weather import WeatherOut
 from app.services import llm, rag
 
@@ -121,7 +125,19 @@ async def _get_weather_context() -> str:
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest, db: AsyncSession = Depends(get_db)) -> ChatResponse:
+async def chat(
+    req: ChatRequest,
+    request: Request,
+    user: User | None = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+) -> ChatResponse:
+    # 비회원은 IP 기준 하루 몇 번만. LLM 호출이라 비용이 들고, 화면의 횟수 제한은
+    # 기기에서 세서 시크릿 창이나 직접 호출로 넘을 수 있다 — 실제 차단은 여기서 한다.
+    if user is None and not await allow_daily(
+        "chat-guest", client_ip(request), settings.GUEST_CHAT_DAILY_LIMIT
+    ):
+        raise HTTPException(status_code=401, detail="로그인하면 챗봇과 계속 대화할 수 있어요.")
+
     products = await rag.search_products(db, req.message, req.skin_type)
     skin_label = rag.skin_type_label(req.skin_type) if req.skin_type else "미확인"
     weather_context = await _get_weather_context()

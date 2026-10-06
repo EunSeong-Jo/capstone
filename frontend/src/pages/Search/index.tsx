@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { ProductCard } from '../../components/product/ProductCard';
@@ -78,6 +79,7 @@ function RecentSearchChips({
 
 export default function SearchPage() {
   const navigate = useNavigate();
+  const { requireLogin } = useLoginPrompt();
   const [mainTab, setMainTab] = useState<MainTab>('general');
   const [ingredientSubTab, setIngredientSubTab] = useState<IngredientSubTab>('dict');
   const [popularFilter, setPopularFilter] = useState<PopularSearchFilter>(POPULAR_SEARCH_FILTERS[0]);
@@ -181,11 +183,14 @@ export default function SearchPage() {
           {query && (
             <button onClick={() => handleSearch('')} aria-label="검색어 지우기" className="text-gray-50 active:scale-90 transition-transform">✕</button>
           )}
-          {/* 검색표시 옆 카메라 → 성분 스캔(3c) 이동 */}
+          {/* 검색표시 옆 카메라 → 화장품 스캔(3c) 이동 */}
           <button
-            onClick={() => navigate('/scan')}
-            aria-label="성분 스캔"
-            title="성분 스캔"
+            onClick={() => {
+              if (requireLogin('화장품 스캔은 로그인하면 쓸 수 있어요')) return;
+              navigate('/scan');
+            }}
+            aria-label="화장품 스캔"
+            title="화장품 스캔"
             className="shrink-0 active:scale-90 transition-transform"
           >
             <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
@@ -296,9 +301,12 @@ export default function SearchPage() {
                 </div>
               </div>
 
-              {/* 마스코트 스캔 배너 → 성분 스캔(3c) 이동 */}
+              {/* 마스코트 스캔 배너 → 화장품 스캔(3c) 이동 */}
               <button
-                onClick={() => navigate('/scan')}
+                onClick={() => {
+                  if (requireLogin('화장품 스캔은 로그인하면 쓸 수 있어요')) return;
+                  navigate('/scan');
+                }}
                 className="flex w-full items-center gap-3.5 rounded-2xl bg-oy-black p-4 mb-[22px] text-left active:scale-[.99] transition-transform"
               >
                 <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2A2A31]">

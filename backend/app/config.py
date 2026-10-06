@@ -99,6 +99,19 @@ class Settings(BaseSettings):
     # 날씨 (홈 대시보드) — https://openweathermap.org 무료 티어 키
     OPENWEATHER_API_KEY: str = ""
 
+    # 사진으로 화장품 찾기 (POST /products/scan) — 네이버 CLOVA OCR(General).
+    # 측정 스크립트는 scripts/CLOVA_OCR/.env를 읽지만 백엔드는 이 설정(.env)을 읽는다.
+    # 비어 있으면 스캔 API가 503을 낸다(화면은 제품명 검색으로 안내한다).
+    CLOVA_OCR_SECRET: str = ""
+    CLOVA_OCR_INVOKE_URL: str = ""
+
+    # 호출 제한이 쓰는 클라이언트 IP. 프록시·로드밸런서 뒤에 둘 때만 true로 —
+    # 그러면 X-Forwarded-For의 첫 주소를 쓴다(core/rate_limit.py).
+    TRUST_PROXY_HEADERS: bool = False
+
+    # 비회원 챗봇 하루 답변 수(IP 기준). 화면도 같은 수만큼 열어 둔다.
+    GUEST_CHAT_DAILY_LIMIT: int = 3
+
     # env_file은 실행 위치가 아니라 파일 위치 기준으로 찾는다.
     # backend/ 에서 uvicorn을 띄우든 리포 루트에서 스크립트를 돌리든
     # 같은 .env를 읽어야 하기 때문. (Docker는 환경변수를 직접 주입하므로 무관)

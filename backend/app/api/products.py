@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.core.cache import cache_get, cache_set, get_cache_version
+from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.product import (
     Brand,
@@ -33,7 +34,8 @@ from app.models.product import (
     Product,
     ProductIngredient,
 )
-from app.services.review_photos import photo_urls_of
+from app.services.ocr import recognize_text
+from app.services.review_photos import decode_photo, photo_urls_of
 from app.services.skin_type import SkinRule, apply_exclusions, fit_score, load_rule
 from app.models.personal import Review
 from app.models.user import Profile, User
@@ -44,6 +46,8 @@ from app.schemas.product import (
     ProductDetailOut,
     ProductListOut,
     ProductMatchOut,
+    ProductScanIn,
+    ProductScanOut,
     ProductOut,
     ProductReviewOut,
     ProductReviewsOut,
@@ -379,34 +383,10 @@ limit :lim
 """
 
 
-@router.get("/match", response_model=list[ProductMatchOut], summary="OCR 텍스트로 제품 찾기")
-async def match_products(
-    q: str = Query(..., min_length=2, description="OCR로 읽은 텍스트"),
-    limit: int = Query(5, ge=1, le=20),
-    db: AsyncSession = Depends(get_db),
-) -> list[ProductMatchOut]:
-    """포장에서 읽은 텍스트로 비슷한 제품을 찾는다.
+async def match_text(db: AsyncSession, q: str, limit: int) -> list[ProductMatchOut]:
+    """글자(OCR 결과)와 제품명(한글·영문)의 trgm 유사도로 후보를 낸다.
 
-    `/search`와 다른 이유
-    --------------------
-    `/search`는 `ILIKE '%q%'`다. **OCR이 한 글자만 틀려도 0건**이 된다 —
-    `T0RRIDEN`은 아무것도 반환하지 않는다. 여기서는 trgm 유사도로 대조하고
-    점수를 함께 내므로, 호출 측이 "자동 선택할까 목록을 보여줄까"를 정할 수
-    있다. 지금 OCR은 완전 실패가 44.4%여서(scripts/OCR_SUMMARY.md) 그
-    판단이 호출 측에 있어야 한다.
-
-    영문명을 함께 보는 이유
-    ----------------------
-    예전에는 영문을 한글 발음으로 근사 전사해 대조했다(extract_product_name.py의
-    transliterate). 그러면 점수가 0.15 구간에 깔려 임계값을 정할 수 없고,
-    `Low Molecular → 저분자`처럼 음차가 아니라 번역인 이름은 아예 빗나갔다.
-    `product_names_en`에 실제 영문명이 들어온 뒤로는 원문 그대로 맞춘다.
-
-    **브랜드를 지우지 말고 통짜로 넘기는 게 낫다.** 제품명 줄만 남기면
-    오답이 1위로 올라온다 — '어성초 77 토너'는 블랑네이처를, 브랜드를 포함한
-    '아누아 어성초 77 토너'는 아누아를 1위로 낸다.
-
-    캐시는 두지 않는다. 질의가 매번 다른 OCR 텍스트라 적중률이 없다.
+    `/match`(텍스트)와 `/scan`(사진 → OCR)이 같이 쓴다.
     """
     rows = (
         await db.execute(
@@ -443,6 +423,64 @@ async def match_products(
             )
         )
     return out
+
+
+# OCR 통짜 텍스트를 질의로 쓸 때의 상한. 앞면은 수십~백여 자인데, 잘못 찍어
+# 뒷면 전성분이 300필드 넘게 잡히면 질의가 길어져 유사도가 흐려진다.
+SCAN_QUERY_MAX = 300
+
+
+@router.post("/scan", response_model=ProductScanOut, summary="사진으로 화장품 찾기")
+async def scan_product(
+    body: ProductScanIn,
+    _user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ProductScanOut:
+    """제품 앞면 사진 → CLOVA OCR → 제품명 대조 후보.
+
+    **로그인한 사용자만** 쓴다. CLOVA OCR은 호출 수로 과금·무료 한도가 정해지는데,
+    열어 두면 누구나 반복 호출할 수 있다. 비회원은 제품명 검색을 쓴다(화면이 안내).
+    사진은 저장하지 않는다.
+    글자를 못 읽었으면 빈 후보를 낸다 — 화면이 제품명 검색으로 안내한다.
+    """
+    content_type, data = decode_photo(body.image)
+    fields = await recognize_text(data, content_type)
+    query = " ".join(fields)[:SCAN_QUERY_MAX].strip()
+    if len(query) < 2:
+        return ProductScanOut(text=query, candidates=[])
+    return ProductScanOut(text=query, candidates=await match_text(db, query, body.limit))
+
+
+@router.get("/match", response_model=list[ProductMatchOut], summary="OCR 텍스트로 제품 찾기")
+async def match_products(
+    q: str = Query(..., min_length=2, description="OCR로 읽은 텍스트"),
+    limit: int = Query(5, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+) -> list[ProductMatchOut]:
+    """포장에서 읽은 텍스트로 비슷한 제품을 찾는다.
+
+    `/search`와 다른 이유
+    --------------------
+    `/search`는 `ILIKE '%q%'`다. **OCR이 한 글자만 틀려도 0건**이 된다 —
+    `T0RRIDEN`은 아무것도 반환하지 않는다. 여기서는 trgm 유사도로 대조하고
+    점수를 함께 내므로, 호출 측이 "자동 선택할까 목록을 보여줄까"를 정할 수
+    있다. 지금 OCR은 완전 실패가 44.4%여서(scripts/OCR_SUMMARY.md) 그
+    판단이 호출 측에 있어야 한다.
+
+    영문명을 함께 보는 이유
+    ----------------------
+    예전에는 영문을 한글 발음으로 근사 전사해 대조했다(extract_product_name.py의
+    transliterate). 그러면 점수가 0.15 구간에 깔려 임계값을 정할 수 없고,
+    `Low Molecular → 저분자`처럼 음차가 아니라 번역인 이름은 아예 빗나갔다.
+    `product_names_en`에 실제 영문명이 들어온 뒤로는 원문 그대로 맞춘다.
+
+    **브랜드를 지우지 말고 통짜로 넘기는 게 낫다.** 제품명 줄만 남기면
+    오답이 1위로 올라온다 — '어성초 77 토너'는 블랑네이처를, 브랜드를 포함한
+    '아누아 어성초 77 토너'는 아누아를 1위로 낸다.
+
+    캐시는 두지 않는다. 질의가 매번 다른 OCR 텍스트라 적중률이 없다.
+    """
+    return await match_text(db, q, limit)
 
 
 # 통칭 → 표준명 일부. 표준명·구명칭 어디에도 없는, 사람들이 실제로 치는 말.

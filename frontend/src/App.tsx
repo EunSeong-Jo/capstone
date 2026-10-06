@@ -74,13 +74,13 @@ export default function App() {
           <Route path="/home"       element={<HomePage />} />
           <Route path="/home/cheaper-alternatives" element={<CheaperAlternativesPage />} />
           <Route path="/closet"     element={<ClosetPage />} />
-          <Route path="/closet/decorate" element={<DecoratePage />} />
+          <Route path="/closet/decorate" element={mine(<DecoratePage />)} />
           <Route path="/detail/:id" element={<DetailPage />} />
           <Route path="/alternatives" element={<AlternativesPage />} />
           <Route path="/cart"       element={<CartPage />} />
           <Route path="/search"     element={<SearchPage />} />
-          <Route path="/scan"       element={<ScanPage />} />
-          <Route path="/scan/history" element={<ScanHistoryPage />} />
+          <Route path="/scan"       element={mine(<ScanPage />)} />
+          <Route path="/scan/history" element={mine(<ScanHistoryPage />)} />
           <Route path="/mypage"     element={<MypagePage />} />
           <Route path="/category"   element={<CategoryMainPage />} />
           <Route path="/category/:code" element={<CategoryPage />} />

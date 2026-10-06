@@ -15,7 +15,8 @@ import { createContext, useContext } from 'react';
  * scanned·analyzing은 예전 값이라 owned와 같게 다룬다.
  */
 export type ClosetStatus = 'owned' | 'removed' | 'analyzing' | 'scanned';
-export type ClosetSource = 'seed' | 'scan' | 'chatbot' | 'search';
+/** order는 주문하면 서버가 자동으로 담은 것이다(취소·반품하면 삭제된 제품이 된다) */
+export type ClosetSource = 'seed' | 'scan' | 'chatbot' | 'search' | 'order';
 
 export interface ClosetItem {
   id: number;
@@ -52,6 +53,8 @@ export interface ClosetContextValue {
   /** 삭제된 제품에서도 지운다. 되돌릴 수 없다 */
   purgeItem: (id: number) => void;
   clearCloset: () => void;
+  /** 서버 화장대를 다시 받는다. 주문·취소·반품처럼 서버가 화장대를 바꾼 뒤 부른다 */
+  reload: () => Promise<void>;
 }
 
 export const ClosetContext = createContext<ClosetContextValue | null>(null);

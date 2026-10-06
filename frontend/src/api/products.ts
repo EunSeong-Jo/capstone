@@ -10,7 +10,7 @@
  *   보이지 않을 뿐입니다.
  */
 import { Product } from '../types';
-import { QueryParams, request } from './client';
+import { QueryParams, postJson, request } from './client';
 
 export type ProductSort = 'popular' | 'priceAsc' | 'priceDesc' | 'rating';
 
@@ -172,4 +172,29 @@ export function fetchProductReviews(
     query as QueryParams,
     signal,
   );
+}
+
+// ── 사진으로 화장품 찾기 ─────────────────────────────────────
+
+export interface ProductMatch {
+  product: Product;
+  signals: {
+    /** 글자 대조 점수(trgm, 0~1)와 어느 이름(ko 한글명 / en 영문명)에서 맞았는지 */
+    text: { score: number; matchedOn: 'ko' | 'en'; matchedText: string };
+  };
+}
+
+export interface ProductScanResult {
+  /** 사진에서 읽은 글자(통짜) */
+  text: string;
+  /** 후보. 자동으로 고르지 않는다 — 화면이 보여 주고 사용자가 고른다 */
+  candidates: ProductMatch[];
+}
+
+/**
+ * 제품 앞면 사진(data URL, 장변 1024px JPEG 권장) → OCR → 후보.
+ * 사진 인식 키가 없으면 503(ApiError) — 화면은 제품명 검색으로 안내한다.
+ */
+export function scanProductImage(image: string, limit = 5): Promise<ProductScanResult> {
+  return postJson<ProductScanResult>('/api/v1/products/scan', { image, limit });
 }

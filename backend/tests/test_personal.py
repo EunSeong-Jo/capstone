@@ -742,6 +742,48 @@ async def _place_order(client: AsyncClient, account, pid: int) -> dict:
     return res.json()
 
 
+def _closet_of(listed: list[dict]) -> dict[int, tuple[str, str]]:
+    return {c["product"]["id"]: (c["status"], c["addedVia"]) for c in listed}
+
+
+async def test_order_puts_products_in_closet(client: AsyncClient, account, product_ids: list[int]) -> None:
+    """산 제품은 쓰는 제품이다 — 주문하면 화장대에 담긴다."""
+    await _place_order(client, account, product_ids[0])
+    closet = _closet_of((await client.get(f"{ME}/closet", **account)).json())
+    assert closet[product_ids[0]] == ("owned", "order")
+
+
+async def test_cancel_moves_only_ordered_products_to_removed(
+    client: AsyncClient, account, product_ids: list[int]
+) -> None:
+    """취소하면 주문으로 담긴 제품만 '삭제된 제품'으로. 원래 화장대에 있던 제품은 남는다."""
+    kept, ordered = product_ids[0], product_ids[1]
+    await client.post(f"{ME}/closet", json={"productId": kept}, **account)
+    await client.post(f"{ME}/cart", json={"productId": kept, "qty": 1}, **account)
+    await client.post(f"{ME}/cart", json={"productId": ordered, "qty": 1}, **account)
+    order = (await client.post(ORDERS, **account)).json()
+
+    res = await client.post(f"{ME}/orders/{order['id']}/cancel", json={}, **account)
+    assert res.status_code == 200, res.text
+
+    closet = _closet_of((await client.get(f"{ME}/closet", **account)).json())
+    assert closet[kept] == ("owned", "search")
+    assert closet[ordered] == ("removed", "order")
+
+
+async def test_reorder_restores_removed_product(client: AsyncClient, account, product_ids: list[int]) -> None:
+    """화장대에서 뺀 제품을 다시 사면 보유 중으로 돌아오고, 그 주문을 취소하면 다시 빠진다."""
+    pid = product_ids[0]
+    await client.post(f"{ME}/closet", json={"productId": pid}, **account)
+    await client.delete(f"{ME}/closet/{pid}", **account)
+
+    order = await _place_order(client, account, pid)
+    assert _closet_of((await client.get(f"{ME}/closet", **account)).json())[pid][0] == "owned"
+
+    await client.post(f"{ME}/orders/{order['id']}/cancel", json={}, **account)
+    assert _closet_of((await client.get(f"{ME}/closet", **account)).json())[pid][0] == "removed"
+
+
 async def test_new_order_is_paid_and_cancellable(
     client: AsyncClient, account, product_ids: list[int]
 ) -> None:

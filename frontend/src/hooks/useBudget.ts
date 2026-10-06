@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { fetchMyProfile, updateMyProfile } from '../api/auth';
 import { useAuth } from '../context/auth';
-import { readJSON, writeJSON } from '../context/storage';
+import { removeKey } from '../context/storage';
 import { load, meKey, peek, put } from '../api/queryCache';
 
 export interface Budget {
@@ -23,23 +23,20 @@ const GUEST_KEY = 'swappy:budget:v1:guest';
  * 화장품 예산 (`profiles.budget_min/max`). 루틴 전체를 살 때 쓸 금액 범위다.
  * 구매 가이드(Task 15)가 이 범위 안에서 조합을 고른다.
  *
- * 로그인 상태면 서버가 정본이다(`GET·PATCH /me/profile`). 비회원은
- * localStorage에 둔다 — 캐릭터 꾸미기(CharacterContext)와 같은 방식이다.
- * 아직 정하지 않았으면 `budget`이 null이다.
+ * 서버가 정본이다(`GET·PATCH /me/profile`). **로그인 전용**이라 비회원은 예산이
+ * 없다(화장대·추천세트도 로그인 전용). 아직 정하지 않았으면 `budget`이 null이다.
  */
 export function useBudget() {
   const { scope, isUser, loading: authLoading } = useAuth();
   const cacheKey = meKey(scope, 'budget');
-  // 저장하면 version을 올려 캐시(회원)·localStorage(비회원)를 다시 읽게 한다.
-  const [version, setVersion] = useState(0);
+  // 저장하면 version을 올려 캐시를 다시 읽게 한다(렌더를 한 번 더 돌린다).
+  const [, setVersion] = useState(0);
   const [fetched, setFetched] = useState<{ key: string } | null>(null);
 
-  // 비회원 값은 렌더 중에 읽는다.
-  const guestBudget = useMemo(
-    () => readJSON<Budget | null>(GUEST_KEY, null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 저장 뒤 다시 읽기 위한 키
-    [scope, version],
-  );
+  // 예산이 비회원에게 열려 있던 시절의 기기 기록 — 지운다.
+  useEffect(() => {
+    removeKey(GUEST_KEY);
+  }, []);
 
   // 회원은 한 번 받으면 세션 동안 캐시에서 꺼낸다. 탭을 오갈 때 기본값이
   // 스치던 문제가 여기서 생겼다. 로그아웃하면 AuthContext가 me: 키를 지운다.
@@ -66,18 +63,15 @@ export function useBudget() {
   /** 저장. 실패하면 throw — 화면이 알려 준다 */
   const save = useCallback(
     async (next: Budget) => {
-      if (isUser) {
-        const p = await updateMyProfile({ budgetMin: next.min, budgetMax: next.max });
-        put<Budget | null>(cacheKey, { min: p.budgetMin ?? next.min, max: p.budgetMax ?? next.max });
-      } else {
-        writeJSON(GUEST_KEY, next);
-      }
+      if (!isUser) throw new Error('예산은 로그인하면 정할 수 있어요');
+      const p = await updateMyProfile({ budgetMin: next.min, budgetMax: next.max });
+      put<Budget | null>(cacheKey, { min: p.budgetMin ?? next.min, max: p.budgetMax ?? next.max });
       setVersion((v) => v + 1);
     },
     [isUser, cacheKey],
   );
 
-  if (!isUser) return { budget: guestBudget, loading: authLoading, save };
+  if (!isUser) return { budget: null, loading: authLoading, save };
 
   const cached = peek<Budget | null>(cacheKey);
   return {

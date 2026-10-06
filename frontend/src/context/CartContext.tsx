@@ -23,6 +23,7 @@ import {
   Order,
 } from './cart';
 import { useAuth } from './auth';
+import { useCloset } from './closet';
 import { readJSON, removeKey, writeJSON } from './storage';
 
 /**
@@ -52,6 +53,7 @@ function toLines(dto: CartDto): CartLine[] {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { scope, isUser, loading: authLoading } = useAuth();
+  const { reload: reloadCloset } = useCloset();
 
   /**
    * 장바구니 + 주문 + 그것이 **어느 계정의 것인지**.
@@ -276,6 +278,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const dto = await placeOrder();
       reqSeq.current += 1; // 결제 전에 나간 요청의 늦은 응답을 버린다
       setLines([]);
+      // 서버가 주문한 제품을 화장대에 담았다. 화장대 목록도 다시 받는다.
+      void reloadCloset();
       await reloadOrders();
       return {
         id: dto.id,
@@ -293,7 +297,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch {
       return null;
     }
-  }, [isUser, lines.length, reloadOrders, setLines]);
+  }, [isUser, lines.length, reloadOrders, reloadCloset, setLines]);
 
   const value = useMemo<CartContextValue>(
     () => ({
