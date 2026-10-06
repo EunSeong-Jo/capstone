@@ -29,6 +29,19 @@ from app.models.product import IngredientTag, Product, ProductIngredient, Tag
 from app.models.recommendation import SkinTypeRule
 
 
+# 피부타입 코드 → 화면 이름. 케어 문구·예산 가이드 사유가 같은 이름을 쓴다.
+SKIN_TYPE_LABELS: dict[str, str] = {
+    "ondalsam": "수분팡팡 옹달샘",
+    "mulgae": "반질반질 물개",
+    "subuji": "겉바속촉 수부지",
+    "hwasan": "울긋불긋 화산",
+    "samak": "바스락 사막",
+    "injeolmi": "말랑말랑 인절미",
+    "yuriguseul": "조심조심 유리구슬",
+    "memilmuk": "얼룩덜룩 메밀묵",
+}
+
+
 @dataclass(frozen=True)
 class SkinRule:
     """조회에 바로 쓸 수 있게 편 규칙."""

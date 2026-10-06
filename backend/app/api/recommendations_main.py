@@ -21,11 +21,11 @@
 """
 from __future__ import annotations
 
-import math
+import hashlib
 
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import TypeAdapter
-from sqlalchemy import Float, cast, func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -35,44 +35,27 @@ from app.core.deps import get_optional_user
 from app.db.session import get_db
 from app.models.product import Product
 from app.models.user import User
+from app.schemas.budget_guide import BudgetGuideIn, BudgetGuideOut
 from app.schemas.product import ProductListOut, ProductOut
-from app.services.skin_type import apply_exclusions, fit_score, load_rule
+from app.services.budget_guide import build_guide
+from app.services.product_score import W_BRAND, product_score
+from app.services.skin_type import apply_exclusions, load_rule
 
 router = APIRouter(prefix="/api/v1/recommendations", tags=["recommendations"])
-
-# 점수 가중치. 합이 1이다.
-W_MATCH = 0.4
-W_RATING = 0.3
-W_REVIEW = 0.2
-W_BRAND = 0.1
-
-# 매칭 성분 수를 0~1로 누르는 기준. 실측 상위 제품이 20종 안팎이라
-# 그 위로는 더 벌어져도 의미가 없다.
-MATCH_CAP = 20
-# 리뷰수 로그 정규화 기준. 10만 리뷰를 1.0으로 본다.
-REVIEW_LOG_CAP = math.log10(100_000)
 
 # 한 브랜드가 목록을 채우지 않도록 하는 감점 폭. 같은 브랜드가 n번째로
 # 등장하면 (1 - n * 이 값)을 곱한다.
 BRAND_PENALTY = 0.35
 
 CACHE_TTL = 60 * 60 * 24  # 24h. 카탈로그가 자주 바뀌지 않는다.
+# 예산 가이드는 요청마다 조합(예산·선호·보유품)이 달라 적중률이 낮다. 짧게 둔다.
+BUDGET_CACHE_TTL = 60 * 60
+# 응답 모양·문구가 바뀌면 올린다. 올리지 않으면 1시간 동안 예전 응답이 캐시에서 나온다.
+BUDGET_FORMAT = 3
 _SET_ADAPTER = TypeAdapter(list[ProductOut])
 
 # 세트를 구성할 카테고리 순서. DB에 있는 4종 중 얼굴 루틴 순서다.
 SET_CATEGORIES = ("스킨케어", "선케어", "마스크팩", "클렌징")
-
-
-def _base_score(rule) -> tuple:
-    """SQL에서 계산하는 세 항. (매칭, 별점, 리뷰) 각각 0~1로 정규화한다."""
-    match = func.least(cast(fit_score(rule), Float) / MATCH_CAP, 1.0)
-    rating = func.coalesce(cast(Product.rating, Float), 0.0) / 5.0
-    review = func.least(
-        func.log(func.greatest(func.coalesce(Product.review_count, 0), 1) + 1)
-        / REVIEW_LOG_CAP,
-        1.0,
-    )
-    return match, rating, review
 
 
 def _diversify(rows: list[tuple[Product, float]], limit: int) -> list[Product]:
@@ -101,8 +84,7 @@ async def _pick(
     category: str | None = None,
 ) -> list[Product]:
     rule = await load_rule(db, skin_type)
-    match, rating, review = _base_score(rule)
-    score = (W_MATCH * match + W_RATING * rating + W_REVIEW * review).label("score")
+    score = product_score(rule).label("score")
 
     stmt = (
         select(Product, score)
@@ -193,3 +175,39 @@ async def recommendation_set(
     await cache_set(key, _SET_ADAPTER.dump_json(items, by_alias=True).decode(), CACHE_TTL)
     response.headers["X-Cache"] = "MISS"
     return items
+
+
+@router.post("/budget", response_model=BudgetGuideOut, summary="예산 구매 가이드")
+async def budget_guide(
+    body: BudgetGuideIn,
+    response: Response,
+    user: User | None = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+) -> BudgetGuideOut:
+    """예산 범위 안에서 토너·에센스·크림·선크림 루틴 1~3안 (Task 15).
+
+    피부타입은 `/set`과 같다 — 요청에 없으면 로그인 사용자의 프로필.
+    조합이 하나도 없으면(예산 부족) `combinations`가 비고 `minPossibleTotal`이
+    이 루틴의 최저 합계를 알려 준다. 엔진은 `services/budget_guide.py`.
+
+    POST인 이유: 명세의 경로·메서드를 따랐고, 보유품 id 목록이 쿼리스트링에
+    담기기엔 길다. 그래도 결과는 요청 내용으로만 정해지므로 캐시한다.
+    """
+    effective = body.skin_type
+    if effective is None and user is not None and user.profile:
+        effective = user.profile.skin_type
+
+    normalized = body.model_copy(
+        update={"skin_type": effective, "exclude_product_ids": sorted(set(body.exclude_product_ids))}
+    )
+    digest = hashlib.sha1(normalized.model_dump_json().encode()).hexdigest()[:16]
+    key = f"reco:budget:f{BUDGET_FORMAT}:v{await get_cache_version()}:{digest}"
+    cached = await cache_get(key)
+    if cached:
+        response.headers["X-Cache"] = "HIT"
+        return BudgetGuideOut.model_validate_json(cached)
+
+    out = await build_guide(db, normalized, effective)
+    await cache_set(key, out.model_dump_json(by_alias=True), BUDGET_CACHE_TTL)
+    response.headers["X-Cache"] = "MISS"
+    return out

@@ -15,6 +15,7 @@ import {
   ProfileUser,
   RegistrySummary,
   SKIN_TYPE_META,
+  Product,
 } from '../../types';
 import { useProducts } from '../../hooks/useProducts';
 import { useRecommendations } from '../../hooks/useRecommendations';
@@ -103,9 +104,10 @@ export default function HomePage() {
   const skinLabel = skinType !== null ? SKIN_TYPE_META[skinType].label : null;
 
   const owned = closetItems.map((c) => ({ id: c.id, brand: c.brand, name: c.name }));
+  // 추천 세트(예산 가이드)가 새로 살 루틴에서 뺄 보유품. 배열이 매번 새로 생기면 캐시 키는 같아도 렌더가 헛돈다.
+  const ownedIds = useMemo(() => closetItems.map((c) => c.id), [closetItems]);
   const {
     forYou,
-    set,
     error: recError,
     reload: recReload,
   } = useRecommendations(skinType, skinPending, owned);
@@ -195,8 +197,8 @@ export default function HomePage() {
     totalSavings,
   };
 
-  const addSetToCart = () => {
-    set.items.forEach((p) =>
+  const addSetToCart = (products: Product[]) => {
+    products.forEach((p) =>
       addToCart({ id: p.id, name: p.name, brand: p.brand, price: p.price, imageUrl: p.imageUrl }),
     );
     setSetOpen(false);
@@ -300,9 +302,8 @@ export default function HomePage() {
         open={setOpen}
         onClose={() => setSetOpen(false)}
         nickname={dashUser.nickname}
-        set={set}
-        error={recError}
-        onRetry={recReload}
+        skinType={skinType}
+        ownedIds={ownedIds}
         onAddAll={addSetToCart}
       />
     </div>
