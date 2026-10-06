@@ -9,6 +9,8 @@ import { useCloset } from '../../context/closet';
 import { useCharacter } from '../../context/character';
 import { CharacterAvatar } from '../../components/character/CharacterAvatar';
 import { useSkinType } from '../../hooks/useSkinType';
+import { useLoginPrompt } from '../../hooks/useLoginPrompt';
+import { readJSON, writeJSON } from '../../context/storage';
 import type { SkinType } from '../../types';
 
 /**
@@ -99,9 +101,20 @@ function TypingBubble({
 
 const REGISTER_INTENT = /(화장품|제품).*(등록|추가)|등록.*(화장품|제품)|내 화장대에 담아/;
 
+/**
+ * 비회원이 답을 받을 수 있는 질문 수. 챗봇은 LLM 호출이라 비용이 들고, 대화 기록은
+ * 개인 데이터라 계속 쓰려면 로그인하게 한다. 맛보기로 몇 번은 열어 둔다.
+ * 기기(localStorage)에 세므로 새로고침해도 이어서 센다.
+ */
+const GUEST_CHAT_LIMIT = 3;
+const GUEST_CHAT_KEY = 'swappy:chat-guest:v1';
+
 export default function ChatSupportPage() {
   const navigate = useNavigate();
   const { addItem } = useCloset();
+  const { isUser, requireLogin, goLogin } = useLoginPrompt();
+  const [guestUsed, setGuestUsed] = useState(() => readJSON<number>(GUEST_CHAT_KEY, 0));
+  const guestLimitReached = !isUser && guestUsed >= GUEST_CHAT_LIMIT;
   /**
    * 진단 전이면 null이다. 예전에는 `?? 'ondalsam'`이라 **진단을 한 적이 없는
    * 사용자의 챗봇 아바타가 옹달샘으로** 나왔고, 서버에도 그 타입으로 물었다.
@@ -168,6 +181,7 @@ export default function ChatSupportPage() {
   };
 
   const startRegister = () => {
+    if (requireLogin('화장품 등록은 로그인하면 쓸 수 있어요')) return;
     setMessages((prev) => [
       ...prev,
       { id: nextId.current++, role: 'user', text: '내 화장품 등록하기' },
@@ -185,7 +199,7 @@ export default function ChatSupportPage() {
   }, [messages]);
 
   const sendMessage = async () => {
-    if (!inputText.trim() || isSending) return;
+    if (!inputText.trim() || isSending || guestLimitReached) return;
 
     const userText = inputText;
     const userMsg: Message = { id: nextId.current++, role: 'user', text: userText };
@@ -199,11 +213,21 @@ export default function ChatSupportPage() {
       return;
     }
     if (REGISTER_INTENT.test(userText)) {
+      if (!isUser) {
+        pushBot('화장품 등록은 로그인하면 쓸 수 있어요. 로그인하면 내 화장대에 바로 담아 드릴게요.');
+        requireLogin('화장품 등록은 로그인하면 쓸 수 있어요');
+        return;
+      }
       pushBot('등록할 화장품의 브랜드와 제품명을 한 줄로 알려주세요.\nex) 이니스프리 그린티 씨드 세럼 80ml');
       setRegisterMode(true);
       return;
     }
 
+    if (!isUser) {
+      const used = guestUsed + 1;
+      writeJSON(GUEST_CHAT_KEY, used);
+      setGuestUsed(used);
+    }
     setIsSending(true);
 
     // 서버에 보낼 대화 히스토리 (welcome/버튼 안내 메시지는 제외)
@@ -216,6 +240,12 @@ export default function ChatSupportPage() {
       const botReply: Message = { id: nextId.current++, role: 'bot', text: reply };
       setMessages((prev) => [...prev, botReply]);
     } catch (err) {
+      // 비회원 한도는 서버도 센다(IP 기준). 기기 카운터를 지웠어도 서버가 막으면
+      // 입력창을 닫고 로그인 안내를 띄운다.
+      if (!isUser && err instanceof ApiError && err.status === 401) {
+        writeJSON(GUEST_CHAT_KEY, GUEST_CHAT_LIMIT);
+        setGuestUsed(GUEST_CHAT_LIMIT);
+      }
       // 백엔드 detail은 이미 사용자에게 보여줄 수 있게 다듬어진 문구다
       // (내부 예외 텍스트는 서버 로그에만 남고 여기까지 오지 않는다).
       const text =
@@ -344,6 +374,21 @@ export default function ChatSupportPage() {
         </button>
       )}
 
+      {guestLimitReached && (
+        <div className="mx-3 mb-2 rounded-xl bg-gray-5 px-3 py-3 text-center">
+          <p className="text-[12px] text-gray-70">
+            로그인하면 챗봇과 계속 대화할 수 있어요. 내 피부타입과 화장대에 맞춰 답해 드려요.
+          </p>
+          <button
+            onClick={goLogin}
+            className="mt-2 rounded-full px-4 py-2 text-[12px] font-bold text-white active:scale-95 transition-transform"
+            style={{ background: '#00916D' }}
+          >
+            로그인하고 계속 대화하기
+          </button>
+        </div>
+      )}
+
       <div className="bg-white border-t border-gray-20 px-3 py-2.5 flex items-center gap-2" style={{ paddingBottom: 'calc(10px + var(--safe-bottom))' }}>
         <button
           onClick={startRegister}
@@ -356,13 +401,19 @@ export default function ChatSupportPage() {
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          disabled={isSending}
-          placeholder={isSending ? '답변을 기다리는 중...' : '버튼을 선택하거나 메시지를 입력하세요'}
+          disabled={isSending || guestLimitReached}
+          placeholder={
+            guestLimitReached
+              ? '로그인하면 계속 대화할 수 있어요'
+              : isSending
+                ? '답변을 기다리는 중...'
+                : '버튼을 선택하거나 메시지를 입력하세요'
+          }
           className="flex-1 border border-gray-20 rounded-full px-3.5 py-2.5 text-[13px] text-gray-100 bg-gray-5 outline-none disabled:opacity-60"
         />
         <button
           onClick={sendMessage}
-          disabled={isSending}
+          disabled={isSending || guestLimitReached}
           className={`w-[34px] h-[34px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
             inputText.trim() && !isSending ? 'bg-primary' : 'bg-gray-20'
           }`}

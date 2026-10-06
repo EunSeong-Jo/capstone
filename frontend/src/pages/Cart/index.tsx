@@ -4,17 +4,23 @@ import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { useAuth } from '../../context/auth';
 import { useCart, Order } from '../../context/cart';
+import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 
 /**
  * 장바구니 → 구매.
  *
  * 결제 PG 연동은 범위 밖이라 '구매하기'는 CartContext.checkout()으로 주문내역에
  * 옮기는 것으로 완료를 흉내낸다. 완료 후 주문은 마이페이지 주문내역에서 보인다.
+ *
+ * 비회원도 담고 고치고 지울 수 있지만 구매는 로그인해야 한다. 버튼이 '로그인하고
+ * 구매하기'가 되고, 로그인하면 이 화면으로 돌아온다 — 담아 둔 제품은 계정 장바구니로
+ * 옮겨진다(CartContext).
  */
 export default function CartPage() {
   const navigate = useNavigate();
   const { lines, subtotal, count, setQty, removeLine, checkout } = useCart();
   const { isUser } = useAuth();
+  const { goLogin } = useLoginPrompt();
   const [placed, setPlaced] = useState<Order | null>(null);
   // 서버 왕복이 생겼다. 중복 제출을 막고 실패를 화면에 드러낸다.
   const [buying, setBuying] = useState(false);
@@ -142,18 +148,25 @@ export default function CartPage() {
               disabled={buying}
               onClick={async () => {
                 if (buying) return;
+                if (!isUser) {
+                  goLogin();
+                  return;
+                }
                 setBuying(true);
                 setError(null);
                 const order = await checkout();
                 setBuying(false);
                 if (order) setPlaced(order);
-                else if (!isUser) setError('주문하려면 로그인이 필요해요.');
                 else setError('주문에 실패했어요. 잠시 후 다시 시도해 주세요.');
               }}
               className="h-[50px] w-full rounded-xl text-[15px] font-bold text-white active:scale-[.98] transition-transform disabled:opacity-60"
               style={{ background: '#00916D' }}
             >
-              {buying ? '주문 중…' : `${(subtotal + shipping).toLocaleString()}원 구매하기`}
+              {buying
+                ? '주문 중…'
+                : isUser
+                  ? `${(subtotal + shipping).toLocaleString()}원 구매하기`
+                  : '로그인하고 구매하기'}
             </button>
             {error && (
               <p className="mt-2 text-center text-[12px] text-accent">{error}</p>

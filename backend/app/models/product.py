@@ -4,6 +4,8 @@
   - products / brands / categories : 올리브영 크롤러 (scripts/load_products.py)
   - ingredients / ingredient_aliases : 대한화장품협회 표준화명칭목록
                                        (scripts/seed_ingredients.py)
+  - ingredient_descriptions : data/seed/ingredient_descriptions.csv
+                              (scripts/seed_ingredient_descriptions.py)
   - tags / ingredient_tags / grade / ewg : 수동 큐레이션 (아직 미착수)
 """
 from __future__ import annotations
@@ -13,6 +15,7 @@ from datetime import date
 from sqlalchemy import (
     Boolean,
     Date,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -22,6 +25,7 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy import FetchedValue
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -242,6 +246,29 @@ class IngredientAlias(Base):
     ingredient: Mapped["Ingredient"] = relationship(back_populates="aliases")
 
 
+class IngredientDescription(Base, TimestampMixin):
+    """성분 설명 — 한 줄 설명 + 효능·역할 키워드.
+
+    원본은 data/seed/ingredient_descriptions.csv이고
+    scripts/seed_ingredient_descriptions.py가 적재한다. ingredients와 따로 두는
+    이유는 성분 마스터(협회 사전)와 출처·갱신 주기가 다르기 때문이다.
+
+    keywords: 고정 어휘에서만 고른다(적재 스크립트가 검사).
+    source: 'llm'(생성 초안) | 'reviewed'(사람 검수 완료)
+    """
+
+    __tablename__ = "ingredient_descriptions"
+
+    ingredient_id: Mapped[int] = mapped_column(
+        ForeignKey("ingredients.id", ondelete="CASCADE"), primary_key=True
+    )
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    keywords: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default="{}"
+    )
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
+
+
 class ProductIngredient(Base):
     """제품 ↔ 성분 N:M.
 
@@ -286,3 +313,46 @@ class IngredientTag(Base):
     tag_id: Mapped[int] = mapped_column(
         ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True
     )
+
+
+class ProductNameEn(Base, TimestampMixin):
+    """제품의 영문명 — 올리브영 글로벌에 올라간 같은 상품의 이름.
+
+    원본은 `data/raw/oliveyoung_kr_en_paired.csv`(PR #60)이고
+    `scripts/seed_product_names_en.py`가 적재한다. 한글 쪽 상품URL의
+    `goodsNo`로 `products.product_url`을 역조회해 붙인다.
+
+    왜 products에 컬럼을 더하지 않았나
+    ---------------------------------
+    한 제품이 **여러 영문 리스팅에 매칭된다**(goodsNo 중복 194건). OCR에는
+    별칭이 많을수록 유리하다 — 포장 표기가 그중 하나와 맞으면 찾아진다.
+    컬럼 하나면 그만큼을 버려야 한다.
+
+    매칭 근거를 함께 남기는 이유
+    ---------------------------
+    `confidence`가 '확인필요'인 218건을 질의에서 빼거나 가중할 수 있어야
+    한다. 쌍을 맞춘 방법도 남긴다 — 대부분 전성분 대조라 근거가 강하지만
+    '상품명 검색'으로 맞춘 17건은 성질이 다르다.
+
+    OCR 대조는 `name_en`의 GIN trgm 인덱스를 쓴다. 영문을 한글 발음으로
+    전사해 대조하던 예전 방식은 점수가 0.15 구간에 깔려 임계값을 정할 수
+    없었다 — `Low Molecular → 저분자`처럼 음차가 아니라 번역인 이름은
+    아예 빗나갔다.
+    """
+
+    __tablename__ = "product_names_en"
+    __table_args__ = (
+        Index("idx_product_names_en_trgm", "name_en", postgresql_using="gin",
+              postgresql_ops={"name_en": "gin_trgm_ops"}),
+    )
+
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), primary_key=True
+    )
+    name_en: Mapped[str] = mapped_column(Text, primary_key=True)
+    brand_en: Mapped[str | None] = mapped_column(Text)
+    # 전성분 | 전성분(구성 다름) | 상품명 검색
+    match_method: Mapped[str] = mapped_column(Text, nullable=False)
+    # 높음 | 보통 | 확인필요
+    confidence: Mapped[str] = mapped_column(Text, nullable=False)
+    score: Mapped[float] = mapped_column(Float, nullable=False)

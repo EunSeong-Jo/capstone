@@ -68,12 +68,33 @@ class OrderItemOut(_CamelModel):
     reviewed: bool = False
 
 
+class TrackingStepOut(_CamelModel):
+    # paid / preparing / shipping / delivered
+    stage: str
+    # 이 단계가 된 시각. 아직 오지 않았으면 None.
+    at: datetime | None = None
+
+
 class OrderOut(_CamelModel):
     id: uuid.UUID
     total: int
+    # placed / cancelled / returned
     status: str
     placed_at: datetime
     items: list[OrderItemOut]
+    # 지금 단계: paid / preparing / shipping / delivered / cancelled / returned
+    stage: str = "paid"
+    tracking: list[TrackingStepOut] = []
+    can_cancel: bool = False
+    can_return: bool = False
+    closed_at: datetime | None = None
+    close_reason: str | None = None
+
+
+class OrderCloseIn(_CamelModel):
+    """취소·반품 사유. 고르지 않아도 된다."""
+
+    reason: str | None = Field(default=None, max_length=200)
 
 
 class FrequentItemOut(_CamelModel):
@@ -84,10 +105,15 @@ class FrequentItemOut(_CamelModel):
     last_ordered_at: datetime
 
 
+MAX_REVIEW_PHOTOS = 3
+
+
 class ReviewIn(_CamelModel):
     order_item_id: int = Field(ge=1)
     rating: int = Field(ge=1, le=5)
     body: str | None = Field(default=None, max_length=1000)
+    # data URL(`data:image/jpeg;base64,...`). 화면이 줄여서 보낸다.
+    photos: list[str] = Field(default_factory=list, max_length=MAX_REVIEW_PHOTOS)
 
 
 class ReviewOut(_CamelModel):
@@ -97,6 +123,7 @@ class ReviewOut(_CamelModel):
     rating: int
     body: str | None = None
     created_at: datetime
+    photo_urls: list[str] = []
 
 
 class PointTxOut(_CamelModel):
@@ -161,7 +188,8 @@ class GiftIn(_CamelModel):
     """
 
     product_id: int = Field(ge=1)
-    recipient_name: str = Field(min_length=1, max_length=30)
+    # 받는 사람의 swappy 닉네임. 계정을 찾아 '받은 선물'에 넣는다.
+    recipient_nickname: str = Field(min_length=1, max_length=30)
     message: str | None = Field(default=None, max_length=200)
 
 
@@ -173,6 +201,8 @@ class GiftOut(_CamelModel):
     brand_name: str | None = None
     unit_price: int
     recipient_name: str
+    # 받은 선물에서 보여 줄 보낸 사람 닉네임. 보낸 선물에서는 None.
+    sender_nickname: str | None = None
     message: str | None = None
     status: str
     created_at: datetime

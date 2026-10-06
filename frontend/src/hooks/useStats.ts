@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { StatsDto, fetchStats } from '../api/personal';
 import { useAuth } from '../context/auth';
+import { invalidate, load, meKey, peek } from '../api/queryCache';
+
+/**
+ * 탭을 연달아 오갈 때는 다시 묻지 않는다. 그보다 오래되면 지난 값을 먼저
+ * 보여 주고 뒤에서 새로 받는다 — 주문·후기 뒤의 숫자 변화도 곧 반영된다.
+ */
+const STATS_FRESH_MS = 30 * 1000;
 
 /**
  * 대시보드 숫자 (`GET /api/v1/me/stats`).
@@ -33,6 +40,7 @@ export function useStats() {
 
   // 이 조회를 식별하는 값. 하나라도 바뀌면 이전 결과는 남의 것이다.
   const key = `${scope}:${isUser}:${nonce}`;
+  const cacheKey = meKey(scope, 'stats');
 
   useEffect(() => {
     // 비회원은 조회하지 않는다. 그 경우의 결과(null)는 아래에서 파생하므로
@@ -40,7 +48,7 @@ export function useStats() {
     if (authLoading || !isUser) return;
 
     let alive = true;
-    fetchStats()
+    load(cacheKey, () => fetchStats(), STATS_FRESH_MS)
       .then((stats) => {
         if (alive) setLoaded({ key, stats });
       })
@@ -51,14 +59,23 @@ export function useStats() {
     return () => {
       alive = false;
     };
-  }, [key, isUser, authLoading]);
+  }, [key, cacheKey, isUser, authLoading]);
 
-  const reload = useCallback(() => setNonce((n) => n + 1), []);
+  const reload = useCallback(() => {
+    invalidate(cacheKey);
+    setNonce((n) => n + 1);
+  }, [cacheKey]);
 
   // 세션 복원이 끝나기 전에는 비회원인지 아직 모른다. 여기서 단정하면
   // 새로고침할 때마다 "값 없음"이 스쳐 지나가고, 화면은 그 순간을 로딩과
   // 구분할 수 없다 — 그래서 레벨 줄이 없다가 갑자기 튀어나왔다.
   if (!authLoading && !isUser) return { stats: null, loading: false, reload };
+
+  // 지난 값이 있으면 첫 렌더부터 쓴다(탭 이동 깜빡임 제거).
+  const cached = peek<StatsDto>(cacheKey)?.value;
+  if (loaded?.key !== key && cached !== undefined) {
+    return { stats: cached, loading: false, reload };
+  }
 
   return {
     stats: loaded?.key === key ? loaded.stats : null,

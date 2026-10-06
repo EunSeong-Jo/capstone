@@ -2,6 +2,7 @@ import {
   ReactNode,
   useCallback,
   useEffect,
+  useRef,
   useMemo,
   useState,
 } from 'react';
@@ -22,6 +23,7 @@ import {
   Order,
 } from './cart';
 import { useAuth } from './auth';
+import { useCloset } from './closet';
 import { readJSON, removeKey, writeJSON } from './storage';
 
 /**
@@ -51,6 +53,7 @@ function toLines(dto: CartDto): CartLine[] {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { scope, isUser, loading: authLoading } = useAuth();
+  const { reload: reloadCloset } = useCloset();
 
   /**
    * 장바구니 + 주문 + 그것이 **어느 계정의 것인지**.
@@ -153,6 +156,56 @@ export function CartProvider({ children }: { children: ReactNode }) {
     };
   }, [scope, isUser, authLoading, reloadOrders, setLines, setOrders]);
 
+  /**
+   * 담기·수량·삭제 요청의 응답 순서 관리.
+   *
+   * 응답마다 서버가 장바구니 전체를 돌려주고 화면을 그걸로 덮어쓰는데, 응답이
+   * 보낸 순서대로 온다는 보장이 없다. 추천 세트를 담자마자(추가 요청 4개가 동시에
+   * 나감) 한 제품을 지우면, 삭제보다 먼저 처리된 추가 요청의 응답이 늦게 도착해
+   * **지운 제품이 화면에 되살아났다**(서버에는 없어서 새로고침하면 사라졌다).
+   *
+   * 서버도 마찬가지였다. 요청을 동시에 보내면 DB가 느릴 때 나중에 보낸 삭제가
+   * 먼저 끝나고, 먼저 보낸 담기가 뒤늦게 처리돼 **서버에 제품이 다시 들어갔다**
+   * (접근 로그에서 POST와 DELETE가 뒤섞여 끝났다).
+   *
+   * 그래서 요청을 **한 줄로 세워** 앞 요청이 끝난 뒤 다음 요청을 보낸다 — 서버가
+   * 누른 순서대로 처리한다. 화면에는 가장 최근 요청의 응답만 반영하고, 이전
+   * 응답을 버린 적이 있으면 줄이 다 빈 뒤 서버 장바구니를 한 번 다시 받아 맞춘다.
+   */
+  const reqSeq = useRef(0);
+  const inflight = useRef(0);
+  const skipped = useRef(false);
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+
+  const track = useCallback(
+    (send: () => Promise<CartDto>, onError?: () => void) => {
+      const mine = ++reqSeq.current;
+      inflight.current += 1;
+      const request = queue.current.then(send);
+      // 실패해도 줄은 계속 흐른다.
+      queue.current = request.catch(() => undefined);
+      request
+        .then((dto) => {
+          if (mine === reqSeq.current) setLines(toLines(dto));
+          else skipped.current = true;
+        })
+        .catch(() => onError?.())
+        .finally(() => {
+          inflight.current -= 1;
+          if (inflight.current > 0 || !skipped.current) return;
+          skipped.current = false;
+          const at = reqSeq.current;
+          fetchCart()
+            .then((dto) => {
+              // 그사이 새 요청이 시작됐으면 그 요청이 맞춘다.
+              if (at === reqSeq.current && inflight.current === 0) setLines(toLines(dto));
+            })
+            .catch(() => undefined);
+        });
+    },
+    [setLines],
+  );
+
   const inCart = useCallback((id: number) => lines.some((l) => l.id === id), [lines]);
 
   const addToCart = useCallback(
@@ -167,14 +220,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       });
 
       if (!isUser) return;
-      addCartItem(product.id, qty)
-        .then((dto) => setLines(toLines(dto)))
-        .catch(() => {
-          // 서버가 거부하면(없는 제품 등) 화면도 되돌린다.
-          setLines((prev) => prev.filter((l) => l.id !== product.id));
-        });
+      track(() => addCartItem(product.id, qty), () => {
+        // 서버가 거부하면(없는 제품 등) 화면도 되돌린다.
+        setLines((prev) => prev.filter((l) => l.id !== product.id));
+      });
     },
-    [isUser, persistGuest, setLines],
+    [isUser, persistGuest, setLines, track],
   );
 
   const setQty = useCallback(
@@ -184,13 +235,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         persistGuest(next);
         return next;
       });
-      if (isUser) {
-        setCartQty(id, Math.max(0, qty))
-          .then((dto) => setLines(toLines(dto)))
-          .catch(() => undefined);
-      }
+      if (isUser) track(() => setCartQty(id, Math.max(0, qty)));
     },
-    [isUser, persistGuest, setLines],
+    [isUser, persistGuest, setLines, track],
   );
 
   const removeLine = useCallback(
@@ -200,23 +247,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
         persistGuest(next);
         return next;
       });
-      if (isUser) {
-        removeCartItem(id)
-          .then((dto) => setLines(toLines(dto)))
-          .catch(() => undefined);
-      }
+      if (isUser) track(() => removeCartItem(id));
     },
-    [isUser, persistGuest, setLines],
+    [isUser, persistGuest, setLines, track],
   );
 
   const clearCart = useCallback(() => {
     const snapshot = lines;
+    // 진행 중인 담기·삭제 응답이 늦게 와서 비운 장바구니를 되살리지 않게.
+    reqSeq.current += 1;
     setLines([]);
     if (!isUser) {
       removeKey(GUEST_CART);
       return;
     }
-    Promise.allSettled(snapshot.map((l) => removeCartItem(l.id))).then(() => undefined);
+    // 줄 뒤에 붙인다 — 앞에 서 있던 담기가 비운 뒤에 처리되면 다시 채워진다.
+    queue.current = queue.current.then(() =>
+      Promise.allSettled(snapshot.map((l) => removeCartItem(l.id))),
+    );
   }, [lines, isUser, setLines]);
 
   const checkout = useCallback(async (): Promise<Order | null> => {
@@ -225,8 +273,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!isUser || lines.length === 0) return null;
 
     try {
+      // 아직 처리 중인 담기·삭제가 끝난 장바구니로 주문한다.
+      await queue.current;
       const dto = await placeOrder();
+      reqSeq.current += 1; // 결제 전에 나간 요청의 늦은 응답을 버린다
       setLines([]);
+      // 서버가 주문한 제품을 화장대에 담았다. 화장대 목록도 다시 받는다.
+      void reloadCloset();
       await reloadOrders();
       return {
         id: dto.id,
@@ -244,7 +297,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch {
       return null;
     }
-  }, [isUser, lines.length, reloadOrders, setLines]);
+  }, [isUser, lines.length, reloadOrders, reloadCloset, setLines]);
 
   const value = useMemo<CartContextValue>(
     () => ({

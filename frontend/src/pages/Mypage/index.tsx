@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
@@ -7,9 +7,12 @@ import { useUserProfile } from '../../context/userProfile';
 import { useCloset } from '../../context/closet';
 import { useLikedProducts } from '../../context/liked';
 import { useStats } from '../../hooks/useStats';
-import { CartIcon } from '../../components/ui/OutlineIcons';
+import { CartButton } from '../../components/ui/CartButton';
 import { CharacterAvatar } from '../../components/character/CharacterAvatar';
 import { useCharacter } from '../../context/character';
+import { useAuth } from '../../context/auth';
+import { useDiagnosis } from '../../context/diagnosis';
+import { useSkinType } from '../../hooks/useSkinType';
 
 
 
@@ -58,30 +61,65 @@ function GroupCard({ title, items }: { title: string; items: MenuItem[] }) {
   );
 }
 
+/**
+ * 경험치 규칙 안내. 값은 서버(`backend/app/services/experience.py`)와 같아야 한다 —
+ * 레벨 계산은 서버가 하고, 여기는 무엇으로 오르는지 보여 줄 뿐이다.
+ */
+const EXP_RULES: { key: 'scanCount' | 'reviewCount' | 'orderCount' | 'giftCount'; label: string; exp: number; hint: string }[] = [
+  { key: 'orderCount', label: '주문하기', exp: 50, hint: '취소·반품하면 빠져요' },
+  { key: 'reviewCount', label: '후기 쓰기', exp: 20, hint: '구매한 제품에 한 번씩' },
+  { key: 'giftCount', label: '선물 보내기', exp: 20, hint: '친구 닉네임으로 보내기' },
+  { key: 'scanCount', label: '제품 스캔·등록', exp: 10, hint: '스캔 화면에서 화장대에 담기' },
+];
+/** Lv.N → N+1 에 N × 100 EXP */
+const LEVEL_STEP = 100;
+
 export default function MypagePage() {
   const navigate = useNavigate();
   const { profile } = useUserProfile();
   /**
    * 진단 전에는 8종 중 하나를 골라 보여주지 않는다 — 그게 곧 거짓이 된다.
    * 요약 문구와 '재진단' 버튼도 그 상태에 맞게 바뀐다.
+   *
+   * 피부타입은 홈과 같은 useSkinType에서 읽는다. 예전에는 profile.skinType
+   * (로그인 시점의 계정 값)을 봐서, 문답 진단을 새로 하면 홈 캐릭터는
+   * 바뀌는데 여기 프로필 캐릭터는 그대로였다.
    */
-  const diagnosed = profile.skinType !== null;
-  const skinMeta = diagnosed ? SKIN_TYPE_META[profile.skinType!] : UNKNOWN_SKIN_META;
+  const { skinType, loading: skinPending } = useSkinType();
+  const { result: diagnosis } = useDiagnosis();
+  const diagnosed = skinType !== null;
+  const skinMeta = diagnosed ? SKIN_TYPE_META[skinType] : UNKNOWN_SKIN_META;
+  // 진단일. 진단 기록이 없는 시드 계정만 가입 월로 대신한다.
+  const diagnosedOn = diagnosis
+    ? new Date(diagnosis.ts).toLocaleDateString('ko-KR').replace(/\.\s?/g, '.').replace(/\.$/, '')
+    : profile.memberSince;
   // 서버가 실제 행에서 센 값. 비회원은 null이라 로컬 개수로 대신한다.
-  // 레벨·경험치는 무엇으로 오르는지 정한 적이 없어 그리지 않는다.
   const { stats, loading: statsLoading } = useStats();
   const { count: closetCount } = useCloset();
   const { likedProducts } = useLikedProducts();
   const { decorationId } = useCharacter();
+  const [expGuideOpen, setExpGuideOpen] = useState(false);
+  const { logout } = useAuth();
 
-  // 취소·반품·배송지·재입고는 뺐다. 실제 결제와 배송이 없어 화면에 채울
-  // 근거가 아예 없는 항목들이고, 지금까지는 각자 하드코딩된 예시를 들고
-  // 있었다. '보낸 선물'은 gifts 테이블이 생겨 돌아왔다.
+  /**
+   * 예전에는 `navigate('/')`만 했다 — **세션이 그대로 남아** 토큰도 계정
+   * 정보도 살아 있었고, 스플래시를 지나 홈으로 돌아오면 여전히 로그인
+   * 상태였다. 로그아웃은 화면 이동이 아니라 세션 종료다.
+   */
+  const signOut = () => {
+    logout();
+    navigate('/');
+  };
+
+  // 배송지·재입고는 뺐다. 실제 배송이 없어 화면에 채울 근거가 없다.
+  // 취소·반품은 orders.status 기록이 생겨 돌아왔다(배송 단계는 서버가 계산).
+  // '보낸/받은 선물'은 gifts 테이블에서 온다.
   const shopping: MenuItem[] = [
     { icon: <LineIcon><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" /><path d="M4 8l8 4 8-4M12 12v8" /></LineIcon>, label: '주문내역', right: stats ? `${stats.orderCount}건` : undefined, onClick: () => navigate('/mypage/order-history') },
+    { icon: <LineIcon><path d="M9 14l-4-4 4-4" /><path d="M5 10h10a4 4 0 010 8h-2" /></LineIcon>, label: '취소/반품/환불 내역', onClick: () => navigate('/mypage/cancel-return') },
     { icon: <LineIcon><rect x="3" y="8" width="18" height="12.5" rx="1.5" /><path d="M3 12h18M12 8v12.5" /></LineIcon>, label: '장바구니', right: stats ? `${stats.cartCount}개` : undefined, onClick: () => navigate('/cart') },
     { icon: <LineIcon><path d="M12 21s-7-5.5-7-11a7 7 0 1114 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></LineIcon>, label: '내 화장대', right: `${stats?.closetCount ?? closetCount}개`, onClick: () => navigate('/closet') },
-    { icon: <LineIcon><rect x="4" y="9" width="16" height="11" rx="1.5" /><path d="M3 6h18v3H3zM12 6v14" /></LineIcon>, label: '보낸 선물', onClick: () => navigate('/mypage/gifts') },
+    { icon: <LineIcon><rect x="4" y="9" width="16" height="11" rx="1.5" /><path d="M3 6h18v3H3zM12 6v14" /></LineIcon>, label: '보낸/받은 선물', onClick: () => navigate('/mypage/gifts') },
   ];
 
   const benefits: MenuItem[] = [
@@ -93,7 +131,7 @@ export default function MypagePage() {
   const settings: MenuItem[] = [
     { icon: <LineIcon><path d="M10 3v6l-5 8.5A2 2 0 006.7 21h10.6a2 2 0 001.7-3.5L14 9V3" /><path d="M8.5 3h7" /></LineIcon>, label: '피부타입 재진단', onClick: () => navigate('/qna') },
     { icon: <LineIcon><rect x="3" y="7" width="18" height="10" rx="5" /><circle cx="16" cy="12" r="3" /></LineIcon>, label: '알림 설정', onClick: () => alert('준비 중이에요') },
-    { icon: <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FF5C7A" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H6a2 2 0 00-2 2v10a2 2 0 002 2h3" /><path d="M15 8l4 4-4 4M19 12H9" /></svg>, label: '로그아웃', danger: true, onClick: () => navigate('/') },
+    { icon: <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FF5C7A" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H6a2 2 0 00-2 2v10a2 2 0 002 2h3" /><path d="M15 8l4 4-4 4M19 12H9" /></svg>, label: '로그아웃', danger: true, onClick: signOut },
   ];
 
   return (
@@ -108,10 +146,7 @@ export default function MypagePage() {
               <path d="M16.5 16.5L21 21" stroke="#17171C" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           </button>
-          <button onClick={() => alert('준비 중이에요')} aria-label="알림" className="relative active:scale-90 transition-transform">
-            <CartIcon size={24} className="text-[#17171C]" />
-            <span className="absolute -top-1 -right-1.5 inline-flex min-w-[15px] h-[15px] px-1 items-center justify-center rounded-full bg-primary-dark text-[9px] font-extrabold text-white">2</span>
-          </button>
+          <CartButton />
         </div>
       </header>
 
@@ -128,11 +163,16 @@ export default function MypagePage() {
             aria-label="내 캐릭터 꾸미기"
             className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#ECEEE8] bg-white shadow-[0_2px_10px_rgba(43,107,82,.08)] transition-transform active:scale-95"
           >
-            <CharacterAvatar
-              skinType={profile.skinType}
-              decorationId={decorationId}
-              className="h-[84%] w-[84%]"
-            />
+            {skinPending ? (
+              // 진단 조회 전에 범용 얼굴을 먼저 그리면 곧바로 바뀌며 깜빡인다.
+              <span aria-hidden className="h-[84%] w-[84%] animate-pulse rounded-full bg-gray-10" />
+            ) : (
+              <CharacterAvatar
+                skinType={skinType}
+                decorationId={decorationId}
+                className="h-[84%] w-[84%]"
+              />
+            )}
           </button>
           <div className="min-w-0 flex-1">
             <p className="text-[19px] font-extrabold tracking-[-0.3px] text-gray-100">{profile.nickname}</p>
@@ -155,7 +195,7 @@ export default function MypagePage() {
                 <p className="text-[15px] font-extrabold text-gray-100">{skinMeta.label}</p>
                 <p className="mt-px text-[11px] text-gray-50">
                   {diagnosed
-                    ? `${SKIN_TYPE_META[profile.skinType!].summary.split(',')[0]} · ${profile.memberSince} 진단`
+                    ? `${SKIN_TYPE_META[skinType].summary.split(',')[0]}${diagnosedOn ? ` · ${diagnosedOn} 진단` : ''}`
                     : '아직 진단하지 않았어요'}
                 </p>
               </div>
@@ -192,6 +232,73 @@ export default function MypagePage() {
                 {stats.expInLevel}/{stats.levelSpan}
               </span>
             </div>
+          )}
+
+          {/* 경험치 얻는 법 — 접었다 펼 수 있다 */}
+          {stats && (
+            <>
+              <button
+                type="button"
+                onClick={() => setExpGuideOpen((v) => !v)}
+                aria-expanded={expGuideOpen}
+                className="mt-2.5 flex w-full items-center justify-between rounded-xl bg-surface-warm px-3 py-2 text-left active:opacity-70"
+              >
+                <span className="text-[12px] font-bold text-gray-70">
+                  경험치 얻는 법 · 다음 레벨까지 {Math.max(0, stats.levelSpan - stats.expInLevel)} EXP
+                </span>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className={`shrink-0 transition-transform duration-200 ${expGuideOpen ? 'rotate-180' : ''}`}
+                >
+                  <path d="M6 9l6 6 6-6" stroke="#8A8F98" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              <div
+                className={`grid transition-[grid-template-rows] duration-300 ${expGuideOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+              >
+                <div className="overflow-hidden">
+                  <ul className="mt-2 divide-y divide-gray-10 rounded-xl border border-gray-10">
+                    {EXP_RULES.map((r) => {
+                      const count = stats[r.key];
+                      return (
+                        <li key={r.key} className="flex items-center gap-3 px-3 py-2.5">
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[13px] font-semibold text-gray-100">{r.label}</span>
+                            <span className="block text-[11px] text-gray-50">{r.hint}</span>
+                          </span>
+                          <span className="shrink-0 text-right">
+                            <span className="block text-[13px] font-extrabold text-primary-dark">+{r.exp} EXP</span>
+                            <span className="block text-[10px] text-gray-50">
+                              {count}회 · {(count * r.exp).toLocaleString()} EXP 획득
+                            </span>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  <div className="mt-2 rounded-xl bg-surface-warm px-3 py-2.5 text-[11px] leading-relaxed text-gray-70">
+                    <p className="font-bold text-gray-100">레벨업에 필요한 경험치</p>
+                    <p className="mt-0.5">
+                      Lv.N에서 다음 레벨로 가려면 N × {LEVEL_STEP} EXP가 필요해요.
+                    </p>
+                    <p className="mt-0.5 text-gray-50">
+                      {[1, 2, 3, 4, 5]
+                        .map((n) => `Lv.${n}→${n + 1}: ${n * LEVEL_STEP}`)
+                        .join(' · ')}
+                    </p>
+                    <p className="mt-1.5">
+                      지금 누적 <b className="text-gray-100">{stats.exp.toLocaleString()} EXP</b> · 레벨은 기록을
+                      세어 서버가 계산해요.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { ProductCard } from '../../components/product/ProductCard';
@@ -7,6 +8,7 @@ import {
   POPULAR_SEARCH_FILTERS,
   POPULAR_SEARCH_RANKING,
   INGREDIENT_DICTIONARY,
+  PopularSearchFilter,
 } from '../../mocks/search';
 import { useRecentSearches } from '../../hooks/useRecentSearches';
 import { useMyIngredients } from '../../hooks/useMyIngredients';
@@ -77,9 +79,10 @@ function RecentSearchChips({
 
 export default function SearchPage() {
   const navigate = useNavigate();
+  const { requireLogin } = useLoginPrompt();
   const [mainTab, setMainTab] = useState<MainTab>('general');
   const [ingredientSubTab, setIngredientSubTab] = useState<IngredientSubTab>('dict');
-  const [popularFilter, setPopularFilter] = useState<(typeof POPULAR_SEARCH_FILTERS)[number]>(POPULAR_SEARCH_FILTERS[0]);
+  const [popularFilter, setPopularFilter] = useState<PopularSearchFilter>(POPULAR_SEARCH_FILTERS[0]);
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
 
@@ -87,31 +90,80 @@ export default function SearchPage() {
   const ingredientSearches = useRecentSearches('ingredient');
   const myIngredients = useMyIngredients();
 
-  const searchQuery = mainTab === 'general' ? query : '';
+  // 통합검색은 제품명, 성분검색은 전성분에서 찾는다.
   const {
     products: searchResults,
     total: searchTotal,
     loading: searchLoading,
     error: searchError,
     reload: reloadSearch,
-  } = useSearchProducts(searchQuery);
+  } = useSearchProducts(query, {}, mainTab === 'general' ? 'name' : 'ingredient');
 
   // 내 화장대(등록·분석한 제품) — 대체품 찾기 기준제품.
   // 예전에는 mocks/alternatives의 SEED_PRODUCTS를 썼는데, 그 id는 실제
   // 카탈로그와 무관해서 '대체품 찾기'가 엉뚱한 제품으로 갔다.
   const { items: myShelf } = useCloset();
-  // 인기 1위 한 건만. 예전 REALTIME_BEST 목업을 대체한다.
-  const { products: popular } = useProducts({ sort: 'popular', size: 1 });
-  const popularTop = popular[0];
+  // 인기 TOP 5 (리뷰수 기준). 예전 REALTIME_BEST 목업을 대체한다.
+  const { products: popular } = useProducts({ sort: 'popular', size: 5 });
 
-  const handleSearch = (q: string) => {
+  const handleSearch = (q: string, tab: MainTab = mainTab) => {
     setQuery(q);
     const searching = q.trim().length > 0;
     setIsSearching(searching);
     if (searching) {
-      (mainTab === 'general' ? generalSearches : ingredientSearches).addSearch(q.trim());
+      (tab === 'general' ? generalSearches : ingredientSearches).addSearch(q.trim());
     }
   };
+
+  // 성분 인기 검색어는 성분검색 탭으로 넘겨서 찾는다.
+  const handlePopularSearch = (q: string) => {
+    if (popularFilter === '성분') {
+      setMainTab('ingredient');
+      handleSearch(q, 'ingredient');
+      return;
+    }
+    handleSearch(q);
+  };
+
+  const searchResultsView =
+    query.trim().length < 2 ? (
+      <div className="flex flex-col items-center gap-2 pt-16 text-center">
+        <p className="text-sm text-gray-50">2자 이상 입력해 주세요.</p>
+      </div>
+    ) : searchLoading ? (
+      <SearchResultSkeleton />
+    ) : searchError ? (
+      <div className="rounded-lg bg-gray-10/60 px-4 py-10 text-center">
+        <p className="text-sm text-gray-70">{searchError}</p>
+        <button
+          type="button"
+          onClick={reloadSearch}
+          className="mt-3 rounded-full border border-gray-20 px-4 py-1.5 text-sm font-medium text-gray-70 active:scale-95"
+        >
+          다시 시도
+        </button>
+      </div>
+    ) : searchResults.length === 0 ? (
+      <div className="flex flex-col items-center gap-2 pt-16 text-center">
+        <p className="text-sm font-semibold text-gray-100">검색 결과가 없어요</p>
+        <p className="text-xs text-gray-50">
+          {mainTab === 'general' ? '다른 검색어로 시도해 보세요.' : '성분명을 다르게 입력해 보세요. 예) 나이아신아마이드'}
+        </p>
+      </div>
+    ) : (
+      <>
+        <p className="text-sm text-gray-70 mb-4">
+          <span className="font-bold text-gray-100">"{query}"</span>
+          {mainTab === 'general' ? ' 검색 결과 ' : ' 성분이 든 제품 '}
+          {searchTotal.toLocaleString()}개
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {searchResults.map((p, i) => (
+            <ProductCard key={p.id} product={p} index={i} />
+          ))}
+        </div>
+      </>
+    );
 
   return (
     <PageWrapper hasBottomNav className="bg-surface-warm">
@@ -131,11 +183,14 @@ export default function SearchPage() {
           {query && (
             <button onClick={() => handleSearch('')} aria-label="검색어 지우기" className="text-gray-50 active:scale-90 transition-transform">✕</button>
           )}
-          {/* 검색표시 옆 카메라 → 성분 스캔(3c) 이동 */}
+          {/* 검색표시 옆 카메라 → 화장품 스캔(3c) 이동 */}
           <button
-            onClick={() => navigate('/scan')}
-            aria-label="성분 스캔"
-            title="성분 스캔"
+            onClick={() => {
+              if (requireLogin('화장품 스캔은 로그인하면 쓸 수 있어요')) return;
+              navigate('/scan');
+            }}
+            aria-label="화장품 스캔"
+            title="화장품 스캔"
             className="shrink-0 active:scale-90 transition-transform"
           >
             <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
@@ -168,40 +223,7 @@ export default function SearchPage() {
       <div className="px-4 py-4">
         {mainTab === 'general' ? (
           isSearching ? (
-            query.trim().length < 2 ? (
-              <div className="flex flex-col items-center gap-2 pt-16 text-center">
-                <p className="text-sm text-gray-50">2자 이상 입력해 주세요.</p>
-              </div>
-            ) : searchLoading ? (
-              <SearchResultSkeleton />
-            ) : searchError ? (
-              <div className="rounded-lg bg-gray-10/60 px-4 py-10 text-center">
-                <p className="text-sm text-gray-70">{searchError}</p>
-                <button
-                  type="button"
-                  onClick={reloadSearch}
-                  className="mt-3 rounded-full border border-gray-20 px-4 py-1.5 text-sm font-medium text-gray-70 active:scale-95"
-                >
-                  다시 시도
-                </button>
-              </div>
-            ) : searchResults.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 pt-16 text-center">
-                <p className="text-sm font-semibold text-gray-100">검색 결과가 없어요</p>
-                <p className="text-xs text-gray-50">다른 검색어로 시도해 보세요.</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-sm text-gray-70 mb-4">
-                  <span className="font-bold text-gray-100">"{query}"</span> 검색 결과 {searchTotal}개
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  {searchResults.map((p, i) => (
-                    <ProductCard key={p.id} product={p} index={i} />
-                  ))}
-                </div>
-              </>
-            )
+            searchResultsView
           ) : (
             <>
               {/* 내 화장대에서 대체품 찾기 (핵심 차별화) */}
@@ -266,10 +288,10 @@ export default function SearchPage() {
                   ))}
                 </div>
                 <div className="grid grid-cols-2 gap-x-5 gap-y-2.5">
-                  {POPULAR_SEARCH_RANKING.map((s, i) => (
+                  {POPULAR_SEARCH_RANKING[popularFilter].map((s, i) => (
                     <button
                       key={s}
-                      onClick={() => handleSearch(s)}
+                      onClick={() => handlePopularSearch(s)}
                       className="flex items-center gap-3 text-left active:opacity-60 transition-opacity"
                     >
                       <span className={`text-sm font-extrabold italic w-[18px] ${i < 3 ? 'text-primary' : 'text-gray-50'}`}>{i + 1}</span>
@@ -279,9 +301,12 @@ export default function SearchPage() {
                 </div>
               </div>
 
-              {/* 마스코트 스캔 배너 → 성분 스캔(3c) 이동 */}
+              {/* 마스코트 스캔 배너 → 화장품 스캔(3c) 이동 */}
               <button
-                onClick={() => navigate('/scan')}
+                onClick={() => {
+                  if (requireLogin('화장품 스캔은 로그인하면 쓸 수 있어요')) return;
+                  navigate('/scan');
+                }}
                 className="flex w-full items-center gap-3.5 rounded-2xl bg-oy-black p-4 mb-[22px] text-left active:scale-[.99] transition-transform"
               >
                 <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2A2A31]">
@@ -299,33 +324,40 @@ export default function SearchPage() {
               {/* 실시간 판매 BEST — 리뷰수 기준 1위. 예전에는 갱신 시각과
                   할인율까지 하드코딩돼 있었는데, 그 값들은 수집 시점의
                   스냅샷일 뿐 실시간이 아니다. */}
-              {popularTop && (
+              {popular.length > 0 && (
                 <div>
-                  <h3 className="text-[15px] font-extrabold text-gray-100 mb-3">인기 1위 제품</h3>
-                  <button
-                    onClick={() => navigate(`/detail/${popularTop.id}`)}
-                    className="w-full flex items-center gap-3 p-3 rounded-[14px] border border-gray-10 active:scale-[.98] transition-transform"
-                  >
-                    <span className="text-[17px] font-black italic text-primary shrink-0">1</span>
-                    <span className="w-12 h-12 rounded-[10px] bg-gray-10 overflow-hidden shrink-0">
-                      {popularTop.imageUrl && (
-                        <img src={popularTop.imageUrl} alt="" className="h-full w-full object-cover" />
-                      )}
-                    </span>
-                    <span className="flex-1 min-w-0 text-left">
-                      <span className="block text-xs text-gray-50">{popularTop.brand}</span>
-                      <span className="block text-sm font-medium text-gray-100 truncate">{popularTop.name}</span>
-                      <span className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-xs text-star">⭐ {popularTop.rating}</span>
-                        <span className="text-xs text-gray-50">리뷰 {popularTop.reviewCount?.toLocaleString()}</span>
-                        <span className="text-xs font-semibold text-gray-100">{popularTop.price.toLocaleString()}원</span>
-                      </span>
-                    </span>
-                  </button>
+                  <h3 className="text-[15px] font-extrabold text-gray-100 mb-3">인기 제품 TOP {popular.length}</h3>
+                  <div className="flex flex-col gap-2">
+                    {popular.map((p, i) => (
+                      <button
+                        key={p.id}
+                        onClick={() => navigate(`/detail/${p.id}`)}
+                        className="w-full flex items-center gap-3 p-3 rounded-[14px] border border-gray-10 bg-white active:scale-[.98] transition-transform"
+                      >
+                        <span className={`w-4 text-[17px] font-black italic shrink-0 ${i < 3 ? 'text-primary' : 'text-gray-50'}`}>{i + 1}</span>
+                        <span className="w-12 h-12 rounded-[10px] bg-gray-10 overflow-hidden shrink-0">
+                          {p.imageUrl && <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />}
+                        </span>
+                        <span className="flex-1 min-w-0 text-left">
+                          <span className="block text-xs text-gray-50">{p.brand}</span>
+                          <span className="block text-sm font-medium text-gray-100 truncate">{p.name}</span>
+                          <span className="flex items-center gap-1.5 mt-0.5">
+                            {p.rating != null && <span className="text-xs text-star">⭐ {p.rating}</span>}
+                            {p.reviewCount != null && (
+                              <span className="text-xs text-gray-50">리뷰 {p.reviewCount.toLocaleString()}</span>
+                            )}
+                            <span className="text-xs font-semibold text-gray-100">{p.price.toLocaleString()}원</span>
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </>
           )
+        ) : isSearching ? (
+          searchResultsView
         ) : (
           <>
             <RecentSearchChips

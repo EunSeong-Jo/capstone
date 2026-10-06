@@ -15,6 +15,7 @@ import {
   ProfileUser,
   RegistrySummary,
   SKIN_TYPE_META,
+  Product,
 } from '../../types';
 import { useProducts } from '../../hooks/useProducts';
 import { useRecommendations } from '../../hooks/useRecommendations';
@@ -25,9 +26,9 @@ import { useSwapSuggestion } from '../../hooks/useSwapSuggestion';
 import { useWeather } from '../../hooks/useWeather';
 import { useCareTip } from '../../hooks/useCareTip';
 import { useAuth } from '../../context/auth';
-import { useDiagnosis } from '../../context/diagnosis';
 import { useCloset } from '../../context/closet';
 import { useCart } from '../../context/cart';
+import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 
 /** 섹션 사이 굵은 회색 구분 띠 (올리브영식 리듬) */
 function Divider() {
@@ -88,10 +89,10 @@ function MockBanner() {
 export default function HomePage() {
   const navigate = useNavigate();
   const { user: persona, isUser } = useAuth();
-  const { justSucceeded, acknowledgeSuccession } = useDiagnosis();
   const { items: closetItems, loading: closetLoading } = useCloset();
   const { stats, loading: statsLoading } = useStats();
   const { addToCart } = useCart();
+  const { requireLogin } = useLoginPrompt();
   const [setOpen, setSetOpen] = useState(false);
 
   /**
@@ -105,9 +106,10 @@ export default function HomePage() {
   const skinLabel = skinType !== null ? SKIN_TYPE_META[skinType].label : null;
 
   const owned = closetItems.map((c) => ({ id: c.id, brand: c.brand, name: c.name }));
+  // 추천 세트(예산 가이드)가 새로 살 루틴에서 뺄 보유품. 배열이 매번 새로 생기면 캐시 키는 같아도 렌더가 헛돈다.
+  const ownedIds = useMemo(() => closetItems.map((c) => c.id), [closetItems]);
   const {
     forYou,
-    set,
     error: recError,
     reload: recReload,
   } = useRecommendations(skinType, skinPending, owned);
@@ -197,8 +199,8 @@ export default function HomePage() {
     totalSavings,
   };
 
-  const addSetToCart = () => {
-    set.items.forEach((p) =>
+  const addSetToCart = (products: Product[]) => {
+    products.forEach((p) =>
       addToCart({ id: p.id, name: p.name, brand: p.brand, price: p.price, imageUrl: p.imageUrl }),
     );
     setSetOpen(false);
@@ -214,15 +216,6 @@ export default function HomePage() {
 
       <main>
         {isMock && <MockBanner />}
-        {justSucceeded && (
-          <button
-            onClick={acknowledgeSuccession}
-            className="block w-full bg-primary-light px-4 py-2.5 text-left text-[12px] font-semibold text-primary-dark"
-          >
-            ✅ 로그인 전 진단한 피부타입{skinLabel !== null ? `(${skinLabel})` : ''}을
-            계정으로 가져왔어요. 탭하여 닫기
-          </button>
-        )}
 
         {/* 개인 대시보드: 날씨 + 마스코트(탭→옷장) + 경험치
 
@@ -303,7 +296,11 @@ export default function HomePage() {
 
       <OyFloatingActions
         onChatbot={() => navigate('/mypage/chat-support')}
-        onRecommendSet={() => setSetOpen(true)}
+        onRecommendSet={() => {
+          // 추천세트는 화장대 예산으로 짠다 — 로그인 전용.
+          if (requireLogin('추천세트는 로그인하면 볼 수 있어요')) return;
+          setSetOpen(true);
+        }}
       />
       <OyBottomNav />
 
@@ -311,9 +308,8 @@ export default function HomePage() {
         open={setOpen}
         onClose={() => setSetOpen(false)}
         nickname={dashUser.nickname}
-        set={set}
-        error={recError}
-        onRetry={recReload}
+        skinType={skinType}
+        ownedIds={ownedIds}
         onAddAll={addSetToCart}
       />
     </div>

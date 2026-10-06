@@ -1,13 +1,15 @@
 """제품 조회 API (Task 6.1).
 
-읽기 전용 3개. 프론트엔드가 src/mocks/를 벗고 실제 데이터로 붙는 통로다.
+읽기 전용. 프론트엔드가 src/mocks/를 벗고 실제 데이터로 붙는 통로다.
 
-    GET /api/v1/products          목록 · 필터 · 정렬 · 페이지네이션
-    GET /api/v1/products/search   제품명 부분일치
-    GET /api/v1/products/{id}     상세 + 전성분
+    GET /api/v1/products              목록 · 필터 · 정렬 · 페이지네이션
+    GET /api/v1/products/search       제품명 부분일치 (ILIKE)
+    GET /api/v1/products/match        OCR 텍스트로 찾기 (trgm 유사도)
+    GET /api/v1/products/{id}         상세 + 전성분
+    GET /api/v1/products/{id}/reviews 이 제품의 후기
 
-경로 순서 주의: /search가 /{id}보다 먼저 선언돼야 한다. 뒤에 두면
-FastAPI가 "search"를 id로 해석해 422를 낸다.
+경로 순서 주의: /search·/match가 /{id}보다 먼저 선언돼야 한다. 뒤에 두면
+FastAPI가 "search"·"match"를 id로 해석해 422를 낸다.
 """
 from __future__ import annotations
 
@@ -16,29 +18,39 @@ import json
 from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.core.cache import cache_get, cache_set, get_cache_version
+from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.product import (
     Brand,
     Category,
     Ingredient,
+    IngredientAlias,
+    IngredientDescription,
     Product,
     ProductIngredient,
 )
+from app.services.ocr import recognize_text
+from app.services.review_photos import decode_photo, photo_urls_of
 from app.services.skin_type import SkinRule, apply_exclusions, fit_score, load_rule
 from app.models.personal import Review
-from app.models.user import User
+from app.models.user import Profile, User
 from app.schemas.product import (
-    ProductReviewOut,
-    ProductReviewsOut,
     IngredientOut,
+    MatchSignalOut,
+    MatchSignalsOut,
     ProductDetailOut,
     ProductListOut,
+    ProductMatchOut,
+    ProductScanIn,
+    ProductScanOut,
     ProductOut,
+    ProductReviewOut,
+    ProductReviewsOut,
 )
 
 router = APIRouter(prefix="/api/v1/products", tags=["products"])
@@ -335,6 +347,218 @@ async def search_products(
     return result
 
 
+# OCR 텍스트와 제품명의 trgm 유사도 하한.
+#
+# pg_trgm 기본 임계값은 0.3인데, OCR이 0↔O·1↔l을 섞고 용량·원산지 문구까지
+# 끌고 오면 정답도 0.3 아래로 내려간다(실측 0.47~0.51). 낮게 잡아 후보를
+# 넓히고, "자동 선택할 만큼 확실한가"는 점수를 받은 호출 측이 정한다.
+MATCH_THRESHOLD = 0.15
+
+# 한글명과 영문명을 한 번에 훑는다.
+#
+# 두 쿼리로 나누면 왕복이 두 번이고, 이 DB는 왕복 한 번이 실측 212ms다
+# (Neon 원격). 4,013 + 3,175행이라 순차 스캔 비용은 왕복보다 훨씬 싸다 —
+# 그래서 인덱스를 타는 `%` 연산자 대신 임계값 비교를 쓴다. `%`는
+# set_limit()으로 세션 상태를 바꿔야 하는데 커넥션 풀에서는 신뢰할 수 없다.
+_MATCH_SQL = """
+with hits as (
+  select p.id as product_id, 'ko' as src,
+         similarity(lower(coalesce(p.display_name, p.name)), lower(:q)) as s,
+         coalesce(p.display_name, p.name) as matched_text
+  from products p
+  where similarity(lower(coalesce(p.display_name, p.name)), lower(:q)) >= :th
+  union all
+  select e.product_id, 'en',
+         similarity(lower(e.name_en), lower(:q)), e.name_en
+  from product_names_en e
+  where similarity(lower(e.name_en), lower(:q)) >= :th
+),
+ranked as (
+  select *, row_number() over (partition by product_id order by s desc) rn from hits
+)
+select product_id, src, s, matched_text
+from ranked where rn = 1
+order by s desc, product_id
+limit :lim
+"""
+
+
+async def match_text(db: AsyncSession, q: str, limit: int) -> list[ProductMatchOut]:
+    """글자(OCR 결과)와 제품명(한글·영문)의 trgm 유사도로 후보를 낸다.
+
+    `/match`(텍스트)와 `/scan`(사진 → OCR)이 같이 쓴다.
+    """
+    rows = (
+        await db.execute(
+            text(_MATCH_SQL), {"q": q, "th": MATCH_THRESHOLD, "lim": limit}
+        )
+    ).all()
+    if not rows:
+        return []
+
+    products = {
+        p.id: p
+        for p in await db.scalars(
+            select(Product)
+            .where(Product.id.in_([r.product_id for r in rows]))
+            .options(joinedload(Product.brand), joinedload(Product.category))
+        )
+    }
+
+    out = []
+    for r in rows:
+        product = products.get(r.product_id)
+        if product is None:  # 조회 사이에 지워진 제품
+            continue
+        out.append(
+            ProductMatchOut(
+                product=_to_out(product),
+                signals=MatchSignalsOut(
+                    text=MatchSignalOut(
+                        score=round(float(r.s), 4),
+                        matched_on=r.src,
+                        matched_text=r.matched_text,
+                    )
+                ),
+            )
+        )
+    return out
+
+
+# OCR 통짜 텍스트를 질의로 쓸 때의 상한. 앞면은 수십~백여 자인데, 잘못 찍어
+# 뒷면 전성분이 300필드 넘게 잡히면 질의가 길어져 유사도가 흐려진다.
+SCAN_QUERY_MAX = 300
+
+
+@router.post("/scan", response_model=ProductScanOut, summary="사진으로 화장품 찾기")
+async def scan_product(
+    body: ProductScanIn,
+    _user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ProductScanOut:
+    """제품 앞면 사진 → CLOVA OCR → 제품명 대조 후보.
+
+    **로그인한 사용자만** 쓴다. CLOVA OCR은 호출 수로 과금·무료 한도가 정해지는데,
+    열어 두면 누구나 반복 호출할 수 있다. 비회원은 제품명 검색을 쓴다(화면이 안내).
+    사진은 저장하지 않는다.
+    글자를 못 읽었으면 빈 후보를 낸다 — 화면이 제품명 검색으로 안내한다.
+    """
+    content_type, data = decode_photo(body.image)
+    fields = await recognize_text(data, content_type)
+    query = " ".join(fields)[:SCAN_QUERY_MAX].strip()
+    if len(query) < 2:
+        return ProductScanOut(text=query, candidates=[])
+    return ProductScanOut(text=query, candidates=await match_text(db, query, body.limit))
+
+
+@router.get("/match", response_model=list[ProductMatchOut], summary="OCR 텍스트로 제품 찾기")
+async def match_products(
+    q: str = Query(..., min_length=2, description="OCR로 읽은 텍스트"),
+    limit: int = Query(5, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+) -> list[ProductMatchOut]:
+    """포장에서 읽은 텍스트로 비슷한 제품을 찾는다.
+
+    `/search`와 다른 이유
+    --------------------
+    `/search`는 `ILIKE '%q%'`다. **OCR이 한 글자만 틀려도 0건**이 된다 —
+    `T0RRIDEN`은 아무것도 반환하지 않는다. 여기서는 trgm 유사도로 대조하고
+    점수를 함께 내므로, 호출 측이 "자동 선택할까 목록을 보여줄까"를 정할 수
+    있다. 지금 OCR은 완전 실패가 44.4%여서(scripts/OCR_SUMMARY.md) 그
+    판단이 호출 측에 있어야 한다.
+
+    영문명을 함께 보는 이유
+    ----------------------
+    예전에는 영문을 한글 발음으로 근사 전사해 대조했다(extract_product_name.py의
+    transliterate). 그러면 점수가 0.15 구간에 깔려 임계값을 정할 수 없고,
+    `Low Molecular → 저분자`처럼 음차가 아니라 번역인 이름은 아예 빗나갔다.
+    `product_names_en`에 실제 영문명이 들어온 뒤로는 원문 그대로 맞춘다.
+
+    **브랜드를 지우지 말고 통짜로 넘기는 게 낫다.** 제품명 줄만 남기면
+    오답이 1위로 올라온다 — '어성초 77 토너'는 블랑네이처를, 브랜드를 포함한
+    '아누아 어성초 77 토너'는 아누아를 1위로 낸다.
+
+    캐시는 두지 않는다. 질의가 매번 다른 OCR 텍스트라 적중률이 없다.
+    """
+    return await match_text(db, q, limit)
+
+
+# 통칭 → 표준명 일부. 표준명·구명칭 어디에도 없는, 사람들이 실제로 치는 말.
+# ingredient_aliases는 식약처 명칭 변경 목록이라 이런 통칭은 들어 있지 않다.
+_INGREDIENT_COLLOQUIAL = {
+    "히알루론산": "하이알루로",
+    "히알루론": "하이알루로",
+    "히알루": "하이알루로",
+    "살리실산": "살리실릭애씨드",
+    "비타민C": "아스코빅애씨드",
+    "비타민c": "아스코빅애씨드",
+    "시카": "병풀",
+}
+
+
+@router.get("/search/ingredient", response_model=ProductListOut, summary="성분명 검색")
+async def search_products_by_ingredient(
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    q: str = Query(..., min_length=2, description="성분명 (한글·INCI, 2자 이상)"),
+    sort: SortBy = Query(SortBy.popular),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=MAX_PAGE_SIZE),
+) -> ProductListOut | Response:
+    """전성분에 이 성분이 든 제품.
+
+    성분명은 표준 한글명·INCI명 부분일치로 찾는다. '나이아신'처럼 앞부분만
+    쳐도 나이아신아마이드가 든 제품이 나와야 검색창이 쓸 만하다.
+
+    JOIN이 아니라 EXISTS로 거른다 — 한 제품에 매칭 성분이 여럿이면(예:
+    '추출물') JOIN은 같은 제품을 여러 줄 내고 total도 부풀린다.
+    """
+    # 캐시 키도 변환 뒤 검색어로 잡는다 — '히알루론산'과 '히알루론'이 같은 결과를 쓴다.
+    term = _INGREDIENT_COLLOQUIAL.get(q.strip(), q.strip())
+    version = await get_cache_version()
+    key = _cache_key(
+        "search_ingredient", version, q=term, sort=sort.value, page=page, size=size,
+    )
+    cached = await cache_get(key)
+    if cached is not None:
+        return Response(
+            content=cached, media_type="application/json",
+            headers={"Cache-Control": "public, max-age=60", "X-Cache": "HIT"},
+        )
+
+    escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    pattern = f"%{escaped}%"
+    # 구명칭도 본다. 사람들은 '히알루론산'이라고 치지만 표준명은
+    # '하이알루로닉애씨드'라 표준명만 보면 0건이 나온다.
+    alias_hit = (
+        select(IngredientAlias.ingredient_id)
+        .where(IngredientAlias.alias.ilike(pattern, escape="\\"))
+    )
+    has_ingredient = (
+        select(ProductIngredient.product_id)
+        .join(Ingredient, ProductIngredient.ingredient_id == Ingredient.id)
+        .where(ProductIngredient.product_id == Product.id)
+        .where(
+            or_(
+                Ingredient.name_ko.ilike(pattern, escape="\\"),
+                Ingredient.name_en.ilike(pattern, escape="\\"),
+                Ingredient.id.in_(alias_hit),
+            )
+        )
+        .exists()
+    )
+    stmt = _apply_composition(
+        select(Product).where(Product.status == "active").where(has_ingredient),
+        CompositionFilter.single,
+    )
+    result = await _paginate(db, _apply_sort(stmt, sort), page, size)
+
+    await cache_set(key, result.model_dump_json(by_alias=True), LIST_CACHE_TTL)
+    response.headers["Cache-Control"] = "public, max-age=60"
+    response.headers["X-Cache"] = "MISS"
+    return result
+
+
 @router.get("/{product_id}", response_model=ProductDetailOut, summary="제품 상세")
 async def get_product(
     response: Response,
@@ -361,10 +585,16 @@ async def get_product(
         # 생겨도 TTL이 지날 때까지 계속 404가 나갈 수 있다.
         raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
 
+    # 설명은 LEFT JOIN이다. 설명이 없는 성분(파싱 잔해 등)도 전성분에서
+    # 빠지면 안 된다 — 화면은 description이 None이면 '준비 중'을 그린다.
     rows = await db.execute(
         select(Ingredient.id, Ingredient.name_ko, Ingredient.name_en,
-               ProductIngredient.position, Ingredient.grade, Ingredient.is_allergen)
+               ProductIngredient.position, Ingredient.grade, Ingredient.is_allergen,
+               IngredientDescription.description, IngredientDescription.keywords,
+               IngredientDescription.source)
         .join(ProductIngredient, ProductIngredient.ingredient_id == Ingredient.id)
+        .outerjoin(IngredientDescription,
+                   IngredientDescription.ingredient_id == Ingredient.id)
         .where(ProductIngredient.product_id == product_id)
         .order_by(ProductIngredient.position)
     )
@@ -383,8 +613,9 @@ async def get_product(
             IngredientOut(
                 id=i, name=ko, name_en=en, position=pos,
                 grade=grade, is_allergen=allergen,
+                description=desc, keywords=kws or [], description_source=src,
             )
-            for i, ko, en, pos, grade, allergen in rows.all()
+            for i, ko, en, pos, grade, allergen, desc, kws, src in rows.all()
         ],
     )
 
@@ -403,6 +634,15 @@ async def list_product_reviews(
     product_id: int = Path(..., ge=1),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    sort: str = Query(
+        "latest", pattern="^(latest|oldest|rating_desc|rating_asc)$",
+        description="최신순 · 오래된순 · 별점 높은순 · 별점 낮은순",
+    ),
+    # 이름을 rating으로 두면 아래 분포 계산의 루프 변수와 겹친다.
+    rating_filter: int | None = Query(None, alias="rating", ge=1, le=5, description="이 별점의 후기만"),
+    skin_type: str | None = Query(
+        None, alias="skinType", description="작성자 피부타입이 이것인 후기만"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> ProductReviewsOut:
     """이 제품에 달린 후기.
@@ -435,14 +675,31 @@ async def list_product_reviews(
         round(sum(r * n for r, n in buckets.items()) / total, 1) if total > 0 else None
     )
 
-    rows = await db.execute(
-        select(Review, User.nickname)
+    # 작성자 피부타입은 프로필(최신 진단의 캐시)에서 온다. 진단 전이면 NULL.
+    stmt = (
+        select(Review, User.nickname, Profile.skin_type)
         .join(User, User.id == Review.user_id)
+        .outerjoin(Profile, Profile.user_id == Review.user_id)
         .where(Review.product_id == product_id)
-        .order_by(Review.created_at.desc())
-        .limit(limit)
-        .offset(offset)
     )
+    if rating_filter is not None:
+        stmt = stmt.where(Review.rating == rating_filter)
+    if skin_type:
+        stmt = stmt.where(Profile.skin_type == skin_type)
+
+    matched = await db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+
+    order = {
+        "latest": (Review.created_at.desc(),),
+        "oldest": (Review.created_at.asc(),),
+        # 같은 별점 안에서는 최신이 먼저다.
+        "rating_desc": (Review.rating.desc(), Review.created_at.desc()),
+        "rating_asc": (Review.rating.asc(), Review.created_at.desc()),
+    }[sort]
+    rows = await db.execute(stmt.order_by(*order).limit(limit).offset(offset))
+
+    rows = list(rows)
+    photos = await photo_urls_of(db, [review.id for review, _, _ in rows])
 
     return ProductReviewsOut(
         items=[
@@ -453,10 +710,13 @@ async def list_product_reviews(
                 rating=review.rating,
                 body=review.body,
                 created_at=review.created_at,
+                photo_urls=photos.get(review.id, []),
+                skin_type=skin,
             )
-            for review, nickname in rows
+            for review, nickname, skin in rows
         ],
         total=total,
+        matched=matched,
         average=average,
         distribution=buckets,
     )

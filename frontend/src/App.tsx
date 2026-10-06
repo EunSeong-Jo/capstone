@@ -1,6 +1,7 @@
 import { lazy, ReactElement, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { RequireAuth } from './components/auth/RequireAuth';
+import { MascotPreloader } from './components/character/MascotPreloader';
 
 const SplashPage     = lazy(() => import('./pages/Splash'));
 const OnboardingPage = lazy(() => import('./pages/Onboarding'));
@@ -10,6 +11,8 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword'));
 const HomePage       = lazy(() => import('./pages/Home'));
 const CheaperAlternativesPage = lazy(() => import('./pages/Home/CheaperAlternativesPage'));
 const ClosetPage     = lazy(() => import('./pages/Closet'));
+const ScanHistoryPage = lazy(() => import('./pages/Scan/ScanHistoryPage'));
+const CancelReturnPage = lazy(() => import('./pages/Mypage/CancelReturnPage'));
 const DecoratePage   = lazy(() => import('./pages/Closet/DecoratePage'));
 const DetailPage     = lazy(() => import('./pages/ProductDetail'));
 const AlternativesPage = lazy(() => import('./pages/Alternatives'));
@@ -53,13 +56,16 @@ const mine = (el: ReactElement) => <RequireAuth>{el}</RequireAuth>;
 export default function App() {
   return (
     <BrowserRouter>
+      {/* 내 캐릭터 이미지를 미리 디코딩해 둔다 — 탭 이동 때 캐릭터가 늦게 뜨지 않게 */}
+      <MascotPreloader />
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           <Route path="/"           element={<SplashPage />} />
           <Route path="/login"      element={<LoginPage />} />
           <Route path="/signup"     element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/onboarding" element={<OnboardingPage />} />
+          {/* 진단은 로그인 이후에만 한다. /qna·/result도 여기로 오므로 함께 막힌다. */}
+          <Route path="/onboarding" element={mine(<OnboardingPage />)} />
           {/* 마이페이지 '피부타입 재진단'은 질문창부터 시작.
               replace로 /qna 엔트리를 소진해야 Q1에서 뒤로가기가 마이페이지로 간다.
               또 OnboardingPage를 렌더하는 <Route>가 하나로 유지돼 리마운트가 없다. */}
@@ -68,12 +74,13 @@ export default function App() {
           <Route path="/home"       element={<HomePage />} />
           <Route path="/home/cheaper-alternatives" element={<CheaperAlternativesPage />} />
           <Route path="/closet"     element={<ClosetPage />} />
-          <Route path="/closet/decorate" element={<DecoratePage />} />
+          <Route path="/closet/decorate" element={mine(<DecoratePage />)} />
           <Route path="/detail/:id" element={<DetailPage />} />
           <Route path="/alternatives" element={<AlternativesPage />} />
           <Route path="/cart"       element={<CartPage />} />
           <Route path="/search"     element={<SearchPage />} />
-          <Route path="/scan"       element={<ScanPage />} />
+          <Route path="/scan"       element={mine(<ScanPage />)} />
+          <Route path="/scan/history" element={mine(<ScanHistoryPage />)} />
           <Route path="/mypage"     element={<MypagePage />} />
           <Route path="/category"   element={<CategoryMainPage />} />
           <Route path="/category/:code" element={<CategoryPage />} />
@@ -106,9 +113,12 @@ export default function App() {
           <Route path="/mypage/money"         element={<Navigate to="/mypage" replace />} />
           <Route path="/mypage/giftbox"       element={<Navigate to="/mypage/gifts" replace />} />
           <Route path="/mypage/shipping"      element={<Navigate to="/mypage" replace />} />
-          <Route path="/mypage/cancel-return" element={<Navigate to="/mypage" replace />} />
+          <Route path="/mypage/cancel-return" element={mine(<CancelReturnPage />)} />
           <Route path="/mypage/restock"       element={<Navigate to="/mypage" replace />} />
-          <Route path="*"           element={<Navigate to="/onboarding" replace />} />
+          {/* 모르는 주소는 홈으로. 예전에는 /onboarding이었는데 그 화면이
+              로그인 전용이 되면서, 게스트가 주소를 잘못 입력할 때마다
+              로그인으로 튕기게 된다. */}
+          <Route path="*"           element={<Navigate to="/home" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

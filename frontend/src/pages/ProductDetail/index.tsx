@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '../../components/category/Icon';
 import { OySectionHeader } from '../../components/home/oy/OySectionHeader';
@@ -8,10 +8,12 @@ import { useProduct } from '../../hooks/useProduct';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
 import { AlternativeCarousel } from '../../components/home/oy/sections/AlternativeCarousel';
 import { useRecentlyViewed } from '../../hooks/useRecentlyViewed';
+import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 import { Product } from '../../types';
 import { countIngredients, groupIngredients } from '../../utils/ingredients';
 import type { ProductIngredient } from '../../api/products';
 import { ProductReviews } from '../../components/product/ProductReviews';
+import { IngredientSheet } from '../../components/product/IngredientSheet';
 
 /** 처음에 펼쳐 보여줄 성분 개수. 제품당 중앙값이 37개라 20개면 절반쯤 보입니다. */
 const PREVIEW_COUNT = 20;
@@ -128,6 +130,7 @@ function EmptyState({
 
 export default function ProductDetailPage() {
   const navigate = useNavigate();
+  const { requireLogin } = useLoginPrompt();
   const { id } = useParams();
   const productId = Number(id);
   const { product, loading, error, notFound, reload } = useProduct(productId);
@@ -139,6 +142,9 @@ export default function ProductDetailPage() {
   const { isLiked, toggleLike } = useLikedProducts();
   const { addToCart, inCart } = useCart();
   const [showAll, setShowAll] = useState(false);
+  // 설명 시트에 띄울 성분. 시트의 useEffect가 onClose에 의존하므로 참조를 고정한다.
+  const [selected, setSelected] = useState<ProductIngredient | null>(null);
+  const closeSheet = useCallback(() => setSelected(null), []);
 
   // 전성분은 라벨을 분리해 묶음으로 만든다. 기획세트가 아니면 묶음 1개다.
   const groups = useMemo(
@@ -320,11 +326,16 @@ export default function ProductDetailPage() {
                             // 한 원본 항목이 라벨 기준으로 둘로 쪼개지면 id·position이
                             // 겹치므로 인덱스를 함께 쓴다.
                             key={`${gi}-${ii}-${ing.id}`}
-                            className={`igr-chip ${chipClass(ing.grade)}`}
-                            title={chipTitle(ing)}
                           >
-                            {ing.name}
-                            {ing.isAllergen && <span className="ml-1">⚠</span>}
+                            <button
+                              type="button"
+                              onClick={() => setSelected(ing)}
+                              className={`igr-chip ${chipClass(ing.grade)} active:scale-95`}
+                              title={chipTitle(ing)}
+                            >
+                              {ing.name}
+                              {ing.isAllergen && <span className="ml-1">⚠</span>}
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -418,7 +429,10 @@ export default function ProductDetailPage() {
           <button
             type="button"
             aria-label="선물하기"
-            onClick={() => navigate(`/gift/${product.id}`)}
+            onClick={() => {
+              if (requireLogin('선물하기는 로그인하면 할 수 있어요')) return;
+              navigate(`/gift/${product.id}`);
+            }}
             className="h-[46px] w-[46px] shrink-0 rounded-xl border border-oy-line text-lg active:scale-[.98]"
           >
             🎁
@@ -457,6 +471,8 @@ export default function ProductDetailPage() {
           </button>
         </div>
       )}
+
+      <IngredientSheet ingredient={selected} onClose={closeSheet} />
     </div>
   );
 }

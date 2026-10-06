@@ -27,8 +27,6 @@
 .env.local
 .env.*.local
 
-# OCR 수동 실험용 샘플 사진 (로컬 전용, 커밋 대상 아님)
-scripts/ocr_test_image/
 
 # ───────────────────────────────
 # 의존성
@@ -149,3 +147,6 @@ dg_crawler/
 논문/
 *.docx
 SWAPPY*.pdf
+
+# 올리브영 글로벌 수집기 재개용 체크포인트 (scripts/collect_global_oliveyoung.py)
+data/raw/global/.*_checkpoint.json

@@ -19,7 +19,8 @@ from datetime import datetime
 import structlog
 from fastapi import APIRouter, HTTPException, Query, Response
 
-from app.api.weather import SEOUL_TZ, fetch_weather_snapshot
+from app.api.weather import SEOUL_TZ, get_weather_snapshot
+from app.services.skin_type import SKIN_TYPE_LABELS
 from app.core.cache import cache_get, cache_set
 from app.schemas.care_tip import CareTipOut
 from app.services.llm import chat_completion
@@ -31,16 +32,6 @@ CACHE_TTL = 90_000  # 25시간 — 자정 계산 없이도 날짜가 바뀌면 �
 
 # 프론트 SKIN_TYPE_META(types/index.ts)와 동일한 라벨. 프롬프트용 한글 표기라
 # 여기 한 곳에서만 관리한다 — 프론트 라벨이 바뀌면 이쪽도 맞춰줘야 한다.
-_SKIN_TYPE_LABELS: dict[str, str] = {
-    "ondalsam": "수분팡팡 옹달샘",
-    "mulgae": "반질반질 물개",
-    "subuji": "겉바속촉 수부지",
-    "hwasan": "울긋불긋 화산",
-    "samak": "바스락 사막",
-    "injeolmi": "말랑말랑 인절미",
-    "yuriguseul": "조심조심 유리구슬",
-    "memilmuk": "얼룩덜룩 메밀묵",
-}
 
 _SYSTEM_PROMPT = """\
 당신은 화장품 앱 Swappy의 홈 화면에 뜨는 "오늘의 케어" 한 줄 문구를 쓰는 카피라이터입니다.
@@ -81,11 +72,11 @@ async def get_care_tip(
     response: Response,
     skin_type: str = Query(..., alias="skinType"),
 ) -> CareTipOut | Response:
-    label = _SKIN_TYPE_LABELS.get(skin_type)
+    label = SKIN_TYPE_LABELS.get(skin_type)
     if label is None:
         raise HTTPException(status_code=400, detail=f"알 수 없는 피부타입: {skin_type}")
 
-    snap = await fetch_weather_snapshot()
+    snap = await get_weather_snapshot()
     key = _cache_key(skin_type, snap.condition)
 
     cached = await cache_get(key)

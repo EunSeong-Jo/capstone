@@ -11,16 +11,16 @@
 > 이 절은 실제 상태와 어긋나면 그때그때 고칩니다. 정기 갱신이 아니라 **틀렸을 때 고치는** 문서입니다.
 > 태스크 상태의 원본은 `.taskmaster/tasks/tasks.json`이고, 아래 표는 그 값과 일치해야 합니다.
 >
-> 최종 대조: 2026-09-20
+> 최종 대조: 2026-09-30
 
 ### 한눈에
 
 | 영역 | 상태 |
 |---|---|
-| **DB** | Neon PostgreSQL 16 · 테이블 28개 · **제품 4,013 / 성분 23,147 / 연결 163,103 / 유사도 146,940 / 계정 5** → [docs/db-schema.md](docs/db-schema.md) |
-| **백엔드 API** | **엔드포인트 51개** — 제품(목록·검색·상세)·대체품·추천·인증(가입·로그인·갱신·로그아웃·비밀번호 변경)·프로필(닉네임·이메일)·진단·개인 데이터(화장대·장바구니·찜·최근본·주문·후기·포인트·스캔·선물)·알림·제품 후기·챗봇·날씨·케어문구·`GET /health` |
-| **프론트엔드** | 화면 라우트 39개(+리다이렉트 11) · 페이지 파일 37개. **제품 데이터는 전 화면이 실 API**를 봅니다. 개인 데이터는 로그인 시 서버, 비회원은 localStorage. 계정 화면은 `RequireAuth`가 게스트를 막습니다 |
-| **테스트** | 백엔드 pytest **329건** 통과 (`backend/tests/` 11개 파일, `test_volume_parsing.py` 제외 — 컨테이너에 `scripts/`가 없어 수집 실패). 프론트는 여전히 0건 |
+| **DB** | Neon PostgreSQL 16 · 테이블 32개 · **제품 4,013 / 성분 23,147 / 연결 163,103 / 유사도 146,940 / 성분 설명 3,687 / 영문 제품명 3,175 / 계정 5** → [docs/db-schema.md](docs/db-schema.md) |
+| **백엔드 API** | **엔드포인트 58개** — 제품(목록·검색·성분 검색·상세·후기·사진으로 찾기)·대체품·추천·예산 구매 가이드·인증(가입·로그인·갱신·로그아웃·비밀번호 변경)·프로필(닉네임·이메일)·진단·개인 데이터(화장대·장바구니·찜·최근본·주문·취소·반품·후기·후기 사진·포인트·스캔·보낸/받은 선물)·알림·성분 설명·OCR 제품 매칭·챗봇·날씨·케어문구·`GET /health` |
+| **프론트엔드** | 화면 라우트 41개(+리다이렉트 10) · 페이지 파일 39개. **제품 데이터는 전 화면이 실 API**를 봅니다. 개인 데이터는 로그인 시 서버, 비회원은 localStorage. 계정 화면은 `RequireAuth`가 게스트를 막습니다 |
+| **테스트** | 백엔드 pytest **385건** 통과 (`backend/tests/` 13개 파일, `test_volume_parsing.py` 제외 — 컨테이너에 `scripts/`가 없어 수집 실패). 프론트는 여전히 0건 |
 
 **제품 더미 데이터는 전부 걷어냈습니다.** 이전에는 `src/mocks/alternatives.ts` 등의 가짜 제품에 붙은 id(102~109 등)가 실재 카탈로그 id와 겹쳐, 카드에 적힌 것과 **전혀 다른 제품의 상세가 조용히 열렸습니다**. `npm run check:dummy`가 재발을 막습니다 — 배경은 [frontend/README.md](frontend/README.md) 7-2절.
 
@@ -33,7 +33,7 @@
 | 1 | 프로젝트 환경 설정 | ✅ done | 6/6 | high |
 | 2 | 제품 데이터 수집기 개발 | 🔄 in-progress | 5/10 | high |
 | 3 | 성분 유사도 분석 엔진 개발 | ✅ 사실상 완료 | 유사도 146,940행 적재됨 | high |
-| 4 | 이미지 인식 모듈 개발 | ⏸ 보류 | 엔진 벤치마크까지 (아래 참고) | high |
+| 4 | 이미지 인식 모듈 개발 | 🔄 측정 완료 | 엔진 벤치마크 + 텍스트 매칭(PR #68) + 이미지 유사도 측정 (아래 참고) | high |
 | 5 | 프론트엔드 개발 | 🔄 in-progress | 8/10 | high |
 | 6 | 백엔드 API 개발 | 🔄 in-progress | 6.1·6.3·6.4·6.5 완료 · 6.2(OCR)만 남음 | high |
 | 7 | AI 챗봇 개발 | 🔄 in-progress | 1/5 | medium |
@@ -44,15 +44,21 @@
 | 12 | 회원가입 및 사용자 인증 시스템 | ✅ 12.1~12.5 완료 | 12.6(OAuth)·12.7만 남음 | high |
 | 13 | 피부타입 QnA 진단 엔진 개발 | ✅ 13.1~13.8 완료 | 8타입 도달 가능성 검증 포함 | high |
 | 14 | 프로필 기반 메인 화면 추천 엔진 | ✅ 14.2~14.5 완료 | 14.6·14.7(관리자 큐레이션 세트)만 남음 | high |
-| 15 | 예산 기반 구매 가이드 개발 | ⏳ pending | 0/7 | high |
+| 15 | 예산 기반 구매 가이드 개발 | ✅ 15.2~15.7 완료 | 15.1(이력 테이블)은 만들지 않기로 함 | high |
 
 > ⚠️ **`.taskmaster/tasks/tasks.json`은 진척 판단에 쓸 수 없습니다.** 세 방향 모두로 틀립니다 — Task 3은 `pending`인데 완료됐고, Task 14.1은 `done`인데 해당 테이블(`admin_curated_sets` 등)이 존재한 적이 없으며(설계가 태그 기반으로 바뀌었습니다), Task 6.1·6.3은 `pending`인데 API가 돌고 있습니다. **`docs/db-schema.md`와 실제 DB가 정본입니다.**
 
 ### 다음 순서
 
-1. **Task 15 (예산 가이드)** — 의존하던 Task 14·6이 열렸습니다. 단가 인프라(`unit_price` 생성 컬럼·인덱스)와 `profiles.budget_min/max`가 이미 있습니다
-2. **Task 4.4 + 6.2 (OCR)** — 스캔 화면은 지금 제품명 검색으로 동작합니다. OCR은 최고 엔진(CLOVA)도 완전 실패가 44.4%라, 붙이기 전에 `products` 테이블 매칭 성공률부터 재는 것이 순서입니다 ([scripts/OCR_SUMMARY.md](scripts/OCR_SUMMARY.md) 결론)
-3. **Task 12.6 (OAuth)** — 로컬 인증은 끝났습니다. 카카오·구글은 별개 작업입니다
+1. **Task 4.4 + 6.2 (OCR·이미지) — 사진으로 찾기 연동됨**. 스캔 화면 셔터·갤러리 → `POST /api/v1/products/scan`
+   (CLOVA OCR → 제품명 대조) → **후보 목록 + "찾는 제품이 없어요"**. 앞면 촬영 가이드(신분증 촬영식 틀)를 둡니다.
+   - 근거: 실사진 22장 — 카탈로그 6개 기준 **텍스트 top-1 6/6 · 이미지 1/6**, 뒷면은 정답 1위 0건.
+     두 신호 모두 "카탈로그에 없는 제품"을 자동 거절하지 못해 자동 선택하지 않습니다
+     ([scripts/IMAGE_MATCH_SUMMARY.md](scripts/IMAGE_MATCH_SUMMARY.md) ③절)
+   - ⚠️ 루트 `.env`에 `CLOVA_OCR_SECRET`·`CLOVA_OCR_INVOKE_URL`이 있어야 합니다(`.env.example` 참고). 없으면 503 → 제품명 검색으로 안내
+   - 남은 것: 이미지 유사도 재정렬(re-rank), 실기기에서의 인식률 측정
+   - 참고: `display_name`이 겹치는 그룹이 206개 있는데 **중복 행이 아닙니다** — 기획/증정 구성만 다른 별도 상품입니다(`goods_no`·가격이 다름)
+2. **Task 12.6 (OAuth)** — 로컬 인증은 끝났습니다. 카카오·구글은 별개 작업입니다
 
 ---
 
@@ -62,6 +68,15 @@
   이름은 `기능_작업자이니셜` (`unitprice_es`, `category_yb`) — 자세한 내용은 [frontend/README.md](frontend/README.md) 8절
 - DB 스키마 원본은 `backend/app/models/`이고, 변경은 **Alembic 마이그레이션으로만** 합니다.
   `alembic revision --autogenerate`는 **rename을 감지하지 못해 DROP + CREATE를 만듭니다.** 테이블·컬럼 이름을 바꿀 때는 마이그레이션을 직접 작성하세요 — 자세한 내용은 [backend/README.md](backend/README.md)
+- **마이그레이션이 포함된 PR을 revert할 때는 DB를 먼저 되돌립니다.** PR을 revert해도 DB는 따라오지 않습니다 —
+  파일만 사라지고 `alembic_version`은 그 revision에 남아, **alembic이 길을 잃고 `current`·`upgrade`·`check`가 전부 멈춥니다.**
+  순서는 `alembic downgrade <그 마이그레이션 파일의 down_revision>` → revert입니다. 특정 revision id를 외워 두지 말고 매번 파일에서 읽으세요.
+  단, **먼저 `alembic current`가 그 revision인지(= 그것이 head인지) 확인합니다.** 그 위에 다른 마이그레이션이 이미 쌓였다면
+  downgrade하지 마세요 — 공용 DB라 남의 마이그레이션과 데이터까지 함께 내려갑니다. 그때는 revert 대신 되돌리는 마이그레이션을 새로 씁니다.
+  이미 revert했다면 `git show <머지 전 커밋>:<마이그레이션 파일>`로 파일을 임시 복구해 같은 확인을 거쳐 downgrade한 뒤 파일을 다시 지우면 됩니다
+  (2026-10-01 PR #64에서 실제로 겪었습니다) — 절차는 [backend/README.md](backend/README.md)
+- **DB는 공용입니다.** 한 사람이 `alembic upgrade head`를 돌리면 팀 전원의 스키마가 바뀝니다. 남의 데이터를 지우는
+  마이그레이션은 돌리기 전에 알리세요
 - `.env`는 커밋하지 않습니다. Neon 조직 `dmu` 초대로 각자 DSN을 받습니다
 - 프론트엔드 규격·컨벤션은 [frontend/README.md](frontend/README.md)의 `7-1 화면 규격 표준`을 따릅니다
 

@@ -1,6 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { Product } from '../../../types';
 import { TagChip } from './TagChip';
+import { useCart } from '../../../context/cart';
+import { useLikedProducts } from '../../../context/liked';
+import { useToast } from '../../../context/toast';
+import { CartActionIcon, LikeIcon } from '../../ui/ProductActionIcons';
 
 interface ProductCardVProps {
   product: Product;
@@ -10,26 +14,42 @@ interface ProductCardVProps {
   rank?: number;
 }
 
-function HeartIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      <path d="M12 20.5C12 20.5 3.5 15 3.5 9.2C3.5 6.6 5.6 4.5 8.2 4.5C9.8 4.5 11.2 5.3 12 6.5C12.8 5.3 14.2 4.5 15.8 4.5C18.4 4.5 20.5 6.6 20.5 9.2C20.5 15 12 20.5 12 20.5Z"
-        stroke="#BBBBBB" strokeWidth="1.5" />
-    </svg>
-  );
-}
-function CartIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      <path d="M6 7h13l-1.2 9.5a2 2 0 01-2 1.75H9.2a2 2 0 01-2-1.75L6 7zM6 7L5 3.5H3" stroke="#BBBBBB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="9" cy="21" r="0.6" fill="#BBBBBB" />
-    </svg>
-  );
-}
-
 /** 올리브영식 세로 상품 카드 */
 export function ProductCardV({ product, width = 'w-[150px]', rank }: ProductCardVProps) {
   const navigate = useNavigate();
+  const { isLiked, toggleLike } = useLikedProducts();
+  const { inCart, addToCart, removeLine } = useCart();
+  const { showToast } = useToast();
+  const liked = isLiked(product.id);
+  const carted = inCart(product.id);
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleLike(product);
+    showToast(
+      liked ? '좋아요를 취소했어요' : '좋아요에 담았어요',
+      liked ? undefined : { label: '보러가기', onClick: () => navigate('/history?tab=liked') },
+    );
+  };
+
+  // 하트와 같은 토글. 다시 누르면 장바구니에서 뺀다.
+  const handleCart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (carted) {
+      removeLine(product.id);
+      showToast('장바구니에서 뺐어요');
+      return;
+    }
+    addToCart({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      imageUrl: product.imageUrl,
+    });
+    showToast('장바구니에 담았어요', { label: '장바구니로 이동', onClick: () => navigate('/cart') });
+  };
+
   return (
     <div className={`${width} shrink-0`} onClick={() => navigate(`/detail/${product.id}`)}>
       {/* 이미지 */}
@@ -81,11 +101,11 @@ export function ProductCardV({ product, width = 'w-[150px]', rank }: ProductCard
         )}
 
         <div className="flex items-center gap-3 mt-2">
-          <button onClick={(e) => e.stopPropagation()} aria-label="찜하기" className="active:scale-90 transition-transform">
-            <HeartIcon />
+          <button onClick={handleLike} aria-label={liked ? '좋아요 취소' : '좋아요'} aria-pressed={liked} className="active:scale-90 transition-transform">
+            <LikeIcon on={liked} />
           </button>
-          <button onClick={(e) => e.stopPropagation()} aria-label="장바구니" className="active:scale-90 transition-transform">
-            <CartIcon />
+          <button onClick={handleCart} aria-label={carted ? '장바구니에서 빼기' : '장바구니 담기'} aria-pressed={carted} className="active:scale-90 transition-transform">
+            <CartActionIcon on={carted} />
           </button>
         </div>
       </div>

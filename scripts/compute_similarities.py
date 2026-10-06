@@ -328,6 +328,22 @@ def run_category(cur, category: str, methods, args) -> dict[str, list]:
     return produced
 
 
+def bump_cache_version() -> None:
+    """products:cache_version INCR — best-effort (load_products.py와 같다).
+
+    `/products/{id}/similar`가 결과를 24시간 캐시한다. 버전을 올려야 새로
+    적재한 유사도가 바로 보인다. 실패해도 적재는 성공으로 끝난다.
+    """
+    try:
+        import redis
+        r = redis.Redis.from_url(
+            settings.REDIS_URL, socket_connect_timeout=0.5, socket_timeout=0.5,
+        )
+        print(f"캐시 버전 갱신 → v{r.incr('products:cache_version')}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"캐시 버전 갱신 실패(무시): {exc}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--method", choices=(*METHODS, "all"), default="all")
@@ -362,6 +378,7 @@ def main() -> None:
     else:
         conn.commit()
         print(f"\n적재 완료 — {total:,}행")
+        bump_cache_version()
     print(f"총 {time.perf_counter() - t0:.1f}초")
 
     cur.close()

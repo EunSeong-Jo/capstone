@@ -222,6 +222,49 @@ def match_products_by_trigram(candidates: list[TextField], dsn: str, top_n: int 
         return [{"id": pid, "name": name, "sim": float(sim)} for pid, name, sim in cur.fetchall()]
 
 
+def match_products_by_name_en(candidates: list[TextField], dsn: str, top_n: int = 3) -> list[dict]:
+    """OCR 후보를 **영문 제품명 그대로** 대조한다 (product_names_en).
+
+    포장이 영문일 때 이 경로가 가장 정확하다. 실측(scripts/eval_product_match.py,
+    표본 200건):
+
+        영문명 직접 대조        top-1 82.5%  top-3 98.0%  후보 0건 0.0%
+        한글 발음 전사 후 대조   top-1  4.5%  top-3  8.5%  후보 0건 83.5%
+
+    전사 방식(match_products_by_trigram)이 이렇게 약한 이유는 두 가지다 —
+    `Low Molecular → 저분자`처럼 한글명이 음차가 아니라 **번역**인 경우가 많고,
+    음차인 경우에도 점수가 0.15 구간에 깔려 임계값을 세울 수 없다.
+
+    영문명이 없는 제품(약 970개)에는 이 함수가 아무것도 내지 않는다. 그래서
+    전사 방식을 지우지 않고 병행한다.
+    """
+    import psycopg2
+
+    query_text = " ".join(_candidate_tokens(candidates))
+    if not query_text:
+        return []
+
+    with psycopg2.connect(dsn) as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT e.product_id,
+                   COALESCE(p.display_name, p.name),
+                   e.name_en,
+                   similarity(lower(e.name_en), lower(%s)) AS sim
+            FROM product_names_en e
+            JOIN products p ON p.id = e.product_id
+            WHERE p.status = 'active'
+            ORDER BY sim DESC, e.product_id
+            LIMIT %s
+            """,
+            (query_text, top_n),
+        )
+        return [
+            {"id": pid, "name": name, "name_en": name_en, "sim": float(sim)}
+            for pid, name, name_en, sim in cur.fetchall()
+        ]
+
+
 def demo() -> None:
     """rank_by_height()만 검증하는 자체 테스트 (API 호출 없음)."""
     fake_fields = [
@@ -244,7 +287,7 @@ if __name__ == "__main__":
     parser.add_argument("image", nargs="?", type=Path, help="제품 정면 사진 경로")
     parser.add_argument("--top", type=int, default=10, help="후보 개수 (기본 10)")
     parser.add_argument("--draw", action="store_true", help="추출 영역을 박스로 그린 이미지를 output/에 저장")
-    parser.add_argument("--search", action="store_true", help="전체 후보 텍스트로 DB 대조 (겹침 개수 + pg_trgm 유사도 병행), 각 3개 출력")
+    parser.add_argument("--search", action="store_true", help="전체 후보 텍스트로 DB 대조 (겹침 개수 + 영문명 + pg_trgm 유사도 병행), 각 3개 출력")
     parser.add_argument("--demo", action="store_true", help="API 호출 없이 자체 테스트만 실행")
     args = parser.parse_args()
 
@@ -275,6 +318,10 @@ if __name__ == "__main__":
         for m in match_products_by_overlap(candidates, dsn):
             print(f"  - {m['name']} (id={m['id']}, overlap={m['overlap']}, matched={m['matched']})")
 
-        print("\nDB 대조 결과 — pg_trgm 유사도순:")
+        print("\nDB 대조 결과 — 영문명 직접 대조:")
+        for m in match_products_by_name_en(candidates, dsn):
+            print(f"  {m['sim']:.3f}  {m['name']}  ← {m['name_en']}")
+
+        print("\nDB 대조 결과 — pg_trgm 유사도순(한글 발음 전사):")
         for m in match_products_by_trigram(candidates, dsn):
             print(f"  - {m['name']} (id={m['id']}, sim={m['sim']:.2f})")

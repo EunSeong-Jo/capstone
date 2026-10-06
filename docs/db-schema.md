@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| DBMS | PostgreSQL 16.14 |
+| DBMS | PostgreSQL 16.15 |
 | 호스팅 | Neon (serverless) · branch `production` · db `neondb` |
 | 확장 | `pg_trgm` 1.6 |
-| alembic head | `d07012ddaaa9` |
-| 테이블 | 27 (Phase 1 18 + Phase 2 개인 데이터 9) |
-| 기준일 | 2026-09-20 |
+| alembic head | `a9c1e2f3d4b5` |
+| 테이블 | 31 (Phase 1 18 + 개인 데이터 11 + 성분 설명 1 + 영문 제품명 1) |
+| 기준일 | 2026-10-03 |
 
 ---
 
@@ -24,6 +24,7 @@
 | 성분 `ingredients` | 23,147 |
 | 제품–성분 연결 `product_ingredients` | 163,103 |
 | 성분 별칭 `ingredient_aliases` | 4,411 |
+| 성분 설명 `ingredient_descriptions` | 3,687 |
 | 브랜드 `brands` | 512 |
 | 표준사전 매칭률 | 97.8% |
 
@@ -61,6 +62,7 @@ erDiagram
   products        ||--o{ product_ingredients : ""
   ingredients     ||--o{ product_ingredients : ""
   ingredients     ||--o{ ingredient_aliases : "구명칭"
+  ingredients     ||--o| ingredient_descriptions : "설명"
   ingredients     ||--o{ ingredient_tags : ""
   tags            ||--o{ ingredient_tags : ""
   products        ||--o{ similarities : "유사도"
@@ -209,6 +211,24 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `is_ambiguous`는 한 구명칭이 서로 다른 표준명 둘 이상으로 갈리는 경우입니다(`승마추출물` → 촛대승마추출물 / 라케모사승마뿌리추출물). 기계적으로 결정할 수 없어 자동 변환에서 제외합니다.
 
+### `ingredient_descriptions` — 3,687행
+
+성분별 한 줄 설명과 키워드. 마이그레이션 `952adbaa9665`.
+
+| | 컬럼 | 타입 | | 비고 |
+|---|---|---|---|---|
+| PK FK | `ingredient_id` | int | NOT NULL | → `ingredients` [CASCADE] |
+| | `description` | text | NOT NULL | 한 줄 설명 |
+| | `keywords` | text[] | NOT NULL | `= '{}'` · 최대 2개 |
+| | `source` | varchar(20) | NOT NULL | `llm`(생성 초안) / `reviewed`(검수 완료) |
+| | `created_at` `updated_at` | timestamptz | NOT NULL | `= now()` |
+
+**`ingredients`에 컬럼을 더하지 않고 테이블을 나눈 이유**: 출처가 다릅니다. `ingredients`는 협회 사전이 원본이고, 설명은 `data/seed/ingredient_descriptions.csv`가 원본입니다. 설명을 고칠 때는 CSV를 고치고 `scripts/seed_ingredient_descriptions.py`를 다시 돌립니다. 이 스크립트는 몇 번을 돌려도 결과가 같습니다. 설명은 제품 상세 응답(`GET /api/v1/products/{id}`의 `ingredients[]`)에 실리므로, 적재가 끝나면 스크립트가 `products:cache_version`을 올려 상세 캐시를 비웁니다. 호스트에서 돌릴 때는 `REDIS_HOST=localhost`를 앞에 붙이세요. 기본값 `redis`는 도커 네트워크 안에서만 풀리는 이름이라, 붙이지 않으면 캐시 갱신이 실패하고(스크립트는 무시하고 성공 처리) 옛 설명이 캐시 TTL 동안 나갑니다.
+
+**키워드는 고정 어휘 20개에서만 고릅니다.** 효능 10개(보습·진정·장벽강화·브라이트닝·탄력·항산화·피지조절·각질케어·자외선차단·영양)는 화면 칩용이고, 역할 10개(용제·보존·유화·세정·점증·pH조절·향료·사용감개선·안정화·색소)는 정제수·EDTA처럼 효능이 없는 성분을 분류하는 데 씁니다. 자유 입력을 허용하면 '보습'·'수분공급'이 갈라져 필터가 무너지므로 적재 스크립트가 어휘 밖 값을 거부합니다. '미백'·'주름개선'은 기능성 인증 표현이라 키워드로 쓰지 않습니다.
+
+제품에 쓰이는 성분 4,277종 중 3,687종에 설명이 있고, 연결 기준으로는 99.6%를 덮습니다. 비어 있는 590종은 영문명이 없는 파싱 잔해(제품명 혼입·성분 두 개가 붙은 이름)이고, 대부분 한 제품에만 나옵니다.
+
 ### `brands` — 512행
 
 | | 컬럼 | 타입 | |
@@ -351,7 +371,9 @@ is_active(bool = true) · updated_at
 
 ## 진단
 
-비회원 진단(Soft-gate)을 위해 `diagnoses`가 `user_id`와 `guest_token` 양쪽을 받습니다.
+`diagnoses.guest_token`과 `user_id` NULL 허용은 **Soft-gate 시절의 흔적**입니다. 비회원도 진단하고 가입할 때 계정에 붙이는 구조였는데, 승계 장치가 생기기 전에 저장된 게스트 진단이 주인을 찾지 못한 채 브라우저에 남아 둘러보기만 한 사람에게 표시되는 일이 있어 걷어냈습니다.
+
+**지금 진단은 로그인 이후에만 가능합니다**(`POST /profile/skin-quiz`가 인증을 요구하고, `/claim`은 제거했습니다). 이 컬럼은 더 채워지지 않으며, 과거 행을 지우지 않으려고 컬럼만 남겨 두었습니다.
 
 ### `diagnoses` — 0행
 
@@ -359,7 +381,7 @@ is_active(bool = true) · updated_at
 |---|---|---|---|---|
 | PK | `id` | bigserial | | |
 | FK | `user_id` | uuid | NULL | → `users` [CASCADE] |
-| | `guest_token` | text | NULL | 비회원 |
+| | `guest_token` | text | NULL | Soft-gate 시절의 흔적 — 더 채워지지 않음 |
 | FK | `version_id` | int | NOT NULL | → `quiz_versions` [RESTRICT] |
 | | `answers` | jsonb | NOT NULL | |
 | | `scores` | jsonb | NOT NULL | 5개 축 |
@@ -419,7 +441,7 @@ refresh_tokens : id(PK, uuid = gen_random_uuid()) · user_id(FK) · token_hash
 | `idx_ingredients_code` | ingredients | `btree (code)` | 사전 갱신 대조 |
 | `idx_similarities_lookup` | similarities | `btree (product_id, method, score DESC)` | 상위 N개 추천 조회 |
 | `idx_diagnoses_user` | diagnoses | `btree (user_id, created_at)` | 최근 진단 조회 |
-| `idx_diagnoses_guest` | diagnoses | `btree (guest_token)` | 비회원 진단 이어받기 |
+| `idx_diagnoses_guest` | diagnoses | `btree (guest_token)` | Soft-gate 시절의 흔적 |
 | `idx_quiz_questions_version` | quiz_questions | `btree (version_id, order_no)` | 문항 순서 조회 |
 | `idx_refresh_tokens_hash` | refresh_tokens | `btree (token_hash)` | 토큰 검증 |
 | `idx_refresh_tokens_user` | refresh_tokens | `btree (user_id)` | 전체 로그아웃 |
@@ -494,6 +516,8 @@ Neon에는 컨테이너 초기화 훅이 없어 `CREATE EXTENSION`을 첫 마이
 **스킨케어 2,099건에 소분류가 없습니다.**
 토너·세럼·크림이 한 덩어리라 토너를 찾는데 크림이 추천될 수 있습니다. `categories.parent_id`에 2단계를 담을 수 있고, `load_products.py`의 키워드 로직으로 90%가 자동 분류됩니다.
 
+예산 구매 가이드(Task 15, `POST /api/v1/recommendations/budget`)는 소분류 대신 **제품명 키워드와 단계별 최소 용량**으로 루틴 단계를 나눕니다(`backend/app/services/routine_steps.py`). 판매 중 단일제품 기준 토너 191 · 에센스 372 · 크림 240 · 선크림 30이고, 두 단계에 동시에 걸리는 제품은 없습니다. 최소 용량(토너 80 · 에센스 10 · 크림 30 · 선크림 25, ml/g)은 샘플·미니·스팟 제품을 빼기 위한 것이며 `volume_ml`/`volume_g`를 봅니다. 소분류를 적재하면 이 파일만 카테고리 코드로 바꾸면 됩니다. 예산이 모자라면 뒤쪽 단계(선크림 → 크림 → 에센스)부터 빼고 살 수 있는 만큼 보여 줍니다. 가이드는 조회만 하고 **이력을 저장하지 않습니다**(명세의 `budget_guide_history`는 만들지 않기로 했습니다).
+
 **`ingredients.grade`는 태그에서 도출해 채웠습니다 (4,277종).**
 `scripts/seed_skin_type_tags.py`가 `ingredient_tags`를 근거로 판정합니다 — 기피 태그(식약처 표시 의무 착향제·향료·건조 유발 알코올)가 붙으면 `warn`(28종), 추천 태그가 붙으면 `key`(392종), 제품에 쓰이지만 어느 쪽도 아니면 `normal`(3,857종), 어떤 제품에도 안 쓰이면 NULL입니다.
 
@@ -506,6 +530,36 @@ Neon에는 컨테이너 초기화 훅이 없어 `CREATE EXTENSION`을 첫 마이
 전부 `user_id` FK(ON DELETE CASCADE)이고, 제품을 가리키는 컬럼은 `products.id` FK입니다. **없는 제품이 들어갈 수 없다**는 것이 이 테이블들을 만든 이유입니다 — 이전까지 이 데이터는 프론트 localStorage에 있었고, 목업 시절의 가짜 제품 id(102·960001 등)가 그대로 저장돼 화면이 엉뚱한 제품 상세를 열었습니다.
 
 예외는 `order_items`로, 제품명·가격을 행에 복사해 둡니다. 주문은 "그때 그 가격에 샀다"는 기록이라 제품 가격이 바뀌어도 과거 금액이 따라 움직이면 안 됩니다. `product_id`는 SET NULL이라 제품이 카탈로그에서 내려가도 기록이 남습니다.
+
+**`closet_items.status`는 `owned` / `removed`입니다.** 화장대에서 빼면 행을 지우지 않고 `removed`로 바꿔 '삭제된 제품'에 남깁니다. 다시 담으면(`POST /me/closet`) 같은 행이 `owned`로 돌아오고, 영구 삭제(`DELETE /me/closet/{id}?permanent=true`)만 행을 지웁니다. 대체품·추천·마이페이지 통계는 `removed`를 뺀 제품만 봅니다. **주문하면 산 제품이 화장대에 자동으로 담깁니다**(`added_via = order`, 삭제된 제품이었으면 보유 중으로 복원). 그 주문을 취소·반품하면 주문으로 담긴 제품만 `removed`로 옮기고, 원래 화장대에 있던 제품과 다른 진행 중 주문에도 있는 제품은 그대로 둡니다. 예전 값 `scanned`·`analyzing`은 `owned`와 같게 다룹니다 — 스캔한 제품은 이제 화장대가 아니라 `scan_results`에 먼저 남고, 사용자가 고를 때만 화장대에 `owned`로 담깁니다. 스키마는 그대로이고(text 컬럼) 마이그레이션 없이 값만 늘었습니다.
+
+**주문 취소·반품, 받은 선물, 후기 사진을 추가했습니다** (`a9c1e2f3d4b5`).
+
+| 대상 | 내용 |
+|---|---|
+| `orders.closed_at` · `close_reason` | 취소·반품 시각과 사유. `status`는 `placed` / `cancelled` / `returned`. 배송 단계(결제완료~배송완료)는 **저장하지 않고** `placed_at`에서 계산합니다(`services/order_stage.py`) — 택배 연동이 없기 때문입니다 |
+| `point_transactions.reason` | `order_cancel` / `order_return`이 더해졌습니다. 취소·반품 시 그 주문의 적립을 음수로 회수합니다 |
+| `gifts.recipient_user_id` | 받는 사람 계정(닉네임으로 찾음, FK SET NULL). '받은 선물'이 여기서 나옵니다. 이전 행은 NULL — 이름만 적었던 선물입니다 |
+| `review_photos` | 후기 사진. 파일 서버가 없어 **바이트를 DB에 둡니다**(장당 2MB, 후기당 3장, `reviews` CASCADE). `GET /api/v1/reviews/photos/{id}`로 공개 |
+
+PR #64로 들어왔다가 revert됐고(PR #67), dev 위에 다시 얹으며 `Revises`를 `a0fd1f8a5d3a`로 옮겼습니다.
+
+**`product_names_en`을 추가했습니다** (`a0fd1f8a5d3a`).
+
+올리브영 글로벌에 올라간 같은 상품의 **영문명 3,175건 / 제품 3,039개**입니다. 원본은 `data/raw/oliveyoung_kr_en_paired.csv`(PR #60)이고 `scripts/seed_product_names_en.py`가 적재합니다. 한글 쪽 상품URL의 `goodsNo`로 `products.product_url`을 역조회해 붙입니다 — CSV의 쌍 3,666건 중 **3,304건(90.1%)**이 붙고, 나머지는 메이크업·건강식품처럼 우리 `products`(스킨케어 4종)에 없는 상품입니다.
+
+`products`에 컬럼을 더하지 않은 이유는 **한 제품이 여러 영문 리스팅에 매칭되기 때문**입니다(`goodsNo` 중복 194건). OCR 대조에는 별칭이 많을수록 유리합니다 — 포장 표기가 그중 하나와 맞으면 찾아집니다. `match_method`·`confidence`·`score`를 함께 남겨 '확인필요' 187건을 질의에서 빼거나 가중할 수 있습니다.
+
+`name_en`에 GIN trgm 인덱스가 있습니다. 다만 3,175행에서는 플래너가 순차 스캔을 택합니다 — 데이터가 커질 때를 위한 것입니다.
+
+**무엇이 달라졌나** — `GET /api/v1/products/match`가 OCR 텍스트를 한글명·영문명에 한꺼번에 대조합니다. 예전에는 영문을 한글 발음으로 근사 전사해 대조했는데, `scripts/eval_product_match.py`로 재 보면 차이가 큽니다(표본 200건).
+
+| | top-1 | top-3 | 후보 0건 |
+|---|---:|---:|---:|
+| 영문명 직접 대조 | **82.5%** | **98.0%** | 0.0% |
+| 한글 발음 전사 후 대조 | 4.5% | 8.5% | 83.5% |
+
+표본을 영문명에서 합성했으므로 앞 행에 유리한 측정입니다. 뒤 행은 "영문 포장을 한글명으로 찾을 때"의 하한으로 읽어야 합니다.
 
 **`gifts`를 추가했습니다** (`929b93541c4a`).
 

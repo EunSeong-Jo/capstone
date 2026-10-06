@@ -96,6 +96,50 @@ alembic check          # "No new upgrade operations detected" 여야 한다
 # 5) docs/db-schema.md 를 함께 갱신한다
 ```
 
+### ⚠️ 마이그레이션이 든 PR을 revert하기 전에 DB를 되돌립니다
+
+**PR을 revert해도 DB는 따라오지 않습니다.** 파일만 사라지고 `alembic_version`은 그 revision에 남습니다. 그러면 alembic이 "지금 어디인지"를 그래프에서 찾지 못해 **`current`·`upgrade`·`downgrade`·`check`가 전부 멈춥니다.**
+
+```
+$ alembic current
+FAILED: Can't locate revision identified by 'a9c1e2f3d4b5'
+```
+
+DB가 공용이라 **그 순간 팀 전원이 같은 상태가 됩니다.** 올바른 순서는 이것입니다.
+
+```bash
+cd backend
+grep down_revision alembic/versions/<revision>_<이름>.py   # 0) 되돌아갈 곳은 그 파일의 down_revision
+alembic current                      # 1) 지금 DB가 <revision>(= head)인지 확인
+alembic downgrade <down_revision>    # 2) DB를 먼저 되돌린다
+# 3) 그 다음 PR을 revert
+```
+
+**되돌아갈 revision은 매번 파일에서 읽습니다.** 문서나 메모에 적힌 id는 그 뒤로 마이그레이션이 하나만 더 올라와도 틀린 값이 됩니다.
+
+**1)에서 `current`가 `<revision>`이 아니면 멈추세요.** 그 위에 다른 마이그레이션이 이미 쌓였다는 뜻이고, 그 상태에서
+`downgrade <down_revision>`은 **남의 마이그레이션까지 함께 내립니다** — 공용 DB라 그 사람의 테이블과 데이터가 사라집니다.
+이때는 PR을 revert하지 말고, 되돌리는 내용을 담은 **새 마이그레이션**을 head 위에 올리세요(`upgrade()`에 원래 `downgrade()`의 내용).
+
+이미 revert해 버렸다면 지워진 파일을 임시로 되살려 downgrade합니다 — alembic은 파일이 있어야 그래프를 걸을 수 있어서, 이 단계를 건너뛸 수 없습니다.
+위의 1) 확인도 똑같이 거칩니다.
+
+```bash
+cd backend
+F=alembic/versions/<revision>_<이름>.py
+git show <머지되기 전 커밋>:backend/$F > $F   # 임시 복구
+grep down_revision $F                 # 되돌아갈 곳
+alembic current                       # <revision>(= head)인지 확인. 아니면 멈춘다
+alembic downgrade <down_revision>
+rm $F                                 # 다시 지운다 — 남기면 head가 둘이 되고
+                                      # 다음 사람이 upgrade head로 되살린다
+alembic current && alembic check      # 확인
+```
+
+손으로 `DROP`/`ALTER`를 쓰지 말고 **작성자가 쓴 `downgrade()`를 그대로 실행하세요.** FK 제약과 인덱스처럼 놓치기 쉬운 것이 순서대로 처리됩니다.
+
+> 2026-10-01에 PR #64를 revert하면서 실제로 겪었습니다. 지워질 행을 먼저 덤프해 두는 것도 함께 권합니다.
+
 ### ⚠️ autogenerate는 rename을 감지하지 못합니다
 
 테이블·컬럼 이름을 바꾸면 **DROP + CREATE를 만들어 데이터가 사라집니다.** 이 프로젝트에서 이미 세 번 겪었고, 그때마다 마이그레이션을 직접 작성했습니다.
@@ -134,8 +178,15 @@ e5f6a7b8c9d0  products.display_name
 f6a7b8c9d0e1  products.volume_ml / volume_g
 a7b8c9d0e1f2  products.volume_uncertain
 b8c9d0e1f2a3  products.unit_count/unit_kind/unit_price/unit_label
-d07012ddaaa9  Phase 2 개인 데이터 테이블 9개   ← head
+d07012ddaaa9  Phase 2 개인 데이터 테이블 9개
+929b93541c4a  gifts 테이블
+2425accbef26  profiles.decoration_id          캐릭터 꾸미기
+3f3233afae88  profiles.notifications_seen_at   알림 읽음 시각
+952adbaa9665  ingredient_descriptions
+a0fd1f8a5d3a  product_names_en                영문 제품명 (OCR 대조)  ← head
 ```
+
+`alembic history`로 언제든 실제 체인을 볼 수 있습니다. 이 표는 설명용이라 어긋나면 그때 고칩니다.
 
 `d07012ddaaa9`는 신규 테이블만 만듭니다. 기존 18개를 건드리지 않으므로
 `downgrade`로 정확히 되돌아갑니다.

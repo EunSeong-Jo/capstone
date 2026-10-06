@@ -11,7 +11,8 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../api/client';
-import { fetchSimilarProducts } from '../api/similar';
+import { loadSimilarProducts } from '../api/similar';
+import { invalidate, load, peek } from '../api/queryCache';
 import { ClosetItem } from '../context/closet';
 import { Alternative, SkinType } from '../types';
 import {
@@ -122,6 +123,88 @@ interface Loaded {
 /** 결과가 없을 때 돌려줄 고정 배열. 매번 새로 만들면 호출부 useMemo가 헛돈다. */
 const EMPTY_CANDIDATES: SwapSuggestion[] = [];
 
+/** 결과 한 벌에서 캐시에 두는 부분. 어떤 화장대의 결과인지는 캐시 키가 들고 있다. */
+type SwapResult = Omit<Loaded, 'key' | 'error'>;
+
+/** 결과가 바뀌는 건 화장대·피부타입·유사도 배치뿐이다. 서버도 /similar를 24시간 캐시한다 */
+const SWAP_FRESH_MS = 30 * 60 * 1000;
+
+const swapCacheKey = (seedKey: string, skinType?: SkinType) => `swap:${seedKey}:${skinType ?? ''}`;
+
+/**
+ * 시드마다 /similar를 물어 교체 제안을 고른다.
+ *
+ * 홈은 이 결과를 두 컴포넌트(교체 제안 카드·더 싼 대체품 캐러셀)가 각자
+ * 쓴다. 캐시 키가 같으므로 `load`가 한 번만 계산한다 — 예전에는 둘이
+ * 따로 계산해 /similar가 화장대 제품 수의 두 배만큼 나갔다.
+ */
+async function computeSwap(current: SwapSeed[], skinType?: SkinType): Promise<SwapResult> {
+  const results = await Promise.allSettled(
+    current.map((seed) => loadSimilarProducts(seed.id, { limit: PER_SEED_LIMIT, skinType })),
+  );
+
+  // 404는 고장이 아니다. 화장대에는 카탈로그에 없는 id가 섞인다 —
+  // 챗봇으로 등록한 제품(960001+)이 그렇고, id 체계가 바뀌기 전에
+  // 저장된 localStorage도 그렇다. 유사도를 낼 수 없을 뿐이므로 오류를
+  // 띄우지 않고, 대신 outcome 'stale'로 화면이 따로 안내하게 한다.
+  //
+  // 오류로 칠 것은 연결 실패·5xx처럼 "다시 시도하면 될지도 모르는" 것뿐이다.
+  const isNotFound = (r: PromiseSettledResult<unknown>) =>
+    r.status === 'rejected' && r.reason instanceof ApiError && r.reason.status === 404;
+
+  const ok = results.filter((r) => r.status === 'fulfilled');
+  const broken = results.filter((r) => r.status === 'rejected' && !isNotFound(r));
+
+  // 전부 실패는 결과가 아니다 — 캐시에 남기지 않도록 던진다.
+  if (ok.length === 0 && broken.length > 0) {
+    throw new Error('교체 제안을 불러오지 못했습니다.');
+  }
+
+  // 성공이 하나도 없고 실패가 전부 404라면, 데이터가 없는 게 아니라
+  // 화장대에 저장된 id가 우리 카탈로그의 번호가 아닌 것이다.
+  if (ok.length === 0) {
+    return {
+      suggestion: null,
+      candidates: [],
+      variantHint: null,
+      outcome: 'stale',
+    };
+  }
+
+  const found: SwapSuggestion[] = [];
+  const variantCandidates: SwapSuggestion[] = [];
+  results.forEach((result, i) => {
+    if (result.status !== 'fulfilled') return;
+    const seed = current[i];
+    const mapped = result.value.items.map((item) => toAlternative(item, seed));
+    // 같은 제품의 다른 용량은 교체 제안이 아니다. 이걸 빼지 않으면
+    // "유사도 100%" 1등이 대부분 자기 자신의 대용량 버전이 된다.
+    // 다만 버리지는 않는다 — 진짜 대체품이 없을 때 "같은 제품 대용량이
+    // 더 싸다"는 여전히 쓸모 있는 안내라서 variantHint로 남긴다.
+    const { alternatives, variants } = splitSameProductVariants(seed, mapped);
+    alternatives.forEach((alt) => {
+      if ((alt.priceDelta ?? 0) >= 0) return;
+      if (alt.similarityScore < SIMILARITY_HIGH) return;
+      found.push({ seed, alt });
+    });
+    variants.forEach((alt) => {
+      if ((alt.priceDelta ?? 0) >= 0) return;
+      variantCandidates.push({ seed, alt });
+    });
+  });
+
+  const ranked = rankCandidates(found);
+  const best = ranked[0] ?? null;
+  const variant = best ? null : rankCandidates(variantCandidates)[0] ?? null;
+
+  return {
+    suggestion: best,
+    candidates: ranked,
+    variantHint: variant,
+    outcome: best ? 'ok' : variant ? 'variantOnly' : 'none',
+  };
+}
+
 export function useSwapSuggestion(
   items: ClosetItem[],
   skinType?: SkinType,
@@ -156,102 +239,35 @@ export function useSwapSuggestion(
 
   const key = `${seedKey}:${skinType}#${nonce}`;
 
+  const cacheKey = swapCacheKey(seedKey, skinType);
+
   useEffect(() => {
     if (isEmpty) return;
-    const current = JSON.parse(seedKey) as SwapSeed[];
-
-    const controller = new AbortController();
-
-    Promise.allSettled(
-      current.map((seed) =>
-        fetchSimilarProducts(
-          seed.id,
-          { limit: PER_SEED_LIMIT, skinType },
-          controller.signal,
-        ),
-      ),
-    )
-      .then((results) => {
-        if (controller.signal.aborted) return;
-
-        // 404는 고장이 아니다. 화장대에는 카탈로그에 없는 id가 섞인다 —
-        // 챗봇으로 등록한 제품(960001+)이 그렇고, id 체계가 바뀌기 전에
-        // 저장된 localStorage도 그렇다. 유사도를 낼 수 없을 뿐이므로 오류를
-        // 띄우지 않고, 대신 outcome 'stale'로 화면이 따로 안내하게 한다.
-        //
-        // 오류로 칠 것은 연결 실패·5xx처럼 "다시 시도하면 될지도 모르는" 것뿐이다.
-        const isNotFound = (r: PromiseSettledResult<unknown>) =>
-          r.status === 'rejected' && r.reason instanceof ApiError && r.reason.status === 404;
-
-        const ok = results.filter((r) => r.status === 'fulfilled');
-        const broken = results.filter((r) => r.status === 'rejected' && !isNotFound(r));
-
-        if (ok.length === 0 && broken.length > 0) {
-          setLoaded({
-            key,
-            suggestion: null,
-            candidates: [],
-            variantHint: null,
-            outcome: 'none',
-            error: '교체 제안을 불러오지 못했습니다.',
-          });
-          return;
-        }
-
-        // 성공이 하나도 없고 실패가 전부 404라면, 데이터가 없는 게 아니라
-        // 화장대에 저장된 id가 우리 카탈로그의 번호가 아닌 것이다.
-        if (ok.length === 0) {
-          setLoaded({
-            key,
-            suggestion: null,
-            candidates: [],
-            variantHint: null,
-            outcome: 'stale',
-            error: null,
-          });
-          return;
-        }
-
-        const found: SwapSuggestion[] = [];
-        const variantCandidates: SwapSuggestion[] = [];
-        results.forEach((result, i) => {
-          if (result.status !== 'fulfilled') return;
-          const seed = current[i];
-          const mapped = result.value.items.map((item) => toAlternative(item, seed));
-          // 같은 제품의 다른 용량은 교체 제안이 아니다. 이걸 빼지 않으면
-          // "유사도 100%" 1등이 대부분 자기 자신의 대용량 버전이 된다.
-          // 다만 버리지는 않는다 — 진짜 대체품이 없을 때 "같은 제품 대용량이
-          // 더 싸다"는 여전히 쓸모 있는 안내라서 variantHint로 남긴다.
-          const { alternatives, variants } = splitSameProductVariants(seed, mapped);
-          alternatives.forEach((alt) => {
-            if ((alt.priceDelta ?? 0) >= 0) return;
-            if (alt.similarityScore < SIMILARITY_HIGH) return;
-            found.push({ seed, alt });
-          });
-          variants.forEach((alt) => {
-            if ((alt.priceDelta ?? 0) >= 0) return;
-            variantCandidates.push({ seed, alt });
-          });
-        });
-
-        const ranked = rankCandidates(found);
-        const best = ranked[0] ?? null;
-        const variant = best ? null : rankCandidates(variantCandidates)[0] ?? null;
-
+    let alive = true;
+    load(cacheKey, () => computeSwap(JSON.parse(seedKey) as SwapSeed[], skinType), SWAP_FRESH_MS)
+      .then((result) => {
+        if (alive) setLoaded({ key, ...result, error: null });
+      })
+      .catch((err: unknown) => {
+        if (!alive) return;
         setLoaded({
           key,
-          suggestion: best,
-          candidates: ranked,
-          variantHint: variant,
-          outcome: best ? 'ok' : variant ? 'variantOnly' : 'none',
-          error: null,
+          suggestion: null,
+          candidates: [],
+          variantHint: null,
+          outcome: 'none',
+          error: err instanceof Error ? err.message : '교체 제안을 불러오지 못했습니다.',
         });
       });
+    return () => {
+      alive = false;
+    };
+  }, [key, cacheKey, seedKey, isEmpty, skinType]);
 
-    return () => controller.abort();
-  }, [key, seedKey, isEmpty, skinType]);
-
-  const reload = useCallback(() => setNonce((n) => n + 1), []);
+  const reload = useCallback(() => {
+    invalidate(cacheKey);
+    setNonce((n) => n + 1);
+  }, [cacheKey]);
 
   if (isEmpty) {
     return {
@@ -265,7 +281,9 @@ export function useSwapSuggestion(
     };
   }
 
-  const current = loaded?.key === key ? loaded : null;
+  // 다른 화면에서 이미 계산했으면 첫 렌더부터 그 결과를 쓴다(탭 이동 깜빡임 제거).
+  const cached = peek<SwapResult>(cacheKey)?.value;
+  const current = loaded?.key === key ? loaded : cached ? { ...cached, error: null } : null;
 
   return {
     suggestion: current?.suggestion ?? null,

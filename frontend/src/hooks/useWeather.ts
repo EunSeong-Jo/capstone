@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchWeather } from '../api/weather';
+import { load, peek } from '../api/queryCache';
 import { WeatherInfo } from '../types';
 import { MOCK_WEATHER } from '../mocks/home';
 
@@ -22,26 +23,36 @@ interface UseWeatherResult {
  * 실패해도 화면 전체가 깨지면 안 된다(백엔드가 Redis 장애 시 DB로
  * 폴백하는 것과 같은 방어적 설계).
  */
+/** 서버도 10분 캐시한다. 탭을 오갈 때마다 다시 물을 이유가 없다 */
+const WEATHER_FRESH_MS = 10 * 60 * 1000;
+
 export function useWeather(): UseWeatherResult {
-  const [weather, setWeather] = useState<WeatherInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  // 지난 결과가 있으면 첫 렌더부터 쓴다(탭 이동 깜빡임 제거).
+  const [weather, setWeather] = useState<WeatherInfo | null>(
+    () => peek<WeatherInfo>('weather')?.value ?? null,
+  );
+  const [loading, setLoading] = useState(() => peek('weather') === undefined);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let alive = true;
 
-    fetchWeather(controller.signal)
-      .then(setWeather)
+    load('weather', () => fetchWeather(), WEATHER_FRESH_MS)
+      .then((w) => {
+        if (alive) setWeather(w);
+      })
       .catch((err: unknown) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (!alive) return;
         setError(err instanceof Error ? err.message : '날씨를 불러오지 못했습니다.');
         setWeather(MOCK_WEATHER); // 실패했을 때만 폴백 — 로딩 중엔 여전히 null
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (alive) setLoading(false);
       });
 
-    return () => controller.abort();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   return { weather, loading, error };

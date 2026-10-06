@@ -40,12 +40,27 @@ export interface OrderItemDto {
   reviewed: boolean;
 }
 
+export interface TrackingStepDto {
+  /** paid / preparing / shipping / delivered */
+  stage: string;
+  /** 이 단계가 된 시각. 아직이면 null */
+  at: string | null;
+}
+
 export interface OrderDto {
   id: string;
   total: number;
+  /** placed / cancelled / returned */
   status: string;
   placedAt: string;
   items: OrderItemDto[];
+  /** paid / preparing / shipping / delivered / cancelled / returned — 서버가 계산 */
+  stage: string;
+  tracking: TrackingStepDto[];
+  canCancel: boolean;
+  canReturn: boolean;
+  closedAt: string | null;
+  closeReason: string | null;
 }
 
 export interface FrequentItemDto {
@@ -80,6 +95,8 @@ export interface GiftDto {
   brandName: string | null;
   unitPrice: number;
   recipientName: string;
+  /** 받은 선물에서만. 보낸 사람 닉네임 */
+  senderNickname: string | null;
   message: string | null;
   /** 전달 수단이 붙기 전까지 항상 'pending' */
   status: string;
@@ -140,8 +157,9 @@ async function send(path: string, method: string, body?: unknown): Promise<void>
 export const fetchCloset = () => request<ClosetItemDto[]>('/api/v1/me/closet');
 export const addClosetItem = (productId: number, addedVia = 'search') =>
   postJson<ClosetItemDto>('/api/v1/me/closet', { productId, addedVia });
-export const removeClosetItem = (productId: number) =>
-  send(`/api/v1/me/closet/${productId}`, 'DELETE');
+/** 기본은 '삭제된 제품'으로 옮기기. permanent면 행을 지운다 */
+export const removeClosetItem = (productId: number, permanent = false) =>
+  send(`/api/v1/me/closet/${productId}${permanent ? '?permanent=true' : ''}`, 'DELETE');
 
 // ── 장바구니 ────────────────────────────────────────────
 export const fetchCart = () => request<CartDto>('/api/v1/me/cart');
@@ -170,8 +188,23 @@ export const placeOrder = () => postJson<OrderDto>('/api/v1/orders', {});
 export const fetchOrders = () => request<OrderDto[]>('/api/v1/me/orders');
 export const fetchFrequent = () => request<FrequentItemDto[]>('/api/v1/me/orders/frequent');
 export const fetchPoints = () => request<PointsDto>('/api/v1/me/points');
-export const writeReview = (orderItemId: number, rating: number, body?: string) =>
-  postJson<unknown>('/api/v1/me/reviews', { orderItemId, rating, body });
+export interface MyReviewDto {
+  id: number;
+  productId: number;
+  orderItemId: number;
+  rating: number;
+  body: string | null;
+  createdAt: string;
+  photoUrls: string[];
+}
+
+export const fetchMyReviews = () => request<MyReviewDto[]>('/api/v1/me/reviews');
+export const writeReview = (orderItemId: number, rating: number, body?: string, photos: string[] = []) =>
+  postJson<MyReviewDto>('/api/v1/me/reviews', { orderItemId, rating, body, photos });
+export const cancelOrder = (orderId: string, reason?: string) =>
+  postJson<OrderDto>(`/api/v1/me/orders/${orderId}/cancel`, { reason });
+export const returnOrder = (orderId: string, reason?: string) =>
+  postJson<OrderDto>(`/api/v1/me/orders/${orderId}/return`, { reason });
 
 // ── 스캔 · 통계 ─────────────────────────────────────────
 export const fetchScans = () => request<ScanDto[]>('/api/v1/me/scans');
@@ -189,6 +222,7 @@ export const markNotificationsSeen = () =>
   send('/api/v1/me/notifications/seen', 'POST');
 
 /** 선물 보내기. 받는 분 연락처는 보내지 않는다 — 서버가 받지 않는다. */
-export const sendGift = (productId: number, recipientName: string, message?: string) =>
-  postJson<GiftDto>('/api/v1/gifts', { productId, recipientName, message });
+export const sendGift = (productId: number, recipientNickname: string, message?: string) =>
+  postJson<GiftDto>('/api/v1/gifts', { productId, recipientNickname, message });
 export const fetchSentGifts = () => request<GiftDto[]>('/api/v1/me/gifts/sent');
+export const fetchReceivedGifts = () => request<GiftDto[]>('/api/v1/me/gifts/received');

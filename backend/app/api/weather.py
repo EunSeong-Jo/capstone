@@ -11,7 +11,8 @@ MVP라 위치는 서울 좌표로 고정한다. 사용자 위치·주소 데이�
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -30,6 +31,8 @@ SEOUL_LAT, SEOUL_LON = 37.5665, 126.9780
 SEOUL_TZ = ZoneInfo("Asia/Seoul")
 CACHE_TTL = 600  # 10분 — 날씨는 자주 안 바뀌고, 무료 API 호출 한도(60회/분)도 아낀다
 CACHE_KEY = "weather:seoul:v1"
+# 스냅숏 자체의 캐시. /weather는 최종 응답을, care_tip은 스냅숏을 쓰므로 따로 둔다.
+SNAPSHOT_KEY = "weather:snapshot:v1"
 
 # OpenWeatherMap 'weather[0].main' → 우리 WeatherCondition.
 # 맵에 없는 값(Mist/Fog/Haze/Squall 등 저빈도 대기 현상)은 cloudy로 뭉갠다.
@@ -83,10 +86,9 @@ class WeatherSnapshot:
 async def fetch_weather_snapshot() -> WeatherSnapshot:
     """OpenWeatherMap Current Weather API를 직접 호출한다.
 
-    캐싱은 여기서 하지 않는다 — 호출부(엔드포인트)마다 캐싱 전략이 다르기
-    때문이다(이 엔드포인트는 최종 응답 JSON을 10분 캐싱하고, care_tip.py는
-    날짜 단위 캐시로 호출 빈도 자체를 억제한다). 그래서 이 함수는
-    "캐시가 비어 있을 때만" 불린다.
+    캐싱은 여기서 하지 않는다 — 호출부는 캐시를 거치는
+    `get_weather_snapshot()`을 쓴다. 그래서 이 함수는 "캐시가 비어 있을
+    때만" 불린다.
     """
     if not settings.OPENWEATHER_API_KEY:
         raise HTTPException(
@@ -137,6 +139,24 @@ async def fetch_weather_snapshot() -> WeatherSnapshot:
     )
 
 
+async def get_weather_snapshot() -> WeatherSnapshot:
+    """캐시를 거치는 스냅숏. 비었을 때만 OpenWeather를 부른다.
+
+    care_tip은 캐시 키에 날씨(condition)가 들어가서, 자기 캐시를 보기 전에
+    스냅숏부터 알아야 한다. 예전에는 그 때문에 케어 문구를 열 때마다
+    OpenWeather를 직접 불렀다(캐시가 맞아도 0.3초, 무료 호출 한도 소모).
+    """
+    cached = await cache_get(SNAPSHOT_KEY)
+    if cached is not None:
+        try:
+            return WeatherSnapshot(**json.loads(cached))
+        except (TypeError, ValueError):
+            pass  # 필드가 바뀐 옛 캐시는 버리고 새로 받는다
+    snap = await fetch_weather_snapshot()
+    await cache_set(SNAPSHOT_KEY, json.dumps(asdict(snap), ensure_ascii=False), CACHE_TTL)
+    return snap
+
+
 @router.get("", response_model=WeatherOut, summary="현재 날씨 (서울 고정)")
 async def get_weather(response: Response) -> WeatherOut | Response:
     cached = await cache_get(CACHE_KEY)
@@ -146,7 +166,7 @@ async def get_weather(response: Response) -> WeatherOut | Response:
             headers={"Cache-Control": "public, max-age=300", "X-Cache": "HIT"},
         )
 
-    snap = await fetch_weather_snapshot()
+    snap = await get_weather_snapshot()
     result = WeatherOut(
         condition=snap.condition,
         condition_label=snap.condition_label,

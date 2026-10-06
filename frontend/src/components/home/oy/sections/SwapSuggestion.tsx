@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useLoginPrompt } from '../../../../hooks/useLoginPrompt';
 import { useCart } from '../../../../context/cart';
 import { useCloset } from '../../../../context/closet';
 import { useToast } from '../../../../context/toast';
@@ -79,6 +80,7 @@ function SwapProduct({
 
 export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
   const navigate = useNavigate();
+  const { requireLogin } = useLoginPrompt();
   const { items, loading: closetLoading } = useCloset();
   const { addToCart } = useCart();
   const { showToast } = useToast();
@@ -104,7 +106,10 @@ export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
         </p>
         <button
           type="button"
-          onClick={() => navigate('/scan')}
+          onClick={() => {
+            if (requireLogin('화장대는 로그인하면 쓸 수 있어요')) return;
+            navigate('/scan');
+          }}
           className="mt-3 w-full rounded-xl bg-primary py-2.5 text-[13px] font-bold text-white transition-transform active:scale-[.98]"
         >
           제품 등록하기

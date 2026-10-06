@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 
@@ -82,6 +82,17 @@ class IngredientOut(_CamelModel):
     grade: str | None = None
     is_allergen: bool = False
 
+    # 성분 설명. `scripts/seed_ingredient_descriptions.py`가
+    # ingredient_descriptions에 적재한다. 설명이 없는 성분은 셋 다 비어 있다.
+    #
+    #   description         한 줄 설명
+    #   keywords            고정 어휘 20개(효능 10 · 역할 10)에서 최대 2개
+    #   description_source  llm(생성 초안) | reviewed(검수 완료)
+    #                       화면은 llm일 때 '참고용' 문구를 붙인다
+    description: str | None = None
+    keywords: list[str] = []
+    description_source: str | None = None
+
 
 class ProductDetailOut(ProductOut):
     """상세용. 상품정보제공고시 항목과 전성분이 붙는다."""
@@ -120,6 +131,9 @@ class ProductReviewOut(_CamelModel):
     rating: int
     body: str | None = None
     created_at: datetime
+    photo_urls: list[str] = []
+    # 작성자 피부타입 코드(8종). 진단 전이면 None.
+    skin_type: str | None = None
 
 
 class ProductReviewsOut(_CamelModel):
@@ -131,8 +145,62 @@ class ProductReviewsOut(_CamelModel):
     """
 
     items: list[ProductReviewOut]
+    # 이 제품의 후기 전체 수(필터와 무관). 제목의 '후기 (N)'.
     total: int
+    # 지금 필터(별점·피부타입)에 맞는 수. 필터가 없으면 total과 같다.
+    matched: int = 0
     # 소수 첫째 자리까지. 후기가 없으면 None이다 — 0.0으로 내면 "최악"과
     # "아직 없음"이 같아 보인다.
     average: float | None = None
     distribution: dict[int, int]
+
+
+class MatchSignalOut(_CamelModel):
+    """텍스트 대조 신호.
+
+    `matched_on`은 어느 이름에서 맞았는지다 — 'ko'면 `products.name`
+    (또는 display_name), 'en'이면 `product_names_en.name_en`이다.
+    `matched_text`는 그 이름 원문이라, 왜 이 제품이 걸렸는지 눈으로
+    확인할 수 있다.
+    """
+
+    score: float
+    matched_on: str
+    matched_text: str
+
+
+class MatchSignalsOut(_CamelModel):
+    """후보가 걸린 근거들.
+
+    지금은 텍스트 하나뿐이지만 묶음으로 내는 이유는, 촬영 이미지 ↔ 제품
+    이미지 유사도를 두 번째 신호로 더할 때 응답 모양을 깨지 않기 위해서다.
+    그때 `image`가 붙고 호출 측은 둘을 함께 보고 판단한다.
+    """
+
+    text: MatchSignalOut
+
+
+class ProductMatchOut(_CamelModel):
+    """OCR 텍스트로 찾은 제품 후보."""
+
+    product: ProductOut
+    signals: MatchSignalsOut
+
+
+class ProductScanIn(_CamelModel):
+    """사진으로 화장품 찾기. 화면이 장변 1024px JPEG로 줄여 data URL로 보낸다."""
+
+    image: str = Field(max_length=4_000_000)
+    limit: int = Field(default=5, ge=1, le=10)
+
+
+class ProductScanOut(_CamelModel):
+    """인식한 글자와 후보.
+
+    자동으로 하나를 고르지 않는다 — 실사진에서 정답과 '카탈로그에 없는 제품'의
+    점수가 겹쳐 임계값이 서지 않았다(IMAGE_MATCH_SUMMARY ③). 화면은 후보를 보여 주고
+    "찾는 제품이 없어요"를 함께 둔다.
+    """
+
+    text: str
+    candidates: list[ProductMatchOut]

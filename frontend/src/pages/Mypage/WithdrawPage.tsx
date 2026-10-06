@@ -5,7 +5,7 @@ import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Button } from '../../components/ui/Button';
 
 const NOTICES = [
-  '피부타입 진단 결과, 성분 스캔 기록, 관심 제품이 모두 삭제되며 복구할 수 없어요.',
+  '피부타입 진단 결과, 화장품 스캔 기록, 관심 제품이 모두 삭제되며 복구할 수 없어요.',
   '보유 중인 포인트와 쿠폰은 탈퇴 시 소멸돼요.',
   '진행 중인 주문·배송이 있으면 완료 후 탈퇴할 수 있어요.',
 ];

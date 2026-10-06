@@ -10,7 +10,7 @@
  *   보이지 않을 뿐입니다.
  */
 import { Product } from '../types';
-import { QueryParams, request } from './client';
+import { QueryParams, postJson, request } from './client';
 
 export type ProductSort = 'popular' | 'priceAsc' | 'priceDesc' | 'rating';
 
@@ -41,6 +41,18 @@ export interface ProductIngredient {
   grade?: 'key' | 'normal' | 'warn' | null;
   /** 식약처 표시 의무 알레르기 유발 착향제 26종 여부 */
   isAllergen?: boolean;
+  /**
+   * 성분 설명. `scripts/seed_ingredient_descriptions.py`가 적재합니다.
+   * 설명이 없는 성분(파싱 잔해 등)은 셋 다 비어 있습니다.
+   *
+   *   description        한 줄 설명
+   *   keywords           효능·역할 키워드, 고정 어휘에서 최대 2개
+   *   descriptionSource  llm(생성 초안) | reviewed(검수 완료).
+   *                      llm이면 화면이 '참고용' 문구를 붙입니다
+   */
+  description?: string | null;
+  keywords?: string[];
+  descriptionSource?: 'llm' | 'reviewed' | null;
 }
 
 export interface ProductDetail extends Product {
@@ -95,6 +107,19 @@ export function searchProducts(
   );
 }
 
+/** 전성분에 이 성분(한글·INCI 부분일치)이 든 제품. 2자 이상. */
+export function searchProductsByIngredient(
+  q: string,
+  query: Pick<ProductQuery, 'sort' | 'page' | 'size'> = {},
+  signal?: AbortSignal,
+): Promise<ProductListResponse> {
+  return request<ProductListResponse>(
+    '/api/v1/products/search/ingredient',
+    { q, ...query } as QueryParams,
+    signal,
+  );
+}
+
 
 export interface ProductReview {
   id: number;
@@ -102,11 +127,18 @@ export interface ProductReview {
   rating: number;
   body: string | null;
   createdAt: string;
+  /** 후기 사진 URL(`/api/v1/reviews/photos/:id`) */
+  photoUrls: string[];
+  /** 작성자 피부타입 코드. 진단 전이면 null */
+  skinType: string | null;
 }
 
 export interface ProductReviews {
   items: ProductReview[];
+  /** 이 제품 후기 전체 수(필터와 무관) */
   total: number;
+  /** 지금 필터에 맞는 수 */
+  matched: number;
   /** 후기가 없으면 null입니다 — 0.0으로 내면 "최악"과 구분되지 않습니다. */
   average: number | null;
   /** 5점부터 1점까지의 건수. 키는 문자열입니다(JSON). */
@@ -120,13 +152,49 @@ export interface ProductReviews {
  * 올리브영의 리뷰 수이고 내용은 갖고 있지 않습니다. 여기 목록은 이 앱에서
  * 실제로 산 사람이 쓴 것뿐이라, 지금은 대부분 비어 있는 게 정상입니다.
  */
+export type ReviewSort = 'latest' | 'oldest' | 'rating_desc' | 'rating_asc';
+
+export interface ReviewQuery {
+  sort?: ReviewSort;
+  /** 이 별점의 후기만 */
+  rating?: number;
+  /** 작성자 피부타입이 이것인 후기만 */
+  skinType?: string;
+}
+
 export function fetchProductReviews(
   productId: number,
+  query: ReviewQuery = {},
   signal?: AbortSignal,
 ): Promise<ProductReviews> {
   return request<ProductReviews>(
     `/api/v1/products/${productId}/reviews`,
-    undefined,
+    query as QueryParams,
     signal,
   );
+}
+
+// ── 사진으로 화장품 찾기 ─────────────────────────────────────
+
+export interface ProductMatch {
+  product: Product;
+  signals: {
+    /** 글자 대조 점수(trgm, 0~1)와 어느 이름(ko 한글명 / en 영문명)에서 맞았는지 */
+    text: { score: number; matchedOn: 'ko' | 'en'; matchedText: string };
+  };
+}
+
+export interface ProductScanResult {
+  /** 사진에서 읽은 글자(통짜) */
+  text: string;
+  /** 후보. 자동으로 고르지 않는다 — 화면이 보여 주고 사용자가 고른다 */
+  candidates: ProductMatch[];
+}
+
+/**
+ * 제품 앞면 사진(data URL, 장변 1024px JPEG 권장) → OCR → 후보.
+ * 사진 인식 키가 없으면 503(ApiError) — 화면은 제품명 검색으로 안내한다.
+ */
+export function scanProductImage(image: string, limit = 5): Promise<ProductScanResult> {
+  return postJson<ProductScanResult>('/api/v1/products/scan', { image, limit });
 }

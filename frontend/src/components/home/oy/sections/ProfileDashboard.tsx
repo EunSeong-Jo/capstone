@@ -9,6 +9,7 @@ import {
 } from '../../../../types';
 import { CharacterAvatar } from '../../../character/CharacterAvatar';
 import { useCharacter } from '../../../../context/character';
+import { useAuth } from '../../../../context/auth';
 
 interface ProfileDashboardProps {
   /** null이면 로딩 중 — 스켈레톤을 보여준다. useWeather 참고 */
@@ -53,6 +54,9 @@ export function ProfileDashboard({
 }: ProfileDashboardProps) {
   // 꾸미기는 전역 상태다 — 꾸미기 화면에서 저장하면 여기도 같이 바뀐다.
   const { decorationId, loading: decoPending } = useCharacter();
+  // 진단은 로그인 이후에만 가능하다. 게스트를 /qna로 보내면 가드가 한 번 더
+  // 튕기므로, 목적지와 문구를 미리 맞춘다.
+  const { isUser } = useAuth();
   const navigate = useNavigate();
 
   const meta = user.skinType !== null ? SKIN_TYPE_META[user.skinType] : UNKNOWN_SKIN_META;
@@ -114,10 +118,10 @@ export function ProfileDashboard({
                진단으로 보낸다. */
             <button
               type="button"
-              onClick={() => navigate('/qna')}
+              onClick={() => navigate(isUser ? '/qna' : '/login')}
               className="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-full bg-primary text-[11px] font-bold text-white active:scale-95 transition-transform"
             >
-              {UNKNOWN_SKIN_META.emoji} 피부타입 진단하기
+              {UNKNOWN_SKIN_META.emoji} {isUser ? '피부타입 진단하기' : '로그인하고 진단하기'}
             </button>
           ) : (
             <span className="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-full bg-primary-light text-[11px] font-bold text-primary">
