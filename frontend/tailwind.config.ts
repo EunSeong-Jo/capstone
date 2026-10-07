@@ -121,10 +121,16 @@ export default {
           '0%': { transform: 'translate(-50%, 100%)', opacity: '0' },
           '100%': { transform: 'translate(-50%, 0)', opacity: '1' },
         },
+        // 화장품 스캔 셔터 — 찍는 순간 화면이 한 번 하얗게 번쩍인다
+        shutterFlash: {
+          '0%': { opacity: '0.85' },
+          '100%': { opacity: '0' },
+        },
       },
       animation: {
         'slide-down': 'slideDown .28s ease-out',
         'slide-up': 'slideUp .28s ease-out',
+        'shutter-flash': 'shutterFlash .35s ease-out forwards',
       },
       fontFamily: {
         sans: [

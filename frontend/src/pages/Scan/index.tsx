@@ -43,6 +43,12 @@ export default function ScanPage() {
   const { showToast } = useToast();
   const [phase, setPhase] = useState<'idle' | 'scanning' | 'candidates' | 'search' | 'result'>('idle');
   const [candidates, setCandidates] = useState<ProductMatch[]>([]);
+  // 읽고 있는 사진. 찍은 것이든 갤러리에서 고른 것이든 카메라 화면 자리에 멈춰
+  // 보여 준다 — 무엇을 읽는지 보이고, 후보를 고를 때 사진과 견줘 볼 수 있다.
+  // 읽는 중·후보 단계에서만 보이고, 다른 단계로 가면 다시 카메라가 나온다.
+  // 찍은 사진은 방금 보던 카메라 화면 그대로(화면을 채움), 갤러리 사진은
+  // 잘리지 않게 전체를 맞춰 넣는다(from).
+  const [shot, setShot] = useState<{ image: string; id: number; from: 'camera' | 'gallery' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [result, setResult] = useState<Product | null>(null);
@@ -69,7 +75,8 @@ export default function ScanPage() {
   };
 
   /** 사진 → 후보. 못 찾거나 인식할 수 없으면 제품명 검색으로 이어 준다. */
-  const runScan = async (image: string) => {
+  const runScan = async (image: string, from: 'camera' | 'gallery') => {
+    setShot({ image, id: Date.now(), from });
     setPhase('scanning');
     setNotice(null);
     try {
@@ -110,7 +117,7 @@ export default function ScanPage() {
       showNotice('카메라 화면을 가져오지 못했어요. 다시 눌러 주세요');
       return;
     }
-    void runScan(image);
+    void runScan(image, 'camera');
   };
 
   const openGallery = () => {
@@ -128,7 +135,7 @@ export default function ScanPage() {
       showNotice('사진을 열 수 없어요. 다른 사진을 골라 주세요');
       return;
     }
-    void runScan(image);
+    void runScan(image, 'gallery');
   };
 
   /** 제품을 고르면 스캔한 것이다 — 스캔 기록에 남긴다 */
@@ -175,6 +182,8 @@ export default function ScanPage() {
     setPhase('idle');
   };
 
+  const showShot = shot !== null && (phase === 'scanning' || phase === 'candidates');
+
   return (
     <div className="relative flex flex-col h-dvh overflow-hidden bg-[#111114]">
       {/* 카메라 프리뷰. 못 켜면 어두운 배경만 남는다 — 예전에는 picsum.photos
@@ -190,6 +199,30 @@ export default function ScanPage() {
           aria-hidden
           className="absolute inset-0 h-full w-full object-cover"
         />
+      )}
+      {showShot && (
+        <>
+          {shot.from === 'camera' ? (
+            <img src={shot.image} alt="읽고 있는 사진" className="absolute inset-0 h-full w-full object-cover" />
+          ) : (
+            <>
+              {/* 남는 자리는 같은 사진을 흐리게 깔아 채운다 — 검은 띠보다 찍은 화면처럼 보인다 */}
+              <img
+                src={shot.image}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl brightness-50"
+              />
+              <img src={shot.image} alt="읽고 있는 사진" className="absolute inset-0 h-full w-full object-contain" />
+            </>
+          )}
+          {/* 셔터 효과. 사진마다 key가 바뀌어 한 번씩만 번쩍인다 */}
+          <div
+            key={shot.id}
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-30 bg-white opacity-0 animate-shutter-flash"
+          />
+        </>
       )}
 
       {/* 상단 바 */}
@@ -235,20 +268,22 @@ export default function ScanPage() {
           <span className="absolute right-0 top-0 h-11 w-11 rounded-tr-[22px] border-r-[3.5px] border-t-[3.5px] border-[#4CC38A]" />
           <span className="absolute bottom-0 left-0 h-11 w-11 rounded-bl-[22px] border-b-[3.5px] border-l-[3.5px] border-[#4CC38A]" />
           <span className="absolute bottom-0 right-0 h-11 w-11 rounded-br-[22px] border-b-[3.5px] border-r-[3.5px] border-[#4CC38A]" />
-          {/* 제품 실루엣 — 세로로 세운 용기를 앞에서 찍는 모습 */}
-          <svg
-            aria-hidden
-            viewBox="0 0 100 140"
-            className="absolute inset-0 m-auto h-[62%] w-[62%] opacity-35"
-            fill="none"
-            stroke="#FFFFFF"
-            strokeWidth="2"
-            strokeDasharray="5 5"
-          >
-            <rect x="38" y="6" width="24" height="16" rx="3" />
-            <rect x="22" y="22" width="56" height="112" rx="10" />
-            <path d="M34 62h32M34 74h22" />
-          </svg>
+          {/* 제품 실루엣 — 세로로 세운 용기를 앞에서 찍는 모습. 사진 위에는 그리지 않는다 */}
+          {!showShot && (
+            <svg
+              aria-hidden
+              viewBox="0 0 100 140"
+              className="absolute inset-0 m-auto h-[62%] w-[62%] opacity-35"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="2"
+              strokeDasharray="5 5"
+            >
+              <rect x="38" y="6" width="24" height="16" rx="3" />
+              <rect x="22" y="22" width="56" height="112" rx="10" />
+              <path d="M34 62h32M34 74h22" />
+            </svg>
+          )}
           <span
             className={`absolute left-3 right-3 top-[46%] h-0.5 ${phase === 'search' || phase === 'scanning' ? 'animate-pulse' : ''}`}
             style={{ background: 'linear-gradient(90deg,rgba(76,195,138,0),#4CC38A,rgba(76,195,138,0))' }}
