@@ -10,8 +10,8 @@
 | DBMS | PostgreSQL 16.15 |
 | 호스팅 | Neon (serverless) · branch `production` · db `neondb` |
 | 확장 | `pg_trgm` 1.6 |
-| alembic head | `a9c1e2f3d4b5` |
-| 테이블 | 31 (Phase 1 18 + 개인 데이터 11 + 성분 설명 1 + 영문 제품명 1) |
+| alembic head | `c3d9a1e7b2f4` |
+| 테이블 | 34 (Phase 1 18 + 개인 데이터 11 + 성분 설명 1 + 영문 제품명 1 + 얼굴 사진 분석 3) |
 | 기준일 | 2026-10-03 |
 
 ---
@@ -384,7 +384,8 @@ is_active(bool = true) · updated_at
 | | `guest_token` | text | NULL | Soft-gate 시절의 흔적 — 더 채워지지 않음 |
 | FK | `version_id` | int | NOT NULL | → `quiz_versions` [RESTRICT] |
 | | `answers` | jsonb | NOT NULL | |
-| | `scores` | jsonb | NOT NULL | 5개 축 |
+| | `scores` | jsonb | NOT NULL | 5개 축. 얼굴 사진 분석을 섞었으면 **섞인 뒤의 값** |
+| FK | `analysis_id` | uuid | NULL | → `skin_analyses` [SET NULL]. 사진 분석을 섞은 진단이면 그 분석, NULL이면 QnA 100% |
 | | `created_at` | timestamptz | NOT NULL | `= now()` |
 
 문항이 바뀌어도 과거 결과를 해석할 수 있도록 `version_id`를 남깁니다. FK가 RESTRICT라 진단 기록이 있는 버전은 삭제되지 않습니다.
@@ -401,6 +402,37 @@ quiz_questions  : id(PK) · version_id(FK) · code · axis · body · order_no
 quiz_options    : id(PK) · question_id(FK) · label · weights(jsonb) · order_no
                   → weights에 축별 가중치를 담아 점수 계산을 데이터로 뺐다
 ```
+
+---
+
+## 얼굴 사진 AI 분석
+
+QnA 진단에 **얼굴 사진 분석**(Perfect Corp YouCam Skin Analysis)을 선택으로 더합니다. 세 테이블 모두 **원본 사진을 담지 않습니다** — 사진은 요청 중 메모리에만 있고(`docs/dev_guidelines.md` 11.2), 업체가 돌려주는 분석 이미지 URL도 저장하지 않습니다. 마이그레이션 `c3d9a1e7b2f4`.
+
+```
+user_consents : id(PK, uuid) · user_id(FK → users [CASCADE]) · consent_type(= 'face_photo')
+                version · agreed_at · withdrawn_at(NULL 허용)
+                UNIQUE(user_id, consent_type)
+                → (사용자, 종류)당 1행. 재동의·철회는 같은 행을 갱신한다.
+                  version은 동의받을 당시 문구의 버전(config FACE_CONSENT_VERSION) —
+                  문구가 바뀌면 옛 동의는 현재 문구에 대한 동의로 보지 않는다
+
+subscriptions : id(PK, uuid) · user_id(FK → users [CASCADE]) · plan(= 'ai_skin_care')
+                status(= 'active' | 'cancelled') · current_period_start · current_period_end
+                created_at · cancelled_at(NULL 허용)          INDEX(user_id, current_period_end)
+                → **결제는 붙어 있지 않다**(데모 활성화, 기간 30일). 해지해도
+                  current_period_end까지는 구독자로 본다
+
+skin_analyses : id(PK, uuid) · user_id(FK → users [CASCADE]) · created_at
+                quota_kind(free | subscription) · concern_set(basic | extended)
+                provider_mode(sd | hd | mock) · metrics(jsonb)  INDEX(user_id, created_at)
+                → 성공한 분석 1회 = 1행. 월 이용 횟수도 이 행을 센다.
+                  metrics = {axes, concerns{key:{raw,ui}}, skin_types{whole,t_zone,u_zone}}
+```
+
+**이용 한도**(`services/skin_quota.py`): 얼굴 사진 수집에 동의한 사용자만 쓸 수 있고, 무료 월 1회·구독자 월 4회입니다(Asia/Seoul 달 경계). 얼굴이 인식되지 않는 등 **실패는 행을 만들지 않아 한도를 쓰지 않습니다.** 분석 항목은 무료 8개(호출당 12유닛), 구독자 12개(14유닛)입니다.
+
+**진단 혼합**: `POST /profile/skin-quiz`에 `analysisId`를 실으면 서버가 저장된 분석의 5축 점수를 QnA에 `PHOTO_BLEND_WEIGHT`(기본 0.4) 비중으로 섞습니다. 점수는 클라이언트가 보내지 않으며, 1시간 안의 본인 분석만 받습니다. `analysisId`가 없으면 QnA 100%입니다.
 
 ---
 

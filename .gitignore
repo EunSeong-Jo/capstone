@@ -150,3 +150,11 @@ SWAPPY*.pdf
 
 # 올리브영 글로벌 수집기 재개용 체크포인트 (scripts/collect_global_oliveyoung.py)
 data/raw/global/.*_checkpoint.json
+
+# 얼굴 사진 테스트용 원본(GPS EXIF 포함)과 분석 응답(얼굴 이미지 URL 포함) — 커밋 금지
+skin_test.jpg
+skin_test*.jpg
+skin_test_*_result.txt
+
+# MediaPipe wasm — npm install 후 frontend/scripts/copy-mediapipe.mjs가 복사한다 (약 40MB)
+frontend/public/mediapipe/wasm/
