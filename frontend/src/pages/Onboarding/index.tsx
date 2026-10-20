@@ -16,20 +16,29 @@ import QuestionScreen from '../../components/onboarding/QuestionScreen';
 import LoadingScreen from '../../components/onboarding/LoadingScreen';
 import ResultMessageScreen from '../../components/onboarding/ResultMessageScreen';
 import ResultCardScreen from '../../components/onboarding/ResultCardScreen';
+import FacePhotoScreen from '../../components/onboarding/FacePhotoScreen';
 
-// 인삿말 → (알아요) 타입 그리드 | (몰라요) 질문창 Q1~Q6 → 로딩 → 결과 메시지 → 결과 카드
+// 인삿말 → (알아요) 타입 그리드 | (몰라요) 질문창 Q1~Q6 → (선택) 얼굴 사진 → 로딩 → 결과 메시지 → 결과 카드
 //
 // 단계 위치만 URL에 둔다. 그래야 전진마다 히스토리 엔트리가 생겨 기기 뒤로가기가
 // 그냥 동작한다 — popstate 리스너도, history.pushState도 필요 없고 뒤로가기 구현은
 // navigate(-1) 하나뿐이다. 정확성은 전환마다 push냐 replace냐로 확보한다.
-//   ?step=greeting&g=0..2 | grid | question&q=0..5 | loading
+//   ?step=greeting&g=0..2 | grid | question&q=0..5 | photo | loading
 //   ?step=result-msg&type=<id> | result-card&type=<id>
-type Step = 'greeting' | 'grid' | 'question' | 'loading' | 'result-msg' | 'result-card';
+type Step =
+  | 'greeting'
+  | 'grid'
+  | 'question'
+  | 'photo'
+  | 'loading'
+  | 'result-msg'
+  | 'result-card';
 
 const STEPS: readonly string[] = [
   'greeting',
   'grid',
   'question',
+  'photo',
   'loading',
   'result-msg',
   'result-card',
@@ -99,12 +108,26 @@ export default function OnboardingPage() {
     saveRef.current = saveDiagnosis;
   }, [answers, saveDiagnosis]);
 
+  // 얼굴 사진 분석을 마쳤으면 그 id. 진단 제출에 실려 서버가 QnA와 섞는다. 건너뛰면 null이고
+  // 그때는 QnA 100%다. 점수 자체는 들고 있지 않는다 — 서버가 저장된 분석을 읽는다.
+  const analysisIdRef = useRef<string | null>(null);
+  // 서버 응답을 기다리는 동안 페이지를 떠났으면 결과 화면으로 끌고 오지 않는다.
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+
   // 진입 가드는 마운트 1회만(deps []). 세션 내 뒤/앞으로가기는 리마운트가 아니라
   // 재발동하지 않으므로, loading이 '현재' 엔트리일 때는 정상 렌더된다.
   // 딥링크·새로고침으로 전제조건 없는 단계에 들어온 경우만 인삿말로 되돌린다.
   useEffect(() => {
     if (rawStep === null) return; // /onboarding → 인삿말. URL 그대로 둔다
-    const broken = !isStep(rawStep) || rawStep === 'loading' || (needsType && !cardType);
+    // photo도 loading처럼 문답을 마친 뒤에만 의미가 있다 — 딥링크로는 들어올 수 없다.
+    const broken =
+      !isStep(rawStep) || rawStep === 'loading' || rawStep === 'photo' || (needsType && !cardType);
     if (broken) setParams({}, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -120,11 +143,20 @@ export default function OnboardingPage() {
   // LoadingScreen의 [onComplete] effect가 무관한 리렌더에 2200ms 타이머를 재시작하지
   // 않도록 identity를 고정한다(deps는 setParams뿐 — 나머지는 ref로 읽는다).
   // replace라 loading 엔트리가 소진돼 뒤로가기 덫이 없다.
-  const handleLoadingComplete = useCallback(() => {
+  const handleLoadingComplete = useCallback(async () => {
     const picked = answersRef.current;
     const computed = computeDiagnosis(picked);
-    saveRef.current({ ...computed, answers: picked, source: 'quiz' });
-    setParams({ step: 'result-msg', type: computed.skinType }, { replace: true });
+    const analysisId = analysisIdRef.current ?? undefined;
+    const saved = saveRef.current(
+      { ...computed, answers: picked, source: 'quiz' },
+      analysisId ? { analysisId } : undefined,
+    );
+    // 로컬 채점은 문답뿐이다. 사진을 섞은 진단은 서버만 최종 타입을 알 수 있어서 기다린다
+    // (안 그러면 결과 화면이 문답 타입을 보여 주다가 서버 값으로 바뀐다). 서버가 실패하면
+    // saveDiagnosis가 로컬 결과로 풀리므로 여기서 멈추지 않는다.
+    const final = analysisId ? await saved : computed;
+    if (!aliveRef.current) return;
+    setParams({ step: 'result-msg', type: final.skinType }, { replace: true });
   }, [setParams]);
 
   // 인삿말을 띄웠다가 곧바로 홈으로 튕기면 화면이 한 번 번쩍인다. 판정이
@@ -180,10 +212,21 @@ export default function OnboardingPage() {
             onPick={(opt) => setAnswers((prev) => prev.map((v, i) => (i === qIndex ? opt : v)))}
             onNext={() =>
               qIndex + 1 >= QUESTION_COUNT
-                ? go({ step: 'loading' })
+                ? go({ step: 'photo' })
                 : go({ step: 'question', q: String(qIndex + 1) })
             }
             onBack={goBack}
+          />
+        )}
+        {step === 'photo' && (
+          <FacePhotoScreen
+            key="photo"
+            onBack={goBack}
+            onDone={(analysis) => {
+              analysisIdRef.current = analysis?.analysisId ?? null;
+              // replace: 사진 단계가 히스토리에 남지 않아 결과 카드에서 뒤로가면 Q6로 간다.
+              setParams({ step: 'loading' }, { replace: true });
+            }}
           />
         )}
         {step === 'loading' && <LoadingScreen key="loading" onComplete={handleLoadingComplete} />}

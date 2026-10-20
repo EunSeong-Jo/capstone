@@ -39,8 +39,10 @@ export function signup(
   email: string,
   password: string,
   nickname?: string,
+  /** (선택) 얼굴 사진 수집·이용 동의. 서버가 가입과 같은 트랜잭션으로 기록한다 */
+  faceConsent = false,
 ): Promise<TokenBundle> {
-  return postJson<TokenBundle>('/api/v1/auth/signup', { email, password, nickname });
+  return postJson<TokenBundle>('/api/v1/auth/signup', { email, password, nickname, faceConsent });
 }
 
 export function login(email: string, password: string): Promise<TokenBundle> {

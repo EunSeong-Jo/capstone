@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/auth';
+import { FaceConsentSheet } from '../../components/skin/FaceConsentSheet';
+import { FACE_CONSENT_BENEFIT, FACE_CONSENT_CHECKBOX } from '../../data/faceConsent';
 
 /**
  * 이메일 가입.
@@ -21,6 +23,10 @@ export default function SignupPage() {
   const [pwConfirm, setPwConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // (선택) 얼굴 사진 수집 동의. 체크하지 않아도 가입된다 — 사진 분석을 쓰지 않는 사람에게
+  // 민감 정보 동의를 가입 조건으로 강제하지 않는다. 기본은 꺼 둔다.
+  const [faceConsent, setFaceConsent] = useState(false);
+  const [consentOpen, setConsentOpen] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +48,7 @@ export default function SignupPage() {
     }
 
     setSubmitting(true);
-    const r = await register(email, pw, nickname);
+    const r = await register(email, pw, nickname, faceConsent);
     setSubmitting(false);
     if (!r.ok) {
       setError(r.error ?? '가입에 실패했어요.');
@@ -131,6 +137,30 @@ export default function SignupPage() {
           }}
           className={field}
         />
+        {/* 선택 동의. 체크박스와 "자세히"는 따로 눌린다 — 라벨 전체가 체크박스를 토글하면
+            내용을 읽으려고 누른 사람이 동의한 것이 된다. */}
+        <div className="mt-1 rounded-xl border border-gray-20 bg-white px-4 py-3">
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <input
+              type="checkbox"
+              checked={faceConsent}
+              disabled={submitting}
+              onChange={(e) => setFaceConsent(e.target.checked)}
+              className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-[var(--ob-green)]"
+            />
+            <span className="text-[13px] font-semibold text-gray-100">{FACE_CONSENT_CHECKBOX}</span>
+          </label>
+          <p className="mt-1.5 pl-[28px] text-[11px] leading-relaxed text-gray-50">
+            {FACE_CONSENT_BENEFIT}
+            <button
+              type="button"
+              onClick={() => setConsentOpen(true)}
+              className="ml-1.5 font-semibold text-ob-green-deep underline underline-offset-2"
+            >
+              자세히 보기
+            </button>
+          </p>
+        </div>
         {error && <p className="text-[12px] font-semibold text-[#D64545]">{error}</p>}
         <button
           type="submit"
@@ -142,6 +172,8 @@ export default function SignupPage() {
       </form>
 
       <div className="flex-[3]" />
+
+      {consentOpen && <FaceConsentSheet onClose={() => setConsentOpen(false)} />}
     </div>
   );
 }
