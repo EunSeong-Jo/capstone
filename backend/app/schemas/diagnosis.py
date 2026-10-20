@@ -1,6 +1,7 @@
 """진단 스키마 (Task 13.6·13.7)."""
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 
 from app.schemas.product import _CamelModel
@@ -36,6 +37,10 @@ class DiagnosisIn(_CamelModel):
     """
 
     answers: dict[str, int]
+    # 얼굴 사진 분석(POST /skin-analysis)의 id. 있으면 서버가 저장된 분석 점수를 QnA와
+    # 섞는다. **점수를 직접 받지 않는다** — 클라이언트가 보낸 점수로 타입을 정할 수
+    # 있게 되면 진단이 의미를 잃는다. 없으면 QnA 100%다.
+    analysis_id: uuid.UUID | None = None
 
 
 class RankOut(_CamelModel):
@@ -52,4 +57,6 @@ class DiagnosisOut(_CamelModel):
     ranks: list[RankOut]
     # 1·2순위가 붙어 있으면 True. "OO에 가깝지만 XX 성향도 있어요".
     borderline: bool
+    # 얼굴 사진 분석이 섞인 진단인가. False면 QnA 100%다.
+    photo_used: bool = False
     created_at: datetime

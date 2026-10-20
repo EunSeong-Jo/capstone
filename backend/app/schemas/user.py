@@ -22,6 +22,10 @@ class SignupIn(_CamelModel):
     email: EmailStr
     password: str = Field(min_length=PASSWORD_MIN_LENGTH)
     nickname: str | None = Field(default=None, max_length=20)
+    # (선택) 얼굴 사진 수집·이용 동의. 체크하지 않아도 가입된다 — 사진 분석을 쓰지
+    # 않는 사용자에게 민감 정보 동의를 가입 조건으로 강제하지 않기 위해서다.
+    # 안 했거나 기존 회원이면 촬영 직전에 PUT /me/consents/face-photo로 다시 받는다.
+    face_consent: bool = False
 
     @field_validator("password")
     @classmethod

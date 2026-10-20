@@ -9,7 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# 느린 회선에서 pip가 기본 타임아웃(15초)에 패키지를 못 받으면 "No matching distribution"으로
+# 보고하며 빌드가 깨진다. 타임아웃과 재시도를 늘려 둔다.
+RUN pip install --no-cache-dir --default-timeout=100 --retries 10 -r requirements.txt
 
 COPY . .
 
