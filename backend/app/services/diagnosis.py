@@ -74,6 +74,21 @@ def score_answers(
     return {axis: max(MIN_SCORE, min(MAX_SCORE, v)) for axis, v in scores.items()}
 
 
+def blend_scores(
+    qna: dict[str, int], photo: dict[str, int], weight: float
+) -> dict[str, int]:
+    """QnA 5축에 사진 5축을 `weight` 비중으로 섞는다 (0이면 QnA, 1이면 사진).
+
+    사진을 쓰지 않은 진단은 이 함수를 거치지 않는다 — QnA 100%는 기존 경로 그대로다.
+    사진에 없는 축은 QnA 값을 유지한다.
+    """
+    w = max(0.0, min(1.0, weight))
+    return {
+        axis: max(MIN_SCORE, min(MAX_SCORE, round((1 - w) * v + w * photo.get(axis, v))))
+        for axis, v in qna.items()
+    }
+
+
 def rank_types(scores: dict[str, int]) -> list[dict]:
     """5축 점수 → 타입 순위.
 

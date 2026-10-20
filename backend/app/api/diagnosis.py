@@ -4,17 +4,19 @@
     POST /api/v1/profile/skin-quiz             응답 제출 → 결과 저장
     GET  /api/v1/profile/skin-quiz/latest      내 최신 진단
 
-로그인은 **선택**이다. PRD의 Soft-gate 정책상 비회원도 진단을 끝까지 할 수
-있어야 하고, 그 결과는 `diagnoses.guest_token`으로 남았다가 가입 시 계정에
-붙는다. 컬럼이 처음부터 그 용도로 설계돼 있다.
+진단은 로그인 이후에만 할 수 있다(`submit` 참고). 얼굴 사진 분석을 했다면 제출에
+`analysisId`를 실어 점수에 섞을 수 있다 — 안 실으면 QnA 100%다.
 """
 from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.diagnosis import (
@@ -24,6 +26,7 @@ from app.models.diagnosis import (
     QuizQuestion,
     QuizVersion,
 )
+from app.models.skin_photo import SkinAnalysis
 from app.models.user import Profile, User
 from app.schemas.diagnosis import (
     DiagnosisIn,
@@ -33,9 +36,13 @@ from app.schemas.diagnosis import (
     QuizQuestionOut,
     RankOut,
 )
-from app.services.diagnosis import is_borderline, rank_types, score_answers
+from app.services.diagnosis import blend_scores, is_borderline, rank_types, score_answers
 
 router = APIRouter(prefix="/api/v1/profile/skin-quiz", tags=["diagnosis"])
+
+# 사진 분석은 이 시간 안에 제출한 진단에만 섞는다. 오래된 분석이 새 QnA에 붙어
+# 지금과 다른 피부 상태를 반영하는 것을 막는다.
+ANALYSIS_MAX_AGE = timedelta(hours=1)
 
 
 async def _active_version(db: AsyncSession) -> QuizVersion:
@@ -91,6 +98,7 @@ def _to_out(diagnosis: Diagnosis, ranks: list[DiagnosisRank]) -> DiagnosisOut:
         scores=diagnosis.scores,
         ranks=[RankOut(rank=r.rank, skin_type=r.skin_type, score=r.score) for r in ordered],
         borderline=is_borderline(as_dicts),
+        photo_used=diagnosis.analysis_id is not None,
         created_at=diagnosis.created_at,
     )
 
@@ -123,6 +131,23 @@ async def submit(
     weights = {(code, order_no): w for code, order_no, w in rows}
 
     scores = score_answers(body.answers, weights)
+
+    analysis_id = None
+    if body.analysis_id is not None:
+        analysis = await db.scalar(
+            select(SkinAnalysis).where(
+                SkinAnalysis.id == body.analysis_id, SkinAnalysis.user_id == user.id
+            )
+        )
+        if analysis is None:
+            raise HTTPException(status_code=422, detail="사진 분석 기록을 찾을 수 없어요")
+        if datetime.now(timezone.utc) - analysis.created_at > ANALYSIS_MAX_AGE:
+            raise HTTPException(
+                status_code=422, detail="사진 분석이 오래됐어요. 다시 촬영하거나 건너뛰어 주세요"
+            )
+        scores = blend_scores(scores, analysis.metrics["axes"], settings.PHOTO_BLEND_WEIGHT)
+        analysis_id = analysis.id
+
     ranks = rank_types(scores)
 
     diagnosis = Diagnosis(
@@ -131,6 +156,7 @@ async def submit(
         version_id=version.id,
         answers=body.answers,
         scores=scores,
+        analysis_id=analysis_id,
     )
     db.add(diagnosis)
     await db.flush()

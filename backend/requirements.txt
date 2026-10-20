@@ -52,6 +52,13 @@ selenium==4.47.0
 numpy==2.4.6
 scipy==1.17.1
 
+# 얼굴 사진 분석 (app/services/face_gate.py · skin_photo.py)
+# Pillow: 사진 회전 적용·EXIF(GPS 포함) 제거·재인코딩. opencv-python-headless: 얼굴이
+# 아닌 사진을 Perfect Corp에 보내기 전에 거르는 YuNet 얼굴 검출기(MIT 라이선스 모델,
+# app/assets/models/). 4.x에 고정한 이유: 5.0은 새 메이저라 FaceDetectorYN을 검증하지 않았다.
+Pillow==12.2.0
+opencv-python-headless==4.13.0.92
+
 # LLM (챗봇)
 openai==1.57.0
 anthropic==0.40.0

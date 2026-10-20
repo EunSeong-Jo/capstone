@@ -31,6 +31,7 @@ const NoticesPage      = lazy(() => import('./pages/Mypage/NoticesPage'));
 const OrderDetailPage  = lazy(() => import('./pages/Mypage/OrderDetailPage'));
 const OrderTrackingPage = lazy(() => import('./pages/Mypage/OrderTrackingPage'));
 const PointsPage      = lazy(() => import('./pages/Mypage/PointsPage'));
+const SubscriptionPage = lazy(() => import('./pages/Mypage/SubscriptionPage'));
 const ReviewPage      = lazy(() => import('./pages/Mypage/ReviewPage'));
 const CustomerServicePage = lazy(() => import('./pages/Mypage/CustomerServicePage'));
 const ChatSupportPage = lazy(() => import('./pages/Mypage/ChatSupportPage'));
@@ -94,6 +95,7 @@ export default function App() {
           <Route path="/notifications"        element={mine(<NotificationsPage />)} />
           <Route path="/mypage/gifts"         element={mine(<SentGiftsPage />)} />
           <Route path="/mypage/points"        element={mine(<PointsPage />)} />
+          <Route path="/mypage/subscription"  element={mine(<SubscriptionPage />)} />
           <Route path="/mypage/reviews"       element={mine(<ReviewPage />)} />
           <Route path="/mypage/customer-service" element={<CustomerServicePage />} />
           <Route path="/mypage/chat-support"  element={<ChatSupportPage />} />

@@ -30,7 +30,9 @@ from app.core.security import (
     new_refresh_token,
     verify_password,
 )
+from app.config import settings
 from app.db.session import get_db
+from app.models.skin_photo import FACE_PHOTO, UserConsent
 from app.models.user import Profile, RefreshToken, User
 from app.schemas.user import (
     LoginIn,
@@ -93,6 +95,10 @@ async def signup(body: SignupIn, db: AsyncSession = Depends(get_db)) -> TokenOut
     # 진단 전이라 값은 비어 있지만 행은 만들어 둔다. 이후 프로필 수정이
     # UPDATE 한 번으로 끝나고, 화면이 "프로필 없음"을 따로 다루지 않아도 된다.
     db.add(Profile(user_id=user.id))
+    if body.face_consent:
+        # 가입과 같은 트랜잭션이라 사용자만 생기고 동의 기록이 빠지는 일이 없다.
+        db.add(UserConsent(user_id=user.id, consent_type=FACE_PHOTO,
+                           version=settings.FACE_CONSENT_VERSION))
     await db.flush()
     await db.refresh(user, ["profile"])
     return await _issue(db, user)

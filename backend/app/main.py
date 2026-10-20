@@ -31,6 +31,7 @@ from app.api.personal import (
 from app.api.products import router as products_router
 from app.api.recommendations import router as recommendations_router
 from app.api.recommendations_main import router as reco_main_router
+from app.api.skin_photo import router as skin_photo_router
 from app.api.weather import router as weather_router
 from app.config import settings
 from app.db.session import engine, keepalive_loop
@@ -76,6 +77,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(me_router)
 app.include_router(diagnosis_router)
+app.include_router(skin_photo_router)
 app.include_router(personal_router)
 app.include_router(orders_router)
 app.include_router(gifts_router)

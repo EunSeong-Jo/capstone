@@ -183,7 +183,9 @@ d07012ddaaa9  Phase 2 개인 데이터 테이블 9개
 2425accbef26  profiles.decoration_id          캐릭터 꾸미기
 3f3233afae88  profiles.notifications_seen_at   알림 읽음 시각
 952adbaa9665  ingredient_descriptions
-a0fd1f8a5d3a  product_names_en                영문 제품명 (OCR 대조)  ← head
+a0fd1f8a5d3a  product_names_en                영문 제품명 (OCR 대조)
+a9c1e2f3d4b5  order cancel/return · gift recipient · review photos
+c3d9a1e7b2f4  skin_photo_tables               얼굴 사진 분석 (동의·구독·분석)  ← head
 ```
 
 `alembic history`로 언제든 실제 체인을 볼 수 있습니다. 이 표는 설명용이라 어긋나면 그때 고칩니다.
@@ -239,6 +241,58 @@ cd backend && uvicorn app.main:app --reload
 **테스트 코드가 없습니다.** pytest가 `requirements.txt`에 없고 `tests/` 디렉터리도 없습니다. 지금까지의 검증은 전부 스크립트 수동 실행입니다.
 
 **`data_collection/db_storage.py`의 `init_tables()`는 무력화돼 있습니다.** 스키마 정의를 Alembic으로 일원화하면서 경고만 출력하는 스텁으로 남겼습니다(`run_collection.py`가 아직 import합니다).
+
+---
+
+## 얼굴 사진 AI 분석 (Perfect Corp)
+
+QnA 진단 뒤의 **선택 단계**입니다. 얼굴 사진을 `POST /api/v1/skin-analysis`로 올리면 서버가
+분석 점수만 돌려주고, 진단 제출(`POST /profile/skin-quiz`)에 `analysisId`를 실으면 QnA와
+섞입니다(실으면 `PHOTO_BLEND_WEIGHT`, 안 실으면 QnA 100%). 스키마와 한도 규칙은
+[docs/db-schema.md](../docs/db-schema.md)의 "얼굴 사진 AI 분석"을 보세요.
+
+```bash
+# .env — 키는 https://yce.makeupar.com/api-console 에서 발급
+PERFECT_CORP_API_KEY=...
+PERFECT_CORP_MOCK=true     # 개발·테스트: 저장해 둔 응답(app/assets/perfect_corp_mock.json). 유닛이 들지 않는다
+```
+
+**호출은 유닛을 쓴다.** 분석 유형 수 구간별 정액이고 성공한 작업에만 차감됩니다
+(SD 5~8개 12유닛 · 9~12개 14유닛, 실측으로 8개 = 12유닛 확인). 개발·테스트는 MOCK으로 하고
+실제 호출은 연동 확인과 시연에만 쓰세요. 남은 유닛은
+`GET https://yce-api-01.makeupar.com/s2s/v1.0/client/credit`(Bearer 키)로 봅니다.
+키가 없고 MOCK도 아니면 분석 API는 503이고, 화면은 QnA만으로 진단을 이어 갑니다.
+
+**요청 순서**(`app/api/skin_photo.py`): 동의(403) → 한도(402) → 사진 정리·EXIF 제거 → **얼굴 사전 필터**(422) →
+Perfect Corp. 앞 단계의 거절과 외부 오류는 분석 행을 만들지 않아 **한도를 쓰지 않습니다.**
+
+**얼굴 사전 필터**(`app/services/face_gate.py`): 얼굴이 아닌 사진을 외부로 보내기 전에 거릅니다.
+OpenCV `FaceDetectorYN` + YuNet 모델(`app/assets/models/`, MIT, 230KB)을 쓰고, 규칙은 검출기와 분리돼 있어
+단위 테스트됩니다. 임계값은 `FACE_MIN_*`(config.py)이며 거절 사유는 로그로 남습니다(사진은 남기지 않음).
+YOLO(ultralytics)를 쓰지 않는 이유는 AGPL-3.0 라이선스와 PyTorch 용량 때문입니다.
+화면(MediaPipe)도 같은 규칙으로 안내하지만 **최종 판정은 서버**입니다.
+
+**원본 사진은 저장하지 않습니다.** `prepare_photo`가 회전을 픽셀에 반영한 뒤 EXIF(GPS 포함)를 지운 JPEG를 새로
+만들고, 업체가 돌려주는 얼굴 위 분석 이미지(`mask_urls`)는 버립니다.
+
+**SD와 HD**: 같은 사진에서 점수가 거의 같고(6개 중 5개 소수점까지 동일) SD가 더 싸서 SD가 기본입니다.
+`PERFECT_CORP_MODE=hd`로 바꾸면 이름만 `hd_` 접두사로 바뀝니다(HD는 짧은 변 1080px 이상 필요).
+
+**의존성**: `Pillow`, `opencv-python-headless`(4.x 고정 — 5.0은 새 메이저라 검증하지 않았습니다).
+
+**마이그레이션 `c3d9a1e7b2f4`를 공용 Neon DB에 올리기 전에 팀에 알리세요.** 새 테이블 3개와 NULL 허용
+컬럼 1개뿐이라 기존 데이터엔 영향이 없지만, 올리고 나면 이 리비전 파일이 없는 브랜치(`dev`)에서는
+`alembic current`·`upgrade`가 멈춥니다 — **이 브랜치가 머지된 뒤에 올리는 것이 안전합니다.**
+머지 전 검증은 로컬 Postgres로 했습니다:
+
+```bash
+docker run -d --rm --name pg_test -e POSTGRES_PASSWORD=testpw -e POSTGRES_DB=swappy_test -p 55432:5432 postgres:16-alpine
+export DATABASE_DSN=postgresql://postgres:testpw@localhost:55432/swappy_test
+alembic upgrade head && python scripts/seed_quiz.py && python scripts/seed_test_users.py
+pytest tests/test_skin_photo_unit.py tests/test_skin_photo_api.py tests/test_auth.py tests/test_diagnosis.py
+```
+
+(제품 데이터가 필요한 기존 테스트는 Neon에서만 돕니다.)
 
 ---
 
