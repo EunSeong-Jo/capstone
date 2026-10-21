@@ -1,0 +1,12 @@
+# 로컬 Postgres(swappy_postgres)로 백엔드를 붙이는 오버라이드 — Neon을 건드리지 않는다.
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml --profile local-db up -d
+# DB는 Neon 덤프를 복원해 둔 것이어야 한다(스냅샷). 팀원이 Neon에 쓴 새 데이터는 따라오지 않는다.
+services:
+  backend:
+    environment:
+      DATABASE_DSN: postgresql://swappy:swappy_dev@postgres:5432/swappy
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
