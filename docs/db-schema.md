@@ -407,7 +407,7 @@ quiz_options    : id(PK) · question_id(FK) · label · weights(jsonb) · order_
 
 ## 얼굴 사진 AI 분석
 
-QnA 진단에 **얼굴 사진 분석**(Perfect Corp YouCam Skin Analysis)을 선택으로 더합니다. 세 테이블 모두 **원본 사진을 담지 않습니다** — 사진은 요청 중 메모리에만 있고(`docs/dev_guidelines.md` 11.2), 업체가 돌려주는 분석 이미지 URL도 저장하지 않습니다. 마이그레이션 `c3d9a1e7b2f4`.
+QnA 진단에 **얼굴 사진 분석**(Perfect Corp YouCam Skin Analysis)을 선택으로 더합니다. 세 테이블 모두 **원본 사진을 담지 않습니다** — 사진은 요청 중 메모리에만 있고(`docs/dev_guidelines.md` 11.2), 업체가 돌려주는 분석 이미지 URL(2시간 만료)도 저장하지 않습니다. 대신 서버가 분석 직후 그 마스크를 받아 **DB가 아닌 디스크 볼륨**(`SKIN_IMAGE_DIR/<user_id>/<analysis_id>/<항목>.png` — 업체의 투명 마스크 PNG 그대로, 얼굴 사진 없음)에 보관합니다. `skin_analyses.metrics.images`는 키 목록일 뿐이고 실제로 있는 파일은 디렉터리를 봅니다(마이그레이션 없음). 동의 철회·계정 삭제 때 파일을 지웁니다. 마이그레이션 `c3d9a1e7b2f4`.
 
 ```
 user_consents : id(PK, uuid) · user_id(FK → users [CASCADE]) · consent_type(= 'face_photo')
