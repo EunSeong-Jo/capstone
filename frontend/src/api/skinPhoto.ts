@@ -2,13 +2,13 @@
  * 얼굴 사진 AI 피부 분석 API.
  *
  * 사진은 `analyzeFace`로 한 번 올리면 서버가 분석해 점수만 돌려줍니다. 원본 사진은
- * 서버에 남지 않고, 분석 업체가 만든 얼굴 위 분석 이미지 주소도 응답에 없습니다.
+ * 서버에 남지 않고, 분석 업체가 만든 항목별 분석 이미지 주소도 응답에 없습니다(서버가 받아 보관하고 `fetchAnalysisImage`로 받습니다).
  * 진단에 섞고 싶으면 응답의 `analysisId`를 `submitDiagnosis`에 실어 보냅니다 —
  * 점수를 클라이언트가 보내지 않습니다.
  *
  * 구독은 **결제 없이 기록만 만드는 데모**입니다(PG 연동이 없습니다).
  */
-import { deleteJson, postJson, putJson, request } from './client';
+import { deleteJson, postJson, putJson, request, requestBlob } from './client';
 
 const ME = '/api/v1/me';
 
@@ -38,7 +38,7 @@ export interface QuotaDto {
   remaining: number;
   resetsAt: string;
   consentGranted: boolean;
-  /** 이 등급이 받는 분석 항목 수(무료 8, 구독자 12) */
+  /** 이 등급이 받는 분석 항목 수(무료 8, 구독자 16) */
   concernCount: number;
   extended: boolean;
 }
@@ -71,6 +71,8 @@ export interface AnalysisDto {
   skinTypes: SkinTypesDto;
   concerns: ConcernDto[];
   extended: boolean;
+  /** 서버에 저장된 분석 이미지 키(얼굴 사진이 없는 투명 PNG). 동의 철회 뒤나 파일이 없는 환경에서는 비어 있다 */
+  images: string[];
   /** 이번 분석 뒤 남은 횟수. 최근 분석 조회에서는 null */
   remaining: number | null;
 }
@@ -91,3 +93,11 @@ export const analyzeFace = (image: string) =>
   postJson<AnalysisDto>('/api/v1/skin-analysis', { image });
 
 export const fetchLatestAnalysis = () => request<AnalysisDto>('/api/v1/skin-analysis/latest');
+
+/** 분석 이력(최신순). 이미지는 서버에 없으므로 점수·분류만 온다 */
+export const fetchAnalysisHistory = (limit = 20) =>
+  request<AnalysisDto[]>(`/api/v1/skin-analysis?limit=${limit}`);
+
+/** 분석 이미지(PNG) — 본인 것만 받을 수 있다. 호출한 쪽이 `URL.createObjectURL`로 쓰고 해제한다 */
+export const fetchAnalysisImage = (analysisId: string, key: string, signal?: AbortSignal) =>
+  requestBlob(`/api/v1/skin-analysis/${analysisId}/images/${key}`, signal);

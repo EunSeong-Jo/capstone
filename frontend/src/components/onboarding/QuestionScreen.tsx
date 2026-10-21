@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { QUESTIONS, QUESTION_COUNT, QUESTION_HINT } from '../../data/onboarding';
+import { useQuota } from '../../hooks/useSkinPhoto';
 
 // Figma "질문창" (node 433:648) 6문항 진단.
 //
@@ -13,7 +14,22 @@ interface QuestionScreenProps {
   onPick: (optionIndex: number) => void;
   onNext: () => void; // 다음 문항 또는 결과 — 목적지는 페이지가 정한다
   onBack: () => void; // 페이지가 navigate(-1)로 처리 (기기 뒤로가기와 동일)
+  /** 문항 도중에 얼굴 사진을 미리 찍어 둔다. 분석은 진단을 마칠 때 한 번만 한다 */
+  photoReady: boolean;
+  /** 사진 분석이 실패해 돌아왔을 때의 안내 */
+  photoNotice: string | null;
+  onPhoto: () => void; // 촬영 / 다시 찍기
+  onClearPhoto: () => void;
+  /** 남은 문항을 건너뛰고 지금까지의 답 + 사진으로 진단 */
+  onAnalyzeNow: () => void;
 }
+
+const cameraIcon = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </svg>
+);
 
 export default function QuestionScreen({
   qIndex,
@@ -21,7 +37,15 @@ export default function QuestionScreen({
   onPick,
   onNext,
   onBack,
+  photoReady,
+  photoNotice,
+  onPhoto,
+  onClearPhoto,
+  onAnalyzeNow,
 }: QuestionScreenProps) {
+  const { quota } = useQuota();
+  // 동의했는데 이번 달 횟수를 다 썼으면 찍어도 분석할 수 없다 — 버튼을 감춘다.
+  const photoUnavailable = quota?.consentGranted === true && quota.remaining <= 0;
   const question = QUESTIONS[qIndex];
   const selected = answers[qIndex];
   const isLast = qIndex === QUESTION_COUNT - 1; // 버튼 라벨 결정용
@@ -91,6 +115,55 @@ export default function QuestionScreen({
             </button>
           );
         })}
+      </div>
+
+      {/* AI 피부진단 — 촬영만 미리 해 두고, 분석은 진단을 마칠 때 한다 */}
+      <div className="px-5 pt-1">
+        {photoNotice && (
+          <p className="mb-2 rounded-xl bg-accent-light px-3 py-2 text-[11px] font-semibold leading-snug text-accent">
+            {photoNotice}
+          </p>
+        )}
+        {photoReady ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-[11px] text-ob-green-deep">
+              {cameraIcon}
+              <span className="flex-1 font-semibold">사진이 준비됐어요</span>
+              <button type="button" onClick={onPhoto} className="font-semibold underline underline-offset-2">
+                다시 찍기
+              </button>
+              <button type="button" onClick={onClearPhoto} className="text-gray-50 underline underline-offset-2">
+                삭제
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={onAnalyzeNow}
+              className="flex h-11 w-full items-center justify-center rounded-full border border-ob-green text-[12px] font-semibold text-ob-green-deep active:scale-[.98]"
+            >
+              이 사진으로 분석하기 · 남은 문항 건너뛰기
+            </button>
+          </div>
+        ) : photoUnavailable ? (
+          // 감추면 "버튼이 없어졌다"로 보인다 — 막힌 이유를 알려 준다.
+          <p className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-gray-5 px-3 text-center text-[11px] text-gray-50">
+            {cameraIcon}
+            이번 달 AI 분석 횟수를 모두 사용했어요
+            {quota && ` · ${new Date(quota.resetsAt).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })}에 다시`}
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={onPhoto}
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-ob-surface text-[12px] font-semibold text-ob-green-deep active:scale-[.98]"
+          >
+            {cameraIcon}
+            AI 피부진단으로 더 정확하게
+            {quota?.consentGranted && (
+              <span className="font-normal text-gray-50">· 이번 달 {quota.remaining}회</span>
+            )}
+          </button>
+        )}
       </div>
 
       {/* 다음으로 / 결과보러가기 */}

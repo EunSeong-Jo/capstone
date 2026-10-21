@@ -1,13 +1,17 @@
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AnalysisDto, analyzeFace, setConsent } from '../../api/skinPhoto';
+import { AnalysisDto, analyzeFace, fetchQuota, setConsent } from '../../api/skinPhoto';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../context/auth';
 import { useCamera } from '../../hooks/useCamera';
 import { invalidateSkinPhoto, useQuota } from '../../hooks/useSkinPhoto';
 import { captureFaceFrame, fileToFaceImage, loadImage } from '../../utils/scanImage';
 import { FACE_HINTS, FaceCheck, checkFace, loadFaceDetector } from '../../utils/faceCheck';
-import { FACE_CONSENT_BENEFIT, FACE_CONSENT_TITLE } from '../../data/faceConsent';
+import {
+  FACE_CONSENT_BENEFIT,
+  FACE_CONSENT_SUMMARY,
+  FACE_CONSENT_TITLE,
+} from '../../data/faceConsent';
 import { FaceConsentList } from '../skin/FaceConsentSheet';
 import SkinAnalysisDetail from '../skin/SkinAnalysisDetail';
 
@@ -23,12 +27,27 @@ import SkinAnalysisDetail from '../skin/SkinAnalysisDetail';
  *  - 이번 달 횟수를 다 썼으면 촬영하지 않고 건너뛰게 한다.
  *  - 화면의 얼굴 검사(MediaPipe)는 **안내용**이다. 오검출로 사용자를 막지 않도록 경고만 띄우고
  *    분석은 누를 수 있게 둔다 — 최종 판정은 서버(`face_gate.py`)가 하고, 거절은 한도를 쓰지 않는다.
- *  - 사진은 이 컴포넌트의 상태에만 있다. 서버에 저장되지 않고 분석이 끝나면 버려진다.
+ *  - 원본 사진은 이 컴포넌트의 상태에만 있다. 서버에 저장되지 않고 분석이 끝나면 버려진다.
+ *    (업체가 돌려주는 분석 이미지는 서버가 받아 본인 계정에만 보관한다)
+ *
+ * `deferAnalysis`: 문항 도중에 미리 찍어 두는 용도다. 동의·횟수 확인과 촬영·미리보기까지만 하고
+ * **분석(유닛 차감)은 하지 않는다** — 사진을 `onCaptured`로 넘기면 페이지가 진단을 마무리할 때
+ * 한 번만 분석한다. 이때 `onDone(null)`은 "찍지 않고 돌아가기"다.
  */
 interface FacePhotoScreenProps {
   /** analysis가 null이면 건너뛴 것 */
   onDone: (analysis: AnalysisDto | null) => void;
   onBack: () => void;
+  /** 분석하지 않고 촬영한 사진(JPEG data URL)만 넘긴다 */
+  deferAnalysis?: boolean;
+  onCaptured?: (image: string) => void;
+  /**
+   * 문답과 무관하게 단독으로 쓸 때(마이페이지) 결과 화면의 문구·버튼.
+   * 기본은 문답 흐름용이다("문답 결과와 함께 반영", "결과보러가기").
+   */
+  standalone?: { doneLabel: string; note: string; applyLabel?: string };
+  /** 결과 화면의 보조 버튼 — 이 분석으로 피부타입 진단을 갱신하려는 쪽이 받는다 */
+  onApply?: (analysis: AnalysisDto) => void;
 }
 
 type View = 'intro' | 'capture' | 'preview' | 'analyzing' | 'result';
@@ -48,7 +67,14 @@ const backIcon = (
   </svg>
 );
 
-export default function FacePhotoScreen({ onDone, onBack }: FacePhotoScreenProps) {
+export default function FacePhotoScreen({
+  onDone,
+  onBack,
+  deferAnalysis = false,
+  onCaptured,
+  standalone,
+  onApply,
+}: FacePhotoScreenProps) {
   const { scope } = useAuth();
   const { quota, loading, failed, reload } = useQuota();
 
@@ -58,6 +84,7 @@ export default function FacePhotoScreen({ onDone, onBack }: FacePhotoScreenProps
   const [notice, setNotice] = useState<string | null>(null);
   const [live, setLive] = useState<FaceCheck | null>(null);
   const [consenting, setConsenting] = useState(false);
+  const [consentExpanded, setConsentExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { videoRef, ready: cameraReady, denied: cameraDenied } = useCamera(view === 'capture', 'user');
@@ -95,8 +122,11 @@ export default function FacePhotoScreen({ onDone, onBack }: FacePhotoScreenProps
     setNotice(null);
     try {
       await setConsent(true);
+      // 동의 직후에도 이번 달 횟수를 다 썼을 수 있다(동의 전 분석 기록이 있는 계정). 찍어도 분석할 수
+      // 없는 카메라로 보내지 말고 안내 화면(intro)이 이유를 보여 주게 한다.
+      const fresh = await fetchQuota().catch(() => null);
       refreshQuota();
-      setView('capture');
+      setView(fresh && fresh.remaining <= 0 ? 'intro' : 'capture');
     } catch {
       setNotice('동의를 저장하지 못했어요. 잠시 뒤에 다시 시도해 주세요.');
     } finally {
@@ -265,7 +295,9 @@ export default function FacePhotoScreen({ onDone, onBack }: FacePhotoScreenProps
         >
           <p className="relative z-20 mb-4 min-h-[20px] text-center text-[13px] font-bold text-white drop-shadow">
             {view === 'preview'
-              ? '이 사진으로 분석할까요?'
+              ? deferAnalysis
+                ? '이 사진을 사용할까요?'
+                : '이 사진으로 분석할까요?'
               : view === 'capture'
                 ? live && !live.ok
                   ? live.hint
@@ -351,10 +383,10 @@ export default function FacePhotoScreen({ onDone, onBack }: FacePhotoScreenProps
               </button>
               <button
                 type="button"
-                onClick={analyze}
+                onClick={() => (deferAnalysis ? shot && onCaptured?.(shot.image) : analyze())}
                 className="h-12 flex-[1.4] rounded-full bg-ob-green text-[14px] font-semibold text-white active:scale-[.98]"
               >
-                이 사진으로 분석
+                {deferAnalysis ? '이 사진 사용하기' : '이 사진으로 분석'}
               </button>
             </div>
           )}
@@ -378,18 +410,30 @@ export default function FacePhotoScreen({ onDone, onBack }: FacePhotoScreenProps
         <div className="flex-1 overflow-y-auto px-5 pb-4 pt-4">
           <p className="text-[18px] font-extrabold text-ob-green-deep">분석이 끝났어요</p>
           <p className="mt-1 mb-4 text-[12px] leading-relaxed text-gray-50">
-            이 결과를 문답 결과와 함께 반영해 피부타입을 정할게요.
+            {standalone?.note ?? '이 결과를 문답 결과와 함께 반영해 피부타입을 정할게요.'}
             {analysis.remaining !== null && ` 이번 달 남은 횟수 ${analysis.remaining}회`}
           </p>
           <SkinAnalysisDetail analysis={analysis} showUpsell />
         </div>
-        <div className="px-5 pt-2" style={{ paddingBottom: 'calc(var(--safe-bottom) + 25px)' }}>
+        <div
+          className="flex flex-col gap-2 px-5 pt-2"
+          style={{ paddingBottom: 'calc(var(--safe-bottom) + 25px)' }}
+        >
+          {onApply && standalone?.applyLabel && (
+            <button
+              type="button"
+              onClick={() => onApply(analysis)}
+              className="flex h-12 w-full items-center justify-center rounded-full border border-ob-green text-[13px] font-medium text-ob-green-deep active:scale-[.98]"
+            >
+              {standalone.applyLabel}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onDone(analysis)}
             className="flex h-12 w-full items-center justify-center rounded-full bg-ob-green text-[13px] font-medium text-white active:scale-[.98]"
           >
-            결과보러가기
+            {standalone?.doneLabel ?? '결과보러가기'}
           </button>
         </div>
       </motion.div>
@@ -400,6 +444,92 @@ export default function FacePhotoScreen({ onDone, onBack }: FacePhotoScreenProps
   const consentGranted = quota?.consentGranted === true;
   const remaining = quota?.remaining ?? 0;
   const canShoot = consentGranted && remaining > 0;
+
+  // ── 동의 (약식, 어두운 화면) ──────────────────────────────────────
+  // 가입 때 동의하지 않은 사람은 카메라를 켜기 전에 여기서 동의를 받는다. 카메라 화면과 같은
+  // 검은 배경이라 촬영 흐름이 끊기지 않는다. 핵심 세 줄만 보이고 전문은 펼쳐서 볼 수 있다.
+  if (!loading && !failed && quota && !consentGranted) {
+    return (
+      <motion.div
+        className="absolute inset-0 flex flex-col overflow-hidden bg-[#111114]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <div className="relative z-20 px-5" style={{ paddingTop: 'calc(var(--safe-top) + 22px)' }}>
+          <div className="flex h-[52px] items-center justify-between py-2">
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={consenting}
+              aria-label="뒤로"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.12] text-white active:scale-90 disabled:opacity-40"
+            >
+              {backIcon}
+            </button>
+            <span className="text-[15px] font-extrabold text-white">AI 얼굴 분석</span>
+            <span className="h-9 w-9" />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 pb-4 pt-6">
+          <p className="text-[18px] font-extrabold text-white">촬영 전에 동의가 필요해요</p>
+          <p className="mt-1 text-[12px] text-white/60">{FACE_CONSENT_TITLE}</p>
+
+          {consentExpanded ? (
+            <div className="mt-5 rounded-2xl bg-white/[0.08] p-4 [&_dd]:text-white/70 [&_dt]:text-white">
+              <FaceConsentList />
+            </div>
+          ) : (
+            <ul className="mt-5 flex flex-col gap-3">
+              {FACE_CONSENT_SUMMARY.map((line) => (
+                <li key={line} className="flex gap-2.5 text-[13px] leading-relaxed text-white/85">
+                  <span aria-hidden className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#4CC38A]" />
+                  {line}
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            onClick={() => setConsentExpanded((v) => !v)}
+            className="mt-4 text-[12px] font-semibold text-[#4CC38A] underline underline-offset-2"
+          >
+            {consentExpanded ? '간단히 보기' : '전문 보기'}
+          </button>
+          <p className="mt-4 text-[11px] leading-relaxed text-white/50">
+            동의하지 않아도 문답(QnA) 진단은 그대로 쓸 수 있어요.
+          </p>
+          {notice && (
+            <p className="mt-3 rounded-xl bg-white/95 px-4 py-2.5 text-[12px] font-semibold text-accent">
+              {notice}
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2 px-5 pt-2" style={{ paddingBottom: 'calc(var(--safe-bottom) + 25px)' }}>
+          <button
+            type="button"
+            onClick={agree}
+            disabled={consenting}
+            className="flex h-12 w-full items-center justify-center rounded-full bg-ob-green text-[14px] font-semibold text-white active:scale-[.98] disabled:opacity-50"
+          >
+            {consenting ? '저장하는 중…' : '동의하고 촬영하기'}
+          </button>
+          <button
+            type="button"
+            onClick={() => onDone(null)}
+            disabled={consenting}
+            className="flex h-12 w-full items-center justify-center rounded-full bg-white/[0.12] text-[13px] font-medium text-white active:scale-[.98] disabled:opacity-50"
+          >
+            {deferAnalysis ? '문항으로 돌아가기' : standalone ? '닫기' : '동의 없이 건너뛰기'}
+          </button>
+        </div>
+        {hiddenInput}
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -425,7 +555,9 @@ export default function FacePhotoScreen({ onDone, onBack }: FacePhotoScreenProps
         </p>
         <p className="mt-2 text-[12px] leading-relaxed text-gray-50">
           유분·수분·홍조·잡티·트러블을 사진으로 확인하고, 결과 화면에서 항목별 점수를 볼 수 있어요.
-          건너뛰면 문답만으로 진단해요.
+          {deferAnalysis
+            ? ' 지금은 촬영만 해 두고, 진단을 마칠 때 분석해요. 촬영만으로는 횟수가 차감되지 않아요.'
+            : ' 건너뛰면 문답만으로 진단해요.'}
         </p>
 
         {notice && (
@@ -466,7 +598,7 @@ export default function FacePhotoScreen({ onDone, onBack }: FacePhotoScreenProps
           <p className="mt-6 rounded-xl bg-ob-surface px-4 py-3 text-[12px] leading-relaxed text-ob-green-deep">
             이번 달 남은 횟수 <b>{remaining}회</b> · 분석 항목 {quota.concernCount}가지
             <br />
-            사진은 저장되지 않고 분석 후 바로 버려져요.
+            원본 사진은 저장되지 않고, 분석 이미지는 내 계정에만 보관돼요.
           </p>
         )}
       </div>
@@ -499,7 +631,7 @@ export default function FacePhotoScreen({ onDone, onBack }: FacePhotoScreenProps
           onClick={() => onDone(null)}
           className="flex h-12 w-full items-center justify-center rounded-full bg-ob-green-soft/40 text-[13px] font-medium text-ob-green-deep active:scale-[.98]"
         >
-          건너뛰고 결과 보기
+          {deferAnalysis ? '문항으로 돌아가기' : standalone ? '닫기' : '건너뛰고 결과 보기'}
         </button>
       </div>
     </motion.div>

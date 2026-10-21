@@ -36,10 +36,12 @@ class DiagnosisIn(_CamelModel):
     게스트 진단이 남는 문제가 있어 걷어냈다.
     """
 
-    answers: dict[str, int]
+    # 비워 둘 수 있다 — 이때는 `analysis_id`가 있어야 하고, 사진 5축만으로 진단한다.
+    answers: dict[str, int] = {}
     # 얼굴 사진 분석(POST /skin-analysis)의 id. 있으면 서버가 저장된 분석 점수를 QnA와
-    # 섞는다. **점수를 직접 받지 않는다** — 클라이언트가 보낸 점수로 타입을 정할 수
-    # 있게 되면 진단이 의미를 잃는다. 없으면 QnA 100%다.
+    # 섞는다(일부 문항만 답했으면 답한 축만 섞는다). **점수를 직접 받지 않는다** —
+    # 클라이언트가 보낸 점수로 타입을 정할 수 있게 되면 진단이 의미를 잃는다.
+    # 없으면 QnA 100%다.
     analysis_id: uuid.UUID | None = None
 
 
@@ -59,4 +61,8 @@ class DiagnosisOut(_CamelModel):
     borderline: bool
     # 얼굴 사진 분석이 섞인 진단인가. False면 QnA 100%다.
     photo_used: bool = False
+    # 답한 문항 없이 사진만으로 낸 진단인가.
+    photo_only: bool = False
+    # 답한 문항 수. 사진을 쓰면서 일부만 답했으면 화면이 "n문항 + 사진"으로 보여 준다.
+    answered_count: int = 0
     created_at: datetime

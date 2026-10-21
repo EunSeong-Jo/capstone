@@ -281,9 +281,19 @@ cd backend && uvicorn app.main:app --reload
 
 ## 얼굴 사진 AI 분석 (Perfect Corp)
 
-QnA 진단 뒤의 **선택 단계**입니다. 얼굴 사진을 `POST /api/v1/skin-analysis`로 올리면 서버가
-분석 점수만 돌려주고, 진단 제출(`POST /profile/skin-quiz`)에 `analysisId`를 실으면 QnA와
-섞입니다(실으면 `PHOTO_BLEND_WEIGHT`, 안 실으면 QnA 100%). 스키마와 한도 규칙은
+**선택 단계**입니다. 얼굴 사진을 `POST /api/v1/skin-analysis`로 올리면 서버가 분석 점수만
+돌려주고, 진단 제출(`POST /profile/skin-quiz`)에 `analysisId`를 실으면 점수에 섞입니다.
+
+| 제출 | 점수 |
+|---|---|
+| 전 문항 + `analysisId` | QnA와 사진을 `PHOTO_BLEND_WEIGHT`(0.4)로 혼합 |
+| **일부 문항** + `analysisId` | 답한 문항이 건드린 축만 `PHOTO_PARTIAL_WEIGHT`(0.5)로 혼합, 나머지 축은 사진 값 그대로 |
+| `answers` 없이 `analysisId`만 | 사진 5축 100% (`photoOnly`) |
+| `analysisId` 없음 | QnA 100% |
+
+사진만으로 8타입을 가르려면 5축(`oiliness·moisture·redness·age_spot·acne`)이 모두 필요하다 —
+한 축이라도 빠지면 타입 한 쌍이 겹친다. 무료 8개 항목에 5축이 모두 들어 있다.
+분석 이력은 `GET /api/v1/skin-analysis?limit=`(최신순)이다. 스키마와 한도 규칙은
 [docs/db-schema.md](../docs/db-schema.md)의 "얼굴 사진 AI 분석"을 보세요.
 
 ```bash
@@ -293,7 +303,7 @@ PERFECT_CORP_MOCK=true     # 개발·테스트: 저장해 둔 응답(app/assets/
 ```
 
 **호출은 유닛을 쓴다.** 분석 유형 수 구간별 정액이고 성공한 작업에만 차감됩니다
-(SD 5~8개 12유닛 · 9~12개 14유닛, 실측으로 8개 = 12유닛 확인). 개발·테스트는 MOCK으로 하고
+(SD 5~8개 12유닛 · 9~12개 14유닛 · 13~16개 16유닛, 실측으로 8개 = 12유닛 확인). 무료는 8개, 구독은 16개(SD 이름 전체)를 요청한다 — 구독 호출은 16유닛이다. 개발·테스트는 MOCK으로 하고
 실제 호출은 연동 확인과 시연에만 쓰세요. 남은 유닛은
 `GET https://yce-api-01.makeupar.com/s2s/v1.0/client/credit`(Bearer 키)로 봅니다.
 키가 없고 MOCK도 아니면 분석 API는 503이고, 화면은 QnA만으로 진단을 이어 갑니다.
@@ -308,7 +318,17 @@ YOLO(ultralytics)를 쓰지 않는 이유는 AGPL-3.0 라이선스와 PyTorch �
 화면(MediaPipe)도 같은 규칙으로 안내하지만 **최종 판정은 서버**입니다.
 
 **원본 사진은 저장하지 않습니다.** `prepare_photo`가 회전을 픽셀에 반영한 뒤 EXIF(GPS 포함)를 지운 JPEG를 새로
-만들고, 업체가 돌려주는 얼굴 위 분석 이미지(`mask_urls`)는 버립니다.
+만듭니다. 업체가 돌려주는 항목별 분석 이미지(`mask_urls`, 2시간 만료 서명 URL)는 URL을 저장하지 않고, 분석 직후 서버가 받아
+**디스크 볼륨**에 둡니다(`services/skin_images.py`). 받아 보면 마스크는 **얼굴 사진이 없는 투명 PNG**(표시할 부위에만 색,
+1920×2560)이고, **원본 사진과 합성하지 않고 그대로** 저장하므로 얼굴 사진은 남지 않습니다. 화면이 중립 배경 위에 그립니다.
+`resize_image`(원본을 줄인 것)는 받지 않습니다.
+
+- 위치: `SKIN_IMAGE_DIR`(기본 `/data/skin_images`, docker 볼륨 `skin_images`) `/<user_id>/<analysis_id>/<항목>.png`.
+  저장소 밖이라 git에 올라가지 않고, **PC·서버마다 따로 쌓입니다** — 공용 Neon DB를 다른 PC에서 보면 점수만 보이고
+  이미지는 없습니다(`images`가 빈 배열). `docker compose down -v`는 볼륨을 지웁니다.
+- 받는 법: `GET /api/v1/skin-analysis/{id}/images/{항목}` — 본인 것만(남의 id는 404). 응답의 `images`가 받을 수 있는 키입니다.
+- 삭제: 동의 철회 시 사용자 폴더 전체, 계정 삭제 시에도 전체. 저장 실패는 분석을 막지 않습니다.
+- 배포: `Dockerfile.prod`에 `VOLUME`이 있으니 실행할 때 볼륨을 붙이세요(안 붙이면 컨테이너 재생성 때 이미지가 사라집니다).
 
 **SD와 HD**: 같은 사진에서 점수가 거의 같고(6개 중 5개 소수점까지 동일) SD가 더 싸서 SD가 기본입니다.
 `PERFECT_CORP_MODE=hd`로 바꾸면 이름만 `hd_` 접두사로 바뀝니다(HD는 짧은 변 1080px 이상 필요).

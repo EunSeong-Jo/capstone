@@ -38,7 +38,7 @@ class QuotaOut(_CamelModel):
     remaining: int
     resets_at: datetime                # 다음 달 1일 0시(서울)
     consent_granted: bool
-    # 이 등급이 받는 분석 항목 수. 구독자는 확장 12개.
+    # 이 등급이 받는 분석 항목 수. 구독자는 확장 16개.
     concern_count: int
     extended: bool
 
@@ -74,6 +74,8 @@ class AnalysisOut(_CamelModel):
     concerns: list[ConcernOut]
     extended: bool
     # 이번 분석 뒤 남은 횟수. 조회(GET latest)에서는 None.
+    # 서버에 저장된 분석 이미지 키(`GET /skin-analysis/{id}/images/{key}`). 파일이 없으면 빠진다
+    images: list[str] = []
     remaining: int | None = None
 
 

@@ -4,6 +4,7 @@ import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { useUserProfile } from '../../context/userProfile';
 import { useAuth } from '../../context/auth';
+import { useQuota } from '../../hooks/useSkinPhoto';
 
 const APP_VERSION = '1.0.0';
 
@@ -70,7 +71,8 @@ function Section({ title, rows }: { title: string; rows: Row[] }) {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, isUser } = useAuth();
+  const { quota } = useQuota();
 
   /**
    * 예전에는 `navigate('/')`만 했다 — **세션이 그대로 남아** 토큰도 계정
@@ -98,6 +100,19 @@ export default function SettingsPage() {
           { label: '피부타입 재진단', onClick: () => navigate('/qna') },
         ]}
       />
+
+      {isUser && (
+        <Section
+          title="개인정보"
+          rows={[
+            {
+              label: '얼굴 사진 수집·이용 동의',
+              sub: quota ? (quota.consentGranted ? '동의함 · 철회할 수 있어요' : '동의하지 않음') : undefined,
+              onClick: () => navigate('/mypage/settings/face-consent'),
+            },
+          ]}
+        />
+      )}
 
       <Section
         title="알림"

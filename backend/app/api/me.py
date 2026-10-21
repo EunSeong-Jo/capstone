@@ -13,6 +13,8 @@
 """
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
@@ -23,6 +25,7 @@ from app.core.security import verify_password
 from app.db.session import get_db
 from app.models.user import Profile, User
 from app.schemas.user import MeIn, ProfileIn, ProfileOut, UserOut
+from app.services import skin_images
 
 router = APIRouter(prefix="/api/v1/me", tags=["me"])
 
@@ -95,6 +98,8 @@ async def delete_me(
     # 못한다. 행 단위 DELETE 한 번으로 DB의 ON DELETE CASCADE가 처리하게 한다.
     await db.execute(delete(User).where(User.id == user.id))
     await db.commit()
+    # 분석 이미지 파일은 CASCADE 대상이 아니다 — 계정과 함께 지운다.
+    await asyncio.to_thread(skin_images.delete_user_images, user.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

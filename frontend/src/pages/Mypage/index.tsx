@@ -96,7 +96,7 @@ export default function MypagePage() {
     : profile.memberSince;
   // 서버가 실제 행에서 센 값. 비회원은 null이라 로컬 개수로 대신한다.
   const { stats, loading: statsLoading } = useStats();
-  // AI 피부관리 메뉴에 남은 횟수를 보여 준다. 동의 전이면 안내 문구가 대신 나온다.
+  // AI 피부관리 메뉴에 남은 횟수를 보여 준다. 동의 전에는 '시작하기'가 나온다(동의는 촬영할 때 받는다).
   const { quota } = useQuota();
   const { count: closetCount } = useCloset();
   const { likedProducts } = useLikedProducts();
@@ -127,7 +127,7 @@ export default function MypagePage() {
 
   const benefits: MenuItem[] = [
     { icon: <LineIcon><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" /></LineIcon>, label: '후기', onClick: () => navigate('/mypage/reviews') },
-    { icon: <LineIcon><circle cx="12" cy="11" r="6.5" /><path d="M9.5 10h.01M14.5 10h.01M9.5 13.5c1.5 1.4 3.5 1.4 5 0" /><path d="M5 5l1.5 1.5M19 5l-1.5 1.5" /></LineIcon>, label: 'AI 피부관리', right: quota ? (quota.consentGranted ? `${quota.remaining}회 남음` : '동의 필요') : undefined, onClick: () => navigate('/mypage/subscription') },
+    { icon: <LineIcon><circle cx="12" cy="11" r="6.5" /><path d="M9.5 10h.01M14.5 10h.01M9.5 13.5c1.5 1.4 3.5 1.4 5 0" /><path d="M5 5l1.5 1.5M19 5l-1.5 1.5" /></LineIcon>, label: 'AI 피부관리', right: quota ? (quota.consentGranted ? `${quota.remaining}회 남음` : '시작하기') : undefined, onClick: () => navigate('/mypage/subscription') },
     { icon: <LineIcon><circle cx="12" cy="12" r="8" /><path d="M9.5 10.5h5M9.5 13.5h5" /></LineIcon>, label: '포인트', right: stats ? `${stats.pointBalance.toLocaleString()}P` : undefined, onClick: () => navigate('/mypage/points') },
     { icon: <LineIcon><path d="M5 13a7 7 0 0114 0" /><rect x="4" y="13" width="3.5" height="6" rx="1.5" /><rect x="16.5" y="13" width="3.5" height="6" rx="1.5" /></LineIcon>, label: '고객센터', onClick: () => navigate('/mypage/customer-service') },
   ];

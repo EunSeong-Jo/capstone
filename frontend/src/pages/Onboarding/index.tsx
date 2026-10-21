@@ -10,6 +10,10 @@ import { GREETING_COUNT, QUESTION_COUNT } from '../../data/onboarding';
 import { computeDiagnosis } from '../../data/skinTypeScoring';
 import { useUserProfile } from '../../context/userProfile';
 import { useDiagnosis } from '../../context/diagnosis';
+import { useAuth } from '../../context/auth';
+import { ApiError } from '../../api/client';
+import { analyzeFace } from '../../api/skinPhoto';
+import { invalidateSkinPhoto } from '../../hooks/useSkinPhoto';
 import GreetingScreen from '../../components/onboarding/GreetingScreen';
 import TypeGridScreen from '../../components/onboarding/TypeGridScreen';
 import QuestionScreen from '../../components/onboarding/QuestionScreen';
@@ -20,15 +24,21 @@ import FacePhotoScreen from '../../components/onboarding/FacePhotoScreen';
 
 // 인삿말 → (알아요) 타입 그리드 | (몰라요) 질문창 Q1~Q6 → (선택) 얼굴 사진 → 로딩 → 결과 메시지 → 결과 카드
 //
+// 문항 도중에도 'AI 피부진단' 버튼으로 얼굴 사진을 미리 찍을 수 있다(step=shoot). 찍어 두기만
+// 하고 **분석은 진단을 마칠 때 한 번만** 한다(로딩 단계) — 다시 찍어도 횟수가 차감되지 않는다.
+// 끝내는 방법은 둘이다: 마지막 문항의 '결과보러가기'(전 문항 + 사진) 또는 '이 사진으로 분석하기'
+// (지금까지의 답 + 사진, 남은 문항 건너뜀).
+//
 // 단계 위치만 URL에 둔다. 그래야 전진마다 히스토리 엔트리가 생겨 기기 뒤로가기가
 // 그냥 동작한다 — popstate 리스너도, history.pushState도 필요 없고 뒤로가기 구현은
 // navigate(-1) 하나뿐이다. 정확성은 전환마다 push냐 replace냐로 확보한다.
-//   ?step=greeting&g=0..2 | grid | question&q=0..5 | photo | loading
+//   ?step=greeting&g=0..2 | grid | question&q=0..5 | shoot&q=0..5 | photo | loading
 //   ?step=result-msg&type=<id> | result-card&type=<id>
 type Step =
   | 'greeting'
   | 'grid'
   | 'question'
+  | 'shoot'
   | 'photo'
   | 'loading'
   | 'result-msg'
@@ -38,6 +48,7 @@ const STEPS: readonly string[] = [
   'greeting',
   'grid',
   'question',
+  'shoot',
   'photo',
   'loading',
   'result-msg',
@@ -59,7 +70,8 @@ export default function OnboardingPage() {
   const location = useLocation();
   const [params, setParams] = useSearchParams();
   const { profile } = useUserProfile();
-  const { saveDiagnosis, hasDiagnosis, loading: diagLoading } = useDiagnosis();
+  const { saveDiagnosis, diagnoseWithPhoto, hasDiagnosis, loading: diagLoading } = useDiagnosis();
+  const { scope } = useAuth();
 
   const rawStep = params.get('step');
   // 결과 화면은 type을 URL에 담아 자기 완결적으로 만든다. 카드 → ✕ → /home → 뒤로가기는
@@ -103,10 +115,23 @@ export default function OnboardingPage() {
   // 로그인 전환 시 바뀌는데, 같은 이유로 여기서 ref 경유가 안전하다.
   const answersRef = useRef(answers);
   const saveRef = useRef(saveDiagnosis);
+  const diagnoseRef = useRef(diagnoseWithPhoto);
+  const scopeRef = useRef(scope);
   useEffect(() => {
     answersRef.current = answers;
     saveRef.current = saveDiagnosis;
-  }, [answers, saveDiagnosis]);
+    diagnoseRef.current = diagnoseWithPhoto;
+    scopeRef.current = scope;
+  }, [answers, saveDiagnosis, diagnoseWithPhoto, scope]);
+
+  // 문항 도중에 찍어 둔 얼굴 사진(JPEG data URL). **메모리에만** 둔다 — 저장·로그 금지.
+  // 화면 표시는 hasShot, 실제 값은 ref(렌더를 일으키지 않고, 로딩 콜백이 identity 고정으로 읽는다).
+  const shotRef = useRef<string | null>(null);
+  const [hasShot, setHasShot] = useState(false);
+  // 사진 분석이 실패해 문항으로 돌아왔을 때 보여 줄 안내
+  const [photoNotice, setPhotoNotice] = useState<string | null>(null);
+  // 진단을 마치려고 로딩으로 가기 직전의 문항. 실패하면 거기로 돌아온다.
+  const returnQRef = useRef(0);
 
   // 얼굴 사진 분석을 마쳤으면 그 id. 진단 제출에 실려 서버가 QnA와 섞는다. 건너뛰면 null이고
   // 그때는 QnA 100%다. 점수 자체는 들고 있지 않는다 — 서버가 저장된 분석을 읽는다.
@@ -126,8 +151,13 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (rawStep === null) return; // /onboarding → 인삿말. URL 그대로 둔다
     // photo도 loading처럼 문답을 마친 뒤에만 의미가 있다 — 딥링크로는 들어올 수 없다.
+    // shoot은 문항 도중에만 의미가 있다(찍은 사진을 들고 돌아갈 답이 새로고침으로 사라진다).
     const broken =
-      !isStep(rawStep) || rawStep === 'loading' || rawStep === 'photo' || (needsType && !cardType);
+      !isStep(rawStep) ||
+      rawStep === 'loading' ||
+      rawStep === 'photo' ||
+      rawStep === 'shoot' ||
+      (needsType && !cardType);
     if (broken) setParams({}, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -145,19 +175,86 @@ export default function OnboardingPage() {
   // replace라 loading 엔트리가 소진돼 뒤로가기 덫이 없다.
   const handleLoadingComplete = useCallback(async () => {
     const picked = answersRef.current;
-    const computed = computeDiagnosis(picked);
-    const analysisId = analysisIdRef.current ?? undefined;
-    const saved = saveRef.current(
-      { ...computed, answers: picked, source: 'quiz' },
-      analysisId ? { analysisId } : undefined,
-    );
-    // 로컬 채점은 문답뿐이다. 사진을 섞은 진단은 서버만 최종 타입을 알 수 있어서 기다린다
-    // (안 그러면 결과 화면이 문답 타입을 보여 주다가 서버 값으로 바뀐다). 서버가 실패하면
-    // saveDiagnosis가 로컬 결과로 풀리므로 여기서 멈추지 않는다.
-    const final = analysisId ? await saved : computed;
+    const allAnswered = picked.every((v) => v !== null);
+
+    /** 사진 분석·진단이 막혔을 때 문항으로 돌아간다. 쓸 수 없는 사진이면 버린다 */
+    const backToQuestion = (message: string, keepShot: boolean) => {
+      if (!aliveRef.current) return;
+      if (!keepShot) {
+        shotRef.current = null;
+        analysisIdRef.current = null;
+        setHasShot(false);
+      }
+      setPhotoNotice(message);
+      setParams({ step: 'question', q: String(returnQRef.current) }, { replace: true });
+    };
+
+    let analysisId = analysisIdRef.current ?? undefined;
+
+    // 문항 도중에 찍어 둔 사진은 지금 처음 분석한다(유닛 차감은 여기서 한 번).
+    const shot = shotRef.current;
+    if (!analysisId && shot) {
+      try {
+        const analysis = await analyzeFace(shot);
+        analysisId = analysis.analysisId;
+        analysisIdRef.current = analysisId;
+        invalidateSkinPhoto(scopeRef.current);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 422) {
+          // 사진 문제(얼굴 없음·어두움 등). 서버가 한국어 이유를 주고, 횟수는 쓰이지 않았다.
+          backToQuestion(`${err.message} 사진을 다시 찍어 주세요.`, false);
+        } else if (err instanceof ApiError && (err.status === 402 || err.status === 403)) {
+          invalidateSkinPhoto(scopeRef.current);
+          backToQuestion(`${err.message} 문답만으로 진단할 수 있어요.`, false);
+        } else if (err instanceof ApiError && err.status === 503) {
+          backToQuestion('지금은 사진 분석을 쓸 수 없어요. 문답만으로 진단할 수 있어요.', false);
+        } else {
+          backToQuestion('분석하지 못했어요. 잠시 뒤에 다시 시도해 주세요.', true);
+        }
+        return;
+      }
+    }
+
+    let skinType: string;
+    if (allAnswered) {
+      // 전 문항 답함 — 기존 경로. 사진이 있으면 서버가 QnA와 섞고, 없으면 QnA 100%다.
+      const computed = computeDiagnosis(picked);
+      const saved = saveRef.current(
+        { ...computed, answers: picked, source: 'quiz' },
+        analysisId ? { analysisId } : undefined,
+      );
+      // 로컬 채점은 문답뿐이다. 사진을 섞은 진단은 서버만 최종 타입을 알 수 있어서 기다린다
+      // (안 그러면 결과 화면이 문답 타입을 보여 주다가 서버 값으로 바뀐다). 서버가 실패하면
+      // saveDiagnosis가 로컬 결과로 풀리므로 여기서 멈추지 않는다.
+      skinType = (analysisId ? await saved : computed).skinType;
+    } else {
+      // 일부만 답하고(또는 하나도 안 답하고) 사진으로 마무리 — 로컬 채점으로는 사진을 섞을 수
+      // 없어서 서버 결과만 쓴다. 실패하면 가짜 결과 대신 문항으로 돌려보낸다.
+      if (!analysisId) {
+        backToQuestion('사진이 없어요. 문항을 이어서 답해 주세요.', false);
+        return;
+      }
+      try {
+        skinType = (await diagnoseRef.current(picked, analysisId)).skinType;
+      } catch {
+        backToQuestion('진단을 저장하지 못했어요. 잠시 뒤에 다시 시도해 주세요.', true);
+        return;
+      }
+    }
     if (!aliveRef.current) return;
-    setParams({ step: 'result-msg', type: final.skinType }, { replace: true });
+    // 진단이 끝났으니 사진과 분석 id를 비운다 — 뒤로 가서 다시 진단할 때 남의 것처럼 섞이지 않게.
+    shotRef.current = null;
+    analysisIdRef.current = null;
+    setHasShot(false);
+    setParams({ step: 'result-msg', type: skinType }, { replace: true });
   }, [setParams]);
+
+  /** 로딩 단계로 가서 (사진이 있으면 분석 →) 진단을 마친다. 실패하면 이 문항으로 돌아온다 */
+  const beginFinish = () => {
+    returnQRef.current = qIndex;
+    setPhotoNotice(null);
+    setParams({ step: 'loading' }, { replace: true });
+  };
 
   // 인삿말을 띄웠다가 곧바로 홈으로 튕기면 화면이 한 번 번쩍인다. 판정이
   // 끝날 때까지, 그리고 건너뛰기로 결정된 뒤에는 인삿말을 그리지 않는다.
@@ -210,12 +307,36 @@ export default function OnboardingPage() {
             qIndex={qIndex}
             answers={answers}
             onPick={(opt) => setAnswers((prev) => prev.map((v, i) => (i === qIndex ? opt : v)))}
-            onNext={() =>
-              qIndex + 1 >= QUESTION_COUNT
-                ? go({ step: 'photo' })
-                : go({ step: 'question', q: String(qIndex + 1) })
-            }
+            onNext={() => {
+              if (qIndex + 1 < QUESTION_COUNT) return go({ step: 'question', q: String(qIndex + 1) });
+              // 이미 찍어 둔 사진이 있으면 끝의 사진 단계를 건너뛰고 바로 분석·진단한다.
+              return hasShot ? beginFinish() : go({ step: 'photo' });
+            }}
             onBack={goBack}
+            photoReady={hasShot}
+            photoNotice={photoNotice}
+            onPhoto={() => go({ step: 'shoot', q: String(qIndex) })}
+            onClearPhoto={() => {
+              shotRef.current = null;
+              analysisIdRef.current = null;
+              setHasShot(false);
+            }}
+            onAnalyzeNow={beginFinish}
+          />
+        )}
+        {step === 'shoot' && (
+          <FacePhotoScreen
+            key="shoot"
+            deferAnalysis
+            onBack={goBack}
+            onDone={goBack}
+            onCaptured={(image) => {
+              shotRef.current = image;
+              analysisIdRef.current = null; // 새 사진은 아직 분석 전이다
+              setHasShot(true);
+              setPhotoNotice(null);
+              goBack();
+            }}
           />
         )}
         {step === 'photo' && (

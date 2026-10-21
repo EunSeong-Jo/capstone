@@ -1,34 +1,80 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { FaceConsentList } from '../../components/skin/FaceConsentSheet';
+import FacePhotoScreen from '../../components/onboarding/FacePhotoScreen';
 import SkinAnalysisDetail from '../../components/skin/SkinAnalysisDetail';
-import {
-  AnalysisDto,
-  cancelSubscription,
-  fetchLatestAnalysis,
-  setConsent,
-  startSubscription,
-} from '../../api/skinPhoto';
+import { AnalysisDto, cancelSubscription, startSubscription } from '../../api/skinPhoto';
 import { ApiError } from '../../api/client';
+import { QUESTION_COUNT } from '../../data/onboarding';
 import { useAuth } from '../../context/auth';
+import { useDiagnosis } from '../../context/diagnosis';
 import { useToast } from '../../context/toast';
-import { invalidateSkinPhoto, useQuota, useSubscription } from '../../hooks/useSkinPhoto';
-import { FACE_CONSENT_TITLE } from '../../data/faceConsent';
+import { invalidateSkinPhoto, useAnalysisHistory, useQuota, useSubscription } from '../../hooks/useSkinPhoto';
 
 /**
- * AI 피부관리 — 이용 현황·구독·얼굴 사진 동의.
+ * AI 피부관리 — 이용 현황·촬영·구독·분석 기록. (얼굴 사진 동의의 확인·철회는 설정 > 얼굴 사진 수집·이용 동의)
  *
  * **구독은 결제 없이 기록만 만드는 데모다**(PG 연동이 없다). 화면에도 그렇게 적는다.
  *
  * 한도는 월 단위다: 얼굴 사진 수집에 동의한 무료 사용자 월 1회, 구독자 월 4회(주 1회씩
- * 쓰기를 권한다 — 주별로 막지는 않는다). 분석은 문답(QnA) 재진단 흐름의 한 단계로 이뤄지므로
- * "지금 분석하기"는 재진단으로 이어 준다.
+ * 쓰기를 권한다 — 주별로 막지는 않는다). 분석은 두 곳에서 한다: 문답(QnA) 재진단 흐름 안에서,
+ * 또는 여기서 **지금 촬영하기**(문답 없이). 촬영만으로는 피부타입 진단을 바꾸지 않는다 — 결과 화면의
+ * '이 결과로 피부타입 진단 갱신'을 눌러 확인해야 한다(추천 제품이 바뀌기 때문).
+ *
+ * 분석 기록은 연도와 월·일 드롭다운으로 고른다. 같은 날 여러 번 분석했으면 그날의 마지막 결과를 보여 준다.
  */
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+/** 분석 시각을 (연도, 월-일)로. 시각은 쓰지 않는다 */
+const yearOf = (iso: string) => new Date(iso).getFullYear();
+const mdOf = (iso: string) => {
+  const d = new Date(iso);
+  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const mdLabel = (md: string) => `${Number(md.slice(0, 2))}월 ${Number(md.slice(3))}일`;
+
+const selectClass =
+  'h-9 w-full appearance-none rounded-xl border border-gray-20 bg-white py-0 pl-2 pr-[18px] text-[11px] font-semibold text-gray-100 focus:border-ob-green focus:outline-none';
+
+function SelectBox({
+  label,
+  value,
+  onChange,
+  options,
+  className = 'flex-1',
+}: {
+  className?: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; text: string }[];
+}) {
+  return (
+    <label className={`relative block min-w-0 ${className}`}>
+      <span className="sr-only">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className={selectClass}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.text}
+          </option>
+        ))}
+      </select>
+      <svg
+        aria-hidden
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2"
+      >
+        <path d="M6 9l6 6 6-6" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </label>
+  );
+}
 
 export default function SubscriptionPage() {
   const navigate = useNavigate();
@@ -39,26 +85,35 @@ export default function SubscriptionPage() {
 
   const [busy, setBusy] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
-  const [latest, setLatest] = useState<AnalysisDto | null>(null);
-  const [latestChecked, setLatestChecked] = useState(false);
-
-  // 최근 분석. 기록이 없으면(404) 섹션을 그리지 않는다.
-  useEffect(() => {
-    let alive = true;
-    fetchLatestAnalysis()
-      .then((a) => alive && setLatest(a))
-      .catch(() => undefined)
-      .finally(() => alive && setLatestChecked(true));
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const { diagnoseWithPhoto } = useDiagnosis();
+  const { history, loading: historyLoading, failed: historyFailed, reload: reloadHistory } = useAnalysisHistory();
+  const [shooting, setShooting] = useState(false);
+  const [pending, setPending] = useState<AnalysisDto | null>(null);
+  const [applying, setApplying] = useState(false);
+  // 드롭다운에서 고른 연도·월일. 목록에 없으면(처음·새 분석 뒤) 가장 최근 것으로 본다.
+  const [selYear, setSelYear] = useState<number | null>(null);
+  const [selMd, setSelMd] = useState<string | null>(null);
 
   const refresh = () => {
     invalidateSkinPhoto(scope);
     reloadQuota();
     reloadSub();
+    reloadHistory();
+  };
+
+  const apply = async () => {
+    if (!pending) return;
+    setApplying(true);
+    try {
+      // 답한 문항이 없다 — 서버가 사진 5축만으로 진단한다.
+      await diagnoseWithPhoto(Array(QUESTION_COUNT).fill(null), pending.analysisId);
+      showToast('피부타입 진단을 갱신했어요');
+      setPending(null);
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : '갱신하지 못했어요. 잠시 뒤에 다시 시도해 주세요.');
+    } finally {
+      setApplying(false);
+    }
   };
 
   const run = async (job: () => Promise<unknown>, done: string) => {
@@ -77,6 +132,17 @@ export default function SubscriptionPage() {
   const loading = quotaLoading || subLoading;
   const subscribed = subscription?.active === true;
   const cancelled = subscription?.status === 'cancelled';
+  const canShoot = !quota || !quota.consentGranted || quota.remaining > 0;
+
+  // 기록 드롭다운: 연도 → 그 해의 월·일. history는 최신순이다.
+  const years = history ? [...new Set(history.map((a) => yearOf(a.createdAt)))] : [];
+  const year = selYear !== null && years.includes(selYear) ? selYear : (years[0] ?? null);
+  const days = history ? [...new Set(history.filter((a) => yearOf(a.createdAt) === year).map((a) => mdOf(a.createdAt)))] : [];
+  const md = selMd !== null && days.includes(selMd) ? selMd : (days[0] ?? null);
+  // 그날 가장 마지막(=목록에서 가장 앞) 분석
+  const selectedIndex = history ? history.findIndex((a) => yearOf(a.createdAt) === year && mdOf(a.createdAt) === md) : -1;
+  const selected = selectedIndex >= 0 && history ? history[selectedIndex] : null;
+  const before = selectedIndex >= 0 && history ? (history[selectedIndex + 1] ?? null) : null;
 
   return (
     <PageWrapper className="bg-surface-warm">
@@ -93,7 +159,7 @@ export default function SubscriptionPage() {
           </p>
           <ul className="mt-3 flex flex-col gap-1 text-[12px] leading-relaxed opacity-95">
             <li>· 한 달에 4번, 주 1회씩 촬영하는 걸 추천해요</li>
-            <li>· 유분·수분·홍조·잡티·트러블·모공·주름 외 탄력·광채·피부결·다크서클까지 12가지</li>
+            <li>· 유분·수분·홍조·잡티·트러블·모공·주름 외 탄력·광채·피부결·다크서클·눈가까지 16가지</li>
             <li>· 문답 결과와 합쳐 피부타입을 더 꼼꼼하게</li>
           </ul>
         </section>
@@ -124,15 +190,23 @@ export default function SubscriptionPage() {
                 {fmtDate(quota.resetsAt)}에 새로 채워져요 · 분석 항목 {quota.concernCount}가지
               </p>
               {!quota.consentGranted && (
-                <p className="mt-2 rounded-lg bg-accent-light px-3 py-2 text-[11px] font-semibold text-accent">
-                  얼굴 사진 수집에 동의해야 분석을 쓸 수 있어요. 아래에서 동의할 수 있어요.
+                <p className="mt-2 rounded-lg bg-gray-5 px-3 py-2 text-[11px] text-gray-70">
+                  처음 촬영할 때 얼굴 사진 수집 동의 화면이 나와요.
                 </p>
               )}
               <button
                 type="button"
-                onClick={() => navigate('/qna')}
-                disabled={!quota.consentGranted || quota.remaining <= 0}
+                onClick={() => setShooting(true)}
+                disabled={!canShoot}
                 className="mt-4 h-12 w-full rounded-xl bg-ob-green text-[14px] font-semibold text-white active:scale-[.98] disabled:opacity-40"
+              >
+                지금 촬영하기
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/qna')}
+                disabled={quota.remaining <= 0}
+                className="mt-2 h-11 w-full rounded-xl border border-ob-green text-[13px] font-semibold text-ob-green-deep active:scale-[.98] disabled:opacity-40"
               >
                 재진단하며 AI 분석 받기
               </button>
@@ -175,7 +249,7 @@ export default function SubscriptionPage() {
           ) : (
             <>
               <p className="mt-2 text-[13px] leading-relaxed text-gray-70">
-                구독하면 매달 4회, 12가지 항목으로 분석해요.
+                구독하면 매달 4회, 16가지 항목으로 분석해요.
               </p>
               <button
                 type="button"
@@ -192,47 +266,68 @@ export default function SubscriptionPage() {
           </p>
         </section>
 
-        {/* 동의 */}
+        {/* 분석 기록 — 연도·월일 드롭다운으로 지난 분석을 고른다(1회만 분석했어도 보여 준다) */}
         <section className="rounded-2xl bg-white px-5 py-4">
-          <p className="text-[14px] font-extrabold text-gray-100">{FACE_CONSENT_TITLE}</p>
-          <p className="mt-1 text-[12px] text-gray-50">
-            {quota?.consentGranted ? '동의했어요. 언제든 철회할 수 있어요.' : '아직 동의하지 않았어요.'}
-          </p>
-          <details className="mt-3">
-            <summary className="cursor-pointer text-[12px] font-semibold text-ob-green-deep">
-              동의 내용 보기
-            </summary>
-            <FaceConsentList className="mt-3" />
-          </details>
-          {quota?.consentGranted ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setConfirmWithdraw(true)}
-              className="mt-3 h-11 w-full rounded-xl border border-gray-20 text-[13px] font-semibold text-gray-70 active:scale-[.98] disabled:opacity-50"
-            >
-              동의 철회
-            </button>
+          {historyLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-ob-green border-t-transparent" />
+            </div>
+          ) : historyFailed ? (
+            <div className="py-5 text-center">
+              <p className="text-[13px] text-gray-70">분석 기록을 불러오지 못했어요.</p>
+              <button
+                type="button"
+                onClick={reloadHistory}
+                className="mt-3 h-10 rounded-xl bg-gray-5 px-5 text-[12px] font-semibold text-gray-100"
+              >
+                다시 시도
+              </button>
+            </div>
+          ) : !history || history.length === 0 || !selected || year === null || md === null ? (
+            <div className="py-6 text-center">
+              <p className="text-[14px] font-bold text-gray-100">아직 분석 기록이 없어요</p>
+              <p className="mt-1 text-[12px] text-gray-50">사진을 한 번 찍으면 여기에 쌓여요.</p>
+            </div>
           ) : (
-            <button
-              type="button"
-              disabled={busy || loading}
-              onClick={() => run(() => setConsent(true), '동의했어요')}
-              className="mt-3 h-11 w-full rounded-xl bg-ob-green text-[13px] font-semibold text-white active:scale-[.98] disabled:opacity-50"
-            >
-              동의하기
-            </button>
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[14px] font-extrabold text-gray-100">
+                  {selected.analysisId === history[0].analysisId ? '최근 분석' : '지난 분석'}
+                </p>
+                <div className="flex w-[176px] shrink-0 gap-2">
+                  <SelectBox
+                    className="w-[74px] shrink-0"
+                    label="분석 연도 선택"
+                    value={String(year)}
+                    onChange={(v) => {
+                      setSelYear(Number(v));
+                      setSelMd(null);
+                    }}
+                    options={years.map((y) => ({ value: String(y), text: `${y}년` }))}
+                  />
+                  <SelectBox
+                    className="w-[94px] shrink-0"
+                    label="분석 날짜 선택"
+                    value={md}
+                    onChange={setSelMd}
+                    options={days.map((d) => ({ value: d, text: mdLabel(d) }))}
+                  />
+                </div>
+              </div>
+              <p className="mt-0.5 text-[11px] text-gray-50">{fmtDate(selected.createdAt)}</p>
+              <div className="mt-4">
+                <SkinAnalysisDetail
+                  key={selected.analysisId}
+                  analysis={selected}
+                  previous={before}
+                  previousLabel={before ? fmtDate(before.createdAt) : undefined}
+                  currentLabel={fmtDate(selected.createdAt)}
+                  showUpsell={selected.analysisId === history[0].analysisId && !subscribed}
+                />
+              </div>
+            </>
           )}
         </section>
-
-        {/* 최근 분석 */}
-        {latestChecked && latest && (
-          <section className="rounded-2xl bg-white px-5 py-4">
-            <p className="text-[14px] font-extrabold text-gray-100">최근 분석</p>
-            <p className="mb-3 mt-0.5 text-[11px] text-gray-50">{fmtDate(latest.createdAt)}</p>
-            <SkinAnalysisDetail analysis={latest} showUpsell={!subscribed} />
-          </section>
-        )}
       </div>
 
       {confirmCancel && (
@@ -249,18 +344,36 @@ export default function SubscriptionPage() {
           }}
         />
       )}
-      {confirmWithdraw && (
+      {shooting && (
+        <div className="fixed inset-0 z-50 mx-auto max-w-[430px] bg-white">
+          <FacePhotoScreen
+            standalone={{
+              doneLabel: '확인',
+              note: '이 분석은 AI 피부관리 기록에 쌓여요.',
+              applyLabel: '이 결과로 피부타입 진단 갱신',
+            }}
+            onBack={() => setShooting(false)}
+            onDone={(analysis) => {
+              setShooting(false);
+              if (analysis) refresh();
+            }}
+            onApply={(analysis) => {
+              setShooting(false);
+              refresh();
+              setPending(analysis);
+            }}
+          />
+        </div>
+      )}
+
+      {pending && (
         <ConfirmDialog
-          title="동의를 철회할까요?"
-          description="철회하면 얼굴 사진 분석을 쓸 수 없어요. 이미 만든 분석 점수는 계정을 삭제할 때 함께 지워져요."
-          confirmLabel="철회"
-          cancelLabel="유지"
-          danger
-          onCancel={() => setConfirmWithdraw(false)}
-          onConfirm={() => {
-            setConfirmWithdraw(false);
-            void run(() => setConsent(false), '동의를 철회했어요');
-          }}
+          title="피부타입 진단을 갱신할까요?"
+          description="이 사진의 분석 결과만으로 피부타입을 다시 정해요. 추천 제품이 새 타입 기준으로 바뀔 수 있어요."
+          confirmLabel={applying ? '갱신 중…' : '갱신'}
+          cancelLabel="취소"
+          onCancel={() => !applying && setPending(null)}
+          onConfirm={() => void apply()}
         />
       )}
     </PageWrapper>

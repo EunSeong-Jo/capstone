@@ -44,6 +44,10 @@ export interface DiagnosisDto {
   borderline: boolean;
   /** 얼굴 사진 분석이 섞인 진단인가. false면 QnA 100% */
   photoUsed: boolean;
+  /** 답한 문항 없이 사진만으로 낸 진단 */
+  photoOnly: boolean;
+  /** 답한 문항 수 (사진을 쓰면서 일부만 답했으면 "n문항 + 사진") */
+  answeredCount: number;
   createdAt: string;
 }
 
@@ -57,6 +61,9 @@ export const fetchQuiz = () => request<QuizDto>(`${BASE}/questions`);
  * `analysisId`는 얼굴 사진 분석(`analyzeFace`)의 id입니다. 있으면 서버가 저장된 분석
  * 점수를 QnA와 섞고, 없으면 QnA 100%입니다. 점수 자체는 보내지 않습니다 — 클라이언트가
  * 보낸 점수로 타입을 정할 수 있으면 진단이 의미를 잃습니다.
+ *
+ * `answers`는 비워도 됩니다 — 이때는 `analysisId`가 필요하고 사진 5축만으로 진단합니다.
+ * 일부 문항만 답하면 서버가 답한 문항의 축만 사진과 섞습니다.
  */
 export const submitDiagnosis = (answers: Record<string, number>, analysisId?: string) =>
   postJson<DiagnosisDto>(BASE, analysisId ? { answers, analysisId } : { answers });

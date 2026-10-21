@@ -25,13 +25,14 @@ from app.config import settings
 from app.core.rate_limit import SEOUL_TZ
 from app.models.skin_photo import FACE_PHOTO, SkinAnalysis, Subscription, UserConsent
 
-# Perfect Corp에 요청하는 분석 항목(SD 이름). 가격표상 5~8개는 12유닛, 9~12개는 14유닛이다.
+# Perfect Corp에 요청하는 분석 항목(SD 이름). 가격표상 5~8개는 12유닛, 9~12개는 14유닛, 13~16개는 16유닛이다.
 # 앞의 5개 + skin_type은 진단 점수·보정에 쓰이고, 나머지는 결과 화면 표시용이다.
 BASIC_CONCERNS: tuple[str, ...] = (
     "oiliness", "moisture", "redness", "age_spot", "acne", "skin_type", "pore", "wrinkle",
 )
 EXTENDED_CONCERNS: tuple[str, ...] = BASIC_CONCERNS + (
     "firmness", "radiance", "texture", "dark_circle_v2",
+    "eye_bag", "droopy_upper_eyelid", "droopy_lower_eyelid", "tear_trough",
 )
 
 SUBSCRIPTION_PERIOD_DAYS = 30

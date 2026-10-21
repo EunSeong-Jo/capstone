@@ -43,9 +43,10 @@ def _photo_data_url(w: int = 600, h: int = 800) -> str:
 
 
 @pytest.fixture(autouse=True)
-def mock_provider(monkeypatch):
-    """모든 테스트가 실제 호출 없이 돈다. 사전 필터는 통과시킨다."""
+def mock_provider(monkeypatch, tmp_path):
+    """모든 테스트가 실제 호출 없이 돈다. 사전 필터는 통과시키고, 분석 이미지는 임시 폴더에 둔다."""
     monkeypatch.setattr(settings, "PERFECT_CORP_MOCK", True)
+    monkeypatch.setattr(settings, "SKIN_IMAGE_DIR", str(tmp_path / "skin_images"))
 
     async def _pass(_photo):
         return None
@@ -108,6 +109,7 @@ async def test_endpoints_require_login(client: AsyncClient) -> None:
         ("POST", f"{ME}/subscription"),
         ("DELETE", f"{ME}/subscription"),
         ("GET", f"{ME}/skin-analysis/quota"),
+        ("GET", ANALYZE),
         ("POST", ANALYZE),
         ("GET", f"{ANALYZE}/latest"),
     ]:
@@ -215,7 +217,7 @@ async def test_quota_by_tier(client: AsyncClient, user) -> None:
     sub = await _quota(client, user)
     assert sub["plan"] == "subscriber"
     assert sub["allowance"] == settings.SKIN_SUBSCRIBER_MONTHLY
-    assert (sub["concernCount"], sub["extended"]) == (12, True)
+    assert (sub["concernCount"], sub["extended"]) == (16, True)
     assert sub["resetsAt"]
 
 
@@ -261,21 +263,24 @@ async def test_analyze_success_uses_quota_and_hides_image_urls(
     assert again.status_code == 402
 
 
-async def test_subscriber_gets_twelve_concerns(client: AsyncClient, consented) -> None:
+async def test_subscriber_gets_sixteen_concerns(client: AsyncClient, consented) -> None:
     await client.post(f"{ME}/subscription", headers=consented["headers"])
     res = await _analyze(client, consented)
     body = res.json()
     assert res.status_code == 201 and body["extended"] is True
     keys = {c["key"] for c in body["concerns"]}
-    assert {"firmness", "radiance", "texture", "dark_circle_v2"} <= keys
-    assert len(body["concerns"]) == 11         # 12개 중 skin_type은 별도 필드
+    assert {
+        "firmness", "radiance", "texture", "dark_circle_v2",
+        "eye_bag", "droopy_upper_eyelid", "droopy_lower_eyelid", "tear_trough",
+    } <= keys
+    assert len(body["concerns"]) == 15         # 16개 중 skin_type은 별도 필드
     assert body["remaining"] == settings.SKIN_SUBSCRIBER_MONTHLY - 1
 
 
 async def test_requested_concerns_follow_the_tier(
     client: AsyncClient, consented, monkeypatch
 ) -> None:
-    """무료는 기본 8개, 구독자는 확장 12개를 Perfect Corp에 요청한다."""
+    """무료는 기본 8개, 구독자는 확장 16개를 Perfect Corp에 요청한다."""
     from app.services.skin_photo import mock_output
     from app.services.skin_quota import BASIC_CONCERNS, EXTENDED_CONCERNS
 
@@ -402,6 +407,67 @@ async def test_diagnosis_blends_the_stored_analysis(client: AsyncClient, consent
     assert latest["photoUsed"] is True
 
 
+async def test_photo_only_diagnosis_uses_the_photo_axes(client: AsyncClient, consented) -> None:
+    h = consented["headers"]
+    analysis = (await _analyze(client, consented)).json()
+    res = await client.post(QUIZ, json={"analysisId": analysis["analysisId"]}, headers=h)
+    assert res.status_code == 201, res.text
+    body = res.json()
+    assert (body["photoUsed"], body["photoOnly"], body["answeredCount"]) == (True, True, 0)
+    assert body["scores"] == analysis["axes"]
+    assert len(body["ranks"]) == 3
+
+    latest = (await client.get(f"{QUIZ}/latest", headers=h)).json()
+    assert latest["photoOnly"] is True
+
+
+async def test_diagnosis_needs_answers_or_an_analysis(client: AsyncClient, user) -> None:
+    for body in ({}, {"answers": {}}):
+        res = await client.post(QUIZ, json=body, headers=user["headers"])
+        assert res.status_code == 422
+
+
+async def test_partial_answers_blend_only_the_touched_axes(
+    client: AsyncClient, consented
+) -> None:
+    h = consented["headers"]
+    analysis = (await _analyze(client, consented)).json()
+    # q2의 0번 선택지는 민감도 축만 건드린다.
+    res = await client.post(
+        QUIZ, json={"answers": {"q2": 0}, "analysisId": analysis["analysisId"]}, headers=h
+    )
+    assert res.status_code == 201, res.text
+    body = res.json()
+    assert (body["photoUsed"], body["photoOnly"], body["answeredCount"]) == (True, False, 1)
+
+    w = settings.PHOTO_PARTIAL_WEIGHT
+    qna_sensitivity = 8  # BASE_SCORE 5 + 3
+    expected = round((1 - w) * qna_sensitivity + w * analysis["axes"]["sensitivity"])
+    assert body["scores"]["sensitivity"] == expected
+    for axis in ("moisture", "oil", "pigmentation", "trouble"):
+        assert body["scores"][axis] == analysis["axes"][axis], axis
+
+
+async def test_analysis_history_is_newest_first_and_private(
+    client: AsyncClient, consented, user
+) -> None:
+    h = consented["headers"]
+    assert (await client.get(ANALYZE, headers=h)).json() == []
+
+    await client.post(f"{ME}/subscription", headers=h)
+    first = (await _analyze(client, consented)).json()
+    second = (await _analyze(client, consented)).json()
+
+    rows = (await client.get(ANALYZE, headers=h)).json()
+    assert [r["analysisId"] for r in rows] == [second["analysisId"], first["analysisId"]]
+    assert all(r["remaining"] is None for r in rows)
+    assert len((await client.get(f"{ANALYZE}?limit=1", headers=h)).json()) == 1
+    assert (await client.get(f"{ANALYZE}?limit=0", headers=h)).status_code == 422
+
+    assert (await client.get(ANALYZE, headers=user["headers"])).json() == []
+    assert (await client.get(ANALYZE)).status_code == 401
+
+
 async def test_diagnosis_rejects_foreign_unknown_and_stale_analyses(
     client: AsyncClient, consented, user
 ) -> None:
@@ -428,6 +494,72 @@ async def test_diagnosis_rejects_foreign_unknown_and_stale_analyses(
     )
     assert stale.status_code == 422
     assert "오래" in stale.json()["detail"]
+
+
+async def test_analysis_images_are_saved_and_served_to_the_owner_only(
+    client: AsyncClient, consented, user
+) -> None:
+    made = (await _analyze(client, consented)).json()
+    assert {"oiliness", "moisture", "redness", "age_spot", "acne"} <= set(made["images"])
+    assert "skin_type" not in made["images"]
+
+    aid, h = made["analysisId"], consented["headers"]
+    res = await client.get(f"{ANALYZE}/{aid}/images/oiliness", headers=h)
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "image/png"
+    assert res.content.startswith(b"\x89PNG")
+    assert "private" in res.headers["cache-control"]
+
+    # 이력·최근 분석에도 키가 실린다.
+    assert (await client.get(f"{ANALYZE}/latest", headers=h)).json()["images"] == made["images"]
+    assert (await client.get(ANALYZE, headers=h)).json()[0]["images"] == made["images"]
+
+    # 남의 분석 / 로그인 없음 / 없는 키 / 경로 탈출 시도는 모두 막힌다.
+    assert (await client.get(f"{ANALYZE}/{aid}/images/oiliness", headers=user["headers"])).status_code == 404
+    assert (await client.get(f"{ANALYZE}/{aid}/images/oiliness")).status_code == 401
+    assert (await client.get(f"{ANALYZE}/{aid}/images/nope", headers=h)).status_code == 404
+    assert (await client.get(f"{ANALYZE}/{aid}/images/..%2F..%2Fetc", headers=h)).status_code == 404
+
+
+async def test_withdrawing_consent_deletes_images_but_keeps_scores(
+    client: AsyncClient, consented
+) -> None:
+    h = consented["headers"]
+    made = (await _analyze(client, consented)).json()
+    assert made["images"]
+
+    res = await client.put(f"{ME}/consents/face-photo", json={"agreed": False}, headers=h)
+    assert res.status_code == 200
+    latest = (await client.get(f"{ANALYZE}/latest", headers=h)).json()
+    assert latest["images"] == []                    # 파일은 지워졌다
+    assert latest["axes"] == made["axes"] and latest["concerns"]    # 점수는 남는다
+    gone = await client.get(f"{ANALYZE}/{made['analysisId']}/images/oiliness", headers=h)
+    assert gone.status_code == 404
+
+
+async def test_deleting_the_account_deletes_the_image_files(client: AsyncClient) -> None:
+    import pathlib
+
+    acc = await _signup(client, face_consent=True)
+    made = (await _analyze(client, acc)).json()
+    folder = pathlib.Path(settings.SKIN_IMAGE_DIR) / str(acc["id"])
+    assert folder.is_dir() and any(folder.rglob("*.png"))
+
+    res = await client.delete(ME, headers=acc["headers"])
+    assert res.status_code == 204, res.text
+    assert not folder.exists()
+    assert made["images"]
+
+
+async def test_analysis_still_succeeds_when_images_cannot_be_stored(
+    client: AsyncClient, consented, monkeypatch, tmp_path
+) -> None:
+    blocker = tmp_path / "not_a_dir"
+    blocker.write_text("x")                           # 이 아래로는 디렉터리를 만들 수 없다
+    monkeypatch.setattr(settings, "SKIN_IMAGE_DIR", str(blocker / "sub"))
+    res = await _analyze(client, consented)
+    assert res.status_code == 201, res.text
+    assert res.json()["images"] == []
 
 
 async def test_deleting_the_user_removes_every_photo_record(client: AsyncClient) -> None:
