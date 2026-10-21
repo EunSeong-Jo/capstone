@@ -4,6 +4,7 @@ import {
   ReviewSort,
   fetchProductReviews,
 } from '../../api/products';
+import { apiUrl } from '../../api/client';
 import { useSkinType } from '../../hooks/useSkinType';
 import { SKIN_TYPE_META, SkinType } from '../../types';
 
@@ -205,8 +206,8 @@ export function ProductReviews({ productId }: { productId: number }) {
                 {r.photoUrls?.length > 0 && (
                   <div className="mt-2 flex gap-1.5">
                     {r.photoUrls.map((url) => (
-                      <a key={url} href={url} target="_blank" rel="noreferrer">
-                        <img src={url} alt="후기 사진" className="h-20 w-20 rounded-lg object-cover" />
+                      <a key={url} href={apiUrl(url)} target="_blank" rel="noreferrer">
+                        <img src={apiUrl(url)} alt="후기 사진" className="h-20 w-20 rounded-lg object-cover" />
                       </a>
                     ))}
                   </div>

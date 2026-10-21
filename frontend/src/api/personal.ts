@@ -7,7 +7,7 @@
  * 응답에 제품 정보가 함께 옵니다 — 화장대 10개를 받고 상세를 10번 더
  * 부르지 않도록 서버가 조인해서 보냅니다.
  */
-import { deleteJson, patchJson, postJson, request } from './client';
+import { apiUrl, deleteJson, patchJson, postJson, request } from './client';
 import { Product } from '../types';
 
 export interface ClosetItemDto {
@@ -146,7 +146,7 @@ async function send(path: string, method: string, body?: unknown): Promise<void>
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  await fetch(path, {
+  await fetch(apiUrl(path), {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),

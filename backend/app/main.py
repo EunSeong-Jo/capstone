@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import sys
+from pathlib import Path
 from urllib.parse import urlsplit
 
 # Windows 기본 ProactorEventLoop는 asyncpg의 DNS 조회에서
@@ -12,9 +13,10 @@ if sys.platform == "win32":
 
 import sentry_sdk
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy import text
 
 from app.api.care_tip import router as care_tip_router
@@ -66,6 +68,11 @@ app.add_middleware(
         settings.FRONTEND_URL,
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        # Capacitor 앱 웹뷰의 origin. 앱은 화면을 `https://localhost`(Android,
+        # capacitor.config의 androidScheme) / `capacitor://localhost`(iOS)에서 열고
+        # API는 서버 주소로 부른다 — 그래서 다른 origin이라 여기에 있어야 응답을 읽는다.
+        "https://localhost",
+        "capacitor://localhost",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -161,3 +168,30 @@ async def shutdown() -> None:
 async def health_check():
     log.info("health_check", status="ok")
     return {"status": "ok", "version": "0.1.0", "env": settings.APP_ENV}
+
+
+# ── 프론트엔드 정적 서빙 (운영 이미지 전용) ──────────────────
+# STATIC_DIR이 설정된 배포(Dockerfile.prod)에서만 켜진다. 개발 환경은 Vite가 프론트를
+# 맡으므로 비어 있고, 아래 코드는 아무 일도 하지 않는다.
+# 모든 API 라우트보다 뒤에 등록해야 한다 — 이 캐치올이 먼저면 /api가 가려진다.
+if settings.STATIC_DIR and Path(settings.STATIC_DIR).is_dir():
+    _static_root = Path(settings.STATIC_DIR).resolve()
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_frontend(full_path: str):
+        # 없는 API 경로가 index.html(200)로 둔갑하면 클라이언트가 JSON 대신 HTML을 받는다.
+        if full_path == "api" or full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        candidate = (_static_root / full_path).resolve()
+        if candidate.is_file() and _static_root in candidate.parents:
+            return FileResponse(candidate)
+        # 확장자가 있는 경로는 파일 요청이다. 없는 /assets/x.js에 index.html을 200으로 주면
+        # 구버전 해시 파일을 찾는 브라우저가 HTML을 JS로 받아 화면이 깨진다.
+        if Path(full_path).suffix:
+            raise HTTPException(status_code=404, detail="Not Found")
+        # BrowserRouter 경로(/category/...)는 새로고침해도 앱이 열려야 한다.
+        # 해시가 붙지 않는 index.html은 캐시하지 않아야 배포가 바로 반영된다.
+        return FileResponse(
+            _static_root / "index.html",
+            headers={"Cache-Control": "no-cache"},
+        )
