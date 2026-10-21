@@ -1,0 +1,17 @@
+# Dockerfile.prod(컨텍스트=리포 루트)용. compose의 backend/frontend 빌드는 각자 폴더가 컨텍스트라 영향 없음.
+.git
+# 하위 폴더(frontend/.env.local 등)까지 — 개발용 API 주소가 번들에 박히는 것을 막는다
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+**/dist
+**/__pycache__
+**/.pytest_cache
+data
+crawling
+scripts
+docs
+frontend_flash_demo
+.taskmaster
+.claude

@@ -35,6 +35,7 @@ from app.models.product import (
     ProductIngredient,
 )
 from app.services.ocr import recognize_text
+from app.services.ocr_quota import check_scan_quota
 from app.services.review_photos import decode_photo, photo_urls_of
 from app.services.skin_type import SkinRule, apply_exclusions, fit_score, load_rule
 from app.models.personal import Review
@@ -440,10 +441,13 @@ async def scan_product(
 
     **로그인한 사용자만** 쓴다. CLOVA OCR은 호출 수로 과금·무료 한도가 정해지는데,
     열어 두면 누구나 반복 호출할 수 있다. 비회원은 제품명 검색을 쓴다(화면이 안내).
-    사진은 저장하지 않는다.
+    가입은 열려 있어 로그인만으로는 부족하므로, 허용 계정 외에는 하루 한도(계정당·전체)를
+    두고 넘으면 429를 낸다(`services/ocr_quota.py`). 사진은 저장하지 않는다.
     글자를 못 읽었으면 빈 후보를 낸다 — 화면이 제품명 검색으로 안내한다.
     """
     content_type, data = decode_photo(body.image)
+    # 잘못된 이미지(422)가 한도를 쓰지 않도록 디코딩 뒤, OCR 호출 직전에 센다.
+    await check_scan_quota(_user)
     fields = await recognize_text(data, content_type)
     query = " ".join(fields)[:SCAN_QUERY_MAX].strip()
     if len(query) < 2:

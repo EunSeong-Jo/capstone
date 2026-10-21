@@ -36,8 +36,15 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-async def allow_daily(name: str, who: str, limit: int) -> bool:
-    """오늘(서울 날짜) `who`가 `name`을 `limit`번 넘게 불렀으면 False."""
+async def allow_daily(name: str, who: str, limit: int, *, fail_open: bool = True) -> bool:
+    """오늘(서울 날짜) `who`가 `name`을 `limit`번 넘게 불렀으면 False.
+
+    `fail_open`은 Redis를 못 읽을 때(`count is None`)의 선택이다. 기본은 통과 —
+    챗봇처럼 막는 쪽이 더 나쁜 곳. 호출당 과금되는 API(OCR)는 False로 줘서,
+    카운터가 죽어 있는 동안 한도가 풀려 무료 한도를 한꺼번에 쓰는 일을 막는다.
+    """
     day = datetime.now(SEOUL_TZ).strftime("%Y%m%d")
     count = await cache_incr(f"rl:{name}:{who}:{day}", DAY_SECONDS)
-    return count is None or count <= limit
+    if count is None:
+        return fail_open
+    return count <= limit

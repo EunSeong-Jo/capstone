@@ -4,7 +4,7 @@
  * 토큰 보관은 `tokenStore.ts`가 맡고, 헤더 주입과 401 재시도는 `client.ts`가
  * 합니다. 이 파일은 요청 모양만 정의합니다.
  */
-import { patchJson, postJson, request } from './client';
+import { apiUrl, patchJson, postJson, request } from './client';
 import { SkinType } from '../types';
 
 export interface AuthUser {
@@ -55,7 +55,7 @@ export function refreshTokens(refreshToken: string): Promise<TokenBundle> {
 
 export function logout(refreshToken: string): Promise<void> {
   // 204라 본문이 없습니다. postJson은 JSON을 기대하므로 여기서만 fetch를 씁니다.
-  return fetch('/api/v1/auth/logout', {
+  return fetch(apiUrl('/api/v1/auth/logout'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
@@ -66,7 +66,7 @@ export function logout(refreshToken: string): Promise<void> {
 export async function deleteAccount(): Promise<void> {
   const { getAccessToken } = await import('./tokenStore');
   const token = getAccessToken();
-  const res = await fetch('/api/v1/me', {
+  const res = await fetch(apiUrl('/api/v1/me'), {
     method: 'DELETE',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });

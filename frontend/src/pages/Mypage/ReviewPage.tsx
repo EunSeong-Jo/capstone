@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { MyReviewDto, OrderDto, fetchMyReviews, fetchOrders, writeReview } from '../../api/personal';
-import { ApiError } from '../../api/client';
+import { ApiError, apiUrl } from '../../api/client';
 import { ReviewDraft, ReviewWriteSheet } from '../../components/reviews/ReviewWriteSheet';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/toast';
@@ -199,8 +199,8 @@ export default function ReviewPage() {
                     {review.photoUrls.length > 0 && (
                       <div className="mt-2 flex gap-1.5">
                         {review.photoUrls.map((url) => (
-                          <a key={url} href={url} target="_blank" rel="noreferrer">
-                            <img src={url} alt="후기 사진" className="h-20 w-20 rounded-lg object-cover" />
+                          <a key={url} href={apiUrl(url)} target="_blank" rel="noreferrer">
+                            <img src={apiUrl(url)} alt="후기 사진" className="h-20 w-20 rounded-lg object-cover" />
                           </a>
                         ))}
                       </div>

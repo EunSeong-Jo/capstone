@@ -7,8 +7,11 @@
  * 상대 경로를 쓰는 이유: vite.config.ts가 `/api`를 백엔드로 프록시합니다.
  * 개발 환경에서 base URL을 따로 설정할 필요가 없습니다.
  *
- * ⚠️ Capacitor 네이티브 빌드에서는 프록시가 없어 절대 URL이 필요합니다.
- *    그때 API_BASE만 환경변수로 빼면 됩니다.
+ * Capacitor 앱 빌드에서는 프록시가 없어 절대 URL이 필요합니다. 그때만
+ * `VITE_API_BASE_URL`(서버 주소)을 넣고 빌드합니다. 웹·도커 빌드는 비워 두므로
+ * 지금처럼 상대 경로입니다. fetch를 직접 쓰거나 서버가 내려준 `/api/...` 경로를
+ * `<img src>`·`href`에 쓸 때는 `apiUrl()`을 거치세요 — 앱에서는 상대 경로가
+ * 서버가 아니라 앱 안(`https://localhost`)을 가리킵니다.
  *
  * 인증(Task 12)
  * -------------
@@ -24,7 +27,12 @@ import {
   setTokens,
 } from './tokenStore';
 
-const API_BASE = '';
+export const API_BASE: string = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+
+/** 서버가 가리키는 경로를 요청·`src`에 쓸 주소로. 이미 절대 URL이면 그대로 둔다. */
+export function apiUrl(path: string): string {
+  return path.startsWith('/') ? `${API_BASE}${path}` : path;
+}
 
 export class ApiError extends Error {
   constructor(
