@@ -130,7 +130,41 @@ MOCK = skin_photo.mock_output(EXTENDED_CONCERNS)
 def test_mock_output_returns_only_requested_concerns():
     basic = {e["type"] for e in skin_photo.mock_output(BASIC_CONCERNS)}
     assert basic == set(BASIC_CONCERNS)
-    assert {"firmness", "radiance", "texture", "dark_circle_v2"} <= {e["type"] for e in MOCK}
+    assert {
+        "firmness", "radiance", "texture", "dark_circle_v2",
+        "eye_bag", "droopy_upper_eyelid", "droopy_lower_eyelid", "tear_trough",
+    } <= {e["type"] for e in MOCK}
+    assert len(EXTENDED_CONCERNS) == 16 and len(BASIC_CONCERNS) == 8
+
+
+def test_extract_mask_urls_keys_and_skips_missing():
+    out = skin_photo.extract_mask_urls([
+        {"type": "oiliness", "mask_urls": ["https://x/a.png", "https://x/b.png"]},
+        {"type": "skin_type", "region": "t_zone", "mask_urls": ["https://x/t.png"]},
+        {"type": "hd_dark_circle", "mask_urls": ["https://x/d.png"]},
+        {"type": "acne", "mask_urls": []},
+        {"type": "pore"},
+        {"type": "all", "mask_urls": [None]},
+        {"type": "resize_image", "mask_urls": ["https://x/original-resized.jpg"]},
+    ])
+    assert out == {
+        "oiliness": "https://x/a.png",
+        "skin_type_t_zone": "https://x/t.png",
+        "dark_circle_v2": "https://x/d.png",
+    }
+
+
+def test_mock_masks_are_transparent_overlays_without_a_face_photo():
+    import io
+
+    from PIL import Image
+
+    masks = skin_photo.mock_masks(("oiliness", "skin_type", "acne"))
+    assert set(masks) == {"oiliness", "acne"}
+    img = Image.open(io.BytesIO(masks["oiliness"]))
+    assert img.mode == "RGBA" and img.getpixel((2, 2))[3] == 0          # 바탕은 투명
+    assert any(a > 0 for *_, a in img.getdata())                        # 표시는 있다
+    assert masks["oiliness"] == skin_photo.mock_masks(("oiliness",))["oiliness"]   # 항상 같은 그림
 
 
 def test_mock_fixture_has_no_image_urls():

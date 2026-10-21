@@ -36,7 +36,14 @@ from app.schemas.diagnosis import (
     QuizQuestionOut,
     RankOut,
 )
-from app.services.diagnosis import blend_scores, is_borderline, rank_types, score_answers
+from app.services.diagnosis import (
+    blend_partial,
+    blend_scores,
+    is_borderline,
+    rank_types,
+    score_answers,
+    touched_axes,
+)
 
 router = APIRouter(prefix="/api/v1/profile/skin-quiz", tags=["diagnosis"])
 
@@ -99,6 +106,8 @@ def _to_out(diagnosis: Diagnosis, ranks: list[DiagnosisRank]) -> DiagnosisOut:
         ranks=[RankOut(rank=r.rank, skin_type=r.skin_type, score=r.score) for r in ordered],
         borderline=is_borderline(as_dicts),
         photo_used=diagnosis.analysis_id is not None,
+        photo_only=diagnosis.analysis_id is not None and not diagnosis.answers,
+        answered_count=len(diagnosis.answers),
         created_at=diagnosis.created_at,
     )
 
@@ -117,7 +126,7 @@ async def submit(
     계속 보이는 일이 있었다. 결과를 누구 것인지 확실히 할 수 없는 기록은
     만들지 않는다.
     """
-    if not body.answers:
+    if not body.answers and body.analysis_id is None:
         raise HTTPException(status_code=422, detail="응답이 비어 있습니다")
 
     version = await _active_version(db)
@@ -145,7 +154,17 @@ async def submit(
             raise HTTPException(
                 status_code=422, detail="사진 분석이 오래됐어요. 다시 촬영하거나 건너뛰어 주세요"
             )
-        scores = blend_scores(scores, analysis.metrics["axes"], settings.PHOTO_BLEND_WEIGHT)
+        photo = analysis.metrics["axes"]
+        question_count = len({code for code, _ in weights})
+        touched = touched_axes(body.answers, weights)
+        if not touched:
+            # 답한 문항이 없거나(사진만으로 진단) 점수에 닿는 문항이 하나도 없다.
+            scores = dict(photo)
+        elif len({c for c in body.answers if (c, body.answers[c]) in weights}) >= question_count:
+            # 모든 문항에 답했다 — 기존 QnA+사진 혼합.
+            scores = blend_scores(scores, photo, settings.PHOTO_BLEND_WEIGHT)
+        else:
+            scores = blend_partial(scores, photo, touched, settings.PHOTO_PARTIAL_WEIGHT)
         analysis_id = analysis.id
 
     ranks = rank_types(scores)

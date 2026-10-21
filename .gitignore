@@ -155,6 +155,8 @@ data/raw/global/.*_checkpoint.json
 skin_test.jpg
 skin_test*.jpg
 skin_test_*_result.txt
+# 사진 분석 이미지(얼굴이 담김) — 기본 경로는 docker 볼륨이라 저장소 밖이지만, 로컬 실행 시 실수로 올리지 않도록
+skin_images/
 
 # MediaPipe wasm — npm install 후 frontend/scripts/copy-mediapipe.mjs가 복사한다 (약 40MB)
 frontend/public/mediapipe/wasm/

@@ -20,8 +20,10 @@ acne만 3.8 차이), HD는 모공·주름의 **부위별** 결과가 더 나올 
 `ui_score`가 "심리적 동기 부여용으로 보정된 값"이라 하고 분석에는 `raw_score`를 쓰라고
 한다. 그래서 진단 축은 raw로, 화면에 보여 주는 막대는 ui로 만든다.
 
-`mask_urls`(얼굴 위에 그린 분석 이미지의 서명 URL)는 쓰지 않고 버린다 — 얼굴이 담긴
-이미지의 주소를 DB에 두거나 화면에 내려보내지 않기 위해서다.
+`mask_urls`(항목별 분석 이미지의 서명 URL)는 2시간이면 만료된다. URL 자체는 응답·DB에
+담지 않는다. 받아 보면 얼굴 사진이 없는 투명 PNG라, 분석 직후 서버가 그대로 디스크에 둔다
+(`services/skin_images.py`). 화면은
+인증된 API로 그 파일을 받는다.
 """
 from __future__ import annotations
 
@@ -168,6 +170,76 @@ def _raise_task_error(error: Any) -> None:
     if isinstance(code, str) and code in _PHOTO_ERRORS:
         raise HTTPException(status_code=422, detail=_PHOTO_ERRORS[code])
     raise HTTPException(status_code=502, detail=_UNAVAILABLE)
+
+
+# 응답에는 분석 항목이 아닌 부가 이미지도 있다 — `resize_image`는 **원본 사진을 줄인 것**이라 받지 않는다.
+_NOT_MASKS = frozenset({"resize_image", "all", "skin_age"})
+
+
+def extract_mask_urls(output: list[dict]) -> dict[str, str]:
+    """응답 항목의 분석 이미지 서명 URL → `{키: URL}`. 항목마다 첫 이미지만 쓴다.
+
+    키는 우리 이름(`our_name`)이고, 부위가 있는 항목은 `skin_type_t_zone`처럼 부위를 붙인다.
+    이 URL은 **저장하지 않는다** — 2시간이면 만료되고, 분석 직후 서버가 내려받아 파일로 둔다.
+    """
+    out: dict[str, str] = {}
+    for e in output:
+        urls = e.get("mask_urls")
+        name = e.get("type")
+        if not isinstance(name, str) or not isinstance(urls, list) or not urls:
+            continue
+        if not isinstance(urls[0], str):
+            continue
+        if name in _NOT_MASKS:
+            continue
+        key = our_name(name)
+        region = e.get("region")
+        if isinstance(region, str) and region:
+            key = f"{key}_{region}"
+        out.setdefault(key, urls[0])
+    return out
+
+
+def mock_masks(concerns: tuple[str, ...]) -> dict[str, bytes]:
+    """MOCK용 분석 이미지 — 실제처럼 **투명 바탕에 색 표시만 있는** PNG. 실제 업체 이미지가 아니다.
+
+    항목 이름으로 색과 위치를 정해 같은 항목은 항상 같은 그림이 나온다(얼굴 사진은 쓰지 않는다).
+    """
+    import io
+    import zlib
+
+    from PIL import Image, ImageDraw
+
+    out: dict[str, bytes] = {}
+    for key in concerns:
+        if key == "skin_type":
+            continue
+        seed = zlib.crc32(key.encode())
+        r, g, b = (seed >> 16) & 255, (seed >> 8) & 255, seed & 255
+        img = Image.new("RGBA", (360, 480), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        for i in range(7):
+            cx = 90 + ((seed >> (i * 3)) % 180)
+            cy = 120 + ((seed >> (i * 2 + 1)) % 240)
+            rad = 14 + (seed >> i) % 22
+            draw.ellipse((cx - rad, cy - rad, cx + rad, cy + rad), fill=(r, g, b, 150))
+        buf = io.BytesIO()
+        img.save(buf, "PNG")
+        out[key] = buf.getvalue()
+    return out
+
+
+async def fetch_masks(output: list[dict], concerns: tuple[str, ...]) -> dict[str, bytes]:
+    """항목별 분석 이미지(투명 PNG). 실패해도 분석은 성공이므로 예외를 올리지 않는다."""
+    from app.services.skin_images import download_masks
+
+    try:
+        if settings.PERFECT_CORP_MOCK:
+            return await asyncio.to_thread(mock_masks, concerns)
+        return await download_masks(extract_mask_urls(output))
+    except Exception as exc:  # noqa: BLE001 — 이미지는 부가 기능이다
+        log.warning("skin_masks_failed", error=type(exc).__name__)
+        return {}
 
 
 def mock_output(concerns: tuple[str, ...]) -> list[dict]:
