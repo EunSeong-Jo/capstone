@@ -39,8 +39,10 @@ export function signup(
   email: string,
   password: string,
   nickname?: string,
+  /** (선택) 얼굴 사진 수집·이용 동의. 서버가 가입과 같은 트랜잭션으로 기록한다 */
+  faceConsent = false,
 ): Promise<TokenBundle> {
-  return postJson<TokenBundle>('/api/v1/auth/signup', { email, password, nickname });
+  return postJson<TokenBundle>('/api/v1/auth/signup', { email, password, nickname, faceConsent });
 }
 
 export function login(email: string, password: string): Promise<TokenBundle> {
@@ -58,6 +60,17 @@ export function logout(refreshToken: string): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
   }).then(() => undefined);
+}
+
+/** 회원 탈퇴. 서버가 계정과 딸린 데이터를 즉시 지웁니다(204, 본문 없음). */
+export async function deleteAccount(): Promise<void> {
+  const { getAccessToken } = await import('./tokenStore');
+  const token = getAccessToken();
+  const res = await fetch(apiUrl('/api/v1/me'), {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`탈퇴에 실패했어요 (${res.status})`);
 }
 
 export function fetchMe(): Promise<AuthUser> {

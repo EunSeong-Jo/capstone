@@ -54,6 +54,7 @@ function toResult(dto: DiagnosisDto): DiagnosisResult {
       score: r.score,
     })),
     source: 'quiz',
+    photoUsed: dto.photoUsed,
     ts: new Date(dto.createdAt).getTime(),
   };
 }
@@ -157,27 +158,32 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
    * ('타입 미리 정하기')은 진단이 아니므로 diagnoses에 남기지 않는다.
    */
   const saveDiagnosis = useCallback(
-    (r: Omit<DiagnosisResult, 'ts'>) => {
+    (
+      r: Omit<DiagnosisResult, 'ts'>,
+      opts?: { analysisId?: string },
+    ): Promise<DiagnosisResult> => {
       const full: DiagnosisResult = { ...r, ts: Date.now() };
       setResult(full);
       writeJSON(keyOf(scope), full);
 
-      if (r.source !== 'quiz' || !r.answers) return;
+      if (r.source !== 'quiz' || !r.answers) return Promise.resolve(full);
 
       const answers: Record<string, number> = {};
       r.answers.forEach((choice, i) => {
         if (choice !== null) answers[`q${i + 1}`] = choice;
       });
-      if (Object.keys(answers).length === 0) return;
+      if (Object.keys(answers).length === 0) return Promise.resolve(full);
 
-      submitDiagnosis(answers)
+      return submitDiagnosis(answers, opts?.analysisId)
         .then((dto) => {
           const next = toResult(dto);
           writeJSON(keyOf(scope), next);
           setResult(next);
+          return next;
         })
         .catch(() => {
           // 서버 저장에 실패해도 화면은 로컬 결과로 계속 간다.
+          return full;
         });
     },
     [scope, setResult],

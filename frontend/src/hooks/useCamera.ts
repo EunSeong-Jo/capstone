@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * 후면 카메라 프리뷰.
+ * 카메라 프리뷰 (기본 후면, 얼굴 촬영은 전면).
  *
  * 인식(OCR)은 아직 없다. 이 훅이 하는 일은 화면에 실제 카메라 영상을 띄우는
  * 것까지다 — 무엇을 비추고 있는지 보이면 제품을 화면에 맞추기 쉽고, 나중에
@@ -33,7 +33,11 @@ export interface UseCameraResult {
 const UNSUPPORTED =
   typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia;
 
-export function useCamera(enabled = true): UseCameraResult {
+export function useCamera(
+  enabled = true,
+  /** environment=후면(제품 스캔), user=전면(얼굴 촬영) */
+  facing: 'environment' | 'user' = 'environment',
+): UseCameraResult {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [ready, setReady] = useState(false);
@@ -46,7 +50,15 @@ export function useCamera(enabled = true): UseCameraResult {
     let cancelled = false;
 
     navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      .getUserMedia({
+        // 얼굴 분석은 해상도 조건이 있다(짧은 변 480px 이상). 전면 카메라는 기본 해상도가
+        // 낮은 기기가 있어 이상값을 요청한다 — 못 맞추면 브라우저가 가장 가까운 값을 준다.
+        video:
+          facing === 'user'
+            ? { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } }
+            : { facingMode: 'environment' },
+        audio: false,
+      })
       .then((s) => {
         if (cancelled) {
           s.getTracks().forEach((t) => t.stop());
@@ -67,7 +79,7 @@ export function useCamera(enabled = true): UseCameraResult {
       streamRef.current = null;
       setReady(false);
     };
-  }, [enabled]);
+  }, [enabled, facing]);
 
   /**
    * 화면은 ready가 된 **뒤에** <video>를 그린다. 스트림이 도착한 순간에는

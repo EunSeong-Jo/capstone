@@ -6,6 +6,8 @@
 FROM node:22-alpine AS frontend
 WORKDIR /app
 COPY frontend/package*.json ./
+# postinstall(copy-mediapipe.mjs)이 npm ci 도중에 실행되므로 스크립트를 먼저 복사해 둔다.
+COPY frontend/scripts ./scripts
 RUN npm ci --maxsockets=3 --fetch-retries=5 --fetch-retry-mintimeout=2000
 COPY frontend/ ./
 # API_BASE는 상대경로('')라 같은 주소의 /api로 나간다. 목업 폴백은 빌드(DEV=false)에서 꺼진다.

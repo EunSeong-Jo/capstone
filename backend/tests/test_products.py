@@ -313,13 +313,28 @@ class TestUnitPrice:
 
 
 async def test_product_reviews_empty_by_default(client: AsyncClient) -> None:
-    """후기는 산 제품에만 쓸 수 있어서, 대부분의 제품은 비어 있다.
+    """후기가 없는 제품은 빈 목록과 null 평균을 낸다.
 
-    `products.review_count`(크롤링으로 받아 온 올리브영 리뷰 수)와 다른
-    값이다 — 저쪽은 내용을 갖고 있지 않다.
+    후기는 산 제품에만 쓸 수 있어서 대부분의 제품은 비어 있다. `products.review_count`
+    (크롤링으로 받아 온 올리브영 리뷰 수)와 다른 값이다 — 저쪽은 내용을 갖고 있지 않다.
+
+    공용 DB에는 QA·데모 후기가 쌓일 수 있으므로, 첫 제품이 비어 있다고 가정하지 않고
+    **후기가 하나도 없는 제품을 DB에서 골라** 확인한다.
     """
-    listing = await client.get("/api/v1/products", params={"size": 1})
-    product_id = listing.json()["items"][0]["id"]
+    from sqlalchemy import select
+
+    from app.db.session import AsyncSessionLocal
+    from app.models.personal import Review
+    from app.models.product import Product
+
+    async with AsyncSessionLocal() as db:
+        product_id = await db.scalar(
+            select(Product.id)
+            .where(~select(Review.id).where(Review.product_id == Product.id).exists())
+            .order_by(Product.id)
+            .limit(1)
+        )
+    assert product_id is not None, "후기가 없는 제품이 하나도 없다"
 
     res = await client.get(f"/api/v1/products/{product_id}/reviews")
     assert res.status_code == 200

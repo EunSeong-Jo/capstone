@@ -1,0 +1,75 @@
+{
+ "_note": "PERFECT_CORP_MOCK용 응답 표본. skin_test.jpg의 실제 SD 결과(2026-10-20)에서 분석 이미지 URL을 모두 제거한 것이다. SD로 측정하지 않은 pore·wrinkle·firmness·radiance·texture·dark_circle_v2는 같은 사진의 HD 결과 값(부위 whole)을 옮겼다.",
+ "output": [
+  {
+   "ui_score": 84,
+   "raw_score": 86.58328247070312,
+   "type": "redness"
+  },
+  {
+   "ui_score": 87,
+   "raw_score": 93.8471908569336,
+   "type": "age_spot"
+  },
+  {
+   "ui_score": 78,
+   "raw_score": 74.82868194580078,
+   "type": "oiliness"
+  },
+  {
+   "ui_score": 77,
+   "raw_score": 72.38804,
+   "type": "acne"
+  },
+  {
+   "ui_score": 74,
+   "raw_score": 61.68457269668579,
+   "type": "moisture"
+  },
+  {
+   "type": "skin_type",
+   "region": "whole",
+   "skin_type": "Normal"
+  },
+  {
+   "type": "skin_type",
+   "region": "t_zone",
+   "skin_type": "Normal"
+  },
+  {
+   "type": "skin_type",
+   "region": "u_zone",
+   "skin_type": "Normal"
+  },
+  {
+   "type": "wrinkle",
+   "ui_score": 79,
+   "raw_score": 87.99000024795532
+  },
+  {
+   "type": "pore",
+   "ui_score": 61,
+   "raw_score": 36.10722351074219
+  },
+  {
+   "type": "firmness",
+   "ui_score": 80,
+   "raw_score": 77.57051587104797
+  },
+  {
+   "type": "radiance",
+   "ui_score": 78,
+   "raw_score": 74.80633854866028
+  },
+  {
+   "type": "texture",
+   "ui_score": 82,
+   "raw_score": 83.78039215686275
+  },
+  {
+   "type": "dark_circle_v2",
+   "ui_score": 76,
+   "raw_score": 78.336700797081
+  }
+ ]
+}

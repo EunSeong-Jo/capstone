@@ -213,3 +213,22 @@ export async function patchJson<T>(
     }),
   );
 }
+
+/** PUT + JSON body. 동의처럼 "이 값으로 맞춘다"는 의미의 갱신에 씁니다. */
+export async function putJson<T>(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  const url = `${API_BASE}${path}`;
+  const payload = JSON.stringify(body);
+
+  return withAuthRetry<T>(() =>
+    fetch(url, {
+      method: 'PUT',
+      signal,
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: payload,
+    }),
+  );
+}

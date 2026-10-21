@@ -33,6 +33,7 @@ from app.api.personal import (
 from app.api.products import router as products_router
 from app.api.recommendations import router as recommendations_router
 from app.api.recommendations_main import router as reco_main_router
+from app.api.skin_photo import router as skin_photo_router
 from app.api.weather import router as weather_router
 from app.config import settings
 from app.db.session import engine, keepalive_loop
@@ -83,6 +84,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(me_router)
 app.include_router(diagnosis_router)
+app.include_router(skin_photo_router)
 app.include_router(personal_router)
 app.include_router(orders_router)
 app.include_router(gifts_router)
@@ -151,7 +153,9 @@ async def startup() -> None:
     global _keepalive_task
     log.info("server_started", env=settings.APP_ENV, version="0.1.0")
     await _check_db()
-    _keepalive_task = asyncio.create_task(keepalive_loop())
+    # 기본은 끈다 — 30초 핑이 Neon의 scale-to-zero를 막아 CU-hrs를 소모한다(config.DB_KEEPALIVE).
+    if settings.DB_KEEPALIVE:
+        _keepalive_task = asyncio.create_task(keepalive_loop())
 
 
 @app.on_event("shutdown")

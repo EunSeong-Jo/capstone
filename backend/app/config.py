@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "swappy"
     POSTGRES_USER: str = "swappy"
     POSTGRES_PASSWORD: str = "swappy_dev"
+    # True면 30초마다 SELECT 1을 보내 연결을 데워 둔다(요청 경로의 pre_ping 생략).
+    # Neon은 유휴 5분이면 컴퓨트를 끄는데(scale to zero), 이 핑이 그것을 막아
+    # 서버를 켜 둔 시간만큼 CU-hrs가 쌓인다. 그래서 기본은 False — 끊긴 연결은
+    # pool_pre_ping이 요청 때 걸러 낸다. 상시 운영 서버에서만 True로 켠다.
+    DB_KEEPALIVE: bool = False
 
     @property
     def DATABASE_URL(self) -> str:
@@ -114,6 +119,37 @@ class Settings(BaseSettings):
     OCR_ALLOWED_EMAILS: str = ""
     OCR_USER_DAILY_LIMIT: int = 3
     OCR_GLOBAL_DAILY_LIMIT: int = 15
+
+    # 얼굴 사진 AI 피부 분석 — Perfect Corp YouCam Skin Analysis (services/skin_photo.py).
+    # 호출은 유닛을 쓴다(SD 5~8개 유형 12유닛, 9~12개 14유닛). 개발·테스트는 MOCK으로 돌린다.
+    # 키가 없고 MOCK도 아니면 분석 API가 503을 낸다(화면은 QnA만으로 진단을 이어 간다).
+    PERFECT_CORP_API_KEY: str = ""
+    PERFECT_CORP_BASE_URL: str = "https://yce-api-01.makeupar.com/s2s/v2.0"
+    PERFECT_CORP_MODE: str = "sd"          # "sd" | "hd" — 같은 사진에서 점수 거의 동일, SD가 더 싸다
+    PERFECT_CORP_MOCK: bool = False        # True면 저장해 둔 응답을 쓴다(외부 호출·유닛 소모 없음)
+
+    # 사진 분석 이용 한도 (services/skin_quota.py). 월 경계는 Asia/Seoul.
+    # 무료는 얼굴 사진 수집에 동의한 사용자만, 구독자는 동의 + 활성 구독이 필요하다.
+    SKIN_FREE_MONTHLY: int = 1
+    SKIN_SUBSCRIBER_MONTHLY: int = 4
+
+    # 사진 점수를 5축으로 옮길 때의 보정(services/skin_photo.to_axes). 건강한 피부는 점수가
+    # 한쪽에 몰려 축 값이 낮게 나오므로 실측 뒤 조정한다. 기본값은 보정 없음.
+    PHOTO_AXIS_GAIN: float = 1.0
+    PHOTO_SKIN_TYPE_NUDGE: float = 1.0
+
+    # 사진 점수를 QnA 점수와 섞는 비중(0~1). 사진을 쓰지 않은 진단은 항상 QnA 100%다.
+    PHOTO_BLEND_WEIGHT: float = 0.4
+
+    # 얼굴 사전 필터 임계값 (services/face_gate.py). 거절 로그와 실제 사진으로 조정한다.
+    # 폭 비율은 Perfect Corp 요구(60%)보다 느슨하게 시작한다 — 검출기 상자가 얼굴보다
+    # 조금 좁게 잡혀서 같은 기준을 쓰면 정상 사진이 걸러진다.
+    FACE_MIN_SCORE: float = 0.8
+    FACE_MIN_WIDTH_RATIO: float = 0.40
+    FACE_MIN_LUMINANCE: float = 50.0
+
+    # 얼굴 사진 수집 동의 문구의 버전. 문구(개인정보 처리방침)를 바꾸면 함께 올린다.
+    FACE_CONSENT_VERSION: str = "2026-10-20"
 
     # 호출 제한이 쓰는 클라이언트 IP. 프록시·로드밸런서 뒤에 둘 때만 true로 —
     # 그러면 X-Forwarded-For의 첫 주소를 쓴다(core/rate_limit.py).
