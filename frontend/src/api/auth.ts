@@ -62,6 +62,17 @@ export function logout(refreshToken: string): Promise<void> {
   }).then(() => undefined);
 }
 
+/** 회원 탈퇴. 서버가 계정과 딸린 데이터를 즉시 지웁니다(204, 본문 없음). */
+export async function deleteAccount(): Promise<void> {
+  const { getAccessToken } = await import('./tokenStore');
+  const token = getAccessToken();
+  const res = await fetch('/api/v1/me', {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`탈퇴에 실패했어요 (${res.status})`);
+}
+
 export function fetchMe(): Promise<AuthUser> {
   return request<AuthUser>('/api/v1/me');
 }
