@@ -25,7 +25,7 @@ import { captureVideoFrame, fileToScanImage } from '../../utils/scanImage';
  * (scripts/IMAGE_MATCH_SUMMARY.md ③). 그래서 후보를 보여 주고 "찾는 제품이 없어요"를
  * 함께 둔다. 앞면 사진은 텍스트 1위가 6/6이라 첫 후보가 대개 맞다.
  *
- * 인식 키가 없거나(503) 후보가 없으면 **제품명 검색**으로 이어진다. 카메라를 쓸 수
+ * 인식 키가 없거나(503), 하루 호출 한도를 넘었거나(429), 후보가 없으면 **제품명 검색**으로 이어진다. 카메라를 쓸 수
  * 없으면 그 사실을 화면에 적고, 셔터는 사진 고르기로 대신한다.
  *
  * 로그인 전용이다(`/scan`·`/scan/history` 모두 RequireAuth). OCR은 호출 수로 무료 한도·
@@ -96,6 +96,11 @@ export default function ScanPage() {
       }
       if (err instanceof ApiError && err.status === 503) {
         goSearch('지금은 사진으로 찾을 수 없어요. 제품명으로 찾아 주세요');
+        return;
+      }
+      if (err instanceof ApiError && err.status === 429) {
+        // 하루 호출 한도(OCR 무료 한도 보호). 다시 찍어도 소용없으니 검색으로 보낸다.
+        goSearch('오늘 사진으로 찾기 횟수를 모두 썼어요. 제품명으로 찾아 주세요');
         return;
       }
       showNotice('사진을 읽지 못했어요. 제품 앞면이 잘 보이게 다시 찍어 주세요');

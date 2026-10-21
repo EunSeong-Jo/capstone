@@ -81,6 +81,9 @@ class Settings(BaseSettings):
     def REDIS_URL(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
 
+    # 프론트엔드 빌드 결과(dist) 위치. 비어 있으면 정적 서빙을 끈다(개발 환경).
+    STATIC_DIR: str = ""
+
     # CORS
     FRONTEND_URL: str = "http://localhost:3000"
 
@@ -104,6 +107,13 @@ class Settings(BaseSettings):
     # 비어 있으면 스캔 API가 503을 낸다(화면은 제품명 검색으로 안내한다).
     CLOVA_OCR_SECRET: str = ""
     CLOVA_OCR_INVOKE_URL: str = ""
+
+    # 스캔 호출 한도 — CLOVA 무료 한도를 지키려는 장치(services/ocr_quota.py).
+    # 허용 계정(쉼표로 구분한 이메일)은 한도에서 면제, 나머지는 하루(서울 날짜)
+    # 계정당·전체 한도를 둔다. 초과하면 429, 화면이 제품명 검색을 안내한다.
+    OCR_ALLOWED_EMAILS: str = ""
+    OCR_USER_DAILY_LIMIT: int = 3
+    OCR_GLOBAL_DAILY_LIMIT: int = 15
 
     # 호출 제한이 쓰는 클라이언트 IP. 프록시·로드밸런서 뒤에 둘 때만 true로 —
     # 그러면 X-Forwarded-For의 첫 주소를 쓴다(core/rate_limit.py).
