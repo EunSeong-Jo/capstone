@@ -3,17 +3,35 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Button } from '../../components/ui/Button';
+import { deleteAccount } from '../../api/auth';
+import { useAuth } from '../../context/auth';
 
 const NOTICES = [
   '피부타입 진단 결과, 화장품 스캔 기록, 관심 제품이 모두 삭제되며 복구할 수 없어요.',
   '보유 중인 포인트와 쿠폰은 탈퇴 시 소멸돼요.',
-  '진행 중인 주문·배송이 있으면 완료 후 탈퇴할 수 있어요.',
+  '탈퇴하면 계정이 바로 삭제되며, 같은 이메일로 다시 가입할 수 있어요.',
 ];
 
-// TODO: 실제 탈퇴 API 연동 전까지 확인 → 스플래시로 이동만.
 export default function WithdrawPage() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [agree, setAgree] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const withdraw = async () => {
+    setBusy(true);
+    try {
+      await deleteAccount();
+    } catch {
+      setBusy(false);
+      alert('탈퇴에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
+    // 서버에서 계정이 이미 지워졌다. 로컬 세션만 정리한다.
+    logout();
+    alert('탈퇴가 완료되었어요.');
+    navigate('/', { replace: true });
+  };
 
   return (
     <PageWrapper className="bg-white">
@@ -50,14 +68,11 @@ export default function WithdrawPage() {
         <div className="mt-auto space-y-2.5 pt-8 pb-[var(--safe-bottom)]">
           <Button
             variant="next"
-            disabled={!agree}
+            disabled={!agree || busy}
             className="!bg-[#FF5C7A]"
-            onClick={() => {
-              alert('탈퇴가 완료되었어요.');
-              navigate('/');
-            }}
+            onClick={withdraw}
           >
-            탈퇴하기
+            {busy ? '처리 중…' : '탈퇴하기'}
           </Button>
           <Button variant="outline" onClick={() => navigate(-1)}>
             돌아가기
