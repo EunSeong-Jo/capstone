@@ -131,7 +131,10 @@ async function toResult<T>(res: Response): Promise<T> {
  * `send`를 콜백으로 받는 이유: 재시도할 때 헤더를 **새 토큰으로 다시
  * 만들어야** 하기 때문입니다. Request 객체를 재사용하면 옛 토큰이 남습니다.
  */
-async function withAuthRetry<T>(send: () => Promise<Response>): Promise<T> {
+async function withAuthRetry<T>(
+  send: () => Promise<Response>,
+  parse: (res: Response) => Promise<T> = toResult<T>,
+): Promise<T> {
   let res: Response;
   try {
     res = await send();
@@ -153,7 +156,19 @@ async function withAuthRetry<T>(send: () => Promise<Response>): Promise<T> {
     }
   }
 
-  return toResult<T>(res);
+  return parse(res);
+}
+
+/** 이미지 같은 바이너리 응답. `<img src>`는 Authorization 헤더를 못 붙이므로 blob으로 받아 쓴다. */
+export async function requestBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+  const url = `${API_BASE}${path}`;
+  return withAuthRetry<Blob>(
+    () => fetch(url, { signal, headers: authHeaders({ Accept: 'image/*' }) }),
+    async (res) => {
+      if (!res.ok) throw new ApiError(res.status, `이미지를 불러오지 못했어요. (${res.status})`);
+      return res.blob();
+    },
+  );
 }
 
 export async function request<T>(

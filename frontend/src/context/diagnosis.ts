@@ -17,6 +17,10 @@ export interface DiagnosisResult {
   source: 'quiz' | 'persona' | 'preset';
   /** 얼굴 사진 분석이 섞인 진단인가(서버가 확정한 값만 true) */
   photoUsed?: boolean;
+  /** 답한 문항 없이 사진만으로 낸 진단 */
+  photoOnly?: boolean;
+  /** 서버가 센 답한 문항 수 (서버 응답에서 온 결과에만 있다) */
+  answeredCount?: number;
   ts: number;
   /** 게스트 진단이 이 계정으로 승계돼 들어왔는지 */
 }
@@ -45,6 +49,12 @@ export interface DiagnosisContextValue {
     r: Omit<DiagnosisResult, 'ts'>,
     opts?: { analysisId?: string },
   ) => Promise<DiagnosisResult>;
+  /**
+   * 사진 분석 id로 서버에 진단을 맡긴다 — 일부 문항만 답했거나 하나도 답하지 않은 경우.
+   * 로컬 채점으로는 사진을 섞을 수 없어서 서버 결과만 쓴다. **실패하면 reject**한다
+   * (가짜 로컬 결과로 풀지 않는다).
+   */
+  diagnoseWithPhoto: (answers: (number | null)[], analysisId: string) => Promise<DiagnosisResult>;
   clearDiagnosis: () => void;
 }
 

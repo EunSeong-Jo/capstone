@@ -55,6 +55,8 @@ function toResult(dto: DiagnosisDto): DiagnosisResult {
     })),
     source: 'quiz',
     photoUsed: dto.photoUsed,
+    photoOnly: dto.photoOnly,
+    answeredCount: dto.answeredCount,
     ts: new Date(dto.createdAt).getTime(),
   };
 }
@@ -189,6 +191,20 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
     [scope, setResult],
   );
 
+  const diagnoseWithPhoto = useCallback(
+    async (picked: (number | null)[], analysisId: string): Promise<DiagnosisResult> => {
+      const answers: Record<string, number> = {};
+      picked.forEach((choice, i) => {
+        if (choice !== null) answers[`q${i + 1}`] = choice;
+      });
+      const next = toResult(await submitDiagnosis(answers, analysisId));
+      writeJSON(keyOf(scope), next);
+      setResult(next);
+      return next;
+    },
+    [scope, setResult],
+  );
+
   const clearDiagnosis = useCallback(() => {
     setResult(null);
     removeKey(keyOf(scope));
@@ -202,6 +218,7 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       // 비회원은 서버에 물을 것이 없다 — 로컬 값이 곧 답이다.
       loading: authLoading || (status === 'user' && settledScope !== scope),
       saveDiagnosis,
+      diagnoseWithPhoto,
       clearDiagnosis,
     }),
     [
@@ -211,6 +228,7 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       settledScope,
       scope,
       saveDiagnosis,
+      diagnoseWithPhoto,
       clearDiagnosis,
     ],
   );

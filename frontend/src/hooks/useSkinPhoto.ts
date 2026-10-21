@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  AnalysisDto,
   QuotaDto,
   SubscriptionDto,
+  fetchAnalysisHistory,
   fetchQuota,
   fetchSubscription,
 } from '../api/skinPhoto';
@@ -84,8 +86,18 @@ export function useSubscription() {
   return { subscription: value, loading, failed, reload };
 }
 
-/** 구독·동의·분석을 바꾼 뒤 두 값을 한꺼번에 비운다 */
+/** 사진 분석 이력(최신순, 최대 20건). 비회원은 null */
+export function useAnalysisHistory() {
+  const { value, loading, failed, reload } = useServerValue<AnalysisDto[]>(
+    'skin-history',
+    () => fetchAnalysisHistory(20),
+  );
+  return { history: value, loading, failed, reload };
+}
+
+/** 구독·동의·분석을 바꾼 뒤 값들을 한꺼번에 비운다 */
 export function invalidateSkinPhoto(scope: string) {
   invalidate(meKey(scope, 'skin-quota'));
   invalidate(meKey(scope, 'skin-subscription'));
+  invalidate(meKey(scope, 'skin-history'));
 }
