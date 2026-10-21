@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "swappy"
     POSTGRES_USER: str = "swappy"
     POSTGRES_PASSWORD: str = "swappy_dev"
+    # True면 30초마다 SELECT 1을 보내 연결을 데워 둔다(요청 경로의 pre_ping 생략).
+    # Neon은 유휴 5분이면 컴퓨트를 끄는데(scale to zero), 이 핑이 그것을 막아
+    # 서버를 켜 둔 시간만큼 CU-hrs가 쌓인다. 그래서 기본은 False — 끊긴 연결은
+    # pool_pre_ping이 요청 때 걸러 낸다. 상시 운영 서버에서만 True로 켠다.
+    DB_KEEPALIVE: bool = False
 
     @property
     def DATABASE_URL(self) -> str:

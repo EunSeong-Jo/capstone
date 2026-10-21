@@ -41,10 +41,11 @@ engine = create_async_engine(
     connect_args=_connect_args,
     # pre_ping은 체크아웃마다 확인 왕복을 하나 더 태워 매 요청을 늦춘다
     # (실측: 살아있는 연결 재사용 0.2~0.3s인데 pre_ping 체크아웃은 1.2~1.4s).
-    # 대신 pool_recycle로 일정 시간 지난 연결은 확인 없이 선제 폐기하고,
-    # keepalive_loop()가 요청 경로 밖에서 주기적으로 연결을 데워 둔다 —
-    # 이 둘이 같이 있으면 정상 요청이 죽은 연결을 붙잡을 일이 거의 없다.
-    pool_pre_ping=False,
+    # DB_KEEPALIVE=true면 대신 pool_recycle로 오래된 연결을 선제 폐기하고
+    # keepalive_loop()가 요청 경로 밖에서 연결을 데워 둔다. 다만 그 핑 때문에 Neon이
+    # 한 번도 꺼지지 않아 CU-hrs를 계속 쓴다 — 기본(False)은 pre_ping으로 바꿔
+    # 유휴 시 컴퓨트가 꺼지게 하고, 대신 요청이 조금 느려지는 것을 받아들인다.
+    pool_pre_ping=not settings.DB_KEEPALIVE,
     pool_recycle=240,
     pool_size=5,
     max_overflow=5,

@@ -146,7 +146,9 @@ async def startup() -> None:
     global _keepalive_task
     log.info("server_started", env=settings.APP_ENV, version="0.1.0")
     await _check_db()
-    _keepalive_task = asyncio.create_task(keepalive_loop())
+    # 기본은 끈다 — 30초 핑이 Neon의 scale-to-zero를 막아 CU-hrs를 소모한다(config.DB_KEEPALIVE).
+    if settings.DB_KEEPALIVE:
+        _keepalive_task = asyncio.create_task(keepalive_loop())
 
 
 @app.on_event("shutdown")

@@ -197,7 +197,9 @@ c3d9a1e7b2f4  skin_photo_tables               얼굴 사진 분석 (동의·구�
 
 ## Neon을 쓰면서 알아야 할 것
 
-**`pool_pre_ping=True`가 필수입니다.** Neon은 유휴 시 컴퓨트를 자동 절전시켜, 끊긴 커넥션을 재사용하면 실패합니다. `app/db/session.py`에 설정돼 있습니다.
+**`pool_pre_ping=True`가 필수입니다.** Neon은 유휴 시 컴퓨트를 자동 절전시켜, 끊긴 커넥션을 재사용하면 실패합니다. `app/db/session.py`에 설정돼 있습니다(`DB_KEEPALIVE=false`가 기본이라 항상 켜집니다).
+
+**연결 유지 핑(`DB_KEEPALIVE`)은 기본으로 꺼 둡니다.** 켜면 30초마다 `SELECT 1`을 보내 Neon이 유휴 5분 후 꺼지지 못하고, 서버를 켜 둔 시간 내내 컴퓨트 시간(CU-hrs)이 쌓입니다. 무료 플랜 한도(월 약 100 CU-hrs)를 몇 주 만에 채운 적이 있습니다. 상시 운영 서버에서만 `DB_KEEPALIVE=true`로 켜세요.
 
 **DB URL이 두 갈래인 이유** — Neon이 주는 DSN은 `?sslmode=require&channel_binding=require`로 끝나는데 이건 libpq 파라미터입니다.
 
@@ -211,6 +213,39 @@ asyncpg에 libpq 파라미터를 그대로 넘기면 연결이 실패하고, psy
 **`CREATE EXTENSION`은 마이그레이션이 책임집니다.** Neon에는 `docker-entrypoint-initdb.d` 훅이 없어 `scripts/init_db.sh`가 실행되지 않습니다. `pg_trgm` 설치가 첫 마이그레이션에 들어 있는 이유입니다.
 
 **`alembic.ini`의 `sqlalchemy.url`은 비워 둡니다.** DSN이 커밋되지 않도록 `env.py`가 `settings.DATABASE_URL_SYNC`를 주입합니다.
+
+---
+
+## 로컬 DB로 개발하기 (Neon CU-hrs를 쓰지 않기)
+
+Neon 컴퓨트 시간은 팀 전체가 나눠 씁니다. 개발 중에는 로컬 Postgres에 Neon 데이터를 복원해 쓰면 Neon에 접속하지 않습니다.
+
+```bash
+# 1) Neon 덤프 (읽기만 함). 값은 .env에서 한 줄만 읽고 화면에 출력하지 않습니다.
+#    연결이 중간에 끊기면 같은 명령을 다시 실행하세요. 큰 테이블은 -t 로 나눠 받으면 안정적입니다.
+mkdir -p ~/neon_backup
+docker run --rm -e DSN="$(grep '^DATABASE_DSN=' .env | tail -1 | cut -d= -f2-)" \
+  -v ~/neon_backup:/out postgres:16-alpine \
+  pg_dump "$DSN" -Fc --no-owner --no-privileges -f /out/swappy.dump
+
+# 2) 로컬 DB 기동 (프로파일 local-db)
+docker compose --profile local-db up -d postgres
+
+# 3) 복원 (스키마 + 데이터)
+docker run --rm --network capstone_swappy_net -v ~/neon_backup:/out -e PGPASSWORD=swappy_dev \
+  postgres:16-alpine pg_restore -h postgres -U swappy -d swappy --no-owner --no-privileges /out/swappy.dump
+
+# 4) 백엔드를 로컬 DB로 실행 (docker-compose.local.yml 이 DATABASE_DSN 만 덮어씀)
+docker compose -f docker-compose.yml -f docker-compose.local.yml --profile local-db up -d
+docker exec swappy_backend printenv DATABASE_DSN   # postgres:5432 가 나오면 로컬
+```
+
+- `.env`를 `source` 하지 마세요. DB 비밀번호가 출력에 남습니다.
+- 덤프 파일에는 이메일·비밀번호 해시가 있습니다. 저장소 밖에 두고 커밋·공유하지 마세요.
+- 로컬 DB는 덤프 시점의 스냅샷입니다. Neon에 마이그레이션이 올라가면 로컬에서도 `alembic upgrade head`가 필요합니다.
+- 내릴 때는 같은 `-f` 조합으로 `down` 하세요. `down -v`는 복원한 데이터(`postgres_data` 볼륨)를 지웁니다.
+- 그냥 `docker compose up`은 `.env`의 Neon으로 붙습니다.
+- 덤프가 한 번에 안 되는 회선(WSL2 등)에서는 `pg_dump -s`로 스키마를, `-a -t public.<테이블>`로 테이블별 데이터를 따로 받아 같은 방식으로 복원하면 됩니다.
 
 ---
 
