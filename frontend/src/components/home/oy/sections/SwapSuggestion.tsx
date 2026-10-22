@@ -18,13 +18,32 @@ import { SkinType } from '../../../../types';
  * 로딩 / 후보 없음 / 오류)을 같은 자리에서 그리는 일만 한다.
  */
 
-function SectionFrame({ children, count }: { children: React.ReactNode; count?: number }) {
+function SectionFrame({
+  children,
+  count,
+  more,
+}: {
+  children: React.ReactNode;
+  count?: number;
+  /** 더 저렴한 대체품 전체 보기. 홈에 따로 구역을 두지 않고 여기서 연결한다. */
+  more?: { label: string; onClick: () => void };
+}) {
   return (
     <section className="px-4 py-4">
       <div className="flex items-baseline justify-between">
         <h2 className="text-[15px] font-extrabold text-oy-text">오늘의 교체 제안</h2>
-        {count !== undefined && (
-          <span className="text-[11px] text-oy-sub">성분 유사도 기준 · {count}건</span>
+        {more ? (
+          <button
+            type="button"
+            onClick={more.onClick}
+            className="text-[12px] font-bold text-primary active:opacity-60"
+          >
+            {more.label} ›
+          </button>
+        ) : (
+          count !== undefined && (
+            <span className="text-[11px] text-oy-sub">성분 유사도 기준 · {count}건</span>
+          )
         )}
       </div>
       <div className="mt-3 rounded-2xl border border-oy-line bg-white p-4">{children}</div>
@@ -84,7 +103,7 @@ export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
   const { items, loading: closetLoading } = useCloset();
   const { addToCart } = useCart();
   const { showToast } = useToast();
-  const { suggestion, outcome, variantHint, loading, error, reload } = useSwapSuggestion(
+  const { suggestion, candidates, outcome, variantHint, loading, error, reload } = useSwapSuggestion(
     items,
     skinType,
   );
@@ -252,7 +271,17 @@ export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
   };
 
   return (
-    <SectionFrame count={1}>
+    <SectionFrame
+      count={1}
+      more={
+        candidates.length > 1
+          ? {
+              label: `더 저렴한 대체품 ${candidates.length}건`,
+              onClick: () => navigate('/home/cheaper-alternatives'),
+            }
+          : undefined
+      }
+    >
       <div className="flex items-start gap-2">
         <SwapProduct
           imageUrl={seed.imageUrl}

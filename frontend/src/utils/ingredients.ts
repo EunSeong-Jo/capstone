@@ -76,7 +76,20 @@ export function groupIngredients(ingredients: ProductIngredient[]): IngredientGr
     const piece = (name: string): ProductIngredient =>
       label === null
         ? { ...ing, name }
-        : { ...ing, name, description: null, keywords: [], descriptionSource: null };
+        : {
+            ...ing,
+            name,
+            description: null,
+            keywords: [],
+            descriptionSource: null,
+            // 분류도 원본 항목의 것이다 — 조각이 그 성분이 아니므로 물려받지 않는다
+            grade: null,
+            isAllergen: false,
+            functions: [],
+            role: null,
+            flags: [],
+            confidence: null,
+          };
 
     // 라벨 앞에 붙어 있던 성분은 아직 직전 묶음 소속이다.
     if (before) tail().items.push(piece(before));
@@ -96,4 +109,43 @@ export function groupIngredients(ingredients: ProductIngredient[]): IngredientGr
 /** 라벨을 제외한 실제 성분 개수. 화면에 "전성분 N개"로 표시합니다. */
 export function countIngredients(groups: IngredientGroup[]): number {
   return groups.reduce((sum, g) => sum + g.items.length, 0);
+}
+
+
+const FUNC_LABEL: Record<string, string> = {
+  H: '보습', B: '장벽', S: '진정', W: '미백', A: '주름·탄력', O: '항산화', P: '피지·모공', E: '각질', U: '자외선차단',
+};
+const FLAG_LABEL: Record<string, string> = {
+  F: '향료 성분',
+  L: '건조를 부르는 알코올',
+  I: '자극이 될 수 있는 성분',
+};
+
+/** 기능 코드 → 한글 이름들 ('HS' → ['보습','진정']) */
+export function functionNames(ing: ProductIngredient): string[] {
+  return (ing.functions ?? []).map((f) => FUNC_LABEL[f]).filter(Boolean);
+}
+
+/**
+ * 이 성분이 왜 그렇게 분류됐는지 한 줄씩. 칩 툴팁과 성분 시트가 같이 쓴다.
+ *
+ * 추천·주의가 모두 서버(`classify_ingredient`)의 판정이고, 여기서는 그 근거를 말로 옮길 뿐이다.
+ * 확신도가 낮은 라벨은 "참고용"이라고 밝힌다 — 분류가 AI의 추정이기 때문이다.
+ */
+export function ingredientNotes(ing: ProductIngredient, skinTypeLabel?: string | null): string[] {
+  const notes: string[] = [];
+  const funcs = functionNames(ing);
+  if (ing.isAllergen) notes.push('식약처 지정 알레르기 유발 착향제');
+  for (const f of ing.flags ?? []) {
+    if (f === 'F' && ing.isAllergen) continue;
+    if (FLAG_LABEL[f]) notes.push(FLAG_LABEL[f]);
+  }
+  if (ing.grade === 'key') {
+    notes.push(`${skinTypeLabel ?? '내 피부타입'}에 추천${funcs.length ? ` · ${funcs.join('·')}` : ''}`);
+  } else if (funcs.length > 0 && ing.role && 'ae'.includes(ing.role)) {
+    notes.push(funcs.join('·'));
+  }
+  if (ing.grade === null || ing.grade === undefined) notes.push('분류 미정');
+  if (ing.confidence != null && ing.confidence <= 2 && ing.grade != null) notes.push('분류는 참고용이에요');
+  return notes;
 }

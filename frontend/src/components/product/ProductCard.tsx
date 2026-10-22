@@ -4,6 +4,7 @@ import { useToast } from '../../context/toast';
 import { useLikedProducts } from '../../context/liked';
 import { formatUnitPrice } from '../../utils/unitPrice';
 import { HeartIcon } from '../ui/OutlineIcons';
+import { FitBadge } from './FitBadge';
 
 const CARD_BG = [
   'from-green-50 to-emerald-100',
@@ -47,6 +48,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         ) : (
           <span className="text-4xl opacity-40">🧴</span>
         )}
+
+        <FitBadge productId={product.id} className="absolute top-2 right-2 shadow-sm" />
 
         {/* 배지 */}
         {product.isBest && (

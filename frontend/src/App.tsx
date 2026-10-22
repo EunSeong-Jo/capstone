@@ -11,6 +11,7 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword'));
 const HomePage       = lazy(() => import('./pages/Home'));
 const CheaperAlternativesPage = lazy(() => import('./pages/Home/CheaperAlternativesPage'));
 const ClosetPage     = lazy(() => import('./pages/Closet'));
+const AnalysisPage   = lazy(() => import('./pages/Closet/AnalysisPage'));
 const ScanHistoryPage = lazy(() => import('./pages/Scan/ScanHistoryPage'));
 const CancelReturnPage = lazy(() => import('./pages/Mypage/CancelReturnPage'));
 const DecoratePage   = lazy(() => import('./pages/Closet/DecoratePage'));
@@ -76,6 +77,7 @@ export default function App() {
           <Route path="/home"       element={<HomePage />} />
           <Route path="/home/cheaper-alternatives" element={<CheaperAlternativesPage />} />
           <Route path="/closet"     element={<ClosetPage />} />
+          <Route path="/closet/:id/analysis" element={<AnalysisPage />} />
           <Route path="/closet/decorate" element={mine(<DecoratePage />)} />
           <Route path="/detail/:id" element={<DetailPage />} />
           <Route path="/alternatives" element={<AlternativesPage />} />

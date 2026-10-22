@@ -1,15 +1,18 @@
 import { useEffect } from 'react';
 import type { ProductIngredient } from '../../api/products';
+import { ingredientNotes } from '../../utils/ingredients';
 
 interface IngredientSheetProps {
   ingredient: ProductIngredient | null;
   onClose: () => void;
+  /** 내 피부타입 이름(진단 후). 추천 성분 문구에 쓴다 */
+  skinTypeLabel?: string | null;
 }
 
-/** 등급 뜻. 칩의 title 툴팁에만 있던 설명을 모바일에서도 보이게 옮겼습니다. */
+/** 분류 이름. 칩의 title 툴팁에만 있던 설명을 모바일에서도 보이게 옮겼습니다. */
 const GRADE_LABEL: Record<string, string> = {
-  key: '피부타입 추천 성분',
-  warn: '기피 성분 (착향제·향료·건조 유발 알코올)',
+  key: '추천 성분',
+  warn: '주의 성분',
   normal: '일반 성분',
 };
 
@@ -19,7 +22,7 @@ const GRADE_LABEL: Record<string, string> = {
  * 설명은 상세 응답에 이미 실려 오므로 여기서 요청을 보내지 않습니다.
  * 구조(z-index·스크롤 잠금·Esc)는 RecommendSetSheet를 따릅니다.
  */
-export function IngredientSheet({ ingredient, onClose }: IngredientSheetProps) {
+export function IngredientSheet({ ingredient, onClose, skinTypeLabel }: IngredientSheetProps) {
   const open = ingredient !== null;
 
   // 열려 있는 동안 뒤 배경이 따라 스크롤되지 않게 막는다.
@@ -41,8 +44,8 @@ export function IngredientSheet({ ingredient, onClose }: IngredientSheetProps) {
 
   if (!ingredient) return null;
 
-  const { name, nameEn, description, keywords, descriptionSource, grade, isAllergen } =
-    ingredient;
+  const { name, nameEn, description, keywords, descriptionSource, grade } = ingredient;
+  const notes = ingredientNotes(ingredient, skinTypeLabel);
 
   return (
     <>
@@ -74,8 +77,10 @@ export function IngredientSheet({ ingredient, onClose }: IngredientSheetProps) {
         </p>
 
         <ul className="mt-4 flex flex-col gap-1 border-t border-oy-line pt-3 text-[12px] text-oy-sub">
-          <li>{grade ? GRADE_LABEL[grade] : '분류 미정'}</li>
-          {isAllergen && <li>⚠ 식약처 표시 의무 알레르기 유발 착향제</li>}
+          {grade && <li className="font-bold text-oy-text">{GRADE_LABEL[grade]}</li>}
+          {notes.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
         </ul>
 
         {descriptionSource === 'llm' && (

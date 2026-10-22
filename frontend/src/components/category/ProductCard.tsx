@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { PriceTag } from './PriceTag';
 import { ActionIcons } from './ActionIcons';
 import type { CategoryProduct } from './types';
+import { FitBadge } from '../product/FitBadge';
 
 interface ProductCardProps {
   product: CategoryProduct;
@@ -18,10 +19,11 @@ export function ProductCard({ product, onToggleFavorite, onAddToCart }: ProductC
       className="flex flex-col h-full cursor-pointer active:opacity-80 transition-opacity"
       onClick={() => navigate(`/detail/${product.id}`)}
     >
-      <div className="aspect-square w-full rounded-md bg-gray-10 overflow-hidden">
+      <div className="relative aspect-square w-full rounded-md bg-gray-10 overflow-hidden">
         {product.imageUrl && (
           <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover" />
         )}
+        <FitBadge productId={product.id} className="absolute top-1.5 right-1.5 shadow-sm" />
       </div>
 
       <p className="mt-3 text-sm text-gray-100 leading-snug line-clamp-3">{product.title}</p>

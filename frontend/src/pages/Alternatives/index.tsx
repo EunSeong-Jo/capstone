@@ -10,17 +10,16 @@ import { ClosetSeedPicker } from '../../components/alternatives/ClosetSeedPicker
 import { useProduct } from '../../hooks/useProduct';
 import { useProducts } from '../../hooks/useProducts';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
+import { useSkinType } from '../../hooks/useSkinType';
 import type { Product } from '../../types';
 
 type SortKey = 'similarity' | 'price' | 'skin';
 
-const SORTS: { key: SortKey; label: string; disabled?: boolean }[] = [
+const SORTS: { key: SortKey; label: string }[] = [
   { key: 'similarity', label: '유사도순' },
   { key: 'price', label: '가격 낮은순' },
-  // 피부 궁합은 서버가 skinMatch를 주지 않아 판단 근거가 없다. 칩을 지우지 않고
-  // 비활성으로 두는 이유는, Task 13·14에서 profiles·skin_type_rules가 채워지면
-  // 이 한 줄만 지우면 아래 정렬 분기가 그대로 살아나기 때문이다.
-  { key: 'skin', label: '내 피부 궁합', disabled: true },
+  // 피부 궁합은 진단 결과(피부타입)가 있을 때만 의미가 있다 — 없으면 칩이 보이지 않는다.
+  { key: 'skin', label: '내 피부 궁합' },
 ];
 
 /** 결과 목록 자리를 채우는 로딩 자리표시자. 카드 높이에 맞춘다. */
@@ -130,7 +129,7 @@ export default function AlternativesPage() {
   const hasSeedParam = rawSeed !== null;
 
   // 방식 비교는 개발용이라 UI로 내지 않는다. 방식마다 점수 척도가 달라
-  // ("유사도 61%"가 tfidf와 rbo에서 다른 의미다) 칩으로 노출하면 오해를 부른다.
+  // ("유사도 61%"가 tfidf와 hybrid에서 다른 의미다) 칩으로 노출하면 오해를 부른다.
   // URL로만 바꿀 수 있게 두면 UI 비용 없이 시연·QA에서 비교할 수 있다.
   const method = toSimilarMethod(params.get('method'));
 
@@ -138,9 +137,11 @@ export default function AlternativesPage() {
   const closetMatch = closetItems.find((c) => c.id === seedId);
 
   const seedProduct = useProduct(seedId);
+  const { skinType } = useSkinType();
   const similar = useSimilarProducts(seedId, {
     limit: 20,
     method,
+    fitFor: skinType ?? undefined,
     seedProduct: seedProduct.product,
   });
 
@@ -168,9 +169,11 @@ export default function AlternativesPage() {
     // 20개 후보 안에서의 최저가다. 카탈로그 전체의 최저가가 아니다.
     if (sort === 'price') arr.sort((a, b) => a.price - b.price);
     if (sort === 'skin') {
-      const ok = (v?: { verdict: string }) => (v?.verdict === 'good' ? 1 : 0);
+      // 잘 맞음 > 무난 > 판정 없음 > 주의. 같은 등급 안에서는 유사도순.
+      const rank = (v?: { verdict: string }) =>
+        v?.verdict === 'good' ? 3 : v?.verdict === 'ok' ? 2 : v?.verdict === 'caution' ? 0 : 1;
       arr.sort(
-        (a, b) => ok(b.skinMatch) - ok(a.skinMatch) || b.similarityScore - a.similarityScore,
+        (a, b) => rank(b.skinMatch) - rank(a.skinMatch) || b.similarityScore - a.similarityScore,
       );
     }
     return arr;
@@ -252,25 +255,19 @@ export default function AlternativesPage() {
       {/* 정렬 칩 — 폴백은 유사도가 없어 정렬이 의미 없다 */}
       {!useFallback && (
         <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
-          {SORTS.map((s) => {
+          {SORTS.filter((s) => s.key !== 'skin' || skinType).map((s) => {
             const on = s.key === sort;
             return (
               <button
                 key={s.key}
-                onClick={() => !s.disabled && setSort(s.key)}
-                disabled={s.disabled}
-                aria-disabled={s.disabled}
-                title={s.disabled ? '준비 중이에요' : undefined}
+                onClick={() => setSort(s.key)}
                 className={`shrink-0 px-3 h-8 rounded-full text-sm font-medium border transition-colors ${
-                  s.disabled
-                    ? 'bg-gray-5 text-gray-40 border-gray-20 cursor-not-allowed'
-                    : on
-                      ? 'bg-gray-100 text-white border-gray-100'
-                      : 'bg-white text-gray-70 border-gray-20'
+                  on
+                    ? 'bg-gray-100 text-white border-gray-100'
+                    : 'bg-white text-gray-70 border-gray-20'
                 }`}
               >
                 {s.label}
-                {s.disabled && <span className="ml-1 text-[10px]">준비 중</span>}
               </button>
             );
           })}
