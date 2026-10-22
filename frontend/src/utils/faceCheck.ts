@@ -20,7 +20,9 @@ export type FaceIssue =
   | 'multiple_faces'
   | 'face_too_small'
   | 'face_out_of_frame'
-  | 'too_dark';
+  | 'too_dark'
+  // 촬영 화면(`checkLiveFace`)에서만 나온다. 서버 규칙에는 없다.
+  | 'face_too_big';
 
 export const FACE_HINTS: Record<FaceIssue, string> = {
   no_face: '얼굴이 보이지 않아요. 정면을 바라봐 주세요.',
@@ -28,6 +30,7 @@ export const FACE_HINTS: Record<FaceIssue, string> = {
   face_too_small: '조금 더 가까이 와 주세요.',
   face_out_of_frame: '얼굴 전체가 보이게 가운데로 맞춰 주세요.',
   too_dark: '너무 어두워요. 밝은 곳으로 가 주세요.',
+  face_too_big: '너무 가까워요. 조금 뒤로 물러나 주세요.',
 };
 
 export interface FaceCheck {
@@ -45,7 +48,7 @@ const SECOND_FACE_RATIO = 0.5;
 const OUT_OF_FRAME_TOLERANCE = 0.05;
 const MIN_SCORE = 0.6;
 
-type Source = HTMLVideoElement | HTMLImageElement | ImageBitmap;
+type Source = HTMLVideoElement | HTMLImageElement | ImageBitmap | HTMLCanvasElement;
 
 let detectorPromise: Promise<FaceDetector | null> | null = null;
 
@@ -94,6 +97,41 @@ function luminanceOf(source: Source, box: { x: number; y: number; w: number; h: 
   }
 }
 
+/** 화면의 얼굴 틀(타원). 좌표는 검사 이미지(= 화면에 보이는 영상)에 대한 0~1 비율 */
+export interface FaceGuide {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+}
+
+/**
+ * 얼굴 틀 맞춤의 여유. 검출 상자는 눈썹~턱·귀 사이를 **직사각형**으로 잡아서, 틀(타원)에 얼굴을
+ * 꼭 맞춰도 상자 모서리는 타원 밖으로 나온다. 그래서 모서리가 타원 안인지가 아니라 상자의
+ * **중심과 크기**를 틀과 견준다: 중심이 틀 중심에서 `CENTER_TOLERANCE` 안, 폭·높이가 틀의 `SIZE_SLACK`배 이하.
+ * 기준은 업체가 정상 처리한 시험 사진(상자 폭 58.8%·높이 62.1%, 중심 0.50·0.53)이 통과하도록 잡았다.
+ */
+const CENTER_TOLERANCE = 0.12;
+const SIZE_SLACK = 1.1;
+/**
+ * 촬영 화면에서 얼굴이 이미지 폭에서 차지해야 하는 비율 — **서버의 사전 검증과 같은 방식**으로 잰다:
+ * 두 눈 사이 거리 ÷ 0.45(귀~귀 폭에 대한 비율)로 어림한 얼굴 폭. 검출 상자 폭은 모델마다 다르게
+ * 잡혀서(화면은 MediaPipe, 서버는 YuNet) 화면에서는 통과한 사진이 서버에서 걸리는 원인이 됐다.
+ * 눈 사이 거리는 두 모델에서 비슷하게 나오는 값이다.
+ *
+ * 서버 하한은 60%(업체 요구)다. 얼굴이 크게 찍힐수록 피부 결이 더 많은 픽셀로 잡히니 화면은
+ * **하한을 더 높게(64%)** 잡아, 화면에서 통과한 사진이 서버 기준에 여유 있게 들어가게 한다.
+ * 상한 85%는 더 가까우면 얼굴이 잘려 업체가 거절하기 때문이다.
+ */
+const GUIDE_MIN_FACE_WIDTH = 0.64;
+const GUIDE_MAX_FACE_WIDTH = 0.85;
+/** 귀~귀 얼굴 폭에 대한 두 눈 사이 거리의 비율 — 서버(`face_gate.IPD_PER_FACE_WIDTH`)와 같다 */
+const IPD_PER_FACE_WIDTH = 0.45;
+/** 눈 위치가 없을 때 상자 폭 → 얼굴 폭 어림 배율(시험 사진: 어림 64.2% ÷ 상자 58.8%) */
+const BOX_TO_FACE_WIDTH = 1.09;
+/** 눈·코·입 같은 얼굴 특징점이 이미지 가장자리에서 떨어져 있어야 하는 비율 */
+const KEYPOINT_MARGIN = 0.02;
+
 const fail = (issue: FaceIssue): FaceCheck => ({ ok: false, issue, hint: FACE_HINTS[issue] });
 
 /**
@@ -113,15 +151,22 @@ export async function checkFace(source: Source): Promise<FaceCheck | null> {
     return null;
   }
 
-  const faces = detections
+  const found = detections
     .filter((d) => d.boundingBox && (d.categories[0]?.score ?? 0) >= MIN_SCORE)
-    .map((d) => d.boundingBox!)
-    .sort((a, b) => b.width - a.width);
-  if (faces.length === 0) return fail('no_face');
+    .map((d) => ({ box: d.boundingBox!, keypoints: d.keypoints ?? [] }))
+    .sort((a, b) => b.box.width - a.box.width);
+  if (found.length === 0) return fail('no_face');
 
-  const main = faces[0];
-  if (faces.length > 1 && faces[1].width >= main.width * SECOND_FACE_RATIO) {
+  const main = found[0].box;
+  if (found.length > 1 && found[1].box.width >= main.width * SECOND_FACE_RATIO) {
     return fail('multiple_faces');
+  }
+
+  // 얼굴이 화면 밖으로 반쯤 나가도 검출 상자는 화면 안으로 잘려 나온다 — 상자만 보면 "안에 있다"로
+  // 읽힌다. 눈·코·입·귀 특징점은 잘린 쪽이 가장자리에 붙거나 어긋나므로 이것도 본다.
+  const m = KEYPOINT_MARGIN;
+  if (found[0].keypoints.some((k) => k.x < m || k.x > 1 - m || k.y < m || k.y > 1 - m)) {
+    return fail('face_out_of_frame');
   }
 
   const x = main.originX / w;
@@ -142,3 +187,67 @@ export async function checkFace(source: Source): Promise<FaceCheck | null> {
 
   return { ok: true };
 }
+
+
+/**
+ * 촬영 화면의 실시간 검사 — **얼굴이 틀에 맞는지만** 본다(위치·크기).
+ *
+ * 움직이는 동안에는 가볍게, 정면·가림·조명·초점 같은 정밀한 평가는 **촬영한 사진에** 한다(서버의 사전
+ * 검증과 촬영 직후 가림 검사). 영상 프레임마다 무거운 모델을 돌리면 화면이 느려지고, 움직이는 얼굴은
+ * 흔들려서 판정도 불안정하다.
+ *
+ * `ok`는 위치·크기를 모두 통과했을 때만 true다(초록불).
+ */
+export async function checkLiveFace(source: Source, guide: FaceGuide): Promise<FaceCheck | null> {
+  const detector = await loadFaceDetector();
+  if (!detector) return null;
+  const { w, h } = sizeOf(source);
+  if (!w || !h) return null;
+
+  let detections;
+  try {
+    detections = detector.detect(source).detections;
+  } catch {
+    return null;
+  }
+  const found = detections
+    .filter((d) => d.boundingBox && (d.categories[0]?.score ?? 0) >= MIN_SCORE)
+    .map((d) => ({ box: d.boundingBox!, keypoints: d.keypoints ?? [] }))
+    .sort((a, b) => b.box.width - a.box.width);
+
+  if (found.length === 0) return fail('no_face');
+  const main = found[0].box;
+  if (found.length > 1 && found[1].box.width >= main.width * SECOND_FACE_RATIO) {
+    return fail('multiple_faces');
+  }
+
+  const kp = found[0].keypoints; // 순서: 오른쪽 눈, 왼쪽 눈, 코끝, 입 가운데, 오른쪽 귀, 왼쪽 귀
+  const x = main.originX / w;
+  const y = main.originY / h;
+  const fw = main.width / w;
+  const fh = main.height / h;
+
+  // 위치: 특징점이 가장자리에 붙지 않고(잘리지 않음), 얼굴 상자의 중심이 틀 중심 근처다.
+  const m = KEYPOINT_MARGIN;
+  const cut = kp.some((k) => k.x < m || k.x > 1 - m || k.y < m || k.y > 1 - m);
+  const centered =
+    Math.abs(x + fw / 2 - guide.cx) <= CENTER_TOLERANCE && Math.abs(y + fh / 2 - guide.cy) <= CENTER_TOLERANCE;
+  if (cut || !centered) return fail('face_out_of_frame');
+
+  // 얼굴 폭: 서버와 같은 방식(두 눈 사이 거리 ÷ 0.45). 눈 위치가 없으면 상자 폭으로 어림한다.
+  let faceWidth = fw * BOX_TO_FACE_WIDTH;
+  if (kp.length >= 2) {
+    const ipd = Math.hypot((kp[1].x - kp[0].x) * w, (kp[1].y - kp[0].y) * h) / w;
+    if (ipd > 0) faceWidth = ipd / IPD_PER_FACE_WIDTH;
+  }
+  // 너무 가까움: 폭이 상한을 넘거나 상자가 틀보다 크다(틀에 얼굴이 다 들어오지 않는다)
+  if (faceWidth > GUIDE_MAX_FACE_WIDTH || fw > guide.rx * 2 * SIZE_SLACK || fh > guide.ry * 2 * SIZE_SLACK) {
+    return fail('face_too_big');
+  }
+  if (faceWidth < GUIDE_MIN_FACE_WIDTH) return fail('face_too_small');
+
+  return { ok: true };
+}
+
+/** 촬영 화면에 들어올 때 얼굴 검출 모델을 미리 읽어 둔다 */
+export const preloadLiveModels = () => loadFaceDetector();

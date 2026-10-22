@@ -101,3 +101,31 @@ export const fetchAnalysisHistory = (limit = 20) =>
 /** 분석 이미지(PNG) — 본인 것만 받을 수 있다. 호출한 쪽이 `URL.createObjectURL`로 쓰고 해제한다 */
 export const fetchAnalysisImage = (analysisId: string, key: string, signal?: AbortSignal) =>
   requestBlob(`/api/v1/skin-analysis/${analysisId}/images/${key}`, signal);
+
+/** 사전 검증 체크리스트 한 칸. ok가 null이면 판단하지 못했다(앞 단계가 막혔거나 근거가 없다) */
+export interface PhotoCheckItemDto {
+  key: string;
+  label: string;
+  ok: boolean | null;
+  /** 걸렸을 때 보일 한 문장 */
+  message: string | null;
+}
+
+export interface PhotoCheckDto {
+  ok: boolean;
+  /** 통과하지 못한 이유 코드(없으면 null) */
+  code: string | null;
+  /** 사용자에게 보일 한 문장(통과하면 null) */
+  message: string | null;
+  /** 판정에 쓴 측정값(얼굴 폭 어림·기울기·밝기·선명도 등). 왜 걸렸는지 볼 때 쓴다 */
+  metrics: Record<string, number> | null;
+  /** 항목별 결과 — 어디가 걸렸는지 한꺼번에 보여 줄 때 쓴다 */
+  items: PhotoCheckItemDto[] | null;
+}
+
+/**
+ * 촬영한 사진이 분석에 맞는지 **미리** 확인한다 — 분석 때 서버가 쓰는 것과 같은 검증이다.
+ * 업체를 부르지 않고 분석 한도도 쓰지 않는다. 얼굴 사진 수집에 동의한 사람만 쓸 수 있다.
+ */
+export const checkPhoto = (image: string) =>
+  postJson<PhotoCheckDto>('/api/v1/skin-analysis/check', { image });

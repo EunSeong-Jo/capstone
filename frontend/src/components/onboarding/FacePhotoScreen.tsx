@@ -1,12 +1,19 @@
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AnalysisDto, analyzeFace, fetchQuota, setConsent } from '../../api/skinPhoto';
+import { AnalysisDto, analyzeFace, checkPhoto, fetchQuota, setConsent } from '../../api/skinPhoto';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../context/auth';
-import { useCamera } from '../../hooks/useCamera';
+import { useCamera, type CameraFailure } from '../../hooks/useCamera';
 import { invalidateSkinPhoto, useQuota } from '../../hooks/useSkinPhoto';
-import { captureFaceFrame, fileToFaceImage, loadImage } from '../../utils/scanImage';
-import { FACE_HINTS, FaceCheck, checkFace, loadFaceDetector } from '../../utils/faceCheck';
+import { captureFaceFrame, captureVisibleCanvas, fileToFaceImage, loadImage } from '../../utils/scanImage';
+import {
+  FACE_HINTS,
+  FaceCheck,
+  checkFace,
+  checkLiveFace,
+  preloadLiveModels,
+  type FaceGuide,
+} from '../../utils/faceCheck';
 import {
   FACE_CONSENT_BENEFIT,
   FACE_CONSENT_SUMMARY,
@@ -52,6 +59,24 @@ interface FacePhotoScreenProps {
 
 type View = 'intro' | 'capture' | 'preview' | 'analyzing' | 'result';
 
+/**
+ * 촬영 직후 서버의 사전 검증 결과. `unknown`은 검증을 못 한 경우(네트워크·서버 오류)라 막지 않고
+ * 화면의 간단 검사로 대신한다.
+ */
+type Verdict =
+  | { status: 'checking' }
+  | { status: 'ok'; items: ChecklistItem[] }
+  | { status: 'fail'; message: string; items: ChecklistItem[] }
+  | { status: 'unknown' };
+
+/** 촬영 직후 체크리스트 한 칸. ok가 null이면 판단하지 못했다 */
+interface ChecklistItem {
+  key: string;
+  label: string;
+  ok: boolean | null;
+  message: string | null;
+}
+
 interface Shot {
   image: string;
   from: 'camera' | 'gallery';
@@ -60,6 +85,38 @@ interface Shot {
 }
 
 const LIVE_CHECK_MS = 500;
+/** 실시간 검사에 쓰는 이미지의 장변. 작게 줄여 검사 비용을 낮춘다 */
+const LIVE_CHECK_SIDE = 640;
+/**
+ * 얼굴 틀(타원)의 폭·높이 — 영상 상자(3:4)에 대한 비율. 상자가 3:4라 폭과 높이 비율이 같다.
+ * **틀에 얼굴을 맞추면 위치·크기 조건이 충족되도록** 정했다: 얼굴(귀~귀)을 틀 폭에 맞추면 검출 상자
+ * 폭이 약 65~78%가 되어 크기 기준(65~80%)을 만족하고, 상자 중심이 틀 중심 근처에 온다.
+ */
+const GUIDE_SIZE = 0.84;
+const LIVE_GUIDE: FaceGuide = { cx: 0.5, cy: 0.5, rx: GUIDE_SIZE / 2, ry: GUIDE_SIZE / 2 };
+
+
+/** 촬영 전에 보여 주는 가이드 — 분석 업체의 요구(정면·조명·가림 없음)와 촬영 화면의 초록불 조건을 풀어 쓴 것 */
+const SHOOTING_GUIDE: { title: string; body: string }[] = [
+  { title: '얼굴 틀에 맞추기', body: '타원 안에 이마부터 턱까지 얼굴이 모두 들어오고, 틀을 크게 채우면 위치·크기가 ✓로 바뀌어요. 가까이 찍을수록 분석이 정확해요. 얼굴 폭이 화면의 65~80%일 때 가장 좋아요.' },
+  { title: '정면 보기', body: '카메라를 똑바로 보고 고개를 기울이거나 돌리거나 들지 마세요.' },
+  { title: '표정', body: '입을 다물고 눈을 뜬 채, 편안한 무표정으로 찍어요.' },
+  { title: '밝고 고른 조명', body: '얼굴에 그림자가 지지 않는 밝은 곳에서, 한쪽만 밝거나 빛이 번쩍이지 않게 찍어요. 역광은 피해 주세요.' },
+  { title: '초점', body: '카메라가 얼굴에 초점을 맞출 때까지 잠시 가만히 있어요. 흔들리면 흐려져요.' },
+  { title: '민낯 + 얼굴 가리지 않기', body: '화장은 지우는 게 더 정확해요. 앞머리·마스크·모자·손으로 가리지 않고, 안경은 벗어 주세요.' },
+  { title: '한 명만', body: '화면에 한 사람만 나오게 해 주세요.' },
+  { title: '꾸준히 같은 조건', body: '비슷한 밝기와 거리에서 찍으면 지난 분석과 비교하기 좋아요.' },
+];
+
+/** 카메라를 못 쓰는 이유별 안내 */
+const CAMERA_MESSAGES: Record<CameraFailure, string> = {
+  insecure: `이 주소(${typeof location === 'undefined' ? '' : location.origin})로는 카메라를 쓸 수 없어요. https나 localhost로 접속해야 해요.`,
+  permission:
+    '브라우저에서 카메라가 차단돼 있어요. 주소창 왼쪽 자물쇠에서 카메라를 허용한 뒤 다시 시도해 주세요. (OS 설정에서 브라우저의 카메라 접근이 꺼져 있을 수도 있어요)',
+  not_found: '카메라를 찾을 수 없어요. 연결을 확인해 주세요.',
+  busy: '다른 앱이나 브라우저 탭이 카메라를 쓰고 있어요. 닫고 다시 시도해 주세요.',
+  other: '카메라를 켜지 못했어요.',
+};
 
 const backIcon = (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -82,26 +139,39 @@ export default function FacePhotoScreen({
   const [shot, setShot] = useState<Shot | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisDto | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [verdict, setVerdict] = useState<Verdict | null>(null);
+  // 사진을 다시 찍으면 앞 사진의 늦은 응답을 버린다
+  const verdictSeq = useRef(0);
   const [live, setLive] = useState<FaceCheck | null>(null);
   const [consenting, setConsenting] = useState(false);
   const [consentExpanded, setConsentExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { videoRef, ready: cameraReady, denied: cameraDenied } = useCamera(view === 'capture', 'user');
+  const {
+    videoRef,
+    ready: cameraReady,
+    denied: cameraDenied,
+    failure: cameraFailure,
+    retry: retryCamera,
+  } = useCamera(view === 'capture', 'user');
 
   // 촬영 화면에서만 카메라 프레임을 주기적으로 검사한다. 앞 검사가 안 끝났으면 건너뛴다.
   useEffect(() => {
     if (view !== 'capture' || !cameraReady) return;
     let alive = true;
     let busy = false;
-    void loadFaceDetector();
+    void preloadLiveModels();
     const id = window.setInterval(async () => {
       const video = videoRef.current;
       if (!video || busy) return;
       busy = true;
       try {
-        const result = await checkFace(video);
+        // 프레임 전체가 아니라 **화면에 보이는 부분**을 본다. 전체를 보면 화면에 충분히 크게 보여도
+        // "가까이 와 주세요"가 나오고, 화면을 꽉 채워야 통과한다(노트북 웹캠은 프레임이 넓다).
+        const result = await checkLiveFace(captureVisibleCanvas(video, LIVE_CHECK_SIDE), LIVE_GUIDE);
         if (alive) setLive(result);
+      } catch {
+        // 아직 영상 크기를 모르는 순간 등 — 이번 검사는 건너뛴다
       } finally {
         busy = false;
       }
@@ -138,8 +208,8 @@ export default function FacePhotoScreen({
   const handleFailure = (err: unknown) => {
     if (err instanceof ApiError) {
       if (err.status === 422) {
-        // 사진 문제(얼굴 없음·어두움 등)다. 서버가 한국어 이유를 준다. 한도는 쓰이지 않았다.
-        setNotice(err.message);
+        // 사진 검증에서 걸렸다(얼굴 없음·정면 아님·어두움 등). 서버가 한국어 이유를 준다. 한도는 쓰이지 않았다.
+        setNotice(`${err.message} 분석 횟수는 차감되지 않았어요.`);
         setView('preview');
         return;
       }
@@ -188,6 +258,31 @@ export default function FacePhotoScreen({
     setShot({ image, from, check });
     setNotice(null);
     setView('preview');
+
+    // 촬영한 사진을 서버 AI가 지금 평가한다(분석 때와 같은 기준, 한도 사용 없음). 항목별 결과를 모두
+    // 받아 체크리스트로 보여 주고, 하나라도 걸리면 분석으로 보내지 못하게 한다.
+    const seq = ++verdictSeq.current;
+    setVerdict({ status: 'checking' });
+    let server: Awaited<ReturnType<typeof checkPhoto>> | null = null;
+    try {
+      server = await checkPhoto(image);
+    } catch {
+      server = null;
+    }
+    if (seq !== verdictSeq.current) return;
+    // 왜 걸렸는지 확인할 수 있게 측정값을 콘솔에 남긴다(F12).
+    console.info('photo_check', server ? (server.ok ? 'ok' : server.code) : 'unavailable', server?.metrics);
+
+    const items: ChecklistItem[] = server?.items ?? [];
+    const firstFail = items.find((i) => i.ok === false);
+
+    if (firstFail) {
+      setVerdict({ status: 'fail', message: firstFail.message ?? '다시 찍어 주세요.', items });
+    } else if (server) {
+      setVerdict({ status: 'ok', items });
+    } else {
+      setVerdict({ status: 'unknown' });
+    }
   };
 
   const handleCapture = () => {
@@ -244,15 +339,21 @@ export default function FacePhotoScreen({
         transition={{ duration: 0.4 }}
       >
         {view === 'capture' && cameraReady && (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            aria-hidden
-            // 전면 카메라는 거울처럼 좌우를 뒤집어 보여 준다. 찍히는 사진은 원본 방향이다.
-            className="absolute inset-0 h-full w-full -scale-x-100 object-cover"
-          />
+          // 3:4 상자 안에 object-cover로 채운다. 촬영은 이 상자에 **보이는 부분만** 잘라 저장한다
+          // (`captureFaceFrame`) — 노트북 웹캠처럼 가로로 넓은 카메라도 화면에 보인 만큼만 찍힌다.
+          // 3:4로 잡은 이유: 720p(1280×720) 카메라에서 이 비율로 자르면 540×720이라 업체가 요구하는
+          // 짧은 변 480px을 넘는다. 화면 전체를 꽉 채우면(약 9:19) 387px로 모자라 분석이 거절된다.
+          <div className="absolute left-0 right-0 top-1/2 aspect-[3/4] -translate-y-1/2 overflow-hidden">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              aria-hidden
+              // 전면 카메라는 거울처럼 좌우를 뒤집어 보여 준다. 찍히는 사진은 원본 방향이다.
+              className="h-full w-full -scale-x-100 object-cover"
+            />
+          </div>
         )}
         {showShot && (
           <>
@@ -287,11 +388,28 @@ export default function FacePhotoScreen({
           </div>
         </div>
 
-        {/* 가이드 — 촬영 중엔 가운데 틀, 미리보기엔 사진을 가리지 않게 위쪽 한 줄 */}
+        {/* 얼굴 틀 — 영상 상자(3:4)와 같은 자리·크기의 오버레이라 틀과 영상이 어긋나지 않는다.
+            틀의 폭·높이는 상자의 `GUIDE_SIZE`배이고, 실시간 검사가 같은 값으로 "틀 안에 들어왔는가"를 본다. */}
+        {view === 'capture' && (
+          <div className="pointer-events-none absolute left-0 right-0 top-1/2 z-10 aspect-[3/4] -translate-y-1/2">
+            <div
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[50%]"
+              style={{
+                width: `${GUIDE_SIZE * 100}%`,
+                height: `${GUIDE_SIZE * 100}%`,
+                boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)',
+              }}
+            >
+              <span
+                className={`absolute inset-0 rounded-[50%] border-[3.5px] transition-colors ${guideOk ? 'border-[#4CC38A]' : 'border-white/70'}`}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 안내 문구 — 촬영 중엔 위쪽 한 줄, 미리보기엔 사진을 가리지 않게 위쪽 한 줄 */}
         <div
-          className={`relative z-10 flex flex-1 flex-col items-center px-5 ${
-            view === 'capture' ? 'justify-center' : 'justify-start pt-2'
-          }`}
+          className="relative z-10 flex flex-1 flex-col items-center justify-start px-5 pt-2"
         >
           <p className="relative z-20 mb-4 min-h-[20px] text-center text-[13px] font-bold text-white drop-shadow">
             {view === 'preview'
@@ -304,16 +422,6 @@ export default function FacePhotoScreen({
                   : '얼굴을 틀 안에 맞춰 주세요'
                 : ''}
           </p>
-          {view === 'capture' && (
-            <div
-              className="relative h-[330px] w-[250px] rounded-[50%]"
-              style={{ boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)' }}
-            >
-              <span
-                className={`absolute inset-0 rounded-[50%] border-[3.5px] transition-colors ${guideOk ? 'border-[#4CC38A]' : 'border-white/70'}`}
-              />
-            </div>
-          )}
         </div>
 
         {/* 분석 중에는 사진 위를 덮어 기다려야 한다는 걸 분명히 한다 */}
@@ -321,15 +429,63 @@ export default function FacePhotoScreen({
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/60">
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-white border-t-transparent" />
             <p className="text-center text-[13px] font-bold leading-relaxed text-white">
-              AI가 피부를 분석하는 중이에요
+              AI가 사진을 먼저 검증하고
+              <br />
+              피부를 분석하는 중이에요
               <br />
               <span className="text-[11px] font-normal opacity-80">최대 1분 정도 걸릴 수 있어요</span>
             </p>
           </div>
         )}
 
+        {/* 사전 검증 결과 — 촬영한 사진을 AI가 항목별로 확인한 체크리스트. 통과하지 못한 항목을 보여 준다. */}
+        {view === 'preview' && !notice && verdict && verdict.status !== 'unknown' && (
+          <div role="status" className="relative z-10 mx-5 mb-2 rounded-2xl bg-black/45 px-4 py-3 text-white backdrop-blur-sm">
+            {verdict.status === 'checking' ? (
+              <p className="text-center text-[12px] font-semibold text-white/85">
+                AI가 사진이 분석에 맞는지 확인하는 중이에요…
+              </p>
+            ) : (
+              <>
+                <p
+                  className={`text-[13px] font-extrabold drop-shadow ${verdict.status === 'ok' ? 'text-[#7BE0AE]' : 'text-[#FF9FB0]'}`}
+                >
+                  {verdict.status === 'ok'
+                    ? '✓ AI 검증을 통과했어요'
+                    : `통과하지 못한 항목 ${verdict.items.filter((i) => i.ok === false).length}개`}
+                </p>
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {verdict.items.map((it) => (
+                    <li key={it.key} className="text-[12px] leading-snug">
+                      <span className="flex items-center gap-2">
+                        <span
+                          aria-hidden
+                          className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold text-white ${
+                            it.ok === true ? 'bg-[#4CC38A]' : it.ok === false ? 'bg-[#FF5C7A]' : 'bg-white/40'
+                          }`}
+                        >
+                          {it.ok === true ? '✓' : it.ok === false ? '✕' : '–'}
+                        </span>
+                        <span
+                          className={`font-semibold drop-shadow ${it.ok === false ? 'text-[#FF9FB0]' : it.ok === null ? 'text-white/60' : 'text-white'}`}
+                        >
+                          {it.label}
+                          {it.ok === null && <span className="ml-1 font-normal">확인 못 함</span>}
+                        </span>
+                      </span>
+                      {it.ok === false && it.message && (
+                        <span className="mt-0.5 block pl-6 text-[11px] text-white/85 drop-shadow">{it.message}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
+
         {/* 안내·경고 */}
-        {(notice || (view === 'preview' && issue)) && (
+        {(notice || (view === 'preview' && issue && verdict?.status === 'unknown')) && (
           <div className="relative z-10 mx-5 mb-2 rounded-xl bg-white/95 px-4 py-2.5 text-center text-[12px] font-semibold text-gray-100">
             {notice ?? (issue?.issue ? FACE_HINTS[issue.issue] : '')}
             {!notice && issue && (
@@ -341,7 +497,16 @@ export default function FacePhotoScreen({
         )}
         {view === 'capture' && cameraDenied && (
           <div className="relative z-10 mx-5 mb-2 rounded-xl bg-white/90 px-4 py-2.5 text-center text-[12px] leading-relaxed text-gray-70">
-            카메라를 쓸 수 없어요. 권한을 확인하거나 아래 버튼으로 사진을 골라 주세요.
+            {CAMERA_MESSAGES[cameraFailure ?? 'other']} 아래 버튼으로 사진을 골라도 돼요.
+            {cameraFailure !== 'insecure' && (
+              <button
+                type="button"
+                onClick={retryCamera}
+                className="ml-1 font-bold text-ob-green-deep underline underline-offset-2"
+              >
+                다시 시도
+              </button>
+            )}
           </div>
         )}
 
@@ -384,7 +549,8 @@ export default function FacePhotoScreen({
               <button
                 type="button"
                 onClick={() => (deferAnalysis ? shot && onCaptured?.(shot.image) : analyze())}
-                className="h-12 flex-[1.4] rounded-full bg-ob-green text-[14px] font-semibold text-white active:scale-[.98]"
+                disabled={verdict?.status === 'fail'}
+                className="h-12 flex-[1.4] rounded-full bg-ob-green text-[14px] font-semibold text-white active:scale-[.98] disabled:opacity-40"
               >
                 {deferAnalysis ? '이 사진 사용하기' : '이 사진으로 분석'}
               </button>
@@ -600,6 +766,33 @@ export default function FacePhotoScreen({
             <br />
             원본 사진은 저장되지 않고, 분석 이미지는 내 계정에만 보관돼요.
           </p>
+        )}
+
+        {!loading && !failed && quota && canShoot && (
+          <div className="mt-4 rounded-2xl bg-ob-surface px-4 py-3">
+            <p className="text-[13px] font-extrabold text-ob-green-deep">AI가 사진을 먼저 검증해요</p>
+            <p className="mt-1 text-[12px] leading-relaxed text-gray-70">
+              촬영하는 동안에는 얼굴이 틀에 맞는지만 봐요. 찍은 뒤에 AI가 얼굴이 정면으로 크게 나왔는지,
+              손·마스크로 가려지지 않았는지, 조명이 밝고 고른지, 초점이 맞는지를 확인해요. 분석에 맞지 않는
+              사진은 외부로 보내기 전에 이유를 알려 드리고, <b>분석 횟수도 차감하지 않아요.</b>
+            </p>
+          </div>
+        )}
+
+        {!loading && !failed && quota && canShoot && (
+          <div className="mt-3 rounded-2xl border border-gray-10 px-4 py-3">
+            <p className="text-[13px] font-extrabold text-gray-100">촬영 가이드</p>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {SHOOTING_GUIDE.map((g) => (
+                <li key={g.title} className="flex gap-2 text-[12px] leading-relaxed text-gray-70">
+                  <span aria-hidden className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-ob-green" />
+                  <span>
+                    <b className="font-bold text-gray-100">{g.title}</b> {g.body}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
 
