@@ -7,7 +7,8 @@ import { useUserProfile } from '../../context/userProfile';
 import { useCloset } from '../../context/closet';
 import { useLikedProducts } from '../../context/liked';
 import { useStats } from '../../hooks/useStats';
-import { useQuota } from '../../hooks/useSkinPhoto';
+import { useQuota, useSubscription } from '../../hooks/useSkinPhoto';
+import MembershipManager from '../../components/membership/MembershipManager';
 import { CartButton } from '../../components/ui/CartButton';
 import { CharacterAvatar } from '../../components/character/CharacterAvatar';
 import { useCharacter } from '../../context/character';
@@ -72,8 +73,6 @@ const EXP_RULES: { key: 'scanCount' | 'reviewCount' | 'orderCount' | 'giftCount'
   { key: 'giftCount', label: '선물 보내기', exp: 20, hint: '친구 닉네임으로 보내기' },
   { key: 'scanCount', label: '제품 스캔·등록', exp: 10, hint: '스캔 화면에서 화장대에 담기' },
 ];
-/** Lv.N → N+1 에 N × 100 EXP */
-const LEVEL_STEP = 100;
 
 export default function MypagePage() {
   const navigate = useNavigate();
@@ -97,7 +96,9 @@ export default function MypagePage() {
   // 서버가 실제 행에서 센 값. 비회원은 null이라 로컬 개수로 대신한다.
   const { stats, loading: statsLoading } = useStats();
   // AI 피부관리 메뉴에 남은 횟수를 보여 준다. 동의 전에는 '시작하기'가 나온다(동의는 촬영할 때 받는다).
-  const { quota } = useQuota();
+  const { quota, reload: reloadQuota } = useQuota();
+  const { subscription } = useSubscription();
+  const [membershipOpen, setMembershipOpen] = useState(false);
   const { count: closetCount } = useCloset();
   const { likedProducts } = useLikedProducts();
   const { decorationId } = useCharacter();
@@ -127,7 +128,7 @@ export default function MypagePage() {
 
   const benefits: MenuItem[] = [
     { icon: <LineIcon><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" /></LineIcon>, label: '후기', onClick: () => navigate('/mypage/reviews') },
-    { icon: <LineIcon><circle cx="12" cy="11" r="6.5" /><path d="M9.5 10h.01M14.5 10h.01M9.5 13.5c1.5 1.4 3.5 1.4 5 0" /><path d="M5 5l1.5 1.5M19 5l-1.5 1.5" /></LineIcon>, label: 'AI 피부관리', right: quota ? (quota.consentGranted ? `${quota.remaining}회 남음` : '시작하기') : undefined, onClick: () => navigate('/mypage/subscription') },
+    { icon: <LineIcon><path d="M3 8l4 4 5-7 5 7 4-4-2 10H5L3 8z" /></LineIcon>, label: '구독 관리', right: subscription ? (subscription.active ? (subscription.status === 'cancelled' ? '해지 예정' : '구독 중') : '미구독') : undefined, onClick: () => setMembershipOpen(true) },
     { icon: <LineIcon><circle cx="12" cy="12" r="8" /><path d="M9.5 10.5h5M9.5 13.5h5" /></LineIcon>, label: '포인트', right: stats ? `${stats.pointBalance.toLocaleString()}P` : undefined, onClick: () => navigate('/mypage/points') },
     { icon: <LineIcon><path d="M5 13a7 7 0 0114 0" /><rect x="4" y="13" width="3.5" height="6" rx="1.5" /><rect x="16.5" y="13" width="3.5" height="6" rx="1.5" /></LineIcon>, label: '고객센터', onClick: () => navigate('/mypage/customer-service') },
   ];
@@ -248,7 +249,7 @@ export default function MypagePage() {
                 className="mt-2.5 flex w-full items-center justify-between rounded-xl bg-surface-warm px-3 py-2 text-left active:opacity-70"
               >
                 <span className="text-[12px] font-bold text-gray-70">
-                  경험치 얻는 법 · 다음 레벨까지 {Math.max(0, stats.levelSpan - stats.expInLevel)} EXP
+                  다음 레벨까지 {Math.max(0, stats.levelSpan - stats.expInLevel)} EXP
                 </span>
                 <svg
                   width="14"
@@ -285,26 +286,36 @@ export default function MypagePage() {
                     })}
                   </ul>
 
-                  <div className="mt-2 rounded-xl bg-surface-warm px-3 py-2.5 text-[11px] leading-relaxed text-gray-70">
-                    <p className="font-bold text-gray-100">레벨업에 필요한 경험치</p>
-                    <p className="mt-0.5">
-                      Lv.N에서 다음 레벨로 가려면 N × {LEVEL_STEP} EXP가 필요해요.
-                    </p>
-                    <p className="mt-0.5 text-gray-50">
-                      {[1, 2, 3, 4, 5]
-                        .map((n) => `Lv.${n}→${n + 1}: ${n * LEVEL_STEP}`)
-                        .join(' · ')}
-                    </p>
-                    <p className="mt-1.5">
-                      지금 누적 <b className="text-gray-100">{stats.exp.toLocaleString()} EXP</b> · 레벨은 기록을
-                      세어 서버가 계산해요.
-                    </p>
-                  </div>
                 </div>
               </div>
             </>
           )}
         </div>
+
+        {/* AI 피부관리 — 피부타입 카드와 통계 바 사이. 남은 횟수는 동의 전이면 '시작하기'. */}
+        <button
+          type="button"
+          onClick={() => navigate('/mypage/subscription')}
+          className="mt-3 flex w-full items-center gap-3 rounded-[20px] border border-[#ECEEE8] bg-white px-4 py-3.5 text-left active:bg-[#F7F8F4]"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ob-surface">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="11" r="6.5" />
+              <path d="M9.5 10h.01M14.5 10h.01M9.5 13.5c1.5 1.4 3.5 1.4 5 0" />
+              <path d="M5 5l1.5 1.5M19 5l-1.5 1.5" />
+            </svg>
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] font-extrabold text-gray-100">AI 피부관리</span>
+            <span className="mt-px block text-[11px] text-gray-50">얼굴 사진으로 내 피부 상태를 확인해요</span>
+          </span>
+          <span className="shrink-0 text-[12px] font-bold text-primary-dark">
+            {quota ? (quota.consentGranted ? `${quota.remaining}회 남음` : '시작하기') : ''}
+          </span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="shrink-0">
+            <path d="M9 6l6 6-6 6" stroke="#C7CBD1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
 
         {/* 통계 바. 전부 GET /me/stats가 실제 행에서 센 값이다. 비회원은
             stats가 null이라 로컬 개수로 대신한다. */}
@@ -332,6 +343,8 @@ export default function MypagePage() {
       <div className="pb-6">
         <GroupCard title="설정" items={settings} />
       </div>
+
+      {membershipOpen && <MembershipManager onClose={() => setMembershipOpen(false)} onChanged={reloadQuota} />}
 
       <OyBottomNav />
     </PageWrapper>

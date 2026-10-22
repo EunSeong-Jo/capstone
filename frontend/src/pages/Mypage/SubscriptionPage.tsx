@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import MembershipManager from '../../components/membership/MembershipManager';
 import FacePhotoScreen from '../../components/onboarding/FacePhotoScreen';
 import SkinAnalysisDetail from '../../components/skin/SkinAnalysisDetail';
-import { AnalysisDto, cancelSubscription, startSubscription } from '../../api/skinPhoto';
+import { AnalysisDto } from '../../api/skinPhoto';
 import { ApiError } from '../../api/client';
 import { QUESTION_COUNT } from '../../data/onboarding';
 import { useAuth } from '../../context/auth';
@@ -14,7 +14,7 @@ import { useToast } from '../../context/toast';
 import { invalidateSkinPhoto, useAnalysisHistory, useQuota, useSubscription } from '../../hooks/useSkinPhoto';
 
 /**
- * AI 피부관리 — 이용 현황·촬영·구독·분석 기록. (얼굴 사진 동의의 확인·철회는 설정 > 얼굴 사진 수집·이용 동의)
+ * AI 피부관리 — 이용 현황·촬영·구독 안내(멤버십 모달)·분석 기록. (얼굴 사진 동의의 확인·철회는 설정 > 얼굴 사진 수집·이용 동의)
  *
  * **구독은 결제 없이 기록만 만드는 데모다**(PG 연동이 없다). 화면에도 그렇게 적는다.
  *
@@ -77,14 +77,12 @@ function SelectBox({
 }
 
 export default function SubscriptionPage() {
-  const navigate = useNavigate();
   const { scope } = useAuth();
   const { showToast } = useToast();
   const { quota, loading: quotaLoading, reload: reloadQuota } = useQuota();
   const { subscription, loading: subLoading, reload: reloadSub } = useSubscription();
 
-  const [busy, setBusy] = useState(false);
-  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [membershipOpen, setMembershipOpen] = useState(false);
   const { diagnoseWithPhoto } = useDiagnosis();
   const { history, loading: historyLoading, failed: historyFailed, reload: reloadHistory } = useAnalysisHistory();
   const [shooting, setShooting] = useState(false);
@@ -116,19 +114,6 @@ export default function SubscriptionPage() {
     }
   };
 
-  const run = async (job: () => Promise<unknown>, done: string) => {
-    setBusy(true);
-    try {
-      await job();
-      refresh();
-      showToast(done);
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : '처리하지 못했어요. 잠시 뒤에 다시 시도해 주세요.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const loading = quotaLoading || subLoading;
   const subscribed = subscription?.active === true;
   const cancelled = subscription?.status === 'cancelled';
@@ -151,7 +136,17 @@ export default function SubscriptionPage() {
       <div className="flex flex-col gap-4 px-4 pb-10 pt-4">
         {/* 소개 */}
         <section className="rounded-2xl bg-ob-green px-5 py-5 text-white">
-          <p className="text-[12px] font-semibold opacity-90">AI 피부관리 구독</p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="pt-1 text-[12px] font-semibold opacity-90">AI 피부관리 구독</p>
+            <button
+              type="button"
+              onClick={() => setMembershipOpen(true)}
+              disabled={subLoading}
+              className="shrink-0 rounded-full bg-white px-3.5 py-1.5 text-[12px] font-extrabold text-ob-green-deep active:scale-95 disabled:opacity-60"
+            >
+              {subscribed && !cancelled ? '구독 중' : cancelled && subscribed ? '해지 예정' : '구독'}
+            </button>
+          </div>
           <p className="mt-1 text-[19px] font-extrabold leading-snug">
             매주 한 번, AI와 함께
             <br />
@@ -166,18 +161,7 @@ export default function SubscriptionPage() {
 
         {/* 이용 현황 */}
         <section className="rounded-2xl bg-white px-5 py-4">
-          <div className="flex items-center justify-between">
-            <p className="text-[14px] font-extrabold text-gray-100">이번 달 이용 현황</p>
-            {quota && (
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
-                  quota.plan === 'subscriber' ? 'bg-ob-green text-white' : 'bg-gray-10 text-gray-70'
-                }`}
-              >
-                {quota.plan === 'subscriber' ? '구독 중' : '무료'}
-              </span>
-            )}
-          </div>
+          <p className="text-[14px] font-extrabold text-gray-100">이번 달 이용 현황</p>
           {loading || !quota ? (
             <div className="mt-4 h-10 animate-pulse rounded-xl bg-gray-10" />
           ) : (
@@ -202,68 +186,8 @@ export default function SubscriptionPage() {
               >
                 지금 촬영하기
               </button>
-              <button
-                type="button"
-                onClick={() => navigate('/qna')}
-                disabled={quota.remaining <= 0}
-                className="mt-2 h-11 w-full rounded-xl border border-ob-green text-[13px] font-semibold text-ob-green-deep active:scale-[.98] disabled:opacity-40"
-              >
-                재진단하며 AI 분석 받기
-              </button>
             </>
           )}
-        </section>
-
-        {/* 구독 */}
-        <section className="rounded-2xl bg-white px-5 py-4">
-          <p className="text-[14px] font-extrabold text-gray-100">구독</p>
-          {subLoading ? (
-            <div className="mt-3 h-10 animate-pulse rounded-xl bg-gray-10" />
-          ) : subscribed && subscription?.currentPeriodEnd ? (
-            <>
-              <p className="mt-2 text-[13px] text-gray-70">
-                {cancelled
-                  ? `해지했어요. ${fmtDate(subscription.currentPeriodEnd)}까지는 계속 쓸 수 있어요.`
-                  : `${fmtDate(subscription.currentPeriodEnd)}까지 이용할 수 있어요.`}
-              </p>
-              {cancelled ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => run(startSubscription, '구독을 다시 시작했어요')}
-                  className="mt-3 h-11 w-full rounded-xl bg-ob-green text-[13px] font-semibold text-white active:scale-[.98] disabled:opacity-50"
-                >
-                  해지 취소하고 계속 이용
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setConfirmCancel(true)}
-                  className="mt-3 h-11 w-full rounded-xl border border-gray-20 text-[13px] font-semibold text-gray-70 active:scale-[.98] disabled:opacity-50"
-                >
-                  구독 해지
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <p className="mt-2 text-[13px] leading-relaxed text-gray-70">
-                구독하면 매달 4회, 16가지 항목으로 분석해요.
-              </p>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => run(startSubscription, '구독을 시작했어요')}
-                className="mt-3 h-12 w-full rounded-xl bg-ob-green text-[14px] font-semibold text-white active:scale-[.98] disabled:opacity-50"
-              >
-                구독 시작하기
-              </button>
-            </>
-          )}
-          <p className="mt-2 text-[11px] leading-relaxed text-gray-50">
-            데모 화면이에요. 실제 결제는 일어나지 않아요.
-          </p>
         </section>
 
         {/* 분석 기록 — 연도·월일 드롭다운으로 지난 분석을 고른다(1회만 분석했어도 보여 준다) */}
@@ -330,20 +254,8 @@ export default function SubscriptionPage() {
         </section>
       </div>
 
-      {confirmCancel && (
-        <ConfirmDialog
-          title="구독을 해지할까요?"
-          description="이번 이용 기간이 끝날 때까지는 계속 쓸 수 있어요."
-          confirmLabel="해지"
-          cancelLabel="유지"
-          danger
-          onCancel={() => setConfirmCancel(false)}
-          onConfirm={() => {
-            setConfirmCancel(false);
-            void run(cancelSubscription, '구독을 해지했어요');
-          }}
-        />
-      )}
+      {membershipOpen && <MembershipManager onClose={() => setMembershipOpen(false)} onChanged={refresh} />}
+
       {shooting && (
         <div className="fixed inset-0 z-50 mx-auto max-w-[430px] bg-white">
           <FacePhotoScreen
