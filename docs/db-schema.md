@@ -251,9 +251,26 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `parent_id` 자기참조로 2단계를 담을 수 있지만 지금은 1단계만 씁니다. 스킨케어 소분류(토너·세럼·크림)가 붙을 자리입니다.
 
-### `tags` — 11행 · `ingredient_tags` — 489행
+### `ingredient_functions` — 1,686행 (성분 기능 분류 — **현행 정본**)
 
-효능 태그 마스터와 성분 ↔ 태그 조인.
+성분마다 기능·역할·주의 플래그·확신도를 한 번만 분류해 둔 테이블입니다. 유사도(`hybrid`)·피부 궁합·피부타입 필터·전성분 칩이
+모두 이것을 씁니다. 원본은 `data/seed/ingredient_functions/labels.csv`, 적재는 `scripts/seed_ingredient_functions.py`.
+
+| | 컬럼 | 타입 | | 비고 |
+|---|---|---|---|---|
+| PK FK | `ingredient_id` | int | NOT NULL | → `ingredients` [CASCADE] |
+| | `functions` | text[] | NOT NULL | H보습 B장벽 S진정 W미백 A주름·탄력 O항산화 P피지·모공 E각질 U자외선 |
+| | `role` | char(1) | NOT NULL | a활성 e에몰리언트 s용매 f계면활성 t점증 p방부 x기타 j오염 |
+| | `flags` | text[] | NOT NULL | I자극 소지 F향료 L건조 알코올 |
+| | `confidence` | smallint | NOT NULL | 1낮음(근거에서 제외) · 2보통 · 3확실 |
+| | `source` | varchar(20) | NOT NULL | ai_expert · reviewed · mfds · cosing |
+| | `allergen_listed` | bool | NOT NULL | 식약처 알레르기 유발 착향제 고시 목록의 성분 |
+| | `note` · `created_at` · `updated_at` | | | |
+
+### `tags` — 11행 · `ingredient_tags` — 489행 ⚠️ 더 이상 읽지 않음
+
+효능 태그 마스터와 성분 ↔ 태그 조인. **`ingredient_functions` 기반으로 전환했고 코드는 이 테이블을 읽지 않습니다**
+(`skin_type_rules`, `ingredients.grade`·`is_allergen` 포함). 안정되면 다음 릴리스에서 삭제합니다.
 
 ```
 tags              : id(PK) · code(UQ, 예: moisture_balance) · label(예: 유수분 밸런싱)
@@ -305,18 +322,35 @@ ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 |---|---|---|---|---|
 | PK FK | `product_id` | int | NOT NULL | → `products` [CASCADE] · **기준 제품** |
 | PK FK | `similar_id` | int | NOT NULL | → `products` [CASCADE] · **대체품** |
-| PK | `method` | text | NOT NULL | tfidf / jaccard / rbo |
+| PK | `method` | text | NOT NULL | tfidf / hybrid |
 | | `score` | float8 | NOT NULL | 0~1 |
 | | `shared_ingredients` | jsonb | NULL | 근거 표시용 |
 | | `computed_at` | timestamptz | NOT NULL | `= now()` |
 
 **방향이 있는 관계입니다.** 제품별 상위 20개만 저장하므로 A의 상위권에 B가 있어도 B의 상위권에 A가 있다는 보장이 없습니다. 양방향 조회가 필요하면 배치가 두 행을 모두 넣어야 합니다.
 
-`method`를 PK에 포함해 TF-IDF·Jaccard·RBO 결과를 나란히 두고 비교할 수 있게 했습니다.
+`method`를 PK에 포함해 TF-IDF·hybrid 결과를 나란히 두고 비교할 수 있게 했습니다.
 
-### `skin_type_rules` — 8행
+### `product_skin_fit` — 32,104행 (제품 × 피부타입 궁합, 사전 계산)
 
-피부타입 8종별 추천·회피 태그. 진단 결과를 제품 필터로 번역하는 규칙입니다.
+`services/skin_fit.evaluate`가 성분 기능 라벨로 계산한 결과를 `scripts/compute_skin_fit.py`가 적재합니다(전 제품 × 8타입, 멱등).
+**목록 정렬(`sort=skinFit`)·피부타입 필터(`excluded`)·홈 추천 점수·예산 가이드·궁합 배지/대체품 `skinMatch`가 모두 이 테이블을 읽습니다.**
+라벨이나 규칙(`PREFER`/`AVOID`/하드 제외)을 바꾸면 배치를 다시 돌려야 합니다.
+
+| | 컬럼 | 타입 | | 비고 |
+|---|---|---|---|---|
+| PK FK | `product_id` | int | NOT NULL | → `products` [CASCADE] |
+| PK | `skin_type` | text | NOT NULL | 8타입 코드 |
+| | `score` | smallint | NULL | 0~100. 근거 부족이면 NULL |
+| | `verdict` | text | NOT NULL | good / ok / caution / unknown |
+| | `matched` | smallint | NOT NULL | 그 타입의 선호 기능을 가진 성분 수 |
+| | `excluded` | bool | NOT NULL | 이 타입의 필터가 목록에서 빼는 제품(고시 목록·일반 향료 / 건조 알코올) |
+| | `has_fragrance` · `has_drying_alcohol` | bool | NOT NULL | 타입과 무관한 사실(예산 가이드의 무향·무알코올) |
+| | `computed_at` | timestamptz | NOT NULL | |
+
+### `skin_type_rules` — 8행 ⚠️ 더 이상 읽지 않음
+
+(예전) 피부타입 8종별 추천·회피 태그. 규칙의 정본은 이제 `services/skin_fit.py`의 `PREFER`/`AVOID`입니다. 아래는 옛 설명입니다.
 
 ```
 id(PK) · skin_type(UQ) · include_tags(jsonb) · exclude_tags(jsonb)
