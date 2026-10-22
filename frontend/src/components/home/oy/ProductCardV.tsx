@@ -5,6 +5,7 @@ import { useCart } from '../../../context/cart';
 import { useLikedProducts } from '../../../context/liked';
 import { useToast } from '../../../context/toast';
 import { CartActionIcon, LikeIcon } from '../../ui/ProductActionIcons';
+import { FitBadge } from '../../product/FitBadge';
 
 interface ProductCardVProps {
   product: Product;
@@ -59,6 +60,7 @@ export function ProductCardV({ product, width = 'w-[150px]', rank }: ProductCard
         ) : (
           <div className="w-full h-full flex items-center justify-center text-3xl opacity-30">🧴</div>
         )}
+        <FitBadge productId={product.id} className="absolute top-1.5 right-1.5 shadow-sm" />
         {rank != null && (
           <span className="absolute top-0 left-0 inline-flex items-center justify-center w-6 h-6 bg-oy-black text-white text-xs font-bold">
             {rank}

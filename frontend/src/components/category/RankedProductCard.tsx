@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { PriceTag } from './PriceTag';
 import { ActionIcons } from './ActionIcons';
 import type { CategoryProduct } from './types';
+import { FitBadge } from '../product/FitBadge';
 
 interface RankedProductCardProps {
   rank: number;
@@ -29,6 +30,7 @@ export function RankedProductCard({ rank, product, onToggleFavorite, onAddToCart
       </div>
 
       <div className="flex-1 min-w-0">
+        <FitBadge productId={product.id} className="mb-1" />
         <p className="text-sm text-gray-100 leading-snug line-clamp-2">{product.title}</p>
         <div className="mt-1">
           <PriceTag

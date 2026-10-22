@@ -33,6 +33,9 @@ from app.api.personal import (
 from app.api.products import router as products_router
 from app.api.recommendations import router as recommendations_router
 from app.api.recommendations_main import router as reco_main_router
+from app.api.analysis import router as analysis_router
+from app.api.skin_fit import batch_router as skin_fit_batch_router
+from app.api.skin_fit import router as skin_fit_router
 from app.api.skin_photo import router as skin_photo_router
 from app.api.weather import router as weather_router
 from app.config import settings
@@ -92,6 +95,9 @@ app.include_router(reviews_router)
 app.include_router(chat_router)
 app.include_router(products_router)
 app.include_router(recommendations_router)
+app.include_router(skin_fit_router)
+app.include_router(analysis_router)
+app.include_router(skin_fit_batch_router)
 app.include_router(reco_main_router)
 app.include_router(weather_router)
 app.include_router(care_tip_router)

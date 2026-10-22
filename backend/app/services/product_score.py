@@ -11,7 +11,7 @@ import math
 from sqlalchemy import Float, cast, func
 
 from app.models.product import Product
-from app.services.skin_type import SkinRule, fit_score
+from app.services.skin_type import SkinRule, fit_ratio
 
 # 점수 가중치. 브랜드 다양성(W_BRAND)까지 합이 1이다.
 W_MATCH = 0.4
@@ -19,16 +19,14 @@ W_RATING = 0.3
 W_REVIEW = 0.2
 W_BRAND = 0.1
 
-# 매칭 성분 수를 0~1로 누르는 기준. 실측 상위 제품이 20종 안팎이라
-# 그 위로는 더 벌어져도 의미가 없다.
-MATCH_CAP = 20
 # 리뷰수 로그 정규화 기준. 10만 리뷰를 1.0으로 본다.
 REVIEW_LOG_CAP = math.log10(100_000)
 
 
 def base_score(rule: SkinRule | None) -> tuple:
     """SQL에서 계산하는 세 항. (매칭, 별점, 리뷰) 각각 0~1로 정규화한다."""
-    match = func.least(cast(fit_score(rule), Float) / MATCH_CAP, 1.0)
+    # 궁합 점수(0~100)/100. 예전에는 태그가 붙은 성분 수를 20으로 눌렀다(MATCH_CAP).
+    match = cast(fit_ratio(rule), Float)
     rating = func.coalesce(cast(Product.rating, Float), 0.0) / 5.0
     review = func.least(
         func.log(func.greatest(func.coalesce(Product.review_count, 0), 1) + 1)

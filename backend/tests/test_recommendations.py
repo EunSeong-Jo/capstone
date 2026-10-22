@@ -128,11 +128,12 @@ async def test_limit_above_max_is_422(client: AsyncClient) -> None:
 # ── 방식 선택 ────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("method", ["tfidf", "jaccard", "rbo"])
+@pytest.mark.parametrize("method", ["hybrid", "tfidf"])
 async def test_each_method_answers(client: AsyncClient, method: str) -> None:
     res = await client.get(_url(1), params={"method": method})
     assert res.status_code == 200
-    assert res.json()["method"] == method
+    # hybrid는 적재 전이면 tfidf로 대신한다(응답 method가 실제 방식을 알려 준다)
+    assert res.json()["method"] in {method, "tfidf"}
 
 
 async def test_unknown_method_is_422(client: AsyncClient) -> None:
@@ -141,17 +142,16 @@ async def test_unknown_method_is_422(client: AsyncClient) -> None:
 
 
 async def test_methods_can_disagree(client: AsyncClient, seed: int) -> None:
-    """세 방식을 나란히 적재하는 이유 — 결과가 달라야 비교할 의미가 있다.
+    """두 방식을 나란히 적재하는 이유 — 기능 라벨이 점수에 반영돼야 한다.
 
-    tfidf는 IDF로 흔한 성분을 죽이고 jaccard는 그러지 않는다. 상위권이
-    완전히 같다면 IDF가 일하지 않고 있다는 신호다.
+    hybrid가 tfidf와 점수까지 완전히 같다면 라벨이 일하지 않고 있다는 신호다.
     """
     tfidf = await client.get(_url(seed), params={"method": "tfidf"})
-    jaccard = await client.get(_url(seed), params={"method": "jaccard"})
-    if not jaccard.json()["items"]:
-        pytest.skip("jaccard 결과가 없습니다")
+    hybrid = await client.get(_url(seed), params={"method": "hybrid"})
+    if hybrid.json()["method"] != "hybrid":
+        pytest.skip("hybrid가 아직 적재되지 않았습니다")
     assert [i["score"] for i in tfidf.json()["items"]] != [
-        i["score"] for i in jaccard.json()["items"]
+        i["score"] for i in hybrid.json()["items"]
     ]
 
 

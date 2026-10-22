@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Alternative } from '../../types';
 import { Badge } from '../ui/Badge';
 import { ReasonTags } from './ReasonTags';
+import { FitPill } from '../product/FitBadge';
 import { formatUnitPrice } from '../../utils/unitPrice';
 import { similarityBadgeType } from '../../utils/alternatives';
 
@@ -51,7 +52,10 @@ export function AlternativeCard({ alt, showSeedDelta = true, maxReasons = 3, onC
         )}
       </div>
 
-      <Badge type={similarityBadgeType(alt.similarityScore)} label={`${alt.similarityScore}%`} />
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <FitPill verdict={alt.skinMatch?.verdict} />
+        <Badge type={similarityBadgeType(alt.similarityScore)} label={`${alt.similarityScore}%`} />
+      </div>
     </div>
   );
 }

@@ -169,7 +169,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
                 >
                   <button
                     onClick={() =>
-                      navigate(removed ? `/detail/${item.id}` : `/alternatives?seed=${item.id}&from=closet`)
+                      navigate(removed ? `/detail/${item.id}` : `/closet/${item.id}/analysis`)
                     }
                     className="flex min-w-0 flex-1 items-center gap-3 text-left"
                   >

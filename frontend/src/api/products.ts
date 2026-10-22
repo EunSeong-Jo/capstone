@@ -28,19 +28,27 @@ export interface ProductIngredient {
   nameEn?: string;
   position: number;
   /**
-   * 성분 분류. `scripts/seed_skin_type_tags.py`가 ingredient_tags에서 도출합니다.
+   * 성분 분류. 서버가 성분 기능 라벨(ingredient_functions)로 낸다 — 궁합 카드·배지와 같은 기준입니다.
    *
-   *   key     추천 태그(보습·진정·항산화 등)가 붙은 성분
-   *   warn    기피 태그(식약처 표시 의무 착향제·향료·건조 유발 알코올)
-   *   normal  제품에 쓰이지만 어느 쪽도 아닌 성분
-   *   null    분류 근거가 없는 성분 — 화면은 중립으로 그립니다
+   *   key     내 피부타입(skinType을 준 경우)의 선호 기능을 가진 활성·에몰리언트 성분
+   *   warn    주의 성분 — 식약처 알레르기 유발 착향제·일반 향료·건조 알코올, 내 타입이 기피하는 플래그
+   *   normal  라벨은 있지만 어느 쪽도 아닌 성분
+   *   null    분류 근거(라벨)가 없는 성분 — 화면은 중립으로 그립니다
    *
    * EWG 등급은 오지 않습니다. 컬럼은 있지만 비어 있고, 출처를 검증할 수 없는
    * 숫자를 채우면 화면이 근거 없는 안전 등급을 주장하게 됩니다.
    */
   grade?: 'key' | 'normal' | 'warn' | null;
-  /** 식약처 표시 의무 알레르기 유발 착향제 26종 여부 */
+  /** 식약처 알레르기 유발 착향제 고시 목록의 성분인가 */
   isAllergen?: boolean;
+  /** 기능 라벨: H보습 B장벽 S진정 W미백 A주름·탄력 O항산화 P피지·모공 E각질 U자외선. 라벨이 없으면 비어 있다 */
+  functions?: string[];
+  /** 역할: a활성 e에몰리언트 s용매 f계면활성 t점증 p방부 x기타 j오염 */
+  role?: string | null;
+  /** 주의 플래그: I자극 소지 F향료 L건조 알코올 */
+  flags?: string[];
+  /** 라벨 확신도 1~3. 낮으면 화면에 '참고용'으로 표기한다 */
+  confidence?: number | null;
   /**
    * 성분 설명. `scripts/seed_ingredient_descriptions.py`가 적재합니다.
    * 설명이 없는 성분(파싱 잔해 등)은 셋 다 비어 있습니다.
@@ -87,11 +95,17 @@ export function fetchProducts(
   );
 }
 
+/** skinType을 주면 전성분의 추천(key)·주의(warn) 분류를 그 피부타입 기준으로 받습니다. */
 export function fetchProduct(
   id: number,
   signal?: AbortSignal,
+  skinType?: string | null,
 ): Promise<ProductDetail> {
-  return request<ProductDetail>(`/api/v1/products/${id}`, undefined, signal);
+  return request<ProductDetail>(
+    `/api/v1/products/${id}`,
+    skinType ? { skinType } : undefined,
+    signal,
+  );
 }
 
 /** 제품명 부분일치. 검색어는 2자 이상이어야 합니다(미만이면 서버가 422). */

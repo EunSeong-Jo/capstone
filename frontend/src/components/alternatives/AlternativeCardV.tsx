@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { Alternative } from '../../types';
 import { ReasonTags } from './ReasonTags';
-import { similarityBadgeType } from '../../utils/alternatives';
+import { FitPill } from '../product/FitBadge';
+import { similarToState, similarityBadgeType } from '../../utils/alternatives';
 
 interface AlternativeCardVProps {
   alt: Alternative;
@@ -14,25 +15,31 @@ export function AlternativeCardV({ alt, width = 'w-[160px]' }: AlternativeCardVP
   const saving = alt.priceDelta != null && alt.priceDelta < 0;
 
   return (
-    <div className={`${width} shrink-0`} onClick={() => navigate(`/detail/${alt.id}`)}>
+    <div
+      className={`${width} shrink-0`}
+      onClick={() => navigate(`/detail/${alt.id}`, { state: similarToState(alt) })}
+    >
       <div className="relative aspect-square rounded-lg overflow-hidden bg-oy-chip cursor-pointer">
         {alt.imageUrl ? (
           <img src={alt.imageUrl} alt={alt.name} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-3xl opacity-30">🧴</div>
         )}
-        {/* 유사도 뱃지 */}
-        <span
-          className="absolute top-1.5 right-1.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
-          style={{
-            backgroundColor:
-              similarityBadgeType(alt.similarityScore) === 'sim-high'
-                ? 'var(--primary)'
-                : 'var(--warning)',
-          }}
-        >
-          유사도 {alt.similarityScore}%
-        </span>
+        {/* 궁합 뱃지 + 바로 아래 유사도 */}
+        <div className="absolute top-1.5 right-1.5 flex flex-col items-end gap-1">
+          <FitPill verdict={alt.skinMatch?.verdict} className="shadow-sm" />
+          <span
+            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
+            style={{
+              backgroundColor:
+                similarityBadgeType(alt.similarityScore) === 'sim-high'
+                  ? 'var(--primary)'
+                  : 'var(--warning)',
+            }}
+          >
+            유사도 {alt.similarityScore}%
+          </span>
+        </div>
       </div>
 
       <div className="pt-2">

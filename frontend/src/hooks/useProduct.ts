@@ -27,21 +27,29 @@ interface Loaded {
   notFound: boolean;
 }
 
-export function useProduct(id: number | undefined): UseProductResult {
+interface UseProductOptions {
+  /** 전성분의 추천·주의 분류를 이 피부타입 기준으로 받는다 (상세 화면만 쓴다) */
+  skinType?: string | null;
+  /** 피부타입을 아직 모르는 동안 true — 요청을 미뤄 두 번 받지 않는다 */
+  wait?: boolean;
+}
+
+export function useProduct(id: number | undefined, options: UseProductOptions = {}): UseProductResult {
+  const { skinType, wait = false } = options;
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [nonce, setNonce] = useState(0);
 
-  const key = `${id}#${nonce}`;
+  const key = `${id}:${skinType ?? ''}#${nonce}`;
   // 잘못된 id로 들어오는 경로가 실제로 있습니다(목업 링크, /detail/NaN).
   // 조회할 것이 없으므로 effect를 돌리지 않고 아래에서 바로 notFound를 냅니다.
   const invalid = id === undefined || Number.isNaN(id) || id <= 0;
 
   useEffect(() => {
-    if (invalid) return;
+    if (invalid || wait) return;
 
     const controller = new AbortController();
 
-    fetchProduct(id, controller.signal)
+    fetchProduct(id, controller.signal, skinType)
       .then((product) => setLoaded({ key, product, error: null, notFound: false }))
       .catch((err: unknown) => {
         // 언마운트·재요청으로 인한 취소는 오류가 아닙니다.
@@ -59,7 +67,7 @@ export function useProduct(id: number | undefined): UseProductResult {
       });
 
     return () => controller.abort();
-  }, [key, id, invalid]);
+  }, [key, id, invalid, wait, skinType]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
@@ -67,7 +75,7 @@ export function useProduct(id: number | undefined): UseProductResult {
     return { product: null, loading: false, error: null, notFound: true, reload };
   }
 
-  const current = loaded?.key === key ? loaded : null;
+  const current = !wait && loaded?.key === key ? loaded : null;
 
   return {
     product: current?.product ?? null,

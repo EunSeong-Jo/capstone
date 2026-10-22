@@ -15,14 +15,14 @@
  *   - limit            1~20을 벗어나면 422
  *
  * ⚠️ method마다 점수 척도가 다릅니다. 같은 제품에서 tfidf 최고점이 0.25인데
- *    rbo는 0.61이 나오고, 상위 결과가 거의 겹치지 않습니다. 화면에 백분율로
+ *    hybrid는 0.62가 나오고, 상위 결과가 거의 겹치지 않습니다. 화면에 백분율로
  *    쓸 때는 어느 방식으로 뽑았는지를 함께 봐야 합니다.
  */
 import { Product, SkinType } from '../types';
 import { QueryParams, request } from './client';
 import { load, peek } from './queryCache';
 
-export const SIMILAR_METHODS = ['tfidf', 'jaccard', 'rbo'] as const;
+export const SIMILAR_METHODS = ['hybrid', 'tfidf'] as const;
 export type SimilarMethod = (typeof SIMILAR_METHODS)[number];
 
 /** 배치가 제품당 20개만 적재합니다. 더 달라고 해도 줄 게 없습니다. */
@@ -37,6 +37,10 @@ export function toSimilarMethod(value: string | null): SimilarMethod | undefined
 export interface SimilarItem extends Product {
   score: number;
   sharedIngredients: string[];
+  /** 함께 가진 기능(보습·진정…). hybrid에서만 채워집니다. */
+  sharedFunctions?: string[];
+  /** fitFor를 주면 채워진다: good | ok | caution | unknown */
+  skinMatch?: 'good' | 'ok' | 'caution' | 'unknown' | null;
 }
 
 export interface SimilarResponse {
@@ -50,6 +54,8 @@ export interface SimilarQuery {
   limit?: number;
   /** 피부타입 기피 성분이 든 대체품을 서버가 제외합니다. 모르는 값은 무시됩니다. */
   skinType?: SkinType;
+  /** 이 피부타입 기준의 궁합 판정(skinMatch)을 항목마다 붙입니다. 걸러내지는 않습니다. */
+  fitFor?: SkinType;
 }
 
 /**
@@ -87,7 +93,7 @@ const SIMILAR_FRESH_MS = 30 * 60 * 1000;
  * 요청한다(홈의 교체 제안·상단 대체품, 상세, 히스토리가 같은 제품을 묻는다).
  */
 const similarKey = (id: number, q: SimilarQuery) =>
-  `similar:${id}:${q.method ?? ''}:${q.limit ?? ''}:${q.skinType ?? ''}`;
+  `similar:${id}:${q.method ?? ''}:${q.limit ?? ''}:${q.skinType ?? ''}:${q.fitFor ?? ''}`;
 
 export function loadSimilarProducts(id: number, query: SimilarQuery = {}): Promise<SimilarResponse> {
   return load(similarKey(id, query), () => fetchSimilarProducts(id, query), SIMILAR_FRESH_MS);

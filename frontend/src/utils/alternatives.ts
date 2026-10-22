@@ -10,7 +10,7 @@
  * 순수 함수이기 때문이다.
  */
 import { SimilarItem } from '../api/similar';
-import { AltReasonTag, Alternative, Product } from '../types';
+import { AltReasonTag, Alternative, Product, SkinType } from '../types';
 
 /** 절약액·절약률 계산에 필요한 기준제품의 최소 형태. */
 export type SeedRef = Pick<Product, 'id' | 'price'> & { brand?: string; name?: string };
@@ -27,9 +27,13 @@ export type SeedRef = Pick<Product, 'id' | 'price'> & { brand?: string; name?: s
  * 중간대가 얇다. 30은 그 골짜기에 있고, 시드당 20개 중 3~5개가 초록이 된다.
  * 최고점이 25%뿐인 제품은 초록이 하나도 없는데, 실제로 그만큼 안 비슷하다.
  *
- * method를 바꾸면(rbo는 점수가 전반적으로 높다) 이 값도 다시 잡아야 한다.
+ * 위 분포는 tfidf 기준이다. 기본 방식이 hybrid로 바뀌면서(점수가 전반적으로 높다:
+ * 시드당 20개 중 0.30 이상이 hybrid는 9개를 넘는다) 같은 비중(시드당 약 4개)이
+ * 초록이 되는 55로 다시 잡았다. 0.50은 9.1개, 0.55는 4.0개, 0.60은 1.8개였다(로컬 DB 실측,
+ * 제형 일치·판정 보정 반영 후).
+ * method를 바꾸면 이 값도 다시 잡아야 한다.
  */
-export const SIMILARITY_HIGH = 30;
+export const SIMILARITY_HIGH = 55;
 
 /**
  * 같은 제품으로 볼 점수, 백분율.
@@ -75,7 +79,11 @@ export function similarityBadgeType(percent: number): 'sim-high' | 'sim-mid' {
  * 오기 때문에 목록보다 늦게 도착한다. 그동안 가격 파생을 전부 생략한다 —
  * 기준가를 모르는 채 절약액을 0으로 채우면 "0원 절약"을 그리게 된다.
  */
-export function toAlternative(item: SimilarItem, seed: SeedRef | null): Alternative {
+export function toAlternative(
+  item: SimilarItem,
+  seed: SeedRef | null,
+  fitFor?: SkinType,
+): Alternative {
   const similarityScore = toSimilarityPercent(item.score);
 
   // 음수가 절약이다. AlternativeCard가 priceDelta < 0으로 판정하므로 부호를 맞춘다.
@@ -86,11 +94,16 @@ export function toAlternative(item: SimilarItem, seed: SeedRef | null): Alternat
       : undefined;
 
   // 서버가 주는 것으로 정직하게 만들 수 있는 태그만 넣는다.
-  //   skinMatch  profiles·skin_type_rules 연동 전이라 판단 근거가 없다 (Task 13·14)
+  //   skinMatch  서버가 성분 기능 라벨로 판정한 값(fitFor를 준 경우). unknown은 말하지 않는다
   //   situation  단종·품절 정보를 수집하지 않는다
   //   similarity 우상단 뱃지와 중복이고 ReasonTags가 기본으로 걸러낸다
   // 그래서 대부분의 카드는 태그가 0~1개다. 목업보다 허전한 게 정상이다.
   const reasonTags: AltReasonTag[] = [];
+  const verdict = item.skinMatch;
+  const skinMatch =
+    fitFor && (verdict === 'good' || verdict === 'ok' || verdict === 'caution')
+      ? { skinType: fitFor, verdict }
+      : undefined;
   if (savingRate !== undefined && savingRate >= 10) {
     reasonTags.push({ type: 'priceSave', label: `${savingRate}% 저렴` });
   }
@@ -110,6 +123,7 @@ export function toAlternative(item: SimilarItem, seed: SeedRef | null): Alternat
     seedId: seed?.id,
     priceDelta,
     savingRate,
+    skinMatch,
     situation: null,
     reasonTags,
     sharedKeyIngredients: item.sharedIngredients,
@@ -159,4 +173,34 @@ export function splitSameProductVariants(
     (sameProduct ? variants : alternatives).push(item);
   }
   return { variants, alternatives };
+}
+
+
+/**
+ * 카드에서 상세로 넘어갈 때 함께 보내는 "무엇과 비슷한가".
+ *
+ * 카드 폭이 좁아 "○○와 비슷해요"가 잘려서, 카드에는 쓰지 않고 상세를 열었을 때 보여 준다.
+ * 라우터 state라 새로고침하거나 주소로 직접 들어오면 없다 — 그때는 아무것도 그리지 않는다.
+ */
+export interface SimilarToState {
+  similarTo: { productId: number; seedId: number; seedName: string; score: number };
+}
+
+export function similarToState(alt: Alternative): SimilarToState | undefined {
+  if (!alt.basedOn || alt.seedId === undefined) return undefined;
+  return {
+    similarTo: {
+      productId: alt.id,
+      seedId: alt.seedId,
+      seedName: alt.basedOn,
+      score: alt.similarityScore,
+    },
+  };
+}
+
+/** 라우터 state에서 SimilarToState를 안전하게 꺼낸다 */
+export function readSimilarTo(state: unknown, productId: number): SimilarToState['similarTo'] | null {
+  const s = (state as Partial<SimilarToState> | null)?.similarTo;
+  if (!s || s.productId !== productId || typeof s.seedName !== 'string') return null;
+  return s;
 }

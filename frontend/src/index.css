@@ -156,6 +156,15 @@
     background: var(--accent-light);
   }
 
+  /* 궁합 카드의 이유를 눌렀을 때 강조되는 성분 */
+  .igr-chip.hl {
+    box-shadow: 0 0 0 2px var(--primary);
+    font-weight: 700;
+  }
+  .igr-chip.warn.hl {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+
   /* 유사도 뱃지 */
   .sim-badge {
     @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold text-white;

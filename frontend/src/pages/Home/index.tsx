@@ -10,7 +10,6 @@ import { AlternativeCarousel } from '../../components/home/oy/sections/Alternati
 import { SwapSuggestion } from '../../components/home/oy/sections/SwapSuggestion';
 import { useUserProfile } from '../../context/userProfile';
 import {
-  Alternative,
   CharacterState,
   ProfileUser,
   RegistrySummary,
@@ -19,10 +18,10 @@ import {
 } from '../../types';
 import { useProducts } from '../../hooks/useProducts';
 import { useRecommendations } from '../../hooks/useRecommendations';
-import { useSimilarProducts } from '../../hooks/useSimilarProducts';
 import { useStats } from '../../hooks/useStats';
 import { useSkinType } from '../../hooks/useSkinType';
 import { useSwapSuggestion } from '../../hooks/useSwapSuggestion';
+import { useClosetSimilar } from '../../hooks/useClosetSimilar';
 import { useWeather } from '../../hooks/useWeather';
 import { useCareTip } from '../../hooks/useCareTip';
 import { useAuth } from '../../context/auth';
@@ -133,21 +132,8 @@ export default function HomePage() {
   const { profile } = useUserProfile();
   const { tip: careTip } = useCareTip(skinType, skinPending, weather?.condition ?? 'sunny');
 
-  // 화장대 조회 중에는 seed가 없다 — 빈 배열을 "화장대가 비었다"로 읽으면 안 된다.
-  const registrySeedId = closetLoading ? undefined : closetItems[0]?.id;
-
-  // 화장대 첫 항목의 실제 성분 유사도. 화장대 id가 카탈로그 id가 된 뒤로
-  // 여기서 진짜 점수를 쓸 수 있다.
-  const registrySeed = closetItems[0];
-  const registrySimilar = useSimilarProducts(
-    registrySeedId,
-    {
-      limit: 6,
-      seedProduct: registrySeed
-        ? { id: registrySeed.id, price: registrySeed.price ?? 0 }
-        : null,
-    },
-  );
+  // 화장대 **전체**를 기준으로 한 비슷한 추천(후보마다 가장 비슷한 화장대 제품 기준).
+  const closetSimilar = useClosetSimilar(closetItems, closetLoading, skinType ?? undefined);
 
   // 홈의 "더 저렴한 대체품"과 대시보드 절약액이 쓰는 실제 후보.
   // 예전에는 이 자리에 mocks/alternatives.ts의 고정 목업이 있었는데, 가짜
@@ -161,16 +147,6 @@ export default function HomePage() {
     if (swap.candidates.length === 0) return undefined;
     return swap.candidates.reduce((sum, c) => sum + -(c.alt.priceDelta ?? 0), 0);
   }, [swap.candidates]);
-
-  // 캐러셀이 받는 모양(Alternative[])으로. seed는 카드가 쓰지 않는다.
-  const cheaperAlternatives: Alternative[] = useMemo(
-    () => swap.candidates.map((c) => c.alt),
-    [swap.candidates],
-  );
-
-  // "내 화장대와 비슷한 추천" — 화장대 첫 항목의 실제 성분 유사도만 쓴다.
-  // 유사도가 아직 없는 제품이면 빈 배열이고, 캐러셀이 그리지 않는다.
-  const registryAlternatives: Alternative[] = registrySimilar.alternatives;
 
   // 로그인 시 페르소나/진단/화장대에서 대시보드 값 구성, 게스트는 목업 유지
   const dashUser: ProfileUser = isUser && persona
@@ -254,19 +230,26 @@ export default function HomePage() {
         )}
         <Divider />
 
-        {/* 대체품 추천 (핵심): 내 화장대 성분 기반.
-            화장대가 비었거나 유사도가 아직 없으면 섹션을 아예 그리지 않는다.
-            빈 자리를 목업으로 채우던 것이 id 충돌 버그의 원인이었다. */}
-        {registrySeedId !== undefined && registryAlternatives.length > 0 && (
-          <>
+        {/* 내 화장대와 비슷한 추천 — 카테고리별 구역.
+            화장대에 있는 카테고리마다 따로 그린다(스킨케어·마스크팩·클렌징·선케어). 구역 안에서는
+            그 카테고리의 화장대 제품 전체를 기준으로 비슷한 순이다. "어느 제품과 비슷한지"는 카드가 좁아
+            잘리므로 카드를 눌러 상세로 들어갔을 때 보여 준다.
+            화장대가 비었거나 유사도가 아직 없으면 구역을 그리지 않는다
+            (빈 자리를 목업으로 채우던 것이 id 충돌 버그의 원인이었다). */}
+        {closetSimilar.groups.map((g) => (
+          <div key={g.category}>
             <AlternativeCarousel
-              title="🧴 내 화장대와 비슷한 추천"
-              alternatives={registryAlternatives}
-              onMore={() => navigate(`/alternatives?seed=${registrySeedId}&from=home`)}
+              title={`🧴 내 ${g.category} 제품과 비슷한 추천`}
+              alternatives={g.alternatives}
+              onMore={
+                g.seedId !== undefined
+                  ? () => navigate(`/alternatives?seed=${g.seedId}&from=home`)
+                  : undefined
+              }
             />
             <Divider />
-          </>
-        )}
+          </div>
+        ))}
 
         {/* 날씨·계절 맞춤 (대시보드 날씨 연계) */}
         <ProductCarousel
@@ -278,20 +261,6 @@ export default function HomePage() {
           <CarouselError message={seasonalError} onRetry={seasonalReload} />
         )}
         <Divider />
-
-        {/* 더 저렴한 대체품 (가격절약 축) — 화장대 전체에서 절약액 순.
-            useSwapSuggestion이 같은 조회를 이미 했으므로 추가 요청이 없다.
-
-            더보기는 전용 화면으로 보낸다. 예전에는 /alternatives?seed=<첫 항목>
-            으로 보냈는데, 캐러셀은 여러 항목의 후보를 섞어 보여주므로
-            캐러셀에서 본 카드가 더보기에 없는 경우가 생겼다. */}
-        {cheaperAlternatives.length > 0 && (
-          <AlternativeCarousel
-            title="💰 더 저렴한 대체품"
-            alternatives={cheaperAlternatives}
-            onMore={() => navigate('/home/cheaper-alternatives')}
-          />
-        )}
       </main>
 
       <OyFloatingActions
