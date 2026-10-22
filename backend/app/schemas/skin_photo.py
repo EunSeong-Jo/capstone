@@ -79,6 +79,27 @@ class AnalysisOut(_CamelModel):
     remaining: int | None = None
 
 
+class PhotoCheckItemOut(_CamelModel):
+    key: str
+    label: str
+    # True 통과 · False 걸림 · None 판단하지 못함(앞 단계가 막혔거나 근거가 없음)
+    ok: bool | None
+    message: str | None = None
+
+
+class PhotoCheckOut(_CamelModel):
+    """사진 사전 검증 결과. 분석이 아니라서 한도를 쓰지 않는다."""
+
+    ok: bool
+    # 통과하지 못한 이유 코드(face_gate의 코드, 사진을 못 읽으면 image_unusable)와 사용자에게 보일 한 문장
+    code: str | None = None
+    message: str | None = None
+    # 판정에 쓴 측정값(얼굴 폭 어림·기울기·밝기·선명도 등) — 왜 걸렸는지 개발·튜닝 때 본다
+    metrics: dict[str, float] | None = None
+    # 항목별 결과 — 어디가 걸렸는지 한꺼번에 보여 주는 체크리스트
+    items: list[PhotoCheckItemOut] | None = None
+
+
 class AnalysisIn(_CamelModel):
     # data URL — 후기 사진·스캔과 같은 방식(services/review_photos.decode_photo).
     image: str

@@ -58,6 +58,8 @@ scipy==1.17.1
 # app/assets/models/). 4.x에 고정한 이유: 5.0은 새 메이저라 FaceDetectorYN을 검증하지 않았다.
 Pillow==12.2.0
 opencv-python-headless==4.13.0.92
+# ai-edge-litert: 얼굴 가림 검사의 이미지 분할 모델(TFLite)을 돌리는 런타임(app/services/occlusion.py). 약 22MB.
+ai-edge-litert==2.3.0
 
 # LLM (챗봇)
 openai==1.57.0

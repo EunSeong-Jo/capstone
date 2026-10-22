@@ -160,3 +160,5 @@ skin_images/
 
 # MediaPipe wasm — npm install 후 frontend/scripts/copy-mediapipe.mjs가 복사한다 (약 40MB)
 frontend/public/mediapipe/wasm/
+# 얼굴 가림 검사용 분할 모델(약 16MB, 서버가 쓴다) — 이미지를 빌드할 때·처음 쓸 때 내려받는다(services/occlusion.py)
+backend/app/assets/models/selfie_multiclass_256x256.tflite

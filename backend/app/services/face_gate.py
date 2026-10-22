@@ -11,10 +11,14 @@
 MIT 라이선스, 약 230KB)이다. YOLO(ultralytics)는 AGPL-3.0이고 PyTorch를 끌고 와서
 이미지가 크게 늘기 때문에 쓰지 않는다.
 
+이 검사는 **분석 업체의 촬영 요구(얼굴 폭 60% 이상·정면·밝고 고른 조명·초점·잘림 없음)를 업체에
+보내기 전에 먼저 확인**한다 — 부적합한 사진은 외부로 나가지 않고, 이유를 바로 알려 주며, 한도도
+쓰지 않는다.
+
 판정 규칙(`evaluate_faces`)은 검출기와 분리해 두었다. 임계값은 `config.py`에 있고,
 거절 사유는 로그로 남겨 튜닝 근거로 쓴다(사진 자체는 남기지 않는다).
-애매하면 통과시킨다 — 얼굴 크기·조명처럼 Perfect Corp이 직접 판정하는 오류는
-유닛을 쓰지 않으므로, 여기서는 "확실히 아닌 것"을 중심으로 막는다.
+애매하면 통과시킨다 — 업체가 직접 판정하는 오류는 유닛을 쓰지 않으므로, 눈 위치처럼 근거가 없거나
+어림이 불안정한 항목(위·아래 고개 숙임, 표정)은 보지 않는다.
 
 사진은 이 모듈을 지나는 동안 메모리에만 있다. `prepare_photo`가 EXIF(GPS 포함)를
 제거한 JPEG를 새로 만들어 돌려주고, 이후 외부로 나가는 것은 그 바이트뿐이다.
@@ -24,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import io
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -33,6 +38,7 @@ from fastapi import HTTPException
 from PIL import Image, ImageOps
 
 from app.config import settings
+from app.services.occlusion import Occlusion, check_occlusion
 
 log = structlog.get_logger()
 
@@ -64,6 +70,29 @@ class Face:
     w: float
     h: float
     score: float
+    # YuNet 특징점(0~1 비율): 오른쪽 눈 x·y, 왼쪽 눈, 코끝, 오른쪽 입꼬리, 왼쪽 입꼬리. 없으면 None.
+    landmarks: tuple[float, ...] | None = None
+    # 사진의 가로÷세로. 특징점 거리를 픽셀 비율로 되돌릴 때 쓴다.
+    aspect: float = 1.0
+
+
+@dataclass(frozen=True)
+class PhotoStats:
+    """가장 큰 얼굴 상자 안의 조명·선명도."""
+
+    luminance: float  # 평균 밝기(0~255)
+    imbalance: float  # 좌우 밝기 차 ÷ 평균
+    sharpness: float  # 라플라시안 분산(128×128)
+
+
+@dataclass(frozen=True)
+class CheckItem:
+    """체크리스트 한 칸. `ok`가 None이면 판단하지 못했다(앞 단계가 막혔거나 근거가 없다)."""
+
+    key: str
+    label: str
+    ok: bool | None
+    message: str | None = None   # ok가 False일 때 사용자에게 보일 한 문장
 
 
 @dataclass(frozen=True)
@@ -71,6 +100,10 @@ class GateResult:
     ok: bool
     code: str | None = None
     message: str | None = None
+    # 항목별 결과(얼굴 인식·한 명·얼굴 전체·크기·정면·조명·초점). 어디가 걸렸는지 한꺼번에 보여 줄 때 쓴다.
+    items: list[CheckItem] | None = None
+    # 판정에 쓴 측정값(얼굴 폭 어림·기울기·코 치우침·밝기·좌우 차·선명도). 왜 걸렸는지 확인하는 용도다.
+    metrics: dict[str, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -82,19 +115,64 @@ class PreparedPhoto:
     height: int
 
 
+# 사용자에게 보이는 문구. **한 문장**이다 — 화면이 뒤에 "분석 횟수는 차감되지 않았어요."를 붙이므로
+# 이유를 따로 말하지 않고 무엇을 고쳐 찍을지만 알려 준다.
 _MESSAGES = {
-    "no_face": "얼굴이 보이지 않아요. 얼굴이 정면으로 나오게 다시 찍어 주세요.",
-    "multiple_faces": "얼굴이 여러 개 보여요. 한 명만 나오게 찍어 주세요.",
-    "face_too_small": "얼굴이 너무 작아요. 화면에 얼굴이 가득 차게 가까이에서 찍어 주세요.",
-    "face_out_of_frame": "얼굴이 화면 밖으로 나갔어요. 얼굴 전체가 보이게 찍어 주세요.",
-    "too_dark": "너무 어두워요. 밝은 곳에서 다시 찍어 주세요.",
-    "image_too_small": "사진 해상도가 너무 낮아요. 더 선명한 사진으로 다시 시도해 주세요.",
+    "no_face": "얼굴이 정면으로 나오게 다시 찍어 주세요.",
+    "multiple_faces": "한 명만 나오게 다시 찍어 주세요.",
+    "face_too_small": "얼굴 폭이 사진의 60% 이상이 되게 가까이에서 다시 찍어 주세요.",
+    "face_out_of_frame": "얼굴 전체가 보이게 다시 찍어 주세요.",
+    "face_tilted": "고개를 똑바로 세우고 다시 찍어 주세요.",
+    "face_turned": "카메라를 정면으로 보고 다시 찍어 주세요.",
+    "occluded_cheek": "볼이 가려졌어요. 손·머리카락·마스크를 치우고 다시 찍어 주세요.",
+    "occluded_nose_mouth": "코와 입이 가려졌어요. 손이나 마스크를 치우고 다시 찍어 주세요.",
+    "occluded_chin": "턱이 가려졌어요. 손이나 마스크를 치우고 다시 찍어 주세요.",
+    "too_dark": "밝은 곳에서 다시 찍어 주세요.",
+    "too_bright": "빛이 얼굴에 직접 닿지 않는 곳에서 다시 찍어 주세요.",
+    "uneven_light": "빛이 고르게 닿는 곳에서 다시 찍어 주세요.",
+    "blurry": "초점을 맞추고 흔들리지 않게 다시 찍어 주세요.",
+    "image_too_small": "사진 해상도가 낮아요. 더 선명한 사진으로 다시 시도해 주세요.",
     "bad_image": "사진을 읽을 수 없어요. JPEG나 PNG 사진인지 확인해 주세요.",
 }
 
 
 def message_for(code: str) -> str:
     return _MESSAGES[code]
+
+
+# 체크리스트 항목(순서가 곧 안내 우선순위다)
+_ITEM_LABELS = [
+    ("face", "얼굴 인식"),
+    ("single", "한 명만"),
+    ("frame", "얼굴 전체"),
+    ("size", "얼굴 크기"),
+    ("pose", "정면"),
+    ("clear", "가림 없음"),
+    ("light", "조명"),
+    ("sharp", "초점"),
+]
+
+# 귀~귀 얼굴 폭에 대한 두 눈 사이 거리의 비율(눈 사이 약 63mm·얼굴 폭 약 140mm).
+IPD_PER_FACE_WIDTH = 0.45
+# 특징점이 사진 가장자리에서 이 비율 안쪽에 있어야 한다 — 얼굴이 잘리면 검출 상자는 안쪽으로 잘려 나와
+# 상자만으로는 모르지만, 눈·코·입 점은 가장자리에 붙는다.
+LANDMARK_MARGIN = 0.01
+
+
+def _face_geometry(face: Face) -> tuple[float, float, float] | None:
+    """(얼굴 폭 어림 비율, 기울기 도, 코 치우침) — 눈 위치가 없으면 None."""
+    lm = face.landmarks
+    if lm is None or len(lm) < 6:
+        return None
+    rx, ry, lx, ly, nx, _ = lm[:6]
+    dx = lx - rx                       # 사진 폭에 대한 비율
+    dy = (ly - ry) / face.aspect       # 세로 차이도 사진 폭에 대한 비율로
+    ipd = math.hypot(dx, dy)
+    if ipd <= 0:
+        return None
+    roll = abs(math.degrees(math.atan2(dy, abs(dx))))
+    yaw = abs((nx - (rx + lx) / 2) / ipd)
+    return ipd / IPD_PER_FACE_WIDTH, roll, yaw
 
 
 def evaluate_faces(
@@ -104,10 +182,14 @@ def evaluate_faces(
     min_score: float | None = None,
     min_width_ratio: float | None = None,
     min_luminance: float | None = None,
+    stats: PhotoStats | None = None,
+    occlusion: Occlusion | None = None,
 ) -> GateResult:
     """검출 결과 → 통과 여부. 검출기 없이 테스트할 수 있는 순수 함수다.
 
-    `luminance`는 가장 큰 얼굴 상자 안의 평균 밝기(0~255)이고, 모르면 None이다.
+    `luminance`는 가장 큰 얼굴 상자 안의 평균 밝기(0~255)이고, 모르면 None이다. `stats`가 있으면
+    좌우 밝기 차·선명도도 보고, `occlusion`이 있으면 가림도 본다.
+    순서: 얼굴 → 한 명 → 잘림 → 크기 → 정면 → 가림 → 조명 → 초점.
     """
     min_score = settings.FACE_MIN_SCORE if min_score is None else min_score
     min_width_ratio = (
@@ -117,28 +199,95 @@ def evaluate_faces(
 
     confident = sorted((f for f in faces if f.score >= min_score), key=lambda f: -f.w)
     if not confident:
-        return GateResult(False, "no_face", _MESSAGES["no_face"])
+        items = [CheckItem("face", "얼굴 인식", False, _MESSAGES["no_face"])]
+        items += [CheckItem(k, label, None) for k, label in _ITEM_LABELS[1:]]
+        return GateResult(False, "no_face", _MESSAGES["no_face"], items)
 
     main = confident[0]
-    if len(confident) > 1 and confident[1].w >= main.w * SECOND_FACE_RATIO:
-        return GateResult(False, "multiple_faces", _MESSAGES["multiple_faces"])
+    geometry = _face_geometry(main)
+
+    # 측정값을 먼저 모두 모은다 — 어느 기준에 걸리든 결과에 같이 실어 보낸다.
+    metrics: dict[str, float] = {"box_width": round(main.w, 3)}
+    if geometry is not None:
+        metrics.update(
+            face_width=round(geometry[0], 3), roll_deg=round(geometry[1], 1), yaw_offset=round(geometry[2], 3)
+        )
+    if occlusion is not None:
+        metrics.update({f"skin_{k}": v for k, v in occlusion.ratios.items()})
+    if luminance is not None:
+        metrics["luminance"] = round(luminance, 1)
+    if stats is not None:
+        metrics.update(light_imbalance=round(stats.imbalance, 3), sharpness=round(stats.sharpness, 1))
+
+    # 항목마다 (통과 여부, 걸렸을 때의 코드)를 낸다. 앞 항목이 걸려도 뒤 항목을 계속 본다 —
+    # 한 번에 어디가 문제인지 알려 주기 위해서다. 순서가 곧 안내 우선순위다.
+    results: list[tuple[str, bool | None, str | None]] = []
+
+    multiple = len(confident) > 1 and confident[1].w >= main.w * SECOND_FACE_RATIO
+    results.append(("single", not multiple, "multiple_faces"))
 
     tol = OUT_OF_FRAME_TOLERANCE
-    if (
-        main.x < -tol
+    cut = main.landmarks is not None and any(
+        v < LANDMARK_MARGIN or v > 1 - LANDMARK_MARGIN for v in main.landmarks
+    )
+    out = (
+        cut
+        or main.x < -tol
         or main.y < -tol
         or main.x + main.w > 1 + tol
         or main.y + main.h > 1 + tol
-    ):
-        return GateResult(False, "face_out_of_frame", _MESSAGES["face_out_of_frame"])
+    )
+    results.append(("frame", not out, "face_out_of_frame"))
 
-    if main.w < min_width_ratio:
-        return GateResult(False, "face_too_small", _MESSAGES["face_too_small"])
+    if geometry is None:
+        # 눈 위치가 없으면 상자 폭으로만 본다(어림이 틀릴 수 있어 기준이 더 느슨하다).
+        results.append(("size", main.w >= settings.FACE_MIN_BOX_RATIO, "face_too_small"))
+        results.append(("pose", None, None))
+    else:
+        width, roll, yaw = geometry
+        results.append(("size", width >= min_width_ratio, "face_too_small"))
+        if roll > settings.FACE_MAX_ROLL_DEG:
+            results.append(("pose", False, "face_tilted"))
+        elif yaw > settings.FACE_MAX_YAW_OFFSET:
+            results.append(("pose", False, "face_turned"))
+        else:
+            results.append(("pose", True, None))
 
-    if luminance is not None and luminance < min_luminance:
-        return GateResult(False, "too_dark", _MESSAGES["too_dark"])
+    if occlusion is None:
+        results.append(("clear", None, None))      # 모델을 쓸 수 없으면 판단하지 않는다
+    elif occlusion.ok:
+        results.append(("clear", True, None))
+    else:
+        results.append(("clear", False, f"occluded_{occlusion.region}"))
 
-    return GateResult(True)
+    if luminance is None and stats is None:
+        results.append(("light", None, None))
+    elif luminance is not None and luminance < min_luminance:
+        results.append(("light", False, "too_dark"))
+    elif stats is not None and stats.luminance > settings.FACE_MAX_LUMINANCE:
+        results.append(("light", False, "too_bright"))
+    elif stats is not None and stats.imbalance > settings.FACE_MAX_LIGHT_IMBALANCE:
+        results.append(("light", False, "uneven_light"))
+    else:
+        results.append(("light", True, None))
+
+    results.append(
+        ("sharp", None if stats is None else stats.sharpness >= settings.FACE_MIN_SHARPNESS, "blurry")
+    )
+
+    labels = dict(_ITEM_LABELS)
+    items = [CheckItem("face", labels["face"], True)]
+    first: str | None = None
+    for key, ok, code in results:
+        items.append(
+            CheckItem(key, labels[key], ok, _MESSAGES[code] if ok is False and code else None)
+        )
+        if ok is False and first is None:
+            first = code
+
+    if first:
+        return GateResult(False, first, _MESSAGES[first], items, metrics)
+    return GateResult(True, items=items, metrics=metrics)
 
 
 # ── 사진 정리 (회전 적용 · EXIF 제거) ─────────────────────────────────
@@ -190,8 +339,8 @@ def _load_detector():
     return _detector
 
 
-def detect_faces(photo: PreparedPhoto) -> tuple[list[Face], float | None]:
-    """(얼굴 목록, 가장 큰 얼굴 안의 평균 밝기). 동기 함수 — 스레드에서 부른다."""
+def detect_faces(photo: PreparedPhoto) -> tuple[list[Face], PhotoStats | None]:
+    """(얼굴 목록, 가장 큰 얼굴 안의 조명·선명도). 동기 함수 — 스레드에서 부른다."""
     import cv2
 
     arr = cv2.imdecode(np.frombuffer(photo.jpeg, np.uint8), cv2.IMREAD_COLOR)
@@ -210,6 +359,10 @@ def detect_faces(photo: PreparedPhoto) -> tuple[list[Face], float | None]:
         Face(
             x=float(r[0]) / sw, y=float(r[1]) / sh,
             w=float(r[2]) / sw, h=float(r[3]) / sh, score=float(r[14]),
+            landmarks=tuple(
+                float(v) / (sw if i % 2 == 0 else sh) for i, v in enumerate(r[4:14])
+            ),
+            aspect=sw / sh,
         )
         for r in rows
     ]
@@ -218,23 +371,48 @@ def detect_faces(photo: PreparedPhoto) -> tuple[list[Face], float | None]:
     y0 = max(0, int(main.y * sh))
     x1 = min(sw, int((main.x + main.w) * sw))
     y1 = min(sh, int((main.y + main.h) * sh))
-    luminance = None
-    if x1 > x0 and y1 > y0:
+    stats = None
+    if x1 - x0 > 1 and y1 - y0 > 1:
         gray = cv2.cvtColor(small[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY)
-        luminance = float(gray.mean())
-    return faces, luminance
+        mean = float(gray.mean())
+        half = gray.shape[1] // 2
+        left, right = float(gray[:, :half].mean()), float(gray[:, half:].mean())
+        sharp = float(cv2.Laplacian(cv2.resize(gray, (128, 128)), cv2.CV_64F).var())
+        stats = PhotoStats(
+            luminance=mean,
+            imbalance=abs(left - right) / mean if mean > 0 else 0.0,
+            sharpness=sharp,
+        )
+    return faces, stats
 
 
-async def check_face(photo: PreparedPhoto) -> None:
-    """얼굴이 아니거나 쓸 수 없는 사진이면 422. 통과하면 아무 일도 없다."""
-    faces, luminance = await asyncio.to_thread(detect_faces, photo)
-    result = evaluate_faces(faces, luminance)
+async def inspect_photo(photo: PreparedPhoto) -> GateResult:
+    """사진을 검증해 결과를 돌려준다(예외를 내지 않는다). 촬영 직후 미리 알려 줄 때 쓴다."""
+    faces, stats = await asyncio.to_thread(detect_faces, photo)
+    # 가림 검사는 가장 큰 얼굴 기준이다. 얼굴이 없으면 건너뛴다(어차피 no_face로 막힌다).
+    confident = [f for f in faces if f.score >= settings.FACE_MIN_SCORE]
+    occlusion = None
+    if confident:
+        main = max(confident, key=lambda f: f.w)
+        occlusion = await asyncio.to_thread(check_occlusion, photo.jpeg, main.x, main.y, main.w, main.h)
+    result = evaluate_faces(
+        faces, stats.luminance if stats else None, stats=stats, occlusion=occlusion
+    )
     if not result.ok:
         log.info(
             "face_gate_reject",
             code=result.code,
             faces=len(faces),
             top_w=round(max((f.w for f in faces), default=0), 3),
-            luminance=None if luminance is None else round(luminance),
+            luminance=None if stats is None else round(stats.luminance),
+            sharpness=None if stats is None else round(stats.sharpness),
+            metrics=result.metrics,
         )
+    return result
+
+
+async def check_face(photo: PreparedPhoto) -> None:
+    """얼굴이 아니거나 쓸 수 없는 사진이면 422. 통과하면 아무 일도 없다."""
+    result = await inspect_photo(photo)
+    if not result.ok:
         raise HTTPException(status_code=422, detail=result.message)

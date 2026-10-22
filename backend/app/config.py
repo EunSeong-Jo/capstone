@@ -148,7 +148,26 @@ class Settings(BaseSettings):
     # 폭 비율은 Perfect Corp 요구(60%)보다 느슨하게 시작한다 — 검출기 상자가 얼굴보다
     # 조금 좁게 잡혀서 같은 기준을 쓰면 정상 사진이 걸러진다.
     FACE_MIN_SCORE: float = 0.8
-    FACE_MIN_WIDTH_RATIO: float = 0.40
+    # 업체(Perfect Corp)의 촬영 요구를 서버에서 같은 기준으로 먼저 본다(services/face_gate.py).
+    # 얼굴 폭 = 두 눈 사이 거리 ÷ 0.45(귀~귀 폭에 대한 비율)로 어림한 값이 사진 폭의 60% 이상이어야 한다.
+    # 검출 상자 폭은 얼굴보다 좁게 잡혀서 쓰지 않는다 — 업체가 정상 처리한 시험 사진이 상자로는 58.8%,
+    # 어림값으로는 64%였다. 눈 위치를 못 얻을 때만 상자 폭(FACE_MIN_BOX_RATIO)으로 대신한다.
+    FACE_MIN_WIDTH_RATIO: float = 0.60
+    FACE_MIN_BOX_RATIO: float = 0.40
+    # 정면: 눈을 잇는 선의 기울기(roll)와 코끝의 좌우 치우침(yaw, 눈 사이 거리 대비). 업체 기준 ±15°.
+    FACE_MAX_ROLL_DEG: float = 15.0
+    FACE_MAX_YAW_OFFSET: float = 0.12
+    # 조명: 너무 밝음(평균 200 초과)·한쪽만 밝음(좌우 밝기 차 ÷ 평균). 시험 사진은 120 · 9%.
+    FACE_MAX_LUMINANCE: float = 200.0
+    FACE_MAX_LIGHT_IMBALANCE: float = 0.4
+    # 초점: 얼굴을 128×128 회색으로 줄여 잰 라플라시안 분산. 시험 사진 2240, 가우시안 σ=3 흐림 68, σ=4 37.
+    FACE_MIN_SHARPNESS: float = 60.0
+    # 가림: 얼굴 상자 안 영역별 '얼굴 피부' 비율이 이 값 이상이어야 한다(services/occlusion.py).
+    # 시험 사진은 볼 95·96%·코와 입 100%·턱 76~79%(목과 맞닿아 80%를 넘기 어렵다), 흰 마스크는 17~32·25~36·6%,
+    # 피부색 손 모양은 코와 입 34~49%·턱 22~48%. 일부만 가린 경우까지 잡도록 올렸고, 정상 사진과의 여유를 남겼다.
+    FACE_SKIN_MIN_CHEEK: float = 0.70
+    FACE_SKIN_MIN_NOSE_MOUTH: float = 0.80
+    FACE_SKIN_MIN_CHIN: float = 0.60
     FACE_MIN_LUMINANCE: float = 50.0
 
     # 얼굴 사진 수집 동의 문구의 버전. 문구(개인정보 처리방침)를 바꾸면 함께 올린다.

@@ -21,7 +21,7 @@ from fastapi import HTTPException
 from PIL import Image
 
 from app.config import settings
-from app.services import face_gate, skin_photo
+from app.services import face_gate, occlusion, skin_photo
 from app.services.diagnosis import blend_scores
 from app.services.face_gate import Face, evaluate_faces
 from app.services.skin_quota import BASIC_CONCERNS, EXTENDED_CONCERNS, month_window
@@ -62,6 +62,141 @@ def test_gate_width_ratio_boundary(w, ok):
 def test_gate_rejects_face_out_of_frame_but_tolerates_small_overhang():
     assert evaluate_faces([_face(x=0.6, w=0.6)], 120).code == "face_out_of_frame"
     assert evaluate_faces([_face(x=-0.03, w=0.6)], 120).ok  # 5% 허용
+
+
+# 업체가 정상 처리한 시험 사진(skin_test.jpg)을 우리 검출기(YuNet)로 잰 값 — 검출 상자 폭은 58.8%지만
+# 눈 사이 거리로 어림한 얼굴 폭은 64%이고 정면이다. 이 사진이 통과해야 "업체와 같은 기준"이다.
+_SAMPLE_LANDMARKS = (0.349, 0.441, 0.638, 0.431, 0.497, 0.560, 0.384, 0.677, 0.629, 0.669)
+
+
+def _lm_face(*, ipd=0.289, roll_deg=0.0, nose_off=0.0, cx=0.5, cy=0.45):
+    """눈 사이 거리 `ipd`(사진 폭 대비)·기울기·코 치우침을 가진 정면 얼굴. 사진은 3:4."""
+    import math
+
+    aspect = 0.75
+    rx, lx = cx - ipd / 2, cx + ipd / 2
+    dy = math.tan(math.radians(roll_deg)) * ipd * aspect   # 세로 비율로
+    ry, ly = cy - dy / 2, cy + dy / 2
+    nx = cx + nose_off * ipd
+    lm = (rx, ry, lx, ly, nx, cy + 0.12, rx + 0.03, cy + 0.2, lx - 0.03, cy + 0.2)
+    return Face(x=0.2, y=0.2, w=0.6, h=0.6, score=0.95, landmarks=lm, aspect=aspect)
+
+
+def test_gate_accepts_the_vendor_approved_sample():
+    face = Face(x=0.204, y=0.221, w=0.588, h=0.621, score=0.934,
+                landmarks=_SAMPLE_LANDMARKS, aspect=0.75)
+    stats = face_gate.PhotoStats(luminance=120.1, imbalance=0.096, sharpness=2241.8)
+    assert evaluate_faces([face], 120.1, stats=stats).ok
+
+
+@pytest.mark.parametrize("ipd, ok", [(0.25, False), (0.28, True)])  # 얼굴 폭 어림 55.6% / 62.2%, 기준 60%
+def test_gate_uses_estimated_face_width_like_the_vendor(ipd, ok):
+    res = evaluate_faces([_lm_face(ipd=ipd)], 120)
+    assert res.ok is ok
+    assert res.code in (None, "face_too_small")
+
+
+def test_gate_rejects_tilted_and_turned_faces():
+    assert evaluate_faces([_lm_face(roll_deg=10)], 120).ok
+    assert evaluate_faces([_lm_face(roll_deg=20)], 120).code == "face_tilted"
+    assert evaluate_faces([_lm_face(nose_off=0.05)], 120).ok
+    assert evaluate_faces([_lm_face(nose_off=0.25)], 120).code == "face_turned"
+
+
+def test_gate_rejects_a_face_cut_by_the_frame_even_when_the_box_looks_inside():
+    face = _lm_face(cx=0.5)
+    lm = list(face.landmarks)
+    lm[0] = 0.004   # 오른쪽 눈이 가장자리에 붙었다
+    cut = Face(x=face.x, y=face.y, w=face.w, h=face.h, score=face.score,
+               landmarks=tuple(lm), aspect=face.aspect)
+    assert evaluate_faces([cut], 120).code == "face_out_of_frame"
+
+
+def test_gate_checks_lighting_and_focus_when_stats_are_given():
+    face = _lm_face()
+
+    def stats(lum=120.0, imb=0.1, sharp=500.0):
+        return face_gate.PhotoStats(luminance=lum, imbalance=imb, sharpness=sharp)
+
+    assert evaluate_faces([face], 120, stats=stats()).ok
+    assert evaluate_faces([face], 240, stats=stats(lum=240)).code == "too_bright"
+    assert evaluate_faces([face], 120, stats=stats(imb=0.5)).code == "uneven_light"
+    assert evaluate_faces([face], 120, stats=stats(sharp=30)).code == "blurry"
+    assert evaluate_faces([face], 120).ok                # stats를 모르면 판단하지 않는다
+
+
+def test_gate_checklist_lists_every_item_so_all_failures_show_at_once():
+    face = _lm_face(ipd=0.22, roll_deg=25)          # 너무 작고 기울어졌다
+    stats = face_gate.PhotoStats(luminance=120.0, imbalance=0.1, sharpness=20.0)   # 게다가 흐리다
+    res = evaluate_faces([face], 120, stats=stats)
+    assert res.ok is False and res.code == "face_too_small"      # 안내 우선순위는 그대로
+    by_key = {i.key: i for i in res.items}
+    assert list(by_key) == ["face", "single", "frame", "size", "pose", "clear", "light", "sharp"]
+    assert [k for k, i in by_key.items() if i.ok is False] == ["size", "pose", "sharp"]
+    assert all(i.message for i in by_key.values() if i.ok is False)
+    assert by_key["face"].ok and by_key["light"].ok
+
+
+def test_gate_checklist_marks_unknowns_and_all_pass():
+    ok = evaluate_faces([_lm_face()], 120, stats=face_gate.PhotoStats(120.0, 0.1, 500.0))
+    from app.services.occlusion import Occlusion
+
+    full = evaluate_faces([_lm_face()], 120, stats=face_gate.PhotoStats(120.0, 0.1, 500.0),
+                          occlusion=Occlusion(True, None, {}))
+    assert full.ok and all(i.ok is True for i in full.items)
+    # 가림 검사 모델이 없으면 그 항목만 판단하지 않는다
+    assert ok.ok and [i.key for i in ok.items if i.ok is None] == ["clear"]
+
+    # stats를 모르면 조명·초점은 판단하지 않는다
+    partial = evaluate_faces([_lm_face()], None)
+    by_key = {i.key: i.ok for i in partial.items}
+    assert partial.ok and by_key["light"] is None and by_key["sharp"] is None
+
+    none = evaluate_faces([], 120)
+    assert none.code == "no_face"
+    assert [i.ok for i in none.items] == [False] + [None] * 7
+
+
+def test_gate_checks_occlusion_per_region_and_skips_it_without_a_model():
+    from app.services.occlusion import Occlusion
+
+    face = _lm_face()
+    ok = Occlusion(ok=True, region=None, ratios={"chin": 0.8})
+    assert evaluate_faces([face], 120, occlusion=ok).ok
+
+    for region in ("cheek", "nose_mouth", "chin"):
+        res = evaluate_faces([face], 120, occlusion=Occlusion(False, region, {"chin": 0.1}))
+        assert res.code == f"occluded_{region}"
+        assert "가려졌어요" in res.message
+        assert [i.ok for i in res.items if i.key == "clear"] == [False]
+        assert res.metrics["skin_chin"] == 0.1
+
+    unknown = evaluate_faces([face], 120)          # 모델을 못 읽으면 이 항목만 판단하지 않는다
+    assert unknown.ok and [i.ok for i in unknown.items if i.key == "clear"] == [None]
+
+
+@pytest.mark.skipif(not occlusion._file_ok(), reason="가림 검사 모델 파일이 없다(내려받지 못한 환경)")
+def test_occlusion_model_flags_a_picture_without_face_skin():
+    # 얼굴이 아닌 무늬 위에 얼굴 상자를 놓으면 얼굴 피부 비율이 낮아 걸린다 — 모델이 실제로 돈다는 확인
+    arr = np.random.default_rng(1).integers(0, 255, (640, 480, 3), dtype=np.uint8)
+    buf = io.BytesIO()
+    Image.fromarray(arr).save(buf, "JPEG")
+    res = occlusion.check_occlusion(buf.getvalue(), 0.2, 0.2, 0.6, 0.6)
+    assert res is not None and res.ok is False
+    assert set(res.ratios) == {"cheek_a", "cheek_b", "nose_mouth", "chin"}
+
+
+def test_occlusion_is_skipped_when_the_model_cannot_be_loaded(monkeypatch):
+    monkeypatch.setattr(occlusion, "_interpreter", None)
+    monkeypatch.setattr(occlusion, "ensure_model", lambda: False)
+    monkeypatch.setattr(occlusion, "_retry_at", 0.0)
+    assert occlusion.check_occlusion(b"not used", 0.2, 0.2, 0.6, 0.6) is None
+
+
+def test_gate_falls_back_to_box_width_without_landmarks():
+    # 눈 위치를 못 얻으면 상자 폭(40%)으로만 본다 — 기존 동작
+    assert evaluate_faces([_face(w=0.41, x=0.3)], 120).ok
+    assert evaluate_faces([_face(w=0.39, x=0.3)], 120).code == "face_too_small"
 
 
 def test_gate_rejects_dark_photo_but_unknown_luminance_passes():

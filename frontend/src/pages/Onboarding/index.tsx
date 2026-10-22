@@ -202,7 +202,7 @@ export default function OnboardingPage() {
       } catch (err) {
         if (err instanceof ApiError && err.status === 422) {
           // 사진 문제(얼굴 없음·어두움 등). 서버가 한국어 이유를 주고, 횟수는 쓰이지 않았다.
-          backToQuestion(`${err.message} 사진을 다시 찍어 주세요.`, false);
+          backToQuestion(`${err.message} 분석 횟수는 차감되지 않았어요.`, false);
         } else if (err instanceof ApiError && (err.status === 402 || err.status === 403)) {
           invalidateSkinPhoto(scopeRef.current);
           backToQuestion(`${err.message} 문답만으로 진단할 수 있어요.`, false);
