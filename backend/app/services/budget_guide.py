@@ -25,7 +25,7 @@ from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.models.product import Category, Product, Tag
+from app.models.product import Category, Product
 from app.schemas.budget_guide import (
     BudgetGuideIn,
     BudgetGuideOut,
@@ -33,22 +33,22 @@ from app.schemas.budget_guide import (
     GuideItemOut,
 )
 from app.services.product_score import product_score
+from app.services.similarity import FUNC_NAMES
+from app.services.skin_fit import PREFER
 from app.services.routine_steps import ROUTINE, STEP_BY_CODE, step_expr
 from app.services.skin_type import (
     SKIN_TYPE_LABELS,
     SkinRule,
-    _has_tag,
     apply_exclusions,
-    fit_score,
+    has_fact,
     load_rule,
+    matched_count,
 )
 
 CANDIDATES_PER_STEP = 20
 # 예산이 모자랄 때 더하는 단계별 최저가 후보 수. 점수 상위 20개가 모두 비싸면
 # 살 수 있는 조합(가장 싼 토너·에센스·크림 19,500원)을 놓친다(2026-10 실측).
 CHEAP_PER_STEP = 10
-FRAGRANCE_TAGS = ("allergen_fragrance", "fragrance")
-ALCOHOL_TAGS = ("drying_alcohol",)
 BAND_LABELS = ("알뜰", "균형", "여유")
 # 안이 하나뿐일 때의 이름. '여유'만 덩그러니 있으면 다른 안이 왜 없는지 알 수 없다.
 SINGLE_LABEL = "추천 조합"
@@ -193,15 +193,6 @@ def build_reason(combo: Combination, skin_label: str | None, tag_label: str | No
 # ── DB ───────────────────────────────────────────────────────
 
 
-def _avoid_tags(req: BudgetGuideIn) -> tuple[str, ...]:
-    tags: tuple[str, ...] = ()
-    if req.fragrance_free:
-        tags += FRAGRANCE_TAGS
-    if req.alcohol_free:
-        tags += ALCOHOL_TAGS
-    return tags
-
-
 def _filtered(stmt, rule: SkinRule | None, req: BudgetGuideIn):
     """판매 중 단일제품 + 피부타입 기피 + 선호 조건 + 보유품 제외."""
     stmt = stmt.where(
@@ -210,9 +201,11 @@ def _filtered(stmt, rule: SkinRule | None, req: BudgetGuideIn):
         Product.price > 0,
     )
     stmt = apply_exclusions(stmt, rule)
-    avoid = _avoid_tags(req)
-    if avoid:
-        stmt = stmt.where(~exists(_has_tag(avoid)))
+    # '무향'·'무알코올' 선호: 타입과 무관한 사실(product_skin_fit.has_fragrance·has_drying_alcohol)로 거른다
+    if req.fragrance_free:
+        stmt = stmt.where(~exists(has_fact(fragrance=True)))
+    if req.alcohol_free:
+        stmt = stmt.where(~exists(has_fact(alcohol=True)))
     if req.exclude_product_ids:
         stmt = stmt.where(Product.id.not_in(req.exclude_product_ids))
     return stmt
@@ -234,7 +227,7 @@ async def _load_candidates(
             Product.price.label("price"),
             Product.rating.label("rating"),
             score.label("score"),
-            fit_score(rule).label("matched"),
+            matched_count(rule).label("matched"),
             func.row_number()
             .over(partition_by=step, order_by=(score.desc(), Product.id))
             .label("rn"),
@@ -286,10 +279,13 @@ async def _min_possible_total(db: AsyncSession, rule: SkinRule | None, req: Budg
     return int(sum(mins[s.code] for s in ROUTINE))
 
 
-async def _tag_label(db: AsyncSession, rule: SkinRule | None) -> str | None:
-    if not rule or not rule.include:
+def _focus_label(rule: SkinRule | None) -> str | None:
+    """이 타입이 가장 필요로 하는 기능의 이름(예: 유리구슬 → '진정·장벽'). 추천 사유 문구에 쓴다."""
+    if not rule:
         return None
-    return await db.scalar(select(Tag.label).where(Tag.code == rule.include[0]))
+    top = sorted(PREFER[rule.skin_type].items(), key=lambda kv: -kv[1])
+    best = [f for f, w in top if w == top[0][1]]
+    return "·".join(FUNC_NAMES[f] for f in best)
 
 
 async def build_guide(db: AsyncSession, req: BudgetGuideIn, skin_type: str | None) -> BudgetGuideOut:
@@ -327,7 +323,7 @@ async def build_guide(db: AsyncSession, req: BudgetGuideIn, skin_type: str | Non
         )
     }
     skin_label = SKIN_TYPE_LABELS.get(skin_type) if skin_type else None
-    tag_label = await _tag_label(db, rule)
+    tag_label = _focus_label(rule)
 
     for label, combo, below in options:
         ratings = [c.rating for c in combo.items if c.rating is not None]

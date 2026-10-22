@@ -31,12 +31,14 @@ from app.models.product import (
     Ingredient,
     IngredientAlias,
     IngredientDescription,
+    IngredientFunction,
     Product,
     ProductIngredient,
 )
 from app.services.ocr import recognize_text
 from app.services.ocr_quota import check_scan_quota
 from app.services.review_photos import decode_photo, photo_urls_of
+from app.services.skin_fit import build_flags, classify_ingredient
 from app.services.skin_type import SkinRule, apply_exclusions, fit_score, load_rule
 from app.models.personal import Review
 from app.models.user import Profile, User
@@ -237,7 +239,7 @@ async def list_products(
     품절·단종은 기본으로 제외한다(status='active').
     기획세트·굿즈 동봉도 기본으로 제외한다(composition='single').
 
-    skinType을 주면 `skin_type_rules`의 exclude_tags에 걸리는 제품을 뺀다.
+    skinType을 주면 그 타입이 피해야 하는 제품(`product_skin_fit.excluded`)을 뺀다.
     모르는 타입이면 필터 없이 그냥 전체를 낸다 — 진단 결과가 바뀌거나
     규칙을 잠시 꺼 둔 사이에 화면이 통째로 비는 편이 더 나쁘다.
     """
@@ -563,15 +565,38 @@ async def search_products_by_ingredient(
     return result
 
 
+def _ingredient_out(r, skin_type: str | None) -> IngredientOut:
+    """전성분 한 줄. 추천/주의 분류는 궁합 카드와 같은 `classify_ingredient`로 낸다."""
+    (i, ko, en, pos, norm, funcs, role, flags, conf, listed, desc, kws, src) = r
+    label = (
+        ("".join(funcs or []), role, build_flags("".join(flags or []), bool(listed), norm), conf)
+        if role is not None
+        else None
+    )
+    return IngredientOut(
+        id=i, name=ko, name_en=en, position=pos,
+        grade=classify_ingredient(label, skin_type),
+        is_allergen=bool(listed),
+        functions=list(funcs or []), role=role, flags=list(flags or []), confidence=conf,
+        description=desc, keywords=kws or [], description_source=src,
+    )
+
+
 @router.get("/{product_id}", response_model=ProductDetailOut, summary="제품 상세")
 async def get_product(
     response: Response,
     product_id: int = Path(..., ge=1),
+    skin_type: str | None = Query(
+        None, alias="skinType",
+        description="피부타입 ID. 주면 전성분의 추천(key)·주의(warn) 분류를 이 타입 기준으로 낸다",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> ProductDetailOut | Response:
     """제품 1건과 전성분을 표기 순서대로 반환한다."""
+    rule = await load_rule(db, skin_type)
+    type_key = rule.skin_type if rule else "-"
     version = await get_cache_version()
-    key = f"products:detail:v{version}:{product_id}"
+    key = f"products:detail:v{version}:{product_id}:{type_key}"
     cached = await cache_get(key)
     if cached is not None:
         return Response(
@@ -593,12 +618,17 @@ async def get_product(
     # 빠지면 안 된다 — 화면은 description이 None이면 '준비 중'을 그린다.
     rows = await db.execute(
         select(Ingredient.id, Ingredient.name_ko, Ingredient.name_en,
-               ProductIngredient.position, Ingredient.grade, Ingredient.is_allergen,
+               ProductIngredient.position, Ingredient.norm_name,
+               IngredientFunction.functions, IngredientFunction.role,
+               IngredientFunction.flags, IngredientFunction.confidence,
+               IngredientFunction.allergen_listed,
                IngredientDescription.description, IngredientDescription.keywords,
                IngredientDescription.source)
         .join(ProductIngredient, ProductIngredient.ingredient_id == Ingredient.id)
         .outerjoin(IngredientDescription,
                    IngredientDescription.ingredient_id == Ingredient.id)
+        .outerjoin(IngredientFunction,
+                   IngredientFunction.ingredient_id == Ingredient.id)
         .where(ProductIngredient.product_id == product_id)
         .order_by(ProductIngredient.position)
     )
@@ -613,14 +643,7 @@ async def get_product(
         expiry=product.expiry,
         report_no=product.report_no,
         ingredient_count_raw=product.ingredient_count_raw,
-        ingredients=[
-            IngredientOut(
-                id=i, name=ko, name_en=en, position=pos,
-                grade=grade, is_allergen=allergen,
-                description=desc, keywords=kws or [], description_source=src,
-            )
-            for i, ko, en, pos, grade, allergen, desc, kws, src in rows.all()
-        ],
+        ingredients=[_ingredient_out(r, rule.skin_type if rule else None) for r in rows.all()],
     )
 
     await cache_set(key, detail.model_dump_json(by_alias=True), DETAIL_CACHE_TTL)

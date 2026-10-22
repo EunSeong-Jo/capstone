@@ -28,12 +28,13 @@ from app.models.product import (
     Ingredient,
     IngredientAlias,
     IngredientDescription,
+    IngredientFunction,
     IngredientTag,
     Product,
     ProductIngredient,
     Tag,
 )
-from app.models.recommendation import Similarity, SkinTypeRule
+from app.models.recommendation import ProductSkinFit, Similarity, SkinTypeRule
 from app.models.skin_photo import SkinAnalysis, Subscription, UserConsent
 from app.models.user import Profile, RefreshToken, User
 
@@ -46,6 +47,7 @@ __all__ = [
     "Ingredient",
     "IngredientAlias",
     "IngredientDescription",
+    "IngredientFunction",
     "ProductIngredient",
     "Tag",
     "IngredientTag",
@@ -61,6 +63,7 @@ __all__ = [
     "DiagnosisRank",
     # 추천
     "Similarity",
+    "ProductSkinFit",
     "SkinTypeRule",
     # 개인 데이터 (Phase 2)
     "ClosetItem",

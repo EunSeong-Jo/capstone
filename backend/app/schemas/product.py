@@ -70,17 +70,25 @@ class IngredientOut(_CamelModel):
     name_en: str | None = None
     position: int
 
-    # 성분 분류. `scripts/seed_skin_type_tags.py`가 ingredient_tags에서 도출한다.
+    # 성분 분류. 정본은 성분 기능 라벨(ingredient_functions)이고 `services/skin_fit.classify_ingredient`가 계산한다.
+    # 궁합 카드·배지·목록 필터와 같은 기준이다.
     #
-    #   key     추천 태그(보습·진정·항산화 등)가 붙은 성분
-    #   warn    기피 태그(표시 의무 착향제·향료·건조 유발 알코올)
-    #   normal  제품에 쓰이지만 어느 쪽도 아닌 성분
-    #   None    분류 근거가 없는 성분 — 화면은 '등급 미정'으로 중립 표시한다
+    #   key     내 피부타입(skinType을 준 경우)의 선호 기능을 가진 활성·에몰리언트 성분
+    #   warn    주의 성분 — 식약처 알레르기 유발 착향제·일반 향료·건조 알코올(타입과 무관),
+    #           그리고 내 타입이 기피하는 플래그(확신도 3)
+    #   normal  라벨은 있지만 어느 쪽도 아닌 성분
+    #   None    분류 근거(라벨)가 없는 성분 — 화면은 '분류 미정'으로 중립 표시한다
     #
     # ewg_grade는 내지 않는다. 컬럼은 있지만 비어 있고, 출처를 검증할 수 없는
     # 숫자를 채우면 화면이 근거 없는 안전 등급을 주장하게 된다.
     grade: str | None = None
+    # 식약처 알레르기 유발 착향제 고시 목록의 성분인가 (ingredient_functions.allergen_listed)
     is_allergen: bool = False
+    # 성분 기능 라벨. 화면이 "보습·진정 성분" 같은 설명과 이유 연결에 쓴다. 라벨이 없으면 비어 있다.
+    functions: list[str] = []      # H B S W A O P E U
+    role: str | None = None        # a e s f t p x j
+    flags: list[str] = []          # I F L
+    confidence: int | None = None  # 1~3
 
     # 성분 설명. `scripts/seed_ingredient_descriptions.py`가
     # ingredient_descriptions에 적재한다. 설명이 없는 성분은 셋 다 비어 있다.

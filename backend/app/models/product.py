@@ -6,6 +6,8 @@
                                        (scripts/seed_ingredients.py)
   - ingredient_descriptions : data/seed/ingredient_descriptions.csv
                               (scripts/seed_ingredient_descriptions.py)
+  - ingredient_functions : data/seed/ingredient_functions/labels.csv
+                           (scripts/seed_ingredient_functions.py)
   - tags / ingredient_tags / grade / ewg : 수동 큐레이션 (아직 미착수)
 """
 from __future__ import annotations
@@ -23,6 +25,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    text,
 )
 from sqlalchemy import FetchedValue
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -267,6 +270,39 @@ class IngredientDescription(Base, TimestampMixin):
         ARRAY(Text), nullable=False, server_default="{}"
     )
     source: Mapped[str] = mapped_column(String(20), nullable=False)
+
+
+class IngredientFunction(Base, TimestampMixin):
+    """성분 기능 분류 — 이 성분이 무슨 일을 하는가.
+
+    원본은 data/seed/ingredient_functions/labels.csv(분류표·지침은 같은 폴더 README)이고
+    scripts/seed_ingredient_functions.py가 적재한다. 유사도(`hybrid`)와 피부 궁합이 쓴다.
+
+    `tags`(피부타입 규칙이 이름으로 참조)와 **별개의 어휘**다 — 기존 태그는 키워드 매칭이라
+    과대·과소 포함이 있고, 바꾸면 규칙이 어긋난다.
+
+    functions: 기능 코드 H보습 B장벽 S진정 W미백 A주름·탄력 O항산화 P피지·모공 E각질 U자외선(복수)
+    role:      a활성 e에몰리언트 s용매 f계면활성 t점증 p방부 x기타 j오염(분류 제외) — 하나
+    flags:     I자극 소지 F향료 L건조 알코올(복수)
+    confidence: 1낮음(검수 대상, 궁합 판정 근거에서 제외) · 2보통 · 3확실
+    source:    'ai_expert'(AI가 성분 지식으로 판정) | 'reviewed'(사람 검수) | 'mfds'(식약처 고시 목록) | 'cosing'(EU CosIng 확인)
+    allergen_listed: 식약처 알레르기 유발 착향제 고시 목록의 성분인가(이게 화면의 "알레르기 유발" 표시와 하드 필터의 근거)
+    """
+
+    __tablename__ = "ingredient_functions"
+
+    ingredient_id: Mapped[int] = mapped_column(
+        ForeignKey("ingredients.id", ondelete="CASCADE"), primary_key=True
+    )
+    functions: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default="{}")
+    role: Mapped[str] = mapped_column(String(1), nullable=False)
+    flags: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default="{}")
+    confidence: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
+    allergen_listed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
 
 
 class ProductIngredient(Base):
