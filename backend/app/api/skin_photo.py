@@ -6,6 +6,7 @@
     POST /api/v1/me/subscription            구독 시작 (**결제 없음 — 데모 활성화**)
     DEL  /api/v1/me/subscription            구독 해지 (기간 끝까지는 유지)
     GET  /api/v1/me/skin-analysis/quota     이번 달 이용 한도
+    POST /api/v1/skin-analysis/check        사진 사전 검증 — 분석 아님, 한도를 쓰지 않는다
     POST /api/v1/skin-analysis              얼굴 사진 분석 (한도 1회 사용)
     GET  /api/v1/skin-analysis              내 분석 이력 (최신순)
     GET  /api/v1/skin-analysis/latest       내 최근 분석
@@ -31,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.deps import get_current_user
+from app.core.rate_limit import allow_daily
 from app.db.session import get_db
 from app.models.skin_photo import FACE_PHOTO, SkinAnalysis, Subscription, UserConsent
 from app.models.user import User
@@ -38,6 +40,8 @@ from app.services import skin_images
 from app.schemas.skin_photo import (
     AnalysisIn,
     AnalysisOut,
+    PhotoCheckItemOut,
+    PhotoCheckOut,
     AxesOut,
     ConcernOut,
     ConsentIn,
@@ -46,7 +50,7 @@ from app.schemas.skin_photo import (
     SkinTypesOut,
     SubscriptionOut,
 )
-from app.services.face_gate import check_face, prepare_photo
+from app.services.face_gate import check_face, inspect_photo, prepare_photo
 from app.services.review_photos import decode_photo
 from app.services.skin_photo import analyze_face, fetch_masks, parse_output, to_axes
 from app.services.skin_quota import (
@@ -224,6 +228,50 @@ def _analysis_out(row: SkinAnalysis, remaining: int | None = None) -> AnalysisOu
         extended=row.concern_set == "extended",
         images=skin_images.available_keys(row.user_id, row.id),
         remaining=remaining,
+    )
+
+
+# 사전 검증은 한도를 쓰지 않아 서버 CPU만 든다 — 하루 이 횟수까지(촬영·재촬영을 충분히 허용한다).
+PRECHECK_DAILY_LIMIT = 100
+
+
+@router.post("/api/v1/skin-analysis/check", response_model=PhotoCheckOut,
+             summary="사진 사전 검증 (분석 아님)")
+async def precheck_photo(
+    body: AnalysisIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PhotoCheckOut:
+    """촬영한 사진이 분석에 맞는지 **미리** 알려 준다 — 분석 때 쓰는 것과 같은 검증(`face_gate`)이다.
+
+    Perfect Corp을 부르지 않고 한도도 쓰지 않으며, 사진은 저장하지 않는다. 부적합하면 이유를 한 문장으로
+    돌려주고(`ok=false`), 화면이 분석 전에 다시 찍게 안내한다. 얼굴 사진 수집에 동의한 사람만 쓸 수 있다.
+    """
+    quota = await get_quota(db, user.id)
+    if not quota.consent_granted:
+        raise HTTPException(
+            status_code=403, detail="얼굴 사진 수집·이용에 동의해야 사진 분석을 쓸 수 있어요"
+        )
+    if not await allow_daily("skin_precheck", str(user.id), PRECHECK_DAILY_LIMIT):
+        raise HTTPException(status_code=429, detail="오늘 사진 확인 횟수를 모두 썼어요")
+
+    try:
+        _, data = decode_photo(body.image)
+        photo = prepare_photo(data, MIN_SHORT_SIDE.get(settings.PERFECT_CORP_MODE, 480))
+    except HTTPException as exc:
+        if exc.status_code != 422:
+            raise
+        return PhotoCheckOut(ok=False, code="image_unusable", message=str(exc.detail))
+    result = await inspect_photo(photo)
+    return PhotoCheckOut(
+        ok=result.ok,
+        code=result.code,
+        message=result.message,
+        metrics=result.metrics,
+        items=[
+            PhotoCheckItemOut(key=i.key, label=i.label, ok=i.ok, message=i.message)
+            for i in result.items or []
+        ],
     )
 
 

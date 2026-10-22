@@ -352,6 +352,69 @@ async def test_provider_not_configured_is_503(
     assert (await _quota(client, consented))["used"] == 0
 
 
+# ── 사진 사전 검증 ──────────────────────────────────────────────────
+CHECK = f"{ANALYZE}/check"
+
+
+async def test_precheck_requires_login_and_consent(client: AsyncClient, user) -> None:
+    body = {"image": _photo_data_url()}
+    assert (await client.post(CHECK, json=body)).status_code == 401
+    assert (await client.post(CHECK, json=body, headers=user["headers"])).status_code == 403
+
+
+async def test_precheck_reports_ok_and_reasons_without_using_the_quota(
+    client: AsyncClient, consented, monkeypatch
+) -> None:
+    from app.services.face_gate import GateResult
+
+    h = consented["headers"]
+    body = {"image": _photo_data_url()}
+
+    async def ok(_photo):
+        return GateResult(True)
+
+    monkeypatch.setattr("app.api.skin_photo.inspect_photo", ok)
+    res = await client.post(CHECK, json=body, headers=h)
+    assert res.status_code == 200 and res.json()["ok"] is True and res.json()["message"] is None
+
+    async def bad(_photo):
+        return GateResult(False, "too_dark", "밝은 곳에서 다시 찍어 주세요.")
+
+    monkeypatch.setattr("app.api.skin_photo.inspect_photo", bad)
+    res = await client.post(CHECK, json=body, headers=h)
+    assert res.status_code == 200
+    assert (res.json()["ok"], res.json()["code"], res.json()["message"]) == (False, "too_dark", "밝은 곳에서 다시 찍어 주세요.")
+
+    async def listed(_photo):
+        from app.services.face_gate import CheckItem
+
+        return GateResult(False, "too_dark", "밝은 곳에서 다시 찍어 주세요.", [
+            CheckItem("face", "얼굴 인식", True),
+            CheckItem("light", "조명", False, "밝은 곳에서 다시 찍어 주세요."),
+            CheckItem("sharp", "초점", None),
+        ])
+
+    monkeypatch.setattr("app.api.skin_photo.inspect_photo", listed)
+    items = (await client.post(CHECK, json=body, headers=h)).json()["items"]
+    assert [(i["key"], i["ok"]) for i in items] == [("face", True), ("light", False), ("sharp", None)]
+    assert items[1]["message"] == "밝은 곳에서 다시 찍어 주세요."
+
+    assert (await _quota(client, consented))["used"] == 0     # 분석이 아니라서 한도를 쓰지 않는다
+
+
+async def test_precheck_turns_an_unreadable_or_tiny_photo_into_a_reason(
+    client: AsyncClient, consented
+) -> None:
+    h = consented["headers"]
+    tiny = await client.post(CHECK, json={"image": _photo_data_url(100, 100)}, headers=h)
+    assert tiny.status_code == 200
+    assert tiny.json()["ok"] is False and tiny.json()["code"] == "image_unusable"
+    assert "해상도" in tiny.json()["message"]
+
+    junk = await client.post(CHECK, json={"image": "data:image/png;base64,AAAA"}, headers=h)
+    assert junk.status_code == 200 and junk.json()["ok"] is False
+
+
 async def test_latest_analysis(client: AsyncClient, consented) -> None:
     h = consented["headers"]
     assert (await client.get(f"{ANALYZE}/latest", headers=h)).status_code == 404

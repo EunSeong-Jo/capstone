@@ -53,11 +53,11 @@ AXIS_CONCERNS = ("oiliness", "moisture", "redness", "age_spot", "acne")
 
 # Perfect Corp 오류 코드 → 사용자 안내. 이들은 사진 문제라 한도를 쓰지 않는다(422).
 _PHOTO_ERRORS = {
-    "error_below_min_image_size": "사진 해상도가 너무 낮아요. 더 선명한 사진으로 다시 시도해 주세요.",
+    "error_below_min_image_size": "사진 해상도가 낮아요. 더 선명한 사진으로 다시 시도해 주세요.",
     "error_exceed_max_image_size": "사진이 너무 커요. 크기를 줄여서 다시 시도해 주세요.",
-    "error_src_face_too_small": "얼굴이 너무 작아요. 화면에 얼굴이 가득 차게 가까이에서 찍어 주세요.",
-    "error_src_face_out_of_bound": "얼굴이 화면 밖으로 나갔어요. 얼굴 전체가 보이게 찍어 주세요.",
-    "error_lighting_dark": "너무 어두워요. 밝은 곳에서 다시 찍어 주세요.",
+    "error_src_face_too_small": "얼굴이 화면에 가득 차게 가까이에서 다시 찍어 주세요.",
+    "error_src_face_out_of_bound": "얼굴 전체가 보이게 다시 찍어 주세요.",
+    "error_lighting_dark": "밝은 곳에서 다시 찍어 주세요.",
 }
 
 _UNAVAILABLE = "피부 분석을 지금은 사용할 수 없어요. 잠시 뒤에 다시 시도해 주세요."
