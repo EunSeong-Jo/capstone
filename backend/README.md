@@ -325,7 +325,7 @@ YOLO(ultralytics)를 쓰지 않는 이유는 AGPL-3.0 라이선스와 PyTorch �
 
 **가림 검사**(`services/occlusion.py`)는 MediaPipe 이미지 분할 모델 `selfie_multiclass_256x256`(약 16MB, Apache-2.0)을
 `ai-edge-litert`로 돌립니다. 픽셀을 배경·머리카락·몸 피부·얼굴 피부·옷·기타로 나눠, 얼굴 영역(볼·코와 입·턱)의 **얼굴 피부
-비율**이 기준(`FACE_SKIN_MIN_*`: 볼 60%·코와 입 70%·턱 50%)에 못 미치면 그 부위가 가려졌다고 안내합니다(손은 몸 피부로
+비율**이 기준(`FACE_SKIN_MIN_*`: 볼 70%·코와 입 80%·턱 60%)에 못 미치면 그 부위가 가려졌다고 안내합니다(손은 몸 피부로
 분류됨). 모델 파일은 저장소에 커밋하지 않습니다(`backend/app/assets/models/`, `.gitignore`) — 이미지를 빌드할 때
 (`python -m app.services.occlusion`)나 처음 쓸 때 내려받고 SHA256을 확인합니다. **받지 못하거나 라이브러리를 못 읽으면 이
 항목만 건너뜁니다**(체크리스트에서 "확인 못 함"). 로컬 개발은 `./backend`를 마운트하므로 처음 쓸 때 내려받아 호스트 폴더에

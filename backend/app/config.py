@@ -163,10 +163,11 @@ class Settings(BaseSettings):
     # 초점: 얼굴을 128×128 회색으로 줄여 잰 라플라시안 분산. 시험 사진 2240, 가우시안 σ=3 흐림 68, σ=4 37.
     FACE_MIN_SHARPNESS: float = 60.0
     # 가림: 얼굴 상자 안 영역별 '얼굴 피부' 비율이 이 값 이상이어야 한다(services/occlusion.py).
-    # 시험 사진은 볼 96%·코와 입 100%·턱 77%, 흰 마스크는 17·25·7%, 피부색 손 모양은 코와 입 34~46%·턱 22~48%.
-    FACE_SKIN_MIN_CHEEK: float = 0.60
-    FACE_SKIN_MIN_NOSE_MOUTH: float = 0.70
-    FACE_SKIN_MIN_CHIN: float = 0.50
+    # 시험 사진은 볼 95·96%·코와 입 100%·턱 76~79%(목과 맞닿아 80%를 넘기 어렵다), 흰 마스크는 17~32·25~36·6%,
+    # 피부색 손 모양은 코와 입 34~49%·턱 22~48%. 일부만 가린 경우까지 잡도록 올렸고, 정상 사진과의 여유를 남겼다.
+    FACE_SKIN_MIN_CHEEK: float = 0.70
+    FACE_SKIN_MIN_NOSE_MOUTH: float = 0.80
+    FACE_SKIN_MIN_CHIN: float = 0.60
     FACE_MIN_LUMINANCE: float = 50.0
 
     # 얼굴 사진 수집 동의 문구의 버전. 문구(개인정보 처리방침)를 바꾸면 함께 올린다.
