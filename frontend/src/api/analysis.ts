@@ -53,12 +53,31 @@ export interface ClosetPosition {
   similar: { id: number; name: string; percent: number }[];
 }
 
+/** AI 사진 분석 항목 하나와 이 제품의 대응. 점수는 0~100이고 높을수록 좋다 */
+export interface ConcernState {
+  key: string;
+  name: string;
+  score: number;
+  /** focus 신경 쓸 부분 · mild 약간 · fine 좋은 편 */
+  concern: 'focus' | 'mild' | 'fine';
+  level: string;
+  need: string[];
+  coverage: number;
+  /** good 충분히 도움 · some 도움은 되나 부족 · lack 돕는 성분 부족 · fine 신경 쓸 필요 적음 · na 화장품 성분으로 바뀌기 어려운 항목 */
+  status: 'good' | 'some' | 'lack' | 'fine' | 'na';
+  message: string;
+  risk: string | null;
+  addressable: boolean;
+}
+
 /** 내 피부 상태(진단 5축) 한 축과 이 제품의 대응 */
 export interface SkinStateAxis {
   axis: 'moisture' | 'oil' | 'sensitivity' | 'pigmentation' | 'trouble';
   name: string;
-  /** 진단 점수 0~10 */
+  /** 진단 점수 0~10(원본) */
   score: number;
+  /** 건강도 0~100(높을수록 좋음) — 사진 분석 점수와 같은 단위 */
+  health: number;
   /** focus 신경 쓸 부분 · mild 약간 · fine 괜찮음 */
   concern: 'focus' | 'mild' | 'fine';
   /** '건조한 편' 같은 표현 */
@@ -86,6 +105,9 @@ export interface ProductAnalysis {
   /** 진단 5축을 보냈을 때만 채워진다 */
   skinState: SkinStateAxis[];
   skinStateSummary: string | null;
+  /** 사진 분석 항목을 보냈을 때: 분석된 항목 전부(무료 7개·구독 15개)와 대응 */
+  concernState: ConcernState[];
+  concernSummary: string | null;
   functions: FunctionStrength[];
   keyIngredients: KeyIngredient[];
   cautions: CautionGroup[];
@@ -94,8 +116,8 @@ export interface ProductAnalysis {
 }
 
 const FRESH_MS = 5 * 60 * 1000;
-const keyOf = (id: number, type: string | null, closet: string, axes: string) =>
-  `analysis:${id}:${type ?? ''}:${closet}:${axes}`;
+const keyOf = (id: number, type: string | null, closet: string, axes: string, concerns: string) =>
+  `analysis:${id}:${type ?? ''}:${closet}:${axes}:${concerns}`;
 
 /** 진단 5축. 서버는 다섯 개가 모두 있을 때만 "내 피부 상태와 견주기"를 계산한다. */
 export type SkinAxes = Record<'moisture' | 'oil' | 'sensitivity' | 'pigmentation' | 'trouble', number>;
@@ -107,15 +129,17 @@ export function loadAnalysis(
   skinType: SkinType | null,
   closetIds: number[],
   axes?: SkinAxes | null,
+  concerns?: string,
 ): Promise<ProductAnalysis> {
   const ids = closetIds.filter((c) => c !== id).sort((a, b) => a - b).slice(0, 100).join(',');
   return load(
-    keyOf(id, skinType, ids, axesKey(axes)),
+    keyOf(id, skinType, ids, axesKey(axes), concerns ?? ''),
     () =>
       request<ProductAnalysis>(`/api/v1/products/${id}/analysis`, {
         ...(skinType ? { skinType } : {}),
         ...(ids ? { closetIds: ids } : {}),
         ...(axes ?? {}),
+        ...(concerns ? { concerns } : {}),
       }),
     FRESH_MS,
   );
@@ -126,7 +150,8 @@ export function peekAnalysis(
   skinType: SkinType | null,
   closetIds: number[],
   axes?: SkinAxes | null,
+  concerns?: string,
 ): ProductAnalysis | undefined {
   const ids = closetIds.filter((c) => c !== id).sort((a, b) => a - b).slice(0, 100).join(',');
-  return peek<ProductAnalysis>(keyOf(id, skinType, ids, axesKey(axes)))?.value;
+  return peek<ProductAnalysis>(keyOf(id, skinType, ids, axesKey(axes), concerns ?? ''))?.value;
 }

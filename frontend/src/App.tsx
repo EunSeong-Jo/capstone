@@ -1,7 +1,8 @@
 import { lazy, ReactElement, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { RequireAuth } from './components/auth/RequireAuth';
 import { MascotPreloader } from './components/character/MascotPreloader';
+import { ScrollToTop } from './components/layout/ScrollToTop';
 
 const SplashPage     = lazy(() => import('./pages/Splash'));
 const OnboardingPage = lazy(() => import('./pages/Onboarding'));
@@ -11,7 +12,13 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword'));
 const HomePage       = lazy(() => import('./pages/Home'));
 const CheaperAlternativesPage = lazy(() => import('./pages/Home/CheaperAlternativesPage'));
 const ClosetPage     = lazy(() => import('./pages/Closet'));
-const AnalysisPage   = lazy(() => import('./pages/Closet/AnalysisPage'));
+const AnalysisPage   = lazy(() => import('./pages/Analysis/AnalysisPage'));
+
+/** 예전 주소(/closet/:id/analysis)로 들어와도 성분 분석으로 보낸다 */
+function AnalysisRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/analysis/${id}`} replace />;
+}
 const ScanHistoryPage = lazy(() => import('./pages/Scan/ScanHistoryPage'));
 const CancelReturnPage = lazy(() => import('./pages/Mypage/CancelReturnPage'));
 const DecoratePage   = lazy(() => import('./pages/Closet/DecoratePage'));
@@ -59,6 +66,7 @@ const mine = (el: ReactElement) => <RequireAuth>{el}</RequireAuth>;
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       {/* 내 캐릭터 이미지를 미리 디코딩해 둔다 — 탭 이동 때 캐릭터가 늦게 뜨지 않게 */}
       <MascotPreloader />
       <Suspense fallback={<LoadingScreen />}>
@@ -77,7 +85,9 @@ export default function App() {
           <Route path="/home"       element={<HomePage />} />
           <Route path="/home/cheaper-alternatives" element={<CheaperAlternativesPage />} />
           <Route path="/closet"     element={<ClosetPage />} />
-          <Route path="/closet/:id/analysis" element={<AnalysisPage />} />
+          {/* 성분 분석은 화장대에 국한되지 않는다 — 어느 제품의 상세에서든 들어온다 */}
+          <Route path="/analysis/:id" element={<AnalysisPage />} />
+          <Route path="/closet/:id/analysis" element={<AnalysisRedirect />} />
           <Route path="/closet/decorate" element={mine(<DecoratePage />)} />
           <Route path="/detail/:id" element={<DetailPage />} />
           <Route path="/alternatives" element={<AlternativesPage />} />
