@@ -43,6 +43,8 @@ export default function ScanPage() {
   const { showToast } = useToast();
   const [phase, setPhase] = useState<'idle' | 'scanning' | 'candidates' | 'search' | 'result'>('idle');
   const [candidates, setCandidates] = useState<ProductMatch[]>([]);
+  // 변형이 있는 후보에서 드롭다운으로 고른 제품 (대표 id → 고른 제품 id)
+  const [variantPick, setVariantPick] = useState<Record<number, number>>({});
   // 읽고 있는 사진. 찍은 것이든 갤러리에서 고른 것이든 카메라 화면 자리에 멈춰
   // 보여 준다 — 무엇을 읽는지 보이고, 후보를 고를 때 사진과 견줘 볼 수 있다.
   // 읽는 중·후보 단계에서만 보이고, 다른 단계로 가면 다시 카메라가 나온다.
@@ -51,6 +53,8 @@ export default function ScanPage() {
   const [shot, setShot] = useState<{ image: string; id: number; from: 'camera' | 'gallery' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // 검색창을 눌렀을 때만 최근 스캔을 보여 준다(평소에는 카메라 화면을 가리지 않게 숨긴다)
+  const [searchFocused, setSearchFocused] = useState(false);
   const [result, setResult] = useState<Product | null>(null);
   const [query, setQuery] = useState('');
   // 목록으로 길게 보여 준다. 끝까지 내려 보며 고를 수 있게 넉넉히 받는다.
@@ -70,6 +74,7 @@ export default function ScanPage() {
   const goSearch = (message: string) => {
     showNotice(message);
     setCandidates([]);
+    setVariantPick({});
     setPhase('search');
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   };
@@ -183,6 +188,7 @@ export default function ScanPage() {
   const reset = () => {
     setResult(null);
     setCandidates([]);
+    setVariantPick({});
     setQuery('');
     setPhase('idle');
   };
@@ -355,7 +361,7 @@ export default function ScanPage() {
         </div>
       )}
 
-      {/* 제품 찾기 + 최근 스캔 바텀시트 */}
+      {/* 제품 찾기 바텀시트 — 검색창을 누르면 최근 스캔이 펼쳐진다 */}
       <div className="relative z-10 rounded-t-3xl bg-white px-5 pt-3.5" style={{ paddingBottom: 'calc(var(--safe-bottom) + 26px)' }}>
         <div className="mx-auto mb-2.5 h-1 w-9 rounded-full bg-gray-20" />
 
@@ -372,6 +378,9 @@ export default function ScanPage() {
               setQuery(e.target.value);
               setPhase(e.target.value ? 'search' : 'idle');
             }}
+            onFocus={() => setSearchFocused(true)}
+            // 최근 스캔을 누르는 순간 blur가 먼저 와서 목록이 사라지면 클릭이 빗나간다 — 잠깐 늦춰 닫는다
+            onBlur={() => window.setTimeout(() => setSearchFocused(false), 150)}
             placeholder="제품명으로 찾기 (2자 이상)"
             className="min-w-0 flex-1 bg-transparent text-sm text-gray-100 outline-none placeholder:text-gray-50"
           />
@@ -436,6 +445,8 @@ export default function ScanPage() {
           </div>
         )}
 
+        {searchFocused && query.trim().length < 2 && (
+          <>
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-extrabold text-gray-100">최근 스캔</h3>
           <button onClick={() => navigate('/scan/history')} className="text-[11px] font-semibold text-gray-50 active:opacity-60">
@@ -469,6 +480,8 @@ export default function ScanPage() {
             </button>
           ))
         )}
+          </>
+        )}
       </div>
 
       {/* 사진 고르기 — 갤러리·이미지 버튼, 카메라를 못 쓸 때의 셔터 */}
@@ -485,24 +498,44 @@ export default function ScanPage() {
             <h3 className="text-[15px] font-extrabold text-gray-100">이 제품인가요?</h3>
             <p className="mt-0.5 text-[11px] text-gray-50">사진에서 읽은 글자로 찾은 제품이에요. 맞는 제품을 골라 주세요</p>
             <ul className="mt-3 divide-y divide-gray-5">
-              {candidates.map(({ product: p }) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    onClick={() => pick(p)}
-                    className="flex w-full items-center gap-3 py-2.5 text-left active:opacity-70"
-                  >
-                    <span className="h-12 w-12 shrink-0 overflow-hidden rounded-[10px] bg-gray-10">
-                      {p.imageUrl && <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[10px] font-bold text-gray-50">{p.brand}</span>
-                      <span className="line-clamp-2 text-[13px] font-semibold leading-snug text-gray-100">{p.name}</span>
-                    </span>
-                    <span className="shrink-0 text-[12px] font-extrabold text-gray-100">{p.price.toLocaleString()}원</span>
-                  </button>
-                </li>
-              ))}
+              {candidates.map(({ product: rep, variants }) => {
+                // 같은 제품의 용량·기획 변형은 한 줄로 접혀 있고, 아래 드롭다운으로 고른다
+                const p = variants?.find((v) => v.product.id === variantPick[rep.id])?.product ?? rep;
+                return (
+                  <li key={rep.id}>
+                    <button
+                      type="button"
+                      onClick={() => pick(p)}
+                      className="flex w-full items-center gap-3 py-2.5 text-left active:opacity-70"
+                    >
+                      <span className="h-12 w-12 shrink-0 overflow-hidden rounded-[10px] bg-gray-10">
+                        {p.imageUrl && <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[10px] font-bold text-gray-50">{p.brand}</span>
+                        <span className="line-clamp-2 text-[13px] font-semibold leading-snug text-gray-100">{p.name}</span>
+                      </span>
+                      <span className="shrink-0 text-[12px] font-extrabold text-gray-100">{p.price.toLocaleString()}원</span>
+                    </button>
+                    {variants && variants.length > 1 && (
+                      <label className="mb-2.5 ml-[60px] flex items-center gap-2 text-[11px] text-gray-50">
+                        용량·구성
+                        <select
+                          value={p.id}
+                          onChange={(e) => setVariantPick((prev) => ({ ...prev, [rep.id]: Number(e.target.value) }))}
+                          className="min-w-0 flex-1 truncate rounded-lg border border-gray-20 bg-white px-2 py-1 text-[11px] font-semibold text-gray-100"
+                        >
+                          {variants.map((v) => (
+                            <option key={v.product.id} value={v.product.id}>
+                              {v.label} · {v.product.price.toLocaleString()}원
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
             <div className="mt-4 flex gap-2">
               <button
