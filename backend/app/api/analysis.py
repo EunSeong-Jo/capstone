@@ -19,6 +19,7 @@ from sqlalchemy.orm import joinedload
 
 from app.api.recommendations import load_labeled_docs
 from app.db.session import get_db
+from app.services.option_scope import family_root, options_of
 from app.models.recommendation import Similarity
 from app.models.product import (
     Ingredient,
@@ -42,6 +43,7 @@ from app.schemas.analysis import (
     ProductAnalysisOut,
     SkinStateOut,
 )
+from app.schemas.product import ProductOptionOut
 from app.schemas.skin_fit import FitIngredientOut, FitReasonOut
 from app.services.product_analysis import (
     cautions,
@@ -216,7 +218,15 @@ async def read_analysis(
             similar=[ClosetSimilarOut(**s) for s in pos["similar"]],
         )
 
+    root = family_root(product)
+    options = [
+        ProductOptionOut(id=i, label=label, order_no=order)
+        for i, label, order in (await options_of(db, root) if root is not None else [])
+    ]
+
     return ProductAnalysisOut(
+        option_label=product.option_label,
+        options=options,
         product_id=product.id,
         name=product.display_name or product.name,
         brand=product.brand.name if product.brand else "",

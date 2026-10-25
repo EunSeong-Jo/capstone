@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """제품 적재 — 올리브영 크롤링 CSV → products / brands / categories / product_ingredients
 
-    python scripts/load_products.py [--csv 경로]
+    python scripts/load_products.py [--csv 경로] [--options-only]
+
+--options-only  옵션형 묶음 제품의 분해 단계만 실행한다(원본 행 표시 + 옵션 행 적재). 전체 재적재 없이 해당 제품만
+                건드려 공용 DB 사용량을 줄인다. 규칙은 app/utils/product_options.py.
 
 멱등하다(goods_no 기준 upsert). 선행 조건: scripts/seed_ingredients.py
 
@@ -41,11 +44,21 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "backend"))
 
 from app.config import settings  # noqa: E402
-from app.utils.composition import VALUES as COMPOSITION_VALUES, classify  # noqa: E402
+from app.utils.composition import (  # noqa: E402
+    OPTION_GROUP,
+    VALUES as COMPOSITION_VALUES,
+    classify,
+)
 from app.utils.ingredients import (  # noqa: E402
     normalize,
     normalize_loose,
     parse_ingredients,
+)
+from app.utils.product_options import (  # noqa: E402
+    group_name,
+    option_goods_no,
+    option_row_name,
+    plan_options,
 )
 
 
@@ -246,6 +259,8 @@ def row_composition(r: dict) -> str:
     v5면 처리메모·증정기획_정리·상품명_원본으로 정확히 판정되고, 그 컬럼이
     없는 CSV면 상품명만으로 판정한다(.get이 None을 낸다).
     """
+    if r.get("_composition"):          # 옵션 분해 단계가 직접 지정한 값(원본 optgroup · 옵션 single)
+        return r["_composition"]
     return classify(
         (r.get("상품명_원본") or r.get("상품명") or "").strip(),
         r.get("처리메모"),
@@ -435,9 +450,46 @@ def read_rows(path: Path) -> list[dict]:
         return list(csv.DictReader(f))
 
 
+def expand_options(by_goods: dict[str, dict], vocab: set[str]) -> tuple[dict[str, list[str]], int]:
+    """옵션형 묶음 제품을 옵션별 행으로 분해한다. by_goods를 제자리에서 바꾼다.
+
+    원본 행은 `_composition = optgroup`으로 표시하고(성분은 합집합 그대로 둔다 — 마지막의 '성분 없는 제품 삭제'에
+    걸리지 않게), 옵션마다 새 행(goods_no = 원본~n)을 만든다. 옵션 행은 가격·평점·리뷰수·이미지·URL 등을 원본에서
+    그대로 물려받고 성분 칸만 자기 구간으로 바뀐다. 반환: ({원본 goods_no: [옵션 goods_no…]}, 옵션 행 수)
+    규칙(무엇을 나누는가)은 app/utils/product_options.py.
+    """
+    groups: dict[str, list[str]] = {}
+    for gno, r in list(by_goods.items()):
+        raw_name = (r.get("상품명_원본") or r.get("상품명") or "").strip()
+        memo = r.get("처리메모")
+        plan = plan_options(raw_name, memo, r.get("화장품성분", "") or "")
+        if not plan:
+            continue
+        group_raw = group_name(raw_name, memo)
+        group_display = group_name((r.get("상품명") or raw_name).strip(), memo)
+        r["_composition"] = OPTION_GROUP
+        groups[gno] = []
+        for spec in plan:
+            ogno = option_goods_no(gno, spec.order)
+            o = dict(r)
+            o["_composition"] = "single"
+            o["_option"] = (gno, spec.label, spec.order)
+            o["상품명_원본"] = option_row_name(group_raw, spec.label)
+            o["상품명"] = group_display            # display_name = 그룹명 → 목록에는 옵션 이름 없이 그룹명만 보인다
+            o["화장품성분"] = spec.text
+            o["처리메모"] = ""
+            by_goods[ogno] = o
+            groups[gno].append(ogno)
+    return groups, sum(len(v) for v in groups.values())
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv", type=Path, default=DEFAULT_CSV)
+    ap.add_argument(
+        "--options-only", action="store_true",
+        help="옵션형 묶음 제품의 분해 단계만 실행한다(전체 재적재 없이 해당 제품만 upsert)",
+    )
     args = ap.parse_args()
 
     if not args.csv.exists():
@@ -512,7 +564,7 @@ def main() -> None:
     # 않는다 — 사전 조회에서 바로 잡히기 때문이다. 사전을 읽기 전에 지워야
     # is_residue()가 실제로 걸린다. FK가 CASCADE라 연결·유사도도 함께 정리된다.
     cur.execute("SELECT id, norm_name FROM ingredients WHERE code IS NULL")
-    junk = [i for i, n in cur.fetchall() if is_residue(n)]
+    junk = [] if args.options_only else [i for i, n in cur.fetchall() if is_residue(n)]
     if junk:
         cur.execute("DELETE FROM ingredients WHERE id = ANY(%s)", (junk,))
         conn.commit()
@@ -543,6 +595,19 @@ def main() -> None:
         if cur.rowcount:
             print(f"  그중 {cur.rowcount:,}건은 예전 적재분이라 DB에서 제거했다")
         conn.commit()
+
+    # ── 옵션형 묶음 분해 ─────────────────────────────────────────
+    # 성분 해석(parsed)이 끝난 뒤, 제품 행을 만들기 전에 한다. 옵션 행은 자기 구간만 따로 해석한다.
+    option_groups, option_count = expand_options(by_goods, vocab)
+    for g, children in option_groups.items():
+        for og in children:
+            parsed[og] = parse_ingredients(by_goods[og].get("화장품성분", ""), vocab)
+    print(f"옵션형 묶음 {len(option_groups):,}개 → 옵션 행 {option_count:,}개")
+    if args.options_only:
+        keep = set(option_groups) | {og for v in option_groups.values() for og in v}
+        by_goods = {g: r for g, r in by_goods.items() if g in keep}
+        parsed = {g: p for g, p in parsed.items() if g in keep}
+        print(f"--options-only: {len(by_goods):,}건만 적재")
 
     # ── 브랜드 · 카테고리 ────────────────────────────────────────
     brands = sorted({(r.get("브랜드") or "").strip() for r in by_goods.values()} - {""})
@@ -600,6 +665,8 @@ def main() -> None:
             bool((r.get("내용량_확인필요") or "").strip()),
             unit_count,
             unit_kind,
+            (r.get("_option") or (None, None, None))[1],
+            (r.get("_option") or (None, None, None))[2],
         ))
 
     execute_values(cur, """
@@ -607,7 +674,8 @@ def main() -> None:
             (goods_no, name, brand_id, category_id, price, rating, review_count,
              image_url, product_url, volume, country, manufacturer, expiry,
              ingredient_count_raw, composition, display_name,
-             volume_ml, volume_g, volume_uncertain, unit_count, unit_kind)
+             volume_ml, volume_g, volume_uncertain, unit_count, unit_kind,
+             option_label, option_order)
         VALUES %s
         ON CONFLICT (goods_no) DO UPDATE SET
             name = EXCLUDED.name, brand_id = EXCLUDED.brand_id,
@@ -624,6 +692,7 @@ def main() -> None:
             volume_ml = EXCLUDED.volume_ml, volume_g = EXCLUDED.volume_g,
             volume_uncertain = EXCLUDED.volume_uncertain,
             unit_count = EXCLUDED.unit_count, unit_kind = EXCLUDED.unit_kind,
+            option_label = EXCLUDED.option_label, option_order = EXCLUDED.option_order,
             updated_at = now()
     """, product_rows, page_size=500)
     conn.commit()
@@ -638,7 +707,22 @@ def main() -> None:
 
     cur.execute("SELECT goods_no, id FROM products")
     pid_of = dict(cur.fetchall())
+    if args.options_only:
+        # DB 전체가 아니라 이번에 다룬 제품만. 아래 product_ingredients 교체가 다른 제품을 건드리지 않게 한다.
+        pid_of = {g: i for g, i in pid_of.items() if g in by_goods}
     print(f"제품 적재 {len(pid_of):,}건")
+
+    # 옵션 행 → 원본 행 연결, 그리고 이번 실행에서 사라진 옛 옵션 행 정리(멱등)
+    link = [(pid_of[g], pid_of[og]) for g, kids in option_groups.items() for og in kids
+            if g in pid_of and og in pid_of]
+    cur.executemany("UPDATE products SET option_parent_id = %s WHERE id = %s", link)
+    cur.execute(
+        "DELETE FROM products WHERE option_parent_id IS NOT NULL AND goods_no <> ALL(%s)",
+        (list(by_goods),),
+    )
+    if cur.rowcount and not args.options_only:
+        print(f"더 이상 옵션형이 아닌 그룹의 옛 옵션 행 제거 {cur.rowcount:,}건")
+    conn.commit()
 
     # ── 성분 해석 ────────────────────────────────────────────────
     stat = {"direct": 0, "alias": 0, "loose": 0, "new": 0, "residue": 0}
@@ -727,33 +811,35 @@ def main() -> None:
         pi_rows, page_size=5000)
     conn.commit()
 
-    # 아무 제품도 안 쓰는 미등록 성분을 지운다. 파서를 고칠 때마다 예전
-    # 파싱으로 만들어진 이름이 남는데(code=NULL이라 협회 사전 쪽은 아니다),
-    # 참조가 끊긴 뒤에도 테이블에 쌓여 '성분 N종' 집계를 부풀린다.
-    # 별칭이 가리키는 행은 남긴다 — 오타 교정의 도착지다.
-    cur.execute(
-        """DELETE FROM ingredients i
-            WHERE i.code IS NULL
-              AND NOT EXISTS (SELECT 1 FROM product_ingredients x
-                               WHERE x.ingredient_id = i.id)
-              AND NOT EXISTS (SELECT 1 FROM ingredient_aliases a
-                               WHERE a.ingredient_id = i.id)"""
-    )
-    if cur.rowcount:
-        print(f"아무 제품도 안 쓰는 미등록 성분 제거 {cur.rowcount:,}종")
-    conn.commit()
+    # --options-only는 다른 제품을 건드리지 않는다: 아래 전역 정리는 전체 적재에서만 한다.
+    if not args.options_only:
+        # 아무 제품도 안 쓰는 미등록 성분을 지운다. 파서를 고칠 때마다 예전
+        # 파싱으로 만들어진 이름이 남는데(code=NULL이라 협회 사전 쪽은 아니다),
+        # 참조가 끊긴 뒤에도 테이블에 쌓여 '성분 N종' 집계를 부풀린다.
+        # 별칭이 가리키는 행은 남긴다 — 오타 교정의 도착지다.
+        cur.execute(
+            """DELETE FROM ingredients i
+                WHERE i.code IS NULL
+                  AND NOT EXISTS (SELECT 1 FROM product_ingredients x
+                                   WHERE x.ingredient_id = i.id)
+                  AND NOT EXISTS (SELECT 1 FROM ingredient_aliases a
+                                   WHERE a.ingredient_id = i.id)"""
+        )
+        if cur.rowcount:
+            print(f"아무 제품도 안 쓰는 미등록 성분 제거 {cur.rowcount:,}종")
+        conn.commit()
 
-    # 성분이 하나도 남지 않은 제품을 지운다. is_unusable()은 파싱 직후를 보므로
-    # 토큰이 전부 잔해였던 제품(랑콤 제니피끄 토너처럼 전성분 한 줄이 통짜로
-    # 들어온 것)을 놓친다. 성분이 없으면 대체품 추천도 성분 표시도 불가능해
-    # 제품으로서 의미가 없다.
-    cur.execute(
-        """DELETE FROM products p WHERE NOT EXISTS
-             (SELECT 1 FROM product_ingredients x WHERE x.product_id = p.id)"""
-    )
-    if cur.rowcount:
-        print(f"성분이 전부 잔해였던 제품 제거 {cur.rowcount}건")
-    conn.commit()
+        # 성분이 하나도 남지 않은 제품을 지운다. is_unusable()은 파싱 직후를 보므로
+        # 토큰이 전부 잔해였던 제품(랑콤 제니피끄 토너처럼 전성분 한 줄이 통짜로
+        # 들어온 것)을 놓친다. 성분이 없으면 대체품 추천도 성분 표시도 불가능해
+        # 제품으로서 의미가 없다.
+        cur.execute(
+            """DELETE FROM products p WHERE NOT EXISTS
+                 (SELECT 1 FROM product_ingredients x WHERE x.product_id = p.id)"""
+        )
+        if cur.rowcount:
+            print(f"성분이 전부 잔해였던 제품 제거 {cur.rowcount}건")
+        conn.commit()
 
     for t in ("products", "product_ingredients", "brands", "categories", "ingredients"):
         cur.execute(f"SELECT count(*) FROM {t}")

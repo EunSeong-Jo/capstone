@@ -102,8 +102,22 @@ class IngredientOut(_CamelModel):
     description_source: str | None = None
 
 
+class ProductOptionOut(_CamelModel):
+    """옵션형 묶음 제품의 옵션 한 줄 (드롭다운용). 고르면 그 옵션 제품(id)의 상세로 간다."""
+
+    id: int
+    label: str                 # '화장발'
+    order_no: int
+
+
 class ProductDetailOut(ProductOut):
     """상세용. 상품정보제공고시 항목과 전성분이 붙는다."""
+
+    # 옵션형 묶음이면 채워진다(그렇지 않으면 None·빈 목록). 원본(composition='optgroup')을 조회하면 options만 있고
+    # 화면은 첫 옵션으로 보낸다.
+    option_parent_id: int | None = None
+    option_label: str | None = None
+    options: list[ProductOptionOut] = []
 
     product_url: str | None = None
     volume: str | None = None

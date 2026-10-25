@@ -77,12 +77,13 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
     cur.execute(
         f"""
         SELECT p.id, p.name, p.ingredient_count_raw,
-               array_agg(pi.ingredient_id ORDER BY pi.position) AS ings
+               array_agg(pi.ingredient_id ORDER BY pi.position) AS ings,
+               coalesce(p.option_parent_id, 0) AS family
           FROM products p
           JOIN product_ingredients pi ON pi.product_id = p.id
           LEFT JOIN categories c ON c.id = p.category_id
           {where}
-         GROUP BY p.id, p.name, p.ingredient_count_raw
+         GROUP BY p.id, p.name, p.ingredient_count_raw, p.option_parent_id
          ORDER BY p.id
         """,
         args,
@@ -95,7 +96,8 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
     dropped: list[int] = []
     skipped = {"composition": 0, "bundle": 0, "too_few": 0}
 
-    for pid, name, raw_count, ings in rows:
+    families: dict[int, int] = {}
+    for pid, name, raw_count, ings, family in rows:
         if not min_ingredients(len(ings)):
             skipped["too_few"] += 1
             dropped.append(pid)
@@ -107,6 +109,7 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
         ids.append(pid)
         docs.append(list(ings))
         names[pid] = name
+        families[pid] = family
 
     # composition으로 걸러진 건수는 위 SQL이 애초에 안 가져오므로 따로 센다.
     # 보고에서 '전체 N건 중 M건 제외'가 말이 되게 하려는 것뿐이다.
@@ -121,6 +124,7 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
     return ids, docs, {
         "skipped": skipped,
         "names": names,
+        "families": families,
         "dropped": dropped,
         "total": len(rows) + skipped["composition"],
     }
@@ -195,7 +199,7 @@ def load_inorganic_uv(cur) -> set[int]:
 
 
 def rows_hybrid(
-    ids, docs, names, vocab, idf, ing_names, topk, labels, args, inorganic, curated=None
+    ids, docs, names, vocab, idf, ing_names, topk, labels, args, inorganic, curated=None, families=None
 ):
     """역할 가중 tfidf × α + 기능 프로필 × β + 제형 일치 × γ, 같은 제품의 변형은 접는다.
 
@@ -205,6 +209,7 @@ def rows_hybrid(
     idx, score = hybrid_topk(
         docs, names, vocab, idf, labels, pool,
         alpha=args.alpha, beta=args.beta, gamma=args.gamma, inorganic_uv=inorganic,
+        families=families,
     )
     if curated:
         idx, score = apply_curated(idx, score, ids, curated, topk)
@@ -313,6 +318,7 @@ def run_category(
             rows = rows_hybrid(
                 ids, docs, [meta["names"][i] for i in ids], vocab, idf, ing_names,
                 args.topk, labels, args, inorganic, curated,
+                families=[meta["families"][i] for i in ids],
             )
         else:
             raise SystemExit(f"알 수 없는 방식: {method}")

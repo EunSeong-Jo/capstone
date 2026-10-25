@@ -154,7 +154,23 @@ async def test_total_is_stable_across_pages(client: AsyncClient) -> None:
 async def test_search_matches_name(client: AsyncClient) -> None:
     items = await _items(client, SEARCH, q="토너", size=20)
     assert items
-    assert all("토너" in i["name"] for i in items)
+    # 옵션형 묶음은 옵션 이름('… - 토너')에 걸려도 그룹명으로 나온다. 그 경우만 이름에 검색어가 없을 수 있다.
+    plain = [i for i in items if "토너" not in i["name"]]
+    if plain:
+        from sqlalchemy import text
+
+        from app.db.session import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as db:
+            grouped = {
+                r[0]
+                for r in await db.execute(
+                    text("""select p.id from products p where p.id = any(:ids) and exists (
+                              select 1 from products s where s.option_parent_id = p.option_parent_id and s.name like '%토너%')"""),
+                    {"ids": [i["id"] for i in plain]},
+                )
+            }
+        assert {i["id"] for i in plain} <= grouped
 
 
 async def test_search_requires_two_chars(client: AsyncClient) -> None:

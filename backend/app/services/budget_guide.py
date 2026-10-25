@@ -27,6 +27,7 @@ from sqlalchemy.orm import joinedload
 
 from app.models.product import Category, Product
 from app.services.analysis_scope import analyzed
+from app.services.option_scope import listable
 from app.schemas.budget_guide import (
     BudgetGuideIn,
     BudgetGuideOut,
@@ -200,6 +201,7 @@ def _filtered(stmt, rule: SkinRule | None, req: BudgetGuideIn):
         Product.status == "active",
         Product.composition == "single",
         Product.price > 0,
+        listable(),      # 옵션형 묶음은 그룹당 대표 1개, 원본은 제외
         analyzed(),      # 추천 목록은 성분 분석이 끝난 제품만 (눌렀을 때 "분석 전"이 나오지 않게)
     )
     stmt = apply_exclusions(stmt, rule)

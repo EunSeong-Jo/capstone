@@ -115,7 +115,9 @@ erDiagram
 | | `ingredient_count_raw` | int | NULL | 원본 성분 개수 (아래 설명) |
 | | `status` | text | NOT NULL | `= 'active'` · active/soldout/discontinued |
 | | `source` | text | NOT NULL | `= 'oliveyoung'` |
-| | `composition` | text | NOT NULL | `= 'single'` · single/bonus/goods/bundle (아래 설명) |
+| | `composition` | text | NOT NULL | `= 'single'` · single/bonus/goods/bundle/optgroup (아래 설명) |
+| | `option_parent_id` | int | FK `products.id` CASCADE | 옵션형 묶음의 옵션 행이 원본 행을 가리킨다. 그 밖의 제품은 NULL |
+| | `option_label` `option_order` | text · smallint | | 옵션 이름('화장발')과 순서(1부터, 1이 그룹 대표). 옵션 행만 값이 있다 |
 | | `created_at` `updated_at` | timestamptz | NOT NULL | `= now()` |
 
 **`name`과 `display_name`**은 역할이 다릅니다. `name`은 정제 전 원본이라 `기획`·`N종 택1`·`+50ml` 같은 문구가 살아 있고, 그게 `composition` 판정의 입력이라 지우면 분류가 깨집니다. 화면에는 `display_name`(v5 정제명)을 쓰고, NULL이면 `name`으로 떨어집니다. 검색은 양쪽을 모두 봅니다 — 정제 과정에서 지워진 단어로 검색한 사용자가 아무것도 못 찾으면 안 되기 때문입니다.
@@ -152,6 +154,8 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 **`volume_uncertain`이 true인 113건은 숫자가 있어도 믿으면 안 됩니다.** v5 정제 작업자가 총량을 하나로 말할 수 없다고 표시한 제품입니다 — `'각 옵션별 용량이 다름'`이거나, `'409ml (6개) + 210매'`처럼 본품과 동봉품의 단위가 섞여 있습니다. 파서는 그중 103건에서 숫자를 뽑아내므로, 단가(`price / volume_ml`)를 낼 때는 이 제품을 빼야 합니다.
 
 **`composition`**은 제품 구성입니다. `status`(판매 상태)와는 다른 축이라 '품절된 단일제품'이 성립합니다. `single` 외에는 전성분이 제품 하나에 대응한다고 보장할 수 없어 **유사도 계산에서 빼고 조회 API도 기본으로 숨깁니다**. 판정 규칙은 [`backend/app/utils/composition.py`](../backend/app/utils/composition.py)이고, `scripts/load_products.py`가 적재하면서 채웁니다. 묶음분리로 한 제품이 여러 행이 된 경우에는 **가장 오염된 판정이 이깁니다** — 하나라도 묶음이면 그 제품은 묶음입니다.
+
+**옵션형 묶음(`optgroup`)**: "A/B/C 택1"처럼 옵션이 여럿인 상품은 판매자가 옵션별 전성분을 `[라벨]`로 이어 한 칸에 적습니다. `(제품, 성분)`이 키라 이대로는 옵션 구분과 중복이 사라지므로, 적재가 라벨 구간별로 **옵션 행**(`composition = 'single'`, `option_parent_id`, `option_label`, `option_order`, `goods_no = 원본~n`)을 만들고 **원본 행은 `optgroup`으로 표시**합니다(삭제하지 않음 — 찜·주문이 가리킬 수 있습니다). 원본은 목록·검색·추천·사진 인식·유사도에서 빠지고, 목록에는 그룹당 대표(`option_order = 1`)만 나오며, 상세·성분 분석 화면의 드롭다운으로 옵션을 고릅니다. 가격·평점·리뷰수·이미지는 원본 값을 옵션이 그대로 가지고 후기는 그룹 단위로 읽습니다. 규칙은 [`backend/app/utils/product_options.py`](../backend/app/utils/product_options.py), 공통 조건은 [`backend/app/services/option_scope.py`](../backend/app/services/option_scope.py), 적재는 `scripts/load_products.py`(`--options-only`로 이 단계만 실행).
 
 | 값 | 건수 | 설명 |
 |---|---:|---|
