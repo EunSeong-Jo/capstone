@@ -305,6 +305,11 @@ APK는 `android/app/build/outputs/apk/debug/app-debug.apk`에 생깁니다(저�
 - **하드웨어 뒤로가기**는 `components/layout/AndroidBackButton.tsx`가 처리합니다(최상위 탭이면 종료, 아니면 이전 화면). 웹·iOS에서는 동작하지 않습니다.
 - 서명 키(`*.jks`·`*.keystore`)와 `local.properties`는 `.gitignore`에 있어 올라가지 않습니다. 디버그 APK는 자동 생성된 임시 키로 서명되므로 배포용이 아닙니다.
 
+### 로그인 화면의 데모 계정 패널 (비밀 명령)
+시연용 '데모 계정으로 바로 로그인' 패널은 팀원 이름과 공용 비밀번호가 보여서, 배포용 빌드에서는 숨깁니다.
+- **기본값**은 빌드 변수 `VITE_DEMO_PANEL`: `off`면 숨김, 비우면 표시(개발·웹). 배포용 빌드는 `VITE_DEMO_PANEL=off`로 만듭니다.
+- **비밀 명령**: 로그인 화면의 `Swappy` 로고를 **7번 연달아**(탭 사이 1.2초 이내) 누르면 패널이 켜지고/꺼지며 토스트로 알려 줍니다. 선택은 기기에 저장돼 다음 실행에도 유지됩니다(`hooks/useDemoPanel.ts`).
+
 ### 문제 해결
 | 증상 | 원인 / 해결 |
 |---|---|
