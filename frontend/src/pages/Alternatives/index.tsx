@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Header } from '../../components/layout/Header';
@@ -118,6 +118,14 @@ export default function AlternativesPage() {
       : undefined);
 
   const [sort, setSort] = useState<SortKey>('similarity');
+
+  // 옵션형 묶음의 원본이 기준으로 들어오면 첫 옵션으로 바꾼다(원본의 전성분은 모든 옵션의 합집합이라 비교할 수 없다)
+  const firstOptionId = seedProduct.product?.composition === 'optgroup' ? seedProduct.product.options?.[0]?.id : undefined;
+  useEffect(() => {
+    if (firstOptionId === undefined) return;
+    const from = params.get('from');
+    navigate(`/alternatives?seed=${firstOptionId}${from ? `&from=${from}` : ''}`, { replace: true });
+  }, [firstOptionId, navigate, params]);
 
   // 기준 제품을 화면 안에서 바꿀 수 있는 후보: 기준 제품과 같은 카테고리의 내 화장대 제품(2개 이상일 때만).
   // 화장대에 없는 제품(상세·검색에서 온 경우)이 기준이면 바꿀 대상이 없다.

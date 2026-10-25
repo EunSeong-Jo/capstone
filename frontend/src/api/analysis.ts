@@ -4,6 +4,7 @@
  * 상세(`/products/{id}`)가 "이 상품이 무엇인가"라면 이 분석은 "내가 쓰는 이 제품이 내 피부에 어떤가"를 해석한다.
  * 기능별 강도·핵심 성분·주의 성분·전성분 해부도·내 화장대 안의 위치가 한 번에 온다.
  */
+import type { ProductOption } from './products';
 import type { SkinType } from '../types';
 import type { FitReason, FitVerdict } from './skinFit';
 import { request } from './client';
@@ -91,6 +92,9 @@ export interface SkinStateAxis {
 }
 
 export interface ProductAnalysis {
+  /** 옵션형 묶음 제품이면 자기 옵션 이름과 형제 옵션 목록. 원본(옵션 이름 없음 + 옵션 있음)이면 화면이 첫 옵션으로 보낸다 */
+  optionLabel?: string | null;
+  options?: ProductOption[];
   productId: number;
   name: string;
   brand: string;
