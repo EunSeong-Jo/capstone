@@ -36,6 +36,7 @@ from app.models.product import (
     ProductIngredient,
 )
 from app.services.ocr import recognize_text
+from app.services.product_variants import group_key, sort_group, variant_label
 from app.services.ocr_quota import check_scan_quota
 from app.services.review_photos import decode_photo, photo_urls_of
 from app.services.skin_fit import build_flags, classify_ingredient
@@ -45,6 +46,7 @@ from app.models.user import Profile, User
 from app.schemas.product import (
     IngredientOut,
     MatchSignalOut,
+    MatchVariantOut,
     MatchSignalsOut,
     ProductDetailOut,
     ProductListOut,
@@ -357,6 +359,12 @@ async def search_products(
 # 넓히고, "자동 선택할 만큼 확실한가"는 점수를 받은 호출 측이 정한다.
 MATCH_THRESHOLD = 0.15
 
+# 후보 수는 기본 3개, 점수 하한은 위 MATCH_THRESHOLD(0.15)뿐이다. 실사진 11장에서 정답은 6장 모두 1위였고
+# 정답 1위 점수의 최저가 0.290이라, 하한을 올리면 맞는 제품이 사라진다(scripts/IMAGE_MATCH_SUMMARY.md ③).
+
+# 분석 여부(성분 유사도 계산 대상인지)와 상관없이 찾는다 — 카탈로그에 기획 상품만 있는 제품도 있어서
+# (실사진 11장 중 2장), 분석된 제품으로 제한하면 맞는 제품을 못 찾는다.
+#
 # 한글명과 영문명을 한 번에 훑는다.
 #
 # 두 쿼리로 나누면 왕복이 두 번이고, 이 DB는 왕복 한 번이 실측 212ms다
@@ -386,14 +394,22 @@ limit :lim
 """
 
 
+# 변형을 접기 전에 넉넉히 가져오는 배수. 같은 제품이 단품·기획 등으로 여러 건이라, limit건만 가져오면
+# 한 제품이 후보 자리를 다 차지한다.
+MATCH_FETCH_FACTOR = 5
+MATCH_FETCH_MAX = 50
+
+
 async def match_text(db: AsyncSession, q: str, limit: int) -> list[ProductMatchOut]:
     """글자(OCR 결과)와 제품명(한글·영문)의 trgm 유사도로 후보를 낸다.
 
-    `/match`(텍스트)와 `/scan`(사진 → OCR)이 같이 쓴다.
+    `/match`(텍스트)와 `/scan`(사진 → OCR)이 같이 쓴다. 같은 제품의 용량·기획 변형은 한 후보로 접는다
+    (`services/product_variants.py`).
     """
     rows = (
         await db.execute(
-            text(_MATCH_SQL), {"q": q, "th": MATCH_THRESHOLD, "lim": limit}
+            text(_MATCH_SQL),
+            {"q": q, "th": MATCH_THRESHOLD, "lim": min(limit * MATCH_FETCH_FACTOR, MATCH_FETCH_MAX)},
         )
     ).all()
     if not rows:
@@ -408,21 +424,39 @@ async def match_text(db: AsyncSession, q: str, limit: int) -> list[ProductMatchO
         )
     }
 
-    out = []
+    # 점수 순서를 지키며 변형끼리 묶는다(묶음의 순서와 신호는 그 안의 최고 점수 후보 기준).
+    groups: dict[tuple[str, str], list] = {}
     for r in rows:
         product = products.get(r.product_id)
         if product is None:  # 조회 사이에 지워진 제품
             continue
+        key = group_key(product.brand.name if product.brand else "", product.display_name or product.name)
+        groups.setdefault(key, []).append((r, product))
+
+    out = []
+    for members in list(groups.values())[:limit]:
+        best_row = members[0][0]               # rows가 점수 내림차순이라 첫 멤버가 최고점
+        order = sort_group([(m[1].display_name or m[1].name, m[1].price or 0, i) for i, m in enumerate(members)])
+        ordered = [members[i][1] for i in order]
+        variants = (
+            [
+                MatchVariantOut(product=_to_out(p), label=variant_label(p.display_name or p.name, p.name))
+                for p in ordered
+            ]
+            if len(ordered) > 1
+            else []
+        )
         out.append(
             ProductMatchOut(
-                product=_to_out(product),
+                product=_to_out(ordered[0]),
                 signals=MatchSignalsOut(
                     text=MatchSignalOut(
-                        score=round(float(r.s), 4),
-                        matched_on=r.src,
-                        matched_text=r.matched_text,
+                        score=round(float(best_row.s), 4),
+                        matched_on=best_row.src,
+                        matched_text=best_row.matched_text,
                     )
                 ),
+                variants=variants,
             )
         )
     return out
@@ -460,7 +494,7 @@ async def scan_product(
 @router.get("/match", response_model=list[ProductMatchOut], summary="OCR 텍스트로 제품 찾기")
 async def match_products(
     q: str = Query(..., min_length=2, description="OCR로 읽은 텍스트"),
-    limit: int = Query(5, ge=1, le=20),
+    limit: int = Query(3, ge=1, le=20),
     db: AsyncSession = Depends(get_db),
 ) -> list[ProductMatchOut]:
     """포장에서 읽은 텍스트로 비슷한 제품을 찾는다.
