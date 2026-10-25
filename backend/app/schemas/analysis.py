@@ -1,7 +1,7 @@
 """내 제품 성분 분석 응답 스키마 (Task 14)."""
 from __future__ import annotations
 
-from app.schemas.product import _CamelModel
+from app.schemas.product import ProductOptionOut, _CamelModel
 from app.schemas.skin_fit import FitReasonOut
 
 
@@ -114,6 +114,9 @@ class ProductAnalysisOut(_CamelModel):
     brand: str
     category: str
     image_url: str | None = None
+    # 옵션형 묶음 제품이면 채워진다(상세와 같은 모양). 분석 화면의 옵션 드롭다운이 쓴다
+    option_label: str | None = None
+    options: list[ProductOptionOut] = []
     skin_type: str | None = None
     labeled_count: int           # 라벨이 있는 성분 수
     total_count: int             # 전성분 수

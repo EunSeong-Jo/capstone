@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { KEEP_SCROLL } from '../../components/layout/keepScroll';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Header } from '../../components/layout/Header';
 import { AnalysisView } from '../../components/analysis/AnalysisView';
@@ -34,6 +36,14 @@ export default function AnalysisPage() {
   const { hasItem } = useCloset();
   const typeLabel = skinTypes.find((t) => t.id === skinType)?.label;
 
+  // 옵션형 묶음의 원본(옵션 이름 없음 + 옵션 있음)이면 첫 옵션의 분석으로 보낸다. 원본의 전성분은 모든 옵션의 합집합이다.
+  const firstOptionId = analysis && !analysis.optionLabel ? analysis.options?.[0]?.id : undefined;
+  useEffect(() => {
+    if (firstOptionId !== undefined) navigate(`/analysis/${firstOptionId}`, { replace: true, state: KEEP_SCROLL });
+  }, [firstOptionId, navigate]);
+  // 옵션을 고르면 그 옵션의 분석으로 바꾼다. 스크롤은 그대로 둔다.
+  const pickOption = (optionId: number) => navigate(`/analysis/${optionId}`, { replace: true, state: KEEP_SCROLL });
+
   if (notFound) {
     return (
       <PageWrapper>
@@ -66,6 +76,7 @@ export default function AnalysisPage() {
           photo={photo}
           onReloadPhoto={reloadPhoto}
           navigate={navigate}
+          onPickOption={pickOption}
           owned={hasItem(productId)}
         />
       )}

@@ -1,3 +1,4 @@
+import { OptionPicker } from '../product/OptionPicker';
 import { useMemo } from 'react';
 import type { ProductAnalysis, CautionKind } from '../../api/analysis';
 import type { AnalysisDto } from '../../api/skinPhoto';
@@ -49,6 +50,7 @@ export function AnalysisView({
   photo,
   onReloadPhoto,
   navigate,
+  onPickOption,
   owned = false,
 }: {
   analysis: ProductAnalysis;
@@ -59,6 +61,8 @@ export function AnalysisView({
   photo: AnalysisDto | null;
   onReloadPhoto: () => void;
   navigate: (to: string) => void;
+  /** 옵션형 묶음 제품의 옵션을 바꾼다(해당 옵션의 분석으로 이동). 옵션이 없으면 쓰이지 않는다 */
+  onPickOption?: (id: number) => void;
   /** 이 제품이 내 화장대에 있는가 — 화장대 구역의 제목이 달라진다 */
   owned?: boolean;
 }) {
@@ -81,6 +85,13 @@ export function AnalysisView({
                 </p>
               </div>
             </div>
+
+            {/* 옵션형 묶음 제품: 옵션마다 전성분이 달라, 고르면 그 옵션의 분석으로 바뀐다 */}
+            {analysis.options && analysis.options.length > 1 && onPickOption && (
+              <div className="mt-3">
+                <OptionPicker options={analysis.options} currentId={analysis.productId} onPick={onPickOption} />
+              </div>
+            )}
 
             {analysis.fit ? (
               <div className={`mt-4 rounded-xl border px-4 py-4 ${VERDICT[analysis.fit.verdict].box}`}>

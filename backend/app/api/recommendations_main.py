@@ -38,6 +38,7 @@ from app.models.user import User
 from app.schemas.budget_guide import BudgetGuideIn, BudgetGuideOut
 from app.schemas.product import ProductListOut, ProductOut
 from app.services.analysis_scope import analyzed
+from app.services.option_scope import listable
 from app.services.budget_guide import build_guide
 from app.services.product_score import W_BRAND, product_score
 from app.services.skin_type import apply_exclusions, load_rule
@@ -90,7 +91,7 @@ async def _pick(
     stmt = (
         select(Product, score)
         # 홈이 먼저 골라 보여 주는 목록이라 성분 분석이 끝난 제품만 낸다(눌렀을 때 "분석 전"이 나오지 않게)
-        .where(Product.composition == "single", Product.price.is_not(None), analyzed())
+        .where(Product.composition == "single", Product.price.is_not(None), analyzed(), listable())
         .options(joinedload(Product.brand), joinedload(Product.category))
         .order_by(score.desc(), Product.id)
         # 다양성 후처리가 순서를 바꾸므로 넉넉히 받아 온다.

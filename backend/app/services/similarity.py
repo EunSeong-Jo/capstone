@@ -307,6 +307,7 @@ def hybrid_topk(
     gamma: float = DEFAULT_GAMMA,
     inorganic_uv: frozenset[int] | set[int] = frozenset(),
     dedupe: bool = True,
+    families: list[int] | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """hybrid 상위 k. 배치와 평가가 같은 경로를 쓰도록 한곳에 둔다."""
     parts = [
@@ -319,7 +320,7 @@ def hybrid_topk(
     parts = [(m, w / total) for m, w in parts]
     idx, score = topk_blend(parts, k=DEDUPE_POOL if dedupe else k)
     if dedupe:
-        idx, score = dedupe_topk(idx, score, names, docs, k)
+        idx, score = dedupe_topk(idx, score, names, docs, k, families=families)
     return idx, score
 
 
@@ -457,11 +458,16 @@ def dedupe_topk(
     docs: list[Doc],
     k: int,
     seed_variants_max: int = 3,
+    families: list[int] | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """후보에서 같은 제품의 변형을 접고 상위 k만 남긴다(점수 내림차순 유지).
 
     기준 제품의 변형(용량만 다른 같은 제품)은 프론트가 '다른 용량'으로 따로 보여 주므로
     최대 seed_variants_max개까지는 남기고, 그 밖의 후보는 변형 그룹마다 최고점 하나만 둔다.
+
+    families: 제품별 옵션 그룹 번호(`products.option_parent_id`, 옵션형이 아니면 0). 같은 그룹의 옵션은 한 제품의
+    옵션이라 서로의 후보로 올리지 않고(화면의 옵션 드롭다운으로 고른다), 다른 제품의 후보에는 그룹당 최고점
+    하나만 남긴다.
     """
     n, width = idx.shape
     keys = [variant_keys(names[i], docs[i]) for i in range(n)]
@@ -472,10 +478,15 @@ def dedupe_topk(
         seen_body: set[str] = set()
         seen_set: set[tuple[str, frozenset[int]]] = set()
         seed_kept = 0
+        seen_family: set[int] = set()
         c = 0
         for j, sc in zip(idx[i], score[i]):
             if j < 0 or c >= k:
                 continue
+            if families is not None and families[j]:
+                if families[j] == families[i] or families[j] in seen_family:
+                    continue
+                seen_family.add(families[j])
             body, bs = keys[j]
             is_seed_variant = body == seed_body or bs == (seed_brand, seed_set)
             if is_seed_variant:

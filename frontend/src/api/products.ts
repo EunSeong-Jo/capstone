@@ -63,7 +63,16 @@ export interface ProductIngredient {
   descriptionSource?: 'llm' | 'reviewed' | null;
 }
 
+/** 옵션형 묶음 제품의 옵션 한 줄. 고르면 그 옵션 제품(id)의 상세로 간다 */
+export interface ProductOption {
+  id: number;
+  label: string;
+  orderNo: number;
+}
+
 export interface ProductDetail extends Product {
+  /** single · bonus · goods · bundle · optgroup(옵션형 묶음의 원본 — 화면은 첫 옵션으로 보낸다) */
+  composition?: string;
   productUrl?: string;
   volume?: string;
   country?: string;
@@ -71,6 +80,10 @@ export interface ProductDetail extends Product {
   expiry?: string;
   reportNo?: string;
   ingredientCountRaw?: number;
+  /** 옵션형 묶음이면 채워진다. 옵션 제품은 자기 옵션 이름(optionLabel)과 형제 옵션 목록(options)을 가진다 */
+  optionParentId?: number | null;
+  optionLabel?: string | null;
+  options?: ProductOption[];
   ingredients: ProductIngredient[];
 }
 

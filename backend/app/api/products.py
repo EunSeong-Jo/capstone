@@ -18,9 +18,9 @@ import json
 from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
-from sqlalchemy import Select, func, or_, select, text
+from sqlalchemy import Select, exists, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import aliased, joinedload
 
 from app.core.cache import cache_get, cache_set, get_cache_version
 from app.core.deps import get_current_user
@@ -36,6 +36,7 @@ from app.models.product import (
     ProductIngredient,
 )
 from app.services.ocr import recognize_text
+from app.services.option_scope import family_ids, family_root, listable, options_of
 from app.services.product_variants import group_key, sort_group, variant_label
 from app.services.ocr_quota import check_scan_quota
 from app.services.review_photos import decode_photo, photo_urls_of
@@ -51,6 +52,7 @@ from app.schemas.product import (
     ProductDetailOut,
     ProductListOut,
     ProductMatchOut,
+    ProductOptionOut,
     ProductScanIn,
     ProductScanOut,
     ProductOut,
@@ -125,6 +127,8 @@ class CompositionFilter(str, Enum):
 
 
 def _apply_composition(stmt: Select, composition: CompositionFilter) -> Select:
+    # 옵션형 묶음은 그룹당 대표 1개만 올리고 원본은 올리지 않는다(services/option_scope.py)
+    stmt = stmt.where(listable())
     if composition is CompositionFilter.all:
         return stmt
     return stmt.where(Product.composition == composition.value)
@@ -331,6 +335,12 @@ async def search_products(
     # 반대로 원본명만 보면 정제 후 바뀐 표기를 놓친다.
     pattern = f"%{escaped}%"
     rule = await load_rule(db, skin_type)
+    # 옵션형 묶음은 같은 그룹의 어느 옵션 이름에 걸려도 그룹(대표 옵션)이 나온다 — '카밍풀'을 쳐서 '픽앤퀵 마스크'를 찾는다
+    sibling = aliased(Product)
+    option_hit = exists().where(
+        sibling.option_parent_id == Product.option_parent_id,
+        sibling.name.ilike(pattern, escape="\\"),
+    )
     stmt = _apply_composition(
         select(Product)
         .where(Product.status == "active")
@@ -338,6 +348,7 @@ async def search_products(
             or_(
                 Product.name.ilike(pattern, escape="\\"),
                 Product.display_name.ilike(pattern, escape="\\"),
+                option_hit,
             )
         ),
         composition,
@@ -365,6 +376,9 @@ MATCH_THRESHOLD = 0.15
 # 분석 여부(성분 유사도 계산 대상인지)와 상관없이 찾는다 — 카탈로그에 기획 상품만 있는 제품도 있어서
 # (실사진 11장 중 2장), 분석된 제품으로 제한하면 맞는 제품을 못 찾는다.
 #
+# 옵션형 묶음의 원본 행(composition='optgroup')은 후보에서 뺀다 — 전성분이 모든 옵션의 합집합이라 인식 대상이 아니다.
+# 대신 옵션 행이 후보가 되고, 같은 그룹의 옵션은 한 후보로 접혀 드롭다운으로 고른다.
+#
 # 한글명과 영문명을 한 번에 훑는다.
 #
 # 두 쿼리로 나누면 왕복이 두 번이고, 이 DB는 왕복 한 번이 실측 212ms다
@@ -378,10 +392,12 @@ with hits as (
          coalesce(p.display_name, p.name) as matched_text
   from products p
   where similarity(lower(coalesce(p.display_name, p.name)), lower(:q)) >= :th
+    and p.composition <> 'optgroup'
   union all
   select e.product_id, 'en',
          similarity(lower(e.name_en), lower(:q)), e.name_en
   from product_names_en e
+  join products ep on ep.id = e.product_id and ep.composition <> 'optgroup'
   where similarity(lower(e.name_en), lower(:q)) >= :th
 ),
 ranked as (
@@ -424,28 +440,51 @@ async def match_text(db: AsyncSession, q: str, limit: int) -> list[ProductMatchO
         )
     }
 
+    # 옵션형 묶음은 같은 그룹의 옵션 전부를 후보 안에 둔다(글자 대조에 걸리지 않은 형제 옵션도 드롭다운에 있어야 한다).
+    parent_ids = {p.option_parent_id for p in products.values() if p.option_parent_id}
+    siblings: dict[int, list[Product]] = {}
+    if parent_ids:
+        for sib in await db.scalars(
+            select(Product)
+            .where(Product.option_parent_id.in_(parent_ids), Product.status == "active")
+            .options(joinedload(Product.brand), joinedload(Product.category))
+            .order_by(Product.option_order, Product.id)
+        ):
+            siblings.setdefault(sib.option_parent_id, []).append(sib)
+
     # 점수 순서를 지키며 변형끼리 묶는다(묶음의 순서와 신호는 그 안의 최고 점수 후보 기준).
-    groups: dict[tuple[str, str], list] = {}
+    groups: dict[tuple, list] = {}
     for r in rows:
         product = products.get(r.product_id)
         if product is None:  # 조회 사이에 지워진 제품
             continue
-        key = group_key(product.brand.name if product.brand else "", product.display_name or product.name)
+        if product.option_parent_id:
+            key: tuple = ("opt", product.option_parent_id)
+        else:
+            key = group_key(product.brand.name if product.brand else "", product.display_name or product.name)
         groups.setdefault(key, []).append((r, product))
 
     out = []
-    for members in list(groups.values())[:limit]:
+    for key, members in list(groups.items())[:limit]:
         best_row = members[0][0]               # rows가 점수 내림차순이라 첫 멤버가 최고점
-        order = sort_group([(m[1].display_name or m[1].name, m[1].price or 0, i) for i, m in enumerate(members)])
-        ordered = [members[i][1] for i in order]
-        variants = (
-            [
-                MatchVariantOut(product=_to_out(p), label=variant_label(p.display_name or p.name, p.name))
-                for p in ordered
-            ]
-            if len(ordered) > 1
-            else []
-        )
+        if key[0] == "opt":
+            # 옵션형: 옵션 순서대로, 대표는 첫 옵션. 라벨이 옵션 이름이다.
+            ordered = siblings.get(key[1], [m[1] for m in members])
+            variants = (
+                [MatchVariantOut(product=_to_out(p), label=p.option_label or "") for p in ordered]
+                if len(ordered) > 1 else []
+            )
+        else:
+            order = sort_group([(m[1].display_name or m[1].name, m[1].price or 0, i) for i, m in enumerate(members)])
+            ordered = [members[i][1] for i in order]
+            variants = (
+                [
+                    MatchVariantOut(product=_to_out(p), label=variant_label(p.display_name or p.name, p.name))
+                    for p in ordered
+                ]
+                if len(ordered) > 1
+                else []
+            )
         out.append(
             ProductMatchOut(
                 product=_to_out(ordered[0]),
@@ -668,8 +707,16 @@ async def get_product(
     )
 
     base = _to_out(product)
+    root = family_root(product)
+    options = [
+        ProductOptionOut(id=i, label=label, order_no=order)
+        for i, label, order in (await options_of(db, root) if root is not None else [])
+    ]
     detail = ProductDetailOut(
         **base.model_dump(),
+        option_parent_id=product.option_parent_id,
+        option_label=product.option_label,
+        options=options,
         product_url=product.product_url,
         volume=product.volume,
         country=product.country,
@@ -721,12 +768,14 @@ async def list_product_reviews(
     exists = await db.scalar(select(Product.id).where(Product.id == product_id))
     if exists is None:
         raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
+    # 옵션형 묶음의 후기는 그룹이 함께 쓴다(원본 + 모든 옵션)
+    pids = await family_ids(db, product_id)
 
     # 분포는 전체 기준이다. 페이지를 넘겨도 막대가 흔들리지 않는다.
     buckets = dict.fromkeys(range(1, 6), 0)
     for rating, count in await db.execute(
         select(Review.rating, func.count())
-        .where(Review.product_id == product_id)
+        .where(Review.product_id.in_(pids))
         .group_by(Review.rating)
     ):
         buckets[int(rating)] = int(count)
@@ -741,7 +790,7 @@ async def list_product_reviews(
         select(Review, User.nickname, Profile.skin_type)
         .join(User, User.id == Review.user_id)
         .outerjoin(Profile, Profile.user_id == Review.user_id)
-        .where(Review.product_id == product_id)
+        .where(Review.product_id.in_(pids))
     )
     if rating_filter is not None:
         stmt = stmt.where(Review.rating == rating_filter)

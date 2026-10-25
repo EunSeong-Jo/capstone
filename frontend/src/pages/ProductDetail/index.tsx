@@ -17,6 +17,8 @@ import type { ProductIngredient } from '../../api/products';
 import { ProductReviews } from '../../components/product/ProductReviews';
 import { IngredientSheet } from '../../components/product/IngredientSheet';
 import { SkinFitCard } from '../../components/product/SkinFitCard';
+import { OptionPicker } from '../../components/product/OptionPicker';
+import { KEEP_SCROLL } from '../../components/layout/keepScroll';
 import { useSkinType } from '../../hooks/useSkinType';
 
 /** 처음에 펼쳐 보여줄 성분 개수. 제품당 중앙값이 37개라 20개면 절반쯤 보입니다. */
@@ -141,6 +143,13 @@ export default function ProductDetailPage() {
   });
   const skinTypeLabel = skinTypes.find((t) => t.id === skinType)?.label ?? null;
 
+  // 옵션형 묶음의 원본(옛 링크·화장대·스캔 기록)이면 첫 옵션으로 보낸다. 원본의 전성분은 모든 옵션의 합집합이라 보여 줄 수 없다.
+  const firstOptionId = product?.composition === 'optgroup' ? product.options?.[0]?.id : undefined;
+  useEffect(() => {
+    if (firstOptionId !== undefined) navigate(`/detail/${firstOptionId}`, { replace: true, state: KEEP_SCROLL });
+  }, [firstOptionId, navigate]);
+  // 옵션을 고르면 그 옵션의 상세로 바꾼다(전성분·궁합·대체품이 그 옵션 기준으로 바뀐다). 스크롤은 그대로 둔다.
+  const pickOption = (id: number) => navigate(`/detail/${id}`, { replace: true, state: KEEP_SCROLL });
   // 대체품. useProduct와 같은 렌더에서 함께 나가므로 순차 대기가 없다.
   // 기준제품이 도착하면 절약액이 뒤이어 계산된다(재요청 없음).
   const similar = useSimilarProducts(productId, {
@@ -274,6 +283,11 @@ export default function ProductDetailPage() {
             <h1 className="mt-1.5 text-xl font-bold leading-snug">
               {product.name}
             </h1>
+            {product.options && product.options.length > 1 && (
+              <div className="mt-3">
+                <OptionPicker options={product.options} currentId={product.id} onPick={pickOption} />
+              </div>
+            )}
 
             {/* 할인율·정가는 크롤러가 수집하지 않아 표시하지 않는다 */}
             <p className="mt-3 text-2xl font-extrabold">

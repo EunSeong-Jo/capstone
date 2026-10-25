@@ -76,6 +76,7 @@ class Product(Base, TimestampMixin):
         Index("idx_products_category", "category_id"),
         Index("idx_products_status", "status"),
         Index("idx_products_composition", "composition"),
+        Index("idx_products_option_parent", "option_parent_id"),
         Index("idx_products_price", "price"),
         Index("idx_products_unit_price", "unit_price"),
         Index("idx_products_rating", "rating"),
@@ -179,7 +180,15 @@ class Product(Base, TimestampMixin):
     # 빼고 앱에도 노출하지 않는다. 판정 규칙은 app/utils/composition.py.
     composition: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="single"
-    )  # single / bonus / goods / bundle
+    )  # single / bonus / goods / bundle / optgroup
+    # 옵션형 묶음("A/B/C 택1")의 분해 결과. 원본 행은 composition='optgroup'으로 표시해 인식·추천·유사도에서
+    # 빼고, 라벨별 전성분을 가진 옵션 행이 option_parent_id로 원본을 가리킨다. 원본이 아닌 일반 제품은 전부 NULL.
+    # 분해 규칙은 app/utils/product_options.py, 적재는 scripts/load_products.py(expand_options).
+    option_parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE")
+    )
+    option_label: Mapped[str | None] = mapped_column(Text)        # '화장발' · '카밍풀'
+    option_order: Mapped[int | None] = mapped_column(SmallInteger)  # 1부터. 1이 그룹의 대표
     source: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="oliveyoung"
     )
