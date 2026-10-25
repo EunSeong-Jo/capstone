@@ -55,6 +55,16 @@ export interface DiagnosisContextValue {
    * (가짜 로컬 결과로 풀지 않는다).
    */
   diagnoseWithPhoto: (answers: (number | null)[], analysisId: string) => Promise<DiagnosisResult>;
+  /**
+   * 결과 화면에서 1·2순위 중 고른 타입을 서버에 확정한다. 고른 타입이 1순위가 된다.
+   * **실패하면 reject**한다 — 서버에 반영되지 않은 선택을 화면만 믿고 넘어가지 않는다.
+   */
+  chooseSkinType: (skinType: SkinType) => Promise<DiagnosisResult>;
+  /**
+   * 결과를 고르지 않고 닫았을 때: 방금 한 진단을 취소하고 기존 내 피부타입으로 되돌린다.
+   * 이전 진단이 없으면 진단 전 상태가 된다. 실패하면 reject한다.
+   */
+  discardLatest: () => Promise<void>;
   clearDiagnosis: () => void;
 }
 

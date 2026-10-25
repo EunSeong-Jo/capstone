@@ -65,12 +65,20 @@ const clampIndex = (raw: string | null, count: number) => {
   return Number.isInteger(n) && n >= 0 && n < count ? n : 0;
 };
 
+/** 진단이 1·2순위를 냈고 지금 카드가 그 1순위일 때만 둘 중에 고르게 한다(타입을 직접 고른 경우엔 1순위뿐이다) */
+function choicesOf(result: ReturnType<typeof useDiagnosis>['result'], first: SkinType): SkinType[] | undefined {
+  if (!result || result.source !== 'quiz' || result.ranks.length < 2) return undefined;
+  if (result.ranks[0].skinType !== first.id) return undefined;
+  const picked = result.ranks.slice(0, 2).map((r) => skinTypes.find((t) => t.id === r.skinType));
+  return picked.every((t): t is SkinType => !!t) ? picked : undefined;
+}
+
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
   const { profile } = useUserProfile();
-  const { saveDiagnosis, diagnoseWithPhoto, hasDiagnosis, loading: diagLoading } = useDiagnosis();
+  const { saveDiagnosis, diagnoseWithPhoto, chooseSkinType, discardLatest, result: diagResult, hasDiagnosis, loading: diagLoading } = useDiagnosis();
   const { scope } = useAuth();
 
   const rawStep = params.get('step');
@@ -132,6 +140,8 @@ export default function OnboardingPage() {
   const [photoNotice, setPhotoNotice] = useState<string | null>(null);
   // 진단을 마치려고 로딩으로 가기 직전의 문항. 실패하면 거기로 돌아온다.
   const returnQRef = useRef(0);
+  // 방금 한 진단이 아직 확정(타입 고르기)되지 않았다. 새로고침하면 사라지므로 그때의 ✕는 취소하지 않는다.
+  const unconfirmedRef = useRef(false);
 
   // 얼굴 사진 분석을 마쳤으면 그 id. 진단 제출에 실려 서버가 QnA와 섞는다. 건너뛰면 null이고
   // 그때는 QnA 100%다. 점수 자체는 들고 있지 않는다 — 서버가 저장된 분석을 읽는다.
@@ -215,9 +225,17 @@ export default function OnboardingPage() {
       }
     }
 
+    // 건너뛴 문항이 있어도 사진 없이 진단할 수 있다 — 답한 문항만 점수에 닿고 나머지는 '보통'(5)이다.
+    // 하나도 안 답했고 사진도 없으면 근거가 없어 문항으로 돌려보낸다.
+    const answeredAny = picked.some((v) => v !== null);
+    if (!allAnswered && !analysisId && !answeredAny) {
+      backToQuestion('답한 문항이 없어요. 하나 이상 답하거나 사진을 찍어 주세요.', false);
+      return;
+    }
+
     let skinType: string;
-    if (allAnswered) {
-      // 전 문항 답함 — 기존 경로. 사진이 있으면 서버가 QnA와 섞고, 없으면 QnA 100%다.
+    if (allAnswered || !analysisId) {
+      // 전 문항 답함, 또는 일부만 답하고 사진 없음 — 로컬 채점 경로. 사진이 있으면 서버가 QnA와 섞고, 없으면 QnA 100%다.
       const computed = computeDiagnosis(picked);
       const saved = saveRef.current(
         { ...computed, answers: picked, source: 'quiz' },
@@ -230,10 +248,6 @@ export default function OnboardingPage() {
     } else {
       // 일부만 답하고(또는 하나도 안 답하고) 사진으로 마무리 — 로컬 채점으로는 사진을 섞을 수
       // 없어서 서버 결과만 쓴다. 실패하면 가짜 결과 대신 문항으로 돌려보낸다.
-      if (!analysisId) {
-        backToQuestion('사진이 없어요. 문항을 이어서 답해 주세요.', false);
-        return;
-      }
       try {
         skinType = (await diagnoseRef.current(picked, analysisId)).skinType;
       } catch {
@@ -246,6 +260,7 @@ export default function OnboardingPage() {
     shotRef.current = null;
     analysisIdRef.current = null;
     setHasShot(false);
+    unconfirmedRef.current = true;
     setParams({ step: 'result-msg', type: skinType }, { replace: true });
   }, [setParams]);
 
@@ -364,8 +379,29 @@ export default function OnboardingPage() {
           <ResultCardScreen
             key="result-card"
             resultType={cardType}
-            onClose={() => navigate(HOME)}
-            onRecommend={() => navigate(RECOMMEND)}
+            choices={choicesOf(diagResult, cardType)}
+            onClose={async () => {
+              // 1·2순위를 고르게 한 진단을 고르지 않고 닫으면 취소하고 기존 내 타입을 유지한다.
+              // 취소에 실패해도 닫는다 — 새 1순위가 남을 뿐 잘못된 상태는 아니다.
+              if (unconfirmedRef.current && choicesOf(diagResult, cardType)) {
+                await discardLatest().catch(() => undefined);
+              }
+              unconfirmedRef.current = false;
+              navigate(HOME);
+            }}
+            onConfirm={async (id) => {
+              // 1순위 그대로면 이미 저장돼 있다. 2순위를 골랐을 때만 서버에 확정한다.
+              if (id !== cardType.id) {
+                try {
+                  await chooseSkinType(id as SkinTypeId);
+                } catch {
+                  return false;
+                }
+              }
+              unconfirmedRef.current = false;
+              navigate(RECOMMEND);
+              return true;
+            }}
           />
         )}
       </AnimatePresence>

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -29,6 +29,7 @@ from app.models.diagnosis import (
 from app.models.skin_photo import SkinAnalysis
 from app.models.user import Profile, User
 from app.schemas.diagnosis import (
+    ChooseIn,
     DiagnosisIn,
     DiagnosisOut,
     QuizOptionOut,
@@ -219,3 +220,80 @@ async def latest(
     if diagnosis is None:
         raise HTTPException(status_code=404, detail="진단 기록이 없습니다")
     return _to_out(diagnosis, diagnosis.ranks)
+
+
+@router.patch("/latest", response_model=DiagnosisOut, summary="1·2순위 중 내 타입 고르기")
+async def choose_type(
+    body: ChooseIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DiagnosisOut:
+    """결과 화면이 1·2순위를 보여 주고 사용자가 하나를 고른다.
+
+    고를 수 있는 것은 **최신 진단의 1·2순위뿐**이다 — 임의의 타입을 넣을 수 있으면 진단이
+    의미를 잃는다(그건 `PATCH /me/profile`의 '타입 미리 정하기'가 맡는다). 2순위를 고르면
+    1·2순위 행의 (타입, 점수)를 맞바꿔 고른 타입이 1순위가 되게 한다. 그래야 `latest`·
+    프로필 캐시·추천이 모두 같은 값을 보고, 스키마를 바꿀 필요도 없다.
+    """
+    diagnosis = await db.scalar(
+        select(Diagnosis)
+        .where(Diagnosis.user_id == user.id)
+        .order_by(Diagnosis.created_at.desc())
+        .options(selectinload(Diagnosis.ranks))
+    )
+    if diagnosis is None:
+        raise HTTPException(status_code=404, detail="진단 기록이 없습니다")
+
+    by_rank = {r.rank: r for r in diagnosis.ranks}
+    first, second = by_rank.get(1), by_rank.get(2)
+    if first is None or body.skin_type not in {first.skin_type, getattr(second, "skin_type", None)}:
+        raise HTTPException(status_code=422, detail="1순위나 2순위 타입만 고를 수 있어요")
+
+    if body.skin_type != first.skin_type:
+        first.skin_type, second.skin_type = second.skin_type, first.skin_type
+        first.score, second.score = second.score, first.score
+
+    profile = await db.scalar(select(Profile).where(Profile.user_id == user.id))
+    if profile is None:
+        profile = Profile(user_id=user.id)
+        db.add(profile)
+    profile.skin_type = body.skin_type
+
+    await db.commit()
+    return _to_out(diagnosis, diagnosis.ranks)
+
+
+@router.delete("/latest", status_code=204, response_class=Response, summary="방금 한 진단 취소(결과를 고르지 않고 닫았을 때)")
+async def discard_latest(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """최신 진단을 지우고 프로필 캐시를 그 전 진단으로 되돌린다.
+
+    결과 화면에서 1·2순위를 고르지 않고 닫으면, 이미 저장된 새 진단의 1순위가 '내 타입'이
+    되어 버린다. 확정하지 않은 진단은 없던 일로 하고 **기존 내 피부타입을 그대로 둔다.**
+    이전 진단이 없으면(첫 진단) 타입이 비어 진단 전 상태가 된다.
+    """
+    diagnoses = list(
+        await db.scalars(
+            select(Diagnosis)
+            .where(Diagnosis.user_id == user.id)
+            .order_by(Diagnosis.created_at.desc())
+            .limit(2)
+            .options(selectinload(Diagnosis.ranks))
+        )
+    )
+    if not diagnoses:
+        raise HTTPException(status_code=404, detail="진단 기록이 없습니다")
+    latest_row = diagnoses[0]
+    previous = diagnoses[1] if len(diagnoses) > 1 else None
+
+    profile = await db.scalar(select(Profile).where(Profile.user_id == user.id))
+    if profile is not None:
+        top = min(previous.ranks, key=lambda r: r.rank) if previous and previous.ranks else None
+        profile.skin_type = top.skin_type if top else None
+        profile.scores = previous.scores if previous else None
+
+    await db.delete(latest_row)
+    await db.commit()
+    return Response(status_code=204)
