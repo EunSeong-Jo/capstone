@@ -246,3 +246,10 @@
 .dual-range:focus-visible::-webkit-slider-thumb {
   outline: 3px solid rgba(0, 145, 109, 0.35);
 }
+
+/* 카메라 미리보기: 안드로이드 웹뷰가 첫 프레임 전에 그리는 기본 재생 버튼(▶)을 숨긴다 */
+video::-webkit-media-controls-start-playback-button,
+video::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+  -webkit-appearance: none;
+}

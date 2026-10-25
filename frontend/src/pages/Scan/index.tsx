@@ -8,6 +8,7 @@ import { useToast } from '../../context/toast';
 import { useCloset } from '../../context/closet';
 import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 import { ProductMatch, scanProductImage } from '../../api/products';
+import { CameraVideo } from '../../components/common/CameraVideo';
 import { ApiError } from '../../api/client';
 import { captureVideoFrame, fileToScanImage } from '../../utils/scanImage';
 
@@ -202,14 +203,7 @@ export default function ScanPage() {
           이라는 인상만 만들었다. */}
       <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-[#1b1b20] to-[#0d0d10]" />
       {phase === 'idle' && cameraReady && (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          aria-hidden
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+        <CameraVideo videoRef={videoRef} className="absolute inset-0 h-full w-full object-cover" />
       )}
       {showShot && (
         <>
@@ -380,7 +374,11 @@ export default function ScanPage() {
             }}
             onFocus={() => setSearchFocused(true)}
             // 최근 스캔을 누르는 순간 blur가 먼저 와서 목록이 사라지면 클릭이 빗나간다 — 잠깐 늦춰 닫는다
-            onBlur={() => window.setTimeout(() => setSearchFocused(false), 150)}
+            onBlur={() => {
+              window.setTimeout(() => setSearchFocused(false), 150);
+              // 입력이 비었는데 '제품명으로 찾는 중' 상태에 남으면 카메라가 꺼진 채 갇힌다 — 카메라로 돌아간다
+              if (!query.trim()) setPhase((p) => (p === 'search' ? 'idle' : p));
+            }}
             placeholder="제품명으로 찾기 (2자 이상)"
             className="min-w-0 flex-1 bg-transparent text-sm text-gray-100 outline-none placeholder:text-gray-50"
           />
