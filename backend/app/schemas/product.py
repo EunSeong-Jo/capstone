@@ -188,18 +188,30 @@ class MatchSignalsOut(_CamelModel):
     text: MatchSignalOut
 
 
+class MatchVariantOut(_CamelModel):
+    """같은 제품의 용량·구성 변형 한 줄 (드롭다운용)."""
+
+    product: ProductOut
+    label: str               # '350ml' · '350ml · 더블기획 (+어성초 크림 20ml)'
+
+
 class ProductMatchOut(_CamelModel):
-    """OCR 텍스트로 찾은 제품 후보."""
+    """OCR 텍스트로 찾은 제품 후보.
+
+    같은 제품의 용량·기획 변형은 한 후보로 접는다. `product`는 그 묶음에서 **가장 용량이 작은**
+    제품이고, 변형이 둘 이상이면 `variants`에 대표를 포함한 전부(용량 오름차순)가 들어 있다.
+    """
 
     product: ProductOut
     signals: MatchSignalsOut
+    variants: list[MatchVariantOut] = []
 
 
 class ProductScanIn(_CamelModel):
     """사진으로 화장품 찾기. 화면이 장변 1024px JPEG로 줄여 data URL로 보낸다."""
 
     image: str = Field(max_length=4_000_000)
-    limit: int = Field(default=5, ge=1, le=10)
+    limit: int = Field(default=3, ge=1, le=10)
 
 
 class ProductScanOut(_CamelModel):

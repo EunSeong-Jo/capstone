@@ -190,8 +190,18 @@ export function fetchProductReviews(
 
 // ── 사진으로 화장품 찾기 ─────────────────────────────────────
 
-export interface ProductMatch {
+/** 같은 제품의 용량·기획 변형 한 줄 */
+export interface MatchVariant {
   product: Product;
+  /** '350ml' · '350ml · 더블기획 (+어성초 크림 20ml)' */
+  label: string;
+}
+
+export interface ProductMatch {
+  /** 같은 제품의 변형을 접은 대표 — 가장 용량이 작은 제품 */
+  product: Product;
+  /** 변형이 둘 이상일 때만, 대표를 포함한 전부(용량 오름차순). 드롭다운으로 고른다 */
+  variants?: MatchVariant[];
   signals: {
     /** 글자 대조 점수(trgm, 0~1)와 어느 이름(ko 한글명 / en 영문명)에서 맞았는지 */
     text: { score: number; matchedOn: 'ko' | 'en'; matchedText: string };
@@ -209,6 +219,6 @@ export interface ProductScanResult {
  * 제품 앞면 사진(data URL, 장변 1024px JPEG 권장) → OCR → 후보.
  * 사진 인식 키가 없으면 503(ApiError) — 화면은 제품명 검색으로 안내한다.
  */
-export function scanProductImage(image: string, limit = 5): Promise<ProductScanResult> {
+export function scanProductImage(image: string, limit = 3): Promise<ProductScanResult> {
   return postJson<ProductScanResult>('/api/v1/products/scan', { image, limit });
 }

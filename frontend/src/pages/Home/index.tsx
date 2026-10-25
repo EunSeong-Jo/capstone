@@ -16,7 +16,6 @@ import {
   SKIN_TYPE_META,
   Product,
 } from '../../types';
-import { useProducts } from '../../hooks/useProducts';
 import { useRecommendations } from '../../hooks/useRecommendations';
 import { useStats } from '../../hooks/useStats';
 import { useSkinType } from '../../hooks/useSkinType';
@@ -72,19 +71,6 @@ function CarouselError({ message, onRetry }: { message: string; onRetry: () => v
   );
 }
 
-/**
- * 목업 폴백이 켜진 환경(로컬 개발)에서만 뜬다. 화면이 실제 DB가 아니라
- * 실 API 캡처본(mocks/products.fixture.json)을 보고 있다는 사실을
- * 숨기지 않기 위한 것이다.
- */
-function MockBanner() {
-  return (
-    <div className="bg-amber-100 px-4 py-2 text-[12px] font-semibold text-amber-900">
-      ⚠️ 목업 데이터 — 백엔드 응답이 없어 예시 상품을 보여주고 있어요
-    </div>
-  );
-}
-
 export default function HomePage() {
   const navigate = useNavigate();
   const { user: persona, isUser } = useAuth();
@@ -109,22 +95,10 @@ export default function HomePage() {
   const ownedIds = useMemo(() => closetItems.map((c) => c.id), [closetItems]);
   const {
     forYou,
+    loading,
     error: recError,
     reload: recReload,
   } = useRecommendations(skinType, skinPending, owned);
-
-  // 계절 맞춤 캐러셀은 개인화와 무관한 별도 풀
-  const {
-    products: seasonalPool,
-    loading,
-    isMock: seasonalIsMock,
-    error: seasonalError,
-    reload: seasonalReload,
-  } = useProducts({ size: 12, sort: 'rating' });
-  const seasonal = seasonalPool.slice(0, 6);
-
-  // 계절 캐러셀이 목업으로 채워졌으면 화면에 알린다 (추천은 서버 전용이라 폴백이 없다)
-  const isMock = seasonalIsMock;
 
   const { weather } = useWeather();
   // 사용자가 직접 고친 프로필(닉네임 등)은 UserProfileContext가 들고 있다.
@@ -191,7 +165,6 @@ export default function HomePage() {
       <OyAppBar />
 
       <main>
-        {isMock && <MockBanner />}
 
         {/* 개인 대시보드: 날씨 + 마스코트(탭→옷장) + 경험치
 
@@ -222,7 +195,6 @@ export default function HomePage() {
             skinLabel !== null ? `${withObjParticle(skinLabel)} 위한 상품` : '요즘 인기 있는 상품'
           }
           products={forYou}
-          ad
         />
         {loading && forYou.length === 0 && <CarouselSkeleton />}
         {recError && forYou.length === 0 && (
@@ -250,17 +222,6 @@ export default function HomePage() {
             <Divider />
           </div>
         ))}
-
-        {/* 날씨·계절 맞춤 (대시보드 날씨 연계) */}
-        <ProductCarousel
-          title={`🌤 ${weather?.seasonLabel ?? '요즘'} 맞춤, 수분 집중 추천`}
-          products={seasonal}
-        />
-        {loading && seasonal.length === 0 && <CarouselSkeleton />}
-        {seasonalError && seasonal.length === 0 && (
-          <CarouselError message={seasonalError} onRetry={seasonalReload} />
-        )}
-        <Divider />
       </main>
 
       <OyFloatingActions

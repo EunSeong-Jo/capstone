@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.models.product import Category, Product
+from app.services.analysis_scope import analyzed
 from app.schemas.budget_guide import (
     BudgetGuideIn,
     BudgetGuideOut,
@@ -194,11 +195,12 @@ def build_reason(combo: Combination, skin_label: str | None, tag_label: str | No
 
 
 def _filtered(stmt, rule: SkinRule | None, req: BudgetGuideIn):
-    """판매 중 단일제품 + 피부타입 기피 + 선호 조건 + 보유품 제외."""
+    """판매 중 단일제품(분석 끝난 것) + 피부타입 기피 + 선호 조건 + 보유품 제외."""
     stmt = stmt.where(
         Product.status == "active",
         Product.composition == "single",
         Product.price > 0,
+        analyzed(),      # 추천 목록은 성분 분석이 끝난 제품만 (눌렀을 때 "분석 전"이 나오지 않게)
     )
     stmt = apply_exclusions(stmt, rule)
     # '무향'·'무알코올' 선호: 타입과 무관한 사실(product_skin_fit.has_fragrance·has_drying_alcohol)로 거른다
