@@ -413,15 +413,16 @@ npx cap sync ios
 npx cap open ios   # Xcode에서 실행
 ```
 
-### 7.2 Android 앱 추가
+### 7.2 Android 앱 (디버그 APK)
+
+안드로이드 프로젝트(`frontend/android/`)는 이미 만들어져 저장소에 들어 있습니다. 빌드·설치는 스크립트로 합니다 —
+도구 설치와 문제 해결은 [frontend/README.md](../frontend/README.md)의 "9-1. 안드로이드 디버그 APK"를 보세요.
 
 ```bash
 cd frontend
-npm install @capacitor/android
-npx cap add android
-npm run build
-npx cap sync android
-npx cap open android   # Android Studio에서 실행
+npm run android:local                              # 내 PC 로컬 서버로 빌드·설치·실행 (USB로 연결한 폰)
+bash scripts/android.sh debug https://서버주소      # 운영 서버(HTTPS)로 APK만 빌드
+npm run android:install                            # 만든 APK를 폰에 설치
 ```
 
 ### 7.3 빌드 후 네이티브 동기화 (코드 변경 시)

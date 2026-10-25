@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-
 import { RequireAuth } from './components/auth/RequireAuth';
 import { MascotPreloader } from './components/character/MascotPreloader';
 import { ScrollToTop } from './components/layout/ScrollToTop';
+import { AndroidBackButton } from './components/layout/AndroidBackButton';
 
 const SplashPage     = lazy(() => import('./pages/Splash'));
 const OnboardingPage = lazy(() => import('./pages/Onboarding'));
@@ -67,6 +68,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <AndroidBackButton />
       {/* 내 캐릭터 이미지를 미리 디코딩해 둔다 — 탭 이동 때 캐릭터가 늦게 뜨지 않게 */}
       <MascotPreloader />
       <Suspense fallback={<LoadingScreen />}>

@@ -83,9 +83,11 @@
     --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.10);
     --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.14);
 
-    /* Safe area (Capacitor / iOS) */
-    --safe-top: env(safe-area-inset-top, 0px);
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    /* Safe area (Capacitor / iOS)
+       안드로이드 앱은 엣지-투-엣지라 Capacitor(SystemBars)가 시스템 바 높이를 --safe-area-inset-*로 주입한다.
+       그 값이 있으면 우선하고, 없으면(웹·iOS) 브라우저의 env()를 쓴다. */
+    --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+    --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 
     /* 레이아웃 규격 (전 페이지 공통) */
     --bottom-nav-h: 56px; /* 하단 탭바 높이 (OyBottomNav·BottomNav 공통) */
