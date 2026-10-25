@@ -8,7 +8,7 @@
  * **선택지 가중치는 서버가 내려주지 않습니다.** 채점 기준을 알면 원하는 타입이
  * 나오도록 답을 고를 수 있어서입니다.
  */
-import { postJson, request } from './client';
+import { deleteJson, patchJson, postJson, request } from './client';
 import { SkinType } from '../types';
 
 export interface QuizOptionDto {
@@ -69,3 +69,12 @@ export const submitDiagnosis = (answers: Record<string, number>, analysisId?: st
   postJson<DiagnosisDto>(BASE, analysisId ? { answers, analysisId } : { answers });
 
 export const fetchLatestDiagnosis = () => request<DiagnosisDto>(`${BASE}/latest`);
+
+/**
+ * 결과 화면에서 1·2순위 중 하나를 고른다. 최신 진단의 1·2순위만 받는다(그 밖은 422).
+ * 고른 타입이 1순위가 되어 `latest`와 프로필·추천이 모두 같은 값을 본다.
+ */
+export const chooseSkinType = (skinType: SkinType) => patchJson<DiagnosisDto>(`${BASE}/latest`, { skinType });
+
+/** 방금 한 진단을 취소하고 기존 내 피부타입으로 되돌린다(결과를 고르지 않고 닫았을 때) */
+export const discardLatestDiagnosis = () => deleteJson<void>(`${BASE}/latest`);

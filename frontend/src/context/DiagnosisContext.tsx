@@ -6,11 +6,14 @@ import {
   useState,
 } from 'react';
 import {
+  chooseSkinType as postChoice,
+  discardLatestDiagnosis,
   DiagnosisDto,
   fetchLatestDiagnosis,
   submitDiagnosis,
 } from '../api/diagnosis';
 import type { AxisScores } from '../data/personas';
+import type { SkinType } from '../types';
 import {
   DiagnosisContext,
   DiagnosisContextValue,
@@ -205,6 +208,30 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
     [scope, setResult],
   );
 
+  const chooseSkinType = useCallback(
+    async (picked: SkinType): Promise<DiagnosisResult> => {
+      const next = toResult(await postChoice(picked));
+      writeJSON(keyOf(scope), next);
+      setResult(next);
+      return next;
+    },
+    [scope, setResult],
+  );
+
+  const discardLatest = useCallback(async () => {
+    await discardLatestDiagnosis();
+    // 서버가 정본이다 — 되돌아간 이전 진단을 다시 읽는다(없으면 404 → 진단 전 상태)
+    const prev = await fetchLatestDiagnosis().catch(() => null);
+    if (prev) {
+      const next = toResult(prev);
+      writeJSON(keyOf(scope), next);
+      setResult(next);
+    } else {
+      setResult(null);
+      removeKey(keyOf(scope));
+    }
+  }, [scope, setResult]);
+
   const clearDiagnosis = useCallback(() => {
     setResult(null);
     removeKey(keyOf(scope));
@@ -219,6 +246,8 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       loading: authLoading || (status === 'user' && settledScope !== scope),
       saveDiagnosis,
       diagnoseWithPhoto,
+      chooseSkinType,
+      discardLatest,
       clearDiagnosis,
     }),
     [
@@ -229,6 +258,8 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       scope,
       saveDiagnosis,
       diagnoseWithPhoto,
+      chooseSkinType,
+      discardLatest,
       clearDiagnosis,
     ],
   );

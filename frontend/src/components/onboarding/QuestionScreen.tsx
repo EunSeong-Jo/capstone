@@ -11,7 +11,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
 interface QuestionScreenProps {
   qIndex: number; // 페이지가 0 … QUESTION_COUNT-1로 클램프해서 넘긴다
   answers: (number | null)[];
-  onPick: (optionIndex: number) => void;
+  /** 보기를 고른다. 이미 고른 보기를 다시 누르면 null — 답을 지우고 건너뛸 수 있게 한다 */
+  onPick: (optionIndex: number | null) => void;
   onNext: () => void; // 다음 문항 또는 결과 — 목적지는 페이지가 정한다
   onBack: () => void; // 페이지가 navigate(-1)로 처리 (기기 뒤로가기와 동일)
   /** 문항 도중에 얼굴 사진을 미리 찍어 둔다. 분석은 진단을 마칠 때 한 번만 한다 */
@@ -98,7 +99,7 @@ export default function QuestionScreen({
             <button
               key={i}
               type="button"
-              onClick={() => onPick(i)}
+              onClick={() => onPick(isSel ? null : i)}
               className="flex items-center gap-3 rounded-lg bg-white px-4 py-5 text-left transition-shadow"
               style={{ boxShadow: isSel ? '0 0 0 2px var(--ob-green)' : '0 0 2px rgba(0,0,0,0.4)' }}
             >
@@ -166,17 +167,24 @@ export default function QuestionScreen({
         )}
       </div>
 
-      {/* 다음으로 / 결과보러가기 */}
+      {/* 다음으로 / 결과보러가기 — 고르기 전에는 '건너뛰기'(잘 모르는 문항은 답하지 않고 넘어간다) */}
       <div className="px-5 pb-[25px] pt-2">
         <button
           type="button"
           onClick={onNext}
-          disabled={selected === null}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-ob-green text-[13px] font-medium text-white transition-opacity disabled:opacity-40"
+          className={`flex h-12 w-full items-center justify-center gap-2 rounded-full text-[13px] font-medium transition-colors ${
+            selected === null ? 'border border-ob-green bg-white text-ob-green-deep' : 'bg-ob-green text-white'
+          }`}
         >
-          {isLast ? '결과보러가기' : '다음으로'}
+          {selected === null ? '건너뛰기' : isLast ? '결과보러가기' : '다음으로'}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M5 12h14M13 6l6 6-6 6"
+              stroke={selected === null ? 'currentColor' : '#fff'}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </button>
       </div>
