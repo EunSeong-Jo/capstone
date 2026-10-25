@@ -22,9 +22,10 @@ export function FunctionBars({
     <ul className="space-y-2.5">
       {sorted.map((f) => (
         <li key={f.code} className="flex items-center gap-2.5">
-          <span className="w-[68px] shrink-0 text-[13px] font-semibold text-oy-text">
-            {FUNC_INFO[f.code]?.name ?? f.name}
-            {focus.has(f.code) && <span className="ml-0.5 text-primary">★</span>}
+          {/* 이름과 ★은 한 줄에 놓는다(긴 이름 '주름·탄력'에서도 줄바꿈되지 않게 ★ 자리를 따로 둔다) */}
+          <span className="flex w-[96px] shrink-0 items-center whitespace-nowrap text-[13px] font-semibold text-oy-text">
+            <span>{FUNC_INFO[f.code]?.name ?? f.name}</span>
+            <span className="ml-1 w-3 text-center text-[12px] leading-none text-primary">{focus.has(f.code) ? '★' : ''}</span>
           </span>
           <span className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-oy-chip">
             <span

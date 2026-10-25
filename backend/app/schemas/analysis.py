@@ -81,7 +81,8 @@ class SkinStateOut(_CamelModel):
 
     axis: str                    # moisture | oil | sensitivity | pigmentation | trouble
     name: str
-    score: int                   # 진단 점수 0~10
+    score: int                   # 진단 점수 0~10(원본)
+    health: int                  # 건강도 0~100, 높을수록 좋음 — 사진 분석 점수와 같은 단위
     concern: str                 # focus 신경 쓸 부분 | mild 약간 | fine 괜찮음
     level: str                   # '건조한 편' 같은 사람이 읽는 표현
     need: list[str]              # 이 축을 돕는 기능 이름들
@@ -89,6 +90,22 @@ class SkinStateOut(_CamelModel):
     status: str                  # good | some | lack | fine
     message: str
     risk: str | None = None
+
+
+class ConcernStateOut(_CamelModel):
+    """AI 사진 분석의 항목 하나와 이 제품의 대응. 점수는 0~100이고 높을수록 좋다."""
+
+    key: str                     # oiliness | moisture | redness | age_spot | acne | pore | wrinkle | firmness | ...
+    name: str
+    score: int
+    concern: str                 # focus 신경 쓸 부분 | mild 약간 | fine 좋은 편
+    level: str
+    need: list[str] = []
+    coverage: int = 0
+    status: str                  # good | some | lack | fine | na(성분으로 바뀌기 어려운 항목)
+    message: str
+    risk: str | None = None
+    addressable: bool = True
 
 
 class ProductAnalysisOut(_CamelModel):
@@ -104,6 +121,9 @@ class ProductAnalysisOut(_CamelModel):
     # 진단 5축을 주었을 때만 채워진다
     skin_state: list[SkinStateOut] = []
     skin_state_summary: str | None = None
+    # 사진 분석 항목을 보냈을 때: 분석된 항목 전부(무료 7개·구독 15개)와 이 제품의 대응
+    concern_state: list[ConcernStateOut] = []
+    concern_summary: str | None = None
     # 내 피부타입이 중요하게 보는 기능 코드(선호 가중 0.6+). 피부타입을 모르면 비어 있다
     focus_functions: list[str] = []
     functions: list[FunctionStrengthOut]

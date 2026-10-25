@@ -2,13 +2,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../api/client';
 import { ProductAnalysis, loadAnalysis, peekAnalysis } from '../api/analysis';
 import { useCloset } from '../context/closet';
-import { useDiagnosis } from '../context/diagnosis';
+import { useSkinStateSource, type SkinStateSource } from './useSkinStateSource';
 import { useSkinType } from './useSkinType';
 
 interface Result {
   analysis: ProductAnalysis | null;
-  /** 사진 분석이 반영된 진단인가 */
-  photoUsed: boolean;
+  /** 내 피부 상태(5축)를 어디서 가져왔는가 */
+  stateSource: SkinStateSource;
+  /** source가 photo일 때 분석 시각 */
+  photoAt: string | null;
+  /** source가 photo일 때 최근 분석(피부 분류·확장 여부) */
+  photo: import('../api/skinPhoto').AnalysisDto | null;
+  /** 새 사진 분석을 받은 뒤 이력을 다시 읽는다 */
+  reloadPhoto: () => void;
   loading: boolean;
   notFound: boolean;
   error: boolean;
@@ -24,17 +30,21 @@ interface Result {
 export function useProductAnalysis(productId: number | undefined): Result {
   const { skinType, loading: typeLoading } = useSkinType();
   const { items, loading: closetLoading } = useCloset();
-  // 내 피부 분석 결과(문답 + 얼굴 사진 분석을 합친 진단 5축). 진단 전이면 없다.
-  const diag = useDiagnosis().result;
-  const axes = diag?.scores ?? null;
+  // 내 피부 상태(5축): 최근 AI 사진 분석 우선, 없으면 진단(문답). 출처는 useSkinStateSource가 정한다.
+  const { source: stateSource, axes, photoAt, photo, loading: stateLoading, reloadPhoto } = useSkinStateSource();
+  // 사진 분석이 출처면 분석된 항목 전부를 서버에 보낸다 ('oiliness:79,moisture:74,…')
+  const concerns = useMemo(
+    () => (photo ? photo.concerns.map((c) => `${c.key}:${Math.round(c.score)}`).join(',') : ''),
+    [photo],
+  );
   const axesKey = axes ? Object.values(axes).join(',') : '';
   const closetIds = useMemo(() => items.map((c) => c.id), [items]);
   const closetKey = closetIds.join(',');
 
   const valid = productId !== undefined && Number.isFinite(productId) && productId > 0;
-  const waiting = typeLoading || closetLoading;
+  const waiting = typeLoading || closetLoading || stateLoading;
   const [nonce, setNonce] = useState(0);
-  const key = `${productId}:${skinType ?? ''}:${closetKey}:${axesKey}#${nonce}`;
+  const key = `${productId}:${skinType ?? ''}:${closetKey}:${axesKey}:${concerns}#${nonce}`;
   const [loaded, setLoaded] = useState<
     { key: string; analysis: ProductAnalysis | null; notFound: boolean; error: boolean } | null
   >(null);
@@ -42,7 +52,7 @@ export function useProductAnalysis(productId: number | undefined): Result {
   useEffect(() => {
     if (!valid || waiting) return;
     let alive = true;
-    loadAnalysis(productId as number, skinType, closetIds, axes)
+    loadAnalysis(productId as number, skinType, closetIds, axes, concerns)
       .then((analysis) => alive && setLoaded({ key, analysis, notFound: false, error: false }))
       .catch((e: unknown) => {
         if (!alive) return;
@@ -56,13 +66,13 @@ export function useProductAnalysis(productId: number | undefined): Result {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, waiting]);
 
-  const photoUsed = !!diag?.photoUsed;
-  if (!valid) return { analysis: null, photoUsed, loading: false, notFound: true, error: false, reload: () => {} };
-  const cached = !waiting ? peekAnalysis(productId as number, skinType, closetIds, axes) : undefined;
+  const extra = { stateSource, photoAt, photo, reloadPhoto };
+  if (!valid) return { analysis: null, ...extra, loading: false, notFound: true, error: false, reload: () => {} };
+  const cached = !waiting ? peekAnalysis(productId as number, skinType, closetIds, axes, concerns) : undefined;
   const current = !waiting && loaded?.key === key ? loaded : null;
   return {
     analysis: current?.analysis ?? cached ?? null,
-    photoUsed,
+    ...extra,
     loading: waiting || (!current && !cached),
     notFound: current?.notFound ?? false,
     error: current?.error ?? false,

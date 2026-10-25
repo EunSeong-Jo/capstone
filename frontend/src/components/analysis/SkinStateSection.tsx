@@ -1,17 +1,15 @@
 import type { SkinStateAxis } from '../../api/analysis';
+import type { SkinStateSource } from '../../hooks/useSkinStateSource';
+import { StateGroups, type StateRow } from './StateGroups';
 
-const STATUS = {
-  good: { icon: '✅', tone: 'text-primary', bar: 'bg-primary' },
-  some: { icon: '➖', tone: 'text-oy-text', bar: 'bg-[#F2B632]' },
-  lack: { icon: '⚠️', tone: 'text-accent', bar: 'bg-accent' },
-  fine: { icon: '·', tone: 'text-oy-sub', bar: 'bg-oy-line' },
-} as const;
-
-const CONCERN_CHIP = {
-  focus: 'bg-accent-light text-accent',
-  mild: 'bg-oy-chip text-oy-text',
-  fine: 'bg-oy-chip text-oy-sub',
-} as const;
+/** 이 비교가 어느 데이터에 근거했는지. 숫자는 항상 하나의 출처만 쓴다. */
+function SOURCE_LABEL(source: SkinStateSource, photoAt: string | null): string {
+  if (source === 'photo') {
+    const d = photoAt ? new Date(photoAt) : null;
+    return `AI 사진 분석 기준${d ? ` · ${d.getMonth() + 1}/${d.getDate()}` : ''}`;
+  }
+  return '문답 진단 기준';
+}
 
 /**
  * 내 피부 분석 결과(진단 5축 — 문답과 얼굴 사진 분석을 합친 값)와 이 제품을 견준다.
@@ -22,57 +20,31 @@ const CONCERN_CHIP = {
  */
 export function SkinStateSection({
   state,
-  summary,
-  photoUsed,
+  source,
+  photoAt,
 }: {
   state: SkinStateAxis[];
-  summary: string | null;
-  photoUsed: boolean;
+  source: SkinStateSource;
+  photoAt: string | null;
 }) {
+  // 5축 원본은 0~10(수분만 높을수록 좋음). 서버가 사진 분석과 같은 방향·단위·색 경계의 건강도 100점으로 환산해 준다.
+  const rows: StateRow[] = state.map((s) => ({
+    key: s.axis,
+    name: s.name,
+    scoreText: `${s.health}점`,
+    health: s.health,
+    concern: s.concern,
+    label: s.level,
+    status: s.status,
+    message: s.message,
+    risk: s.risk,
+  }));
+
   return (
     <div>
-      {summary && (
-        <p className="mb-3 rounded-xl bg-primary-light px-4 py-3 text-sm font-semibold leading-snug text-oy-text">
-          {summary}
-        </p>
-      )}
-      <ul className="space-y-2">
-        {state.map((s) => {
-          const st = STATUS[s.status];
-          return (
-            <li
-              key={s.axis}
-              className={`rounded-xl bg-white px-3.5 py-3 shadow-sm ${s.concern === 'fine' ? 'opacity-70' : ''}`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-[13px] font-bold text-oy-text">{s.name}</span>
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${CONCERN_CHIP[s.concern]}`}>
-                  {s.level}
-                </span>
-                <span className="ml-auto text-[11px] text-oy-sub">{s.score}/10</span>
-              </div>
-              <div className="mt-2 flex items-start gap-2">
-                <span className="mt-0.5 w-4 shrink-0 text-center text-xs">{st.icon}</span>
-                <p className={`flex-1 text-[13px] leading-snug ${st.tone}`}>{s.message}</p>
-              </div>
-              {s.concern !== 'fine' && (
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="w-[68px] shrink-0 text-[10px] text-oy-sub">도움 정도</span>
-                  <span className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-oy-chip">
-                    <span
-                      className={`absolute inset-y-0 left-0 rounded-full ${st.bar}`}
-                      style={{ width: `${Math.max(s.coverage, 3)}%` }}
-                    />
-                  </span>
-                </div>
-              )}
-              {s.risk && <p className="mt-2 text-xs leading-snug text-accent">－ {s.risk}</p>}
-            </li>
-          );
-        })}
-      </ul>
+      <p className="mb-2 text-[11px] font-semibold text-primary">{SOURCE_LABEL(source, photoAt)}</p>
+      <StateGroups rows={rows} />
       <p className="mt-2.5 text-[11px] leading-snug text-oy-sub">
-        {photoUsed ? '얼굴 사진 분석이 반영된 내 진단 결과 기준이에요. ' : '피부 진단 결과 기준이에요. '}
         성분 구성으로 본 참고 정보예요.
       </p>
     </div>

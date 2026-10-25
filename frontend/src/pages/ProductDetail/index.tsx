@@ -140,6 +140,7 @@ export default function ProductDetailPage() {
     wait: typeLoading,
   });
   const skinTypeLabel = skinTypes.find((t) => t.id === skinType)?.label ?? null;
+
   // 대체품. useProduct와 같은 렌더에서 함께 나가므로 순차 대기가 없다.
   // 기준제품이 도착하면 절약액이 뒤이어 계산된다(재요청 없음).
   const similar = useSimilarProducts(productId, {
@@ -302,11 +303,14 @@ export default function ProductDetailPage() {
               <button
                 type="button"
                 onClick={() => navigate(`/alternatives?seed=${similarTo.seedId}&from=detail`)}
-                className="mt-3 flex w-full items-center justify-between gap-2 rounded-xl bg-primary-light px-3.5 py-3 text-left active:scale-[.99]"
+                className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-primary-light px-3.5 py-2.5 text-left active:scale-[.99]"
               >
-                <span className="min-w-0 text-sm leading-snug text-oy-text">
-                  <span className="font-bold text-primary">🧴 내 화장대 {similarTo.seedName}</span>
-                  와(과) 성분이 <span className="font-bold">{similarTo.score}%</span> 비슷해요
+                <span className="min-w-0">
+                  {/* 긴 제품명은 한 줄에서 자르고, 설명은 짧게 */}
+                  <span className="block truncate text-sm font-bold text-primary">{similarTo.seedName}</span>
+                  <span className="block text-xs text-oy-text">
+                    내 화장대 제품과 성분 <b>{similarTo.score}%</b> 비슷해요
+                  </span>
                 </span>
                 <span className="shrink-0 text-xs font-bold text-primary">비교 ›</span>
               </button>
@@ -317,6 +321,21 @@ export default function ProductDetailPage() {
 
           {/* ── 내 피부와의 궁합 — 전성분보다 먼저 ───────── */}
           <SkinFitCard productId={product.id} onReasonClick={onReasonClick} />
+          {/* 성분 분석 — 기능 강도·핵심/주의 성분·전성분 해부도·내 피부 상태와 견주기·내 화장대와 견주기 */}
+          <div className="-mt-2 px-4 pb-5">
+            {/* 스와피 로고의 연한 물결 색(#9DCDB8) + 진한 물결 색(#2B6B52) 글자 */}
+            <button
+              type="button"
+              onClick={() => navigate(`/analysis/${product.id}`)}
+              className="flex w-full items-center gap-3 rounded-2xl bg-[#9DCDB8] px-4 py-3.5 text-left shadow-sm active:scale-[.98]"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-extrabold text-[#2B6B52]">이 제품 성분 분석 보기</span>
+                <span className="block text-xs text-[#2B6B52]/80">기능별 강도 · 핵심·주의 성분 · 전성분 해부도</span>
+              </span>
+              <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-extrabold text-[#2B6B52]">분석 ›</span>
+            </button>
+          </div>
           <Divider />
 
           {/* ── 전성분 (핵심 섹션) ───────────────────── */}

@@ -9,10 +9,18 @@ from app.services.product_analysis import (
     caution_kind,
     cautions,
     closet_position,
-    cosine,
+    concern_state,
+    concern_summary,
+    josa,
+    parse_concerns,
     skin_state,
     skin_state_summary,
+    FOCUS_AT,
+    MILD_AT,
+    CONCERN_FOCUS_BELOW,
+    CONCERN_MILD_BELOW,
     function_strengths,
+    health_of,
     key_ingredients,
 )
 
@@ -61,24 +69,20 @@ def test_each_ingredient_belongs_to_one_caution_group_by_priority():
     assert len(seen) == len(set(seen)) == 4
 
 
-def test_cosine_of_identical_profiles_is_one_and_disjoint_is_zero():
-    a = function_strengths([1, 2], L)
-    b = function_strengths([5], L)
-    assert cosine(a, a) == pytest.approx(1.0)
-    assert cosine(a, b) == 0.0
-
-
 def test_closet_position_overlaps_gaps_and_similar():
     mine = function_strengths([1, 2, 1, 2], L)                  # 진정이 강하다
     twin = function_strengths([1, 2, 2], L)                     # 진정이 강한 보유 제품
     other = function_strengths([5, 5, 5], L)                    # 피지
-    pos = closet_position(mine, [(10, "쌍둥이", twin), (11, "피지템", other)], "yuriguseul")
+    pos = closet_position(
+        mine, [(10, "쌍둥이", twin), (11, "피지템", other)], "yuriguseul", {10: 0.61, 99: 0.9}
+    )
     assert [o["name"] for o in pos["overlaps"]] == ["진정"]
     assert pos["overlaps"][0]["products"] == [{"id": 10, "name": "쌍둥이"}]
     # 유리구슬이 중요하게 보는 장벽(1.0)은 아무 제품도 갖지 못해 부족한 기능이다
     assert "장벽" in [g["name"] for g in pos["gaps"]]
     assert "진정" not in [g["name"] for g in pos["gaps"]]
-    assert pos["similar"][0]["id"] == 10 and pos["owned_count"] == 2
+    # 비슷한 정도는 넘겨받은 hybrid 유사도 그대로(61%)이고, 점수가 없는 제품은 목록에 없다
+    assert pos["similar"] == [{"id": 10, "name": "쌍둥이", "percent": 61}] and pos["owned_count"] == 2
 
 
 def test_gaps_are_empty_without_a_skin_type():
@@ -100,6 +104,17 @@ def test_skin_state_orders_by_concern_and_reads_axis_direction():
     assert [s["concern"] for s in state][:2] == ["focus", "focus"]  # 신경 쓸 부분이 앞에 온다
 
 
+def test_health_score_uses_same_color_boundaries_as_photo_concerns():
+    # 문답 신경 쓸 정도(0~10)를 100점으로 환산해도 사진 분석과 같은 70/80 경계로 색이 갈린다
+    scores = [health_of(c) for c in range(11)]
+    assert scores == sorted(scores, reverse=True)                  # 신경 쓸수록 점수가 낮다
+    for c in range(11):
+        level = "focus" if c >= FOCUS_AT else "mild" if c >= MILD_AT else "fine"
+        h = health_of(c)
+        photo = "focus" if h < CONCERN_FOCUS_BELOW else "mild" if h < CONCERN_MILD_BELOW else "fine"
+        assert level == photo, c
+
+
 def test_skin_state_flags_lacking_function_and_summarizes():
     st = function_strengths([5], L)                                 # 피지 성분뿐
     state = skin_state(AXES, st, [])
@@ -119,6 +134,48 @@ def test_skin_state_warns_about_cautions_only_on_guarded_axes():
 def test_skin_state_needs_axes_and_ignores_missing():
     assert skin_state({}, function_strengths([1], L), []) == []
     assert skin_state_summary([]) is None
+
+
+def test_josa_follows_final_consonant():
+    assert josa("다크서클", "은는") == "다크서클은" and josa("트러블", "은는") == "트러블은"
+    assert josa("광채", "은는") == "광채는" and josa("피지·모공", "을를") == "피지·모공을"
+    assert josa("알코올", "이가") == "알코올이" and josa("향료 성분", "이가") == "향료 성분이"
+    rows = concern_state({"acne": 20, "pore": 20}, function_strengths([1], L), [])
+    assert "은(는)" not in (concern_summary(rows) or "")
+
+
+def test_parse_concerns_keeps_only_known_keys_and_valid_scores():
+    assert parse_concerns("oiliness:79, moisture:74,foo:50,acne:101,pore:x,wrinkle:-5") == {"oiliness": 79, "moisture": 74}
+    assert parse_concerns(None) == {} and parse_concerns("") == {}
+
+
+def test_concern_state_scores_higher_is_better_and_marks_unaddressable_items():
+    st = function_strengths([1, 2, 3, 4, 1, 2], L)
+    rows = concern_state(
+        {"redness": 50, "moisture": 90, "eye_bag": 40, "acne": 75, "pore": 30}, st, []
+    )
+    by = {r["key"]: r for r in rows}
+    assert by["redness"]["concern"] == "focus" and by["redness"]["status"] == "good"      # 진정·장벽 성분이 충분
+    assert by["moisture"]["concern"] == "fine" and by["moisture"]["status"] == "fine"      # 90점 = 좋은 편
+    assert by["acne"]["concern"] == "mild"
+    assert by["pore"]["status"] == "lack"                                                  # 피지·각질 성분 없음
+    assert by["eye_bag"]["status"] == "na" and by["eye_bag"]["addressable"] is False       # 성분으로 바뀌기 어렵다
+    assert [r["concern"] for r in rows][:3] == ["focus", "focus", "focus"]                 # 신경 쓸 부분이 앞, 낮은 점수 먼저
+    assert rows[0]["score"] <= rows[1]["score"]
+
+
+def test_concern_summary_ignores_unaddressable_focus_items():
+    st = function_strengths([1, 2, 3], L)
+    rows = concern_state({"eye_bag": 20, "redness": 60}, st, [])
+    assert "눈밑" not in (concern_summary(rows) or "")
+    assert concern_summary(concern_state({"moisture": 95}, st, [])) is None
+
+
+def test_concern_state_risk_only_on_guarded_items():
+    st = function_strengths([1, 2, 3], L)
+    groups = cautions([6, 8], L, N)
+    by = {r["key"]: r for r in concern_state({"redness": 50, "moisture": 50}, st, groups)}
+    assert by["redness"]["risk"] and by["moisture"]["risk"] is None
 
 
 # ── 엔드포인트 계약 ──────────────────────────────────────────────────────
@@ -174,3 +231,15 @@ async def test_analysis_skin_state_only_with_all_five_axes(client: AsyncClient, 
     d2 = (await client.get(f"/api/v1/products/{pid}/analysis", params={**partial})).json()
     assert d2["skinState"] == [] and d2["skinStateSummary"] is None
     assert (await client.get(f"/api/v1/products/{pid}/analysis", params={"moisture": 11})).status_code == 422
+
+
+@pytestmark_api
+async def test_analysis_concerns_param(client: AsyncClient, pid: int) -> None:
+    raw = "oiliness:79,moisture:40,redness:85,age_spot:86,acne:79,pore:64,wrinkle:96"
+    d = (await client.get(f"/api/v1/products/{pid}/analysis", params={"concerns": raw})).json()
+    assert [c["key"] for c in d["concernState"]] and len(d["concernState"]) == 7
+    assert {c["status"] for c in d["concernState"]} <= {"good", "some", "lack", "fine", "na"}
+    none = (await client.get(f"/api/v1/products/{pid}/analysis")).json()
+    assert none["concernState"] == [] and none["concernSummary"] is None
+    junk = (await client.get(f"/api/v1/products/{pid}/analysis", params={"concerns": "foo:1,bar:2"})).json()
+    assert junk["concernState"] == []

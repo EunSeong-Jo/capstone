@@ -19,6 +19,7 @@ from sqlalchemy.orm import joinedload
 
 from app.api.recommendations import load_labeled_docs
 from app.db.session import get_db
+from app.models.recommendation import Similarity
 from app.models.product import (
     Ingredient,
     IngredientFunction,
@@ -33,6 +34,7 @@ from app.schemas.analysis import (
     ClosetGapOut,
     ClosetOverlapOut,
     ClosetPositionOut,
+    ConcernStateOut,
     ClosetProductRef,
     ClosetSimilarOut,
     FunctionStrengthOut,
@@ -44,6 +46,9 @@ from app.schemas.skin_fit import FitIngredientOut, FitReasonOut
 from app.services.product_analysis import (
     cautions,
     caution_kind,
+    concern_state,
+    concern_summary,
+    parse_concerns,
     skin_state,
     skin_state_summary,
     closet_position,
@@ -68,6 +73,9 @@ async def read_analysis(
     sensitivity: int | None = Query(None, ge=0, le=10),
     pigmentation: int | None = Query(None, ge=0, le=10),
     trouble: int | None = Query(None, ge=0, le=10),
+    concerns: str | None = Query(
+        None, description="AI 사진 분석 항목 점수 'oiliness:79,moisture:74,…'(0~100, 높을수록 좋음). 주면 분석된 항목 전부를 견준다"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> ProductAnalysisOut:
     product = await db.scalar(
@@ -158,6 +166,9 @@ async def read_analysis(
     }
     state = skin_state(axes, mine, cautions(doc, labels, names, positions)) if len(axes) == 5 else []
 
+    conc = parse_concerns(concerns)
+    cstate = concern_state(conc, mine, cautions(doc, labels, names, positions)) if conc else []
+
     closet = None
     category = product.category.code if product.category else ""
     if owned and category:
@@ -176,7 +187,21 @@ async def read_analysis(
             (p.id, p.display_name or p.name, function_strengths(pdocs.get(p.id, []), plabels, ppos.get(p.id)))
             for p in peers
         ]
-        pos = closet_position(mine, others, skin_type)
+        # 비슷한 정도는 화면 어디서나 같은 hybrid 유사도를 쓴다(저장된 상위 20개 안에 있는 쌍만 점수가 있다)
+        rows_sim = (
+            await db.execute(
+                select(Similarity.product_id, Similarity.similar_id, Similarity.score).where(
+                    Similarity.method == "hybrid",
+                    ((Similarity.product_id == product_id) & Similarity.similar_id.in_([p.id for p in peers]))
+                    | (Similarity.product_id.in_([p.id for p in peers]) & (Similarity.similar_id == product_id)),
+                )
+            )
+        ).all() if peers else []
+        scores: dict[int, float] = {}
+        for a, b, sc in rows_sim:
+            other = b if a == product_id else a
+            scores[other] = max(scores.get(other, 0.0), float(sc))
+        pos = closet_position(mine, others, skin_type, scores)
         closet = ClosetPositionOut(
             category=category,
             owned_count=pos["owned_count"],
@@ -203,6 +228,8 @@ async def read_analysis(
         fit=fit,
         skin_state=[SkinStateOut(**x) for x in state],
         skin_state_summary=skin_state_summary(state) if state else None,
+        concern_state=[ConcernStateOut(**x) for x in cstate],
+        concern_summary=concern_summary(cstate) if cstate else None,
         focus_functions=[
             f for f, w in sorted(PREFER[skin_type].items(), key=lambda kv: -kv[1]) if w >= 0.6
         ] if skin_type else [],

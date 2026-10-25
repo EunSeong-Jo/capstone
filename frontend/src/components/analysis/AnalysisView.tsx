@@ -1,14 +1,12 @@
 import { useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import type { CautionKind } from '../../api/analysis';
-import { PageWrapper } from '../../components/layout/PageWrapper';
-import { Header } from '../../components/layout/Header';
-import { FunctionBars } from '../../components/analysis/FunctionBars';
-import { IngredientBand } from '../../components/analysis/IngredientBand';
-import { SkinStateSection } from '../../components/analysis/SkinStateSection';
-import { skinTypes } from '../../data/skinTypes';
-import { useProductAnalysis } from '../../hooks/useProductAnalysis';
-import { useSkinType } from '../../hooks/useSkinType';
+import type { ProductAnalysis, CautionKind } from '../../api/analysis';
+import type { AnalysisDto } from '../../api/skinPhoto';
+import type { SkinStateSource } from '../../hooks/useSkinStateSource';
+import { FunctionBars } from './FunctionBars';
+import { IngredientBand } from './IngredientBand';
+import { ConcernStateSection } from './ConcernStateSection';
+import { PhotoCta } from './PhotoCta';
+import { SkinStateSection } from './SkinStateSection';
 
 const VERDICT = {
   good: { emoji: '💚', title: '내 피부에 잘 맞아요', box: 'border-primary/30 bg-primary-light', badge: 'bg-primary text-white' },
@@ -37,56 +35,37 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 
 const Divider = () => <div className="h-2 bg-oy-line" />;
 
-function Skeleton() {
-  return (
-    <div className="animate-pulse space-y-3 px-4 py-5">
-      <div className="h-24 rounded-xl bg-oy-chip" />
-      <div className="h-40 rounded-xl bg-oy-chip" />
-      <div className="h-24 rounded-xl bg-oy-chip" />
-    </div>
-  );
-}
 
 /**
- * 내 제품 성분 분석 — 화장대에서 제품을 눌렀을 때 열리는 "내 제품 리포트".
- *
- * 제품 상세가 상품 정보(가격·리뷰·구매)라면 여기는 해석이다: 이 제품이 어떤 기능에 강한지, 핵심 성분은 무엇인지,
- * 조심할 성분은 무엇인지, 전성분의 구성, 그리고 내 화장대의 다른 제품과 견주었을 때 겹치는 기능과 비어 있는 기능.
- * 가격·리뷰·장바구니는 두지 않는다.
+ * 성분 분석 화면의 본문. 데이터를 받아 그리기만 한다(훅·라우터 의존은 페이지가 갖는다).
+ * 제품 상세가 상품 정보(가격·리뷰·구매)라면 여기는 해석이다.
  */
-export default function AnalysisPage() {
-  const navigate = useNavigate();
-  const { id } = useParams();
-  const productId = Number(id);
-  const { analysis, photoUsed, loading, notFound, error, reload } = useProductAnalysis(productId);
-  const { skinType } = useSkinType();
-  const typeLabel = skinTypes.find((t) => t.id === skinType)?.label;
-
-  const focus = useMemo(() => new Set(analysis?.focusFunctions ?? []), [analysis]);
-
-  if (notFound) {
-    return (
-      <PageWrapper>
-        <Header showBack title="성분 분석" />
-        <p className="px-4 py-16 text-center text-sm text-oy-sub">제품을 찾을 수 없어요.</p>
-      </PageWrapper>
-    );
-  }
-
+export function AnalysisView({
+  analysis,
+  typeLabel,
+  skinType,
+  stateSource,
+  photoAt,
+  photo,
+  onReloadPhoto,
+  navigate,
+  owned = false,
+}: {
+  analysis: ProductAnalysis;
+  typeLabel?: string;
+  skinType: string | null;
+  stateSource: SkinStateSource;
+  photoAt: string | null;
+  photo: AnalysisDto | null;
+  onReloadPhoto: () => void;
+  navigate: (to: string) => void;
+  /** 이 제품이 내 화장대에 있는가 — 화장대 구역의 제목이 달라진다 */
+  owned?: boolean;
+}) {
+  const reloadPhoto = onReloadPhoto;
+  const focus = useMemo(() => new Set(analysis.focusFunctions ?? []), [analysis]);
   return (
-    <PageWrapper>
-      <Header showBack title="내 제품 성분 분석" />
-      {loading && !analysis && <Skeleton />}
-      {error && !analysis && (
-        <div className="px-4 py-16 text-center">
-          <p className="text-sm text-oy-sub">분석을 불러오지 못했어요.</p>
-          <button type="button" onClick={reload} className="mt-3 rounded-full bg-primary px-4 py-2 text-sm font-bold text-white">
-            다시 시도
-          </button>
-        </div>
-      )}
-
-      {analysis && (
+    <>
         <main className="pb-24">
           {/* 1. 요약 */}
           <section className="px-4 py-5">
@@ -139,50 +118,62 @@ export default function AnalysisPage() {
           </section>
           <Divider />
 
-          {/* 2. 내 피부 분석 결과와 견주기 — 진단 5축(문답 + 얼굴 사진 분석) */}
-          {analysis.skinState.length > 0 ? (
-            <>
-              <Section title="내 피부 상태와 견주면" hint="내 피부 분석 결과를 기준으로 이 제품이 어떻게 도움이 되는지 봤어요">
+          {/* 2. 내 피부 상태와 견주기 — 최근 AI 사진 분석 우선, 없으면 문답 진단, 둘 다 없으면 촬영을 안내한다.
+              막지 않는다: 제품 분석(아래 구역들)은 사진 없이 본다. */}
+          <Section
+            title="내 피부 상태와 견주면"
+            hint={
+              analysis.concernState.length > 0
+                ? 'AI가 분석한 항목마다 이 제품이 어떻게 도움이 되는지 봤어요'
+                : analysis.skinState.length > 0
+                  ? '내 피부 진단 결과를 기준으로 이 제품이 어떻게 도움이 되는지 봤어요'
+                  : undefined
+            }
+          >
+            {analysis.concernState.length > 0 && photo ? (
+              <ConcernStateSection
+                state={analysis.concernState}
+                photo={photo}
+                onSubscribe={() => navigate('/mypage/subscription')}
+              />
+            ) : analysis.skinState.length > 0 ? (
+              <>
                 <SkinStateSection
                   state={analysis.skinState}
-                  summary={analysis.skinStateSummary}
-                  photoUsed={photoUsed}
+                  source={stateSource}
+                  photoAt={photoAt}
                 />
-              </Section>
-              <Divider />
-            </>
-          ) : (
-            analysis.fit && (
-              <>
-                <Section title="내 피부 상태와 견주면">
-                  <p className="rounded-xl border border-dashed border-oy-line bg-white px-4 py-4 text-sm text-oy-sub">
-                    피부 진단(문답 또는 얼굴 사진 분석)을 마치면 수분·유분·민감도 같은 내 피부 상태에 이 제품이 얼마나 도움이 되는지
-                    알려드려요.
-                  </p>
-                </Section>
-                <Divider />
+                {stateSource === 'qna' && <PhotoCta compact onDone={reloadPhoto} />}
               </>
-            )
-          )}
+            ) : (
+              <PhotoCta onDone={reloadPhoto} />
+            )}
+          </Section>
+          <Divider />
 
           {/* 3. 핵심 성분 */}
-          <Section title="핵심 성분" hint="앞쪽(많이 들어 있는) 활성 성분이에요">
+          <Section
+            title="핵심 성분"
+            hint={
+              analysis.keyIngredients.some((k) => k.recommended)
+                ? '앞쪽(많이 들어 있는) 활성 성분이에요 · ★은 내 피부 추천'
+                : '앞쪽(많이 들어 있는) 활성 성분이에요'
+            }
+          >
             {analysis.keyIngredients.length === 0 ? (
               <p className="text-sm text-oy-sub">분류된 활성 성분이 아직 충분하지 않아요.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="divide-y divide-oy-line rounded-xl bg-white px-3.5 shadow-sm">
                 {analysis.keyIngredients.map((k) => (
-                  <li key={k.position} className="flex items-center gap-2.5 rounded-xl bg-white px-3.5 py-2.5 shadow-sm">
-                    <span className="w-6 shrink-0 text-center text-xs font-bold text-oy-sub">{k.position}</span>
+                  <li key={k.position} className="flex items-center gap-3 py-2.5">
+                    <span className="w-5 shrink-0 text-center text-xs font-bold text-oy-sub">{k.position}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-oy-text">{k.name}</span>
+                      <span className="block truncate text-sm font-semibold text-oy-text">
+                        {k.name}
+                        {k.recommended && <span className="ml-1 text-primary">★</span>}
+                      </span>
                       <span className="block text-xs text-oy-sub">{k.functions.join(' · ')}</span>
                     </span>
-                    {k.recommended && (
-                      <span className="shrink-0 rounded-full bg-primary-light px-2 py-0.5 text-[11px] font-bold text-primary">
-                        {typeLabel ? '내 피부 추천' : '추천'}
-                      </span>
-                    )}
                   </li>
                 ))}
               </ul>
@@ -224,13 +215,13 @@ export default function AnalysisPage() {
           <Divider />
 
           {/* 6. 전성분 해부도 */}
-          <Section title="전성분 해부도" hint="함량 순서대로, 기능별로 색을 칠했어요">
+          <Section title="전성분 해부도" hint="적게 들어 있는 성분부터 많은 성분 순서로, 기능별로 색을 칠했어요">
             <IngredientBand anatomy={analysis.anatomy} />
           </Section>
           <Divider />
 
           {/* 7. 내 화장대에서의 위치 */}
-          <Section title="내 화장대에서의 위치" hint={analysis.closet ? `같은 ${analysis.closet.category} 제품과 견줬어요` : undefined}>
+          <Section title={owned ? '내 화장대에서의 위치' : '내 화장대와 견주면'} hint={analysis.closet ? `같은 ${analysis.closet.category} 제품과 견줬어요` : undefined}>
             {!analysis.closet || analysis.closet.ownedCount === 0 ? (
               <p className="text-sm text-oy-sub">
                 화장대에 같은 종류의 다른 제품이 없어서 견줄 대상이 없어요. 제품을 더 등록하면 겹치는 기능과 비어 있는 기능을 알려드려요.
@@ -239,20 +230,26 @@ export default function AnalysisPage() {
               <div className="space-y-3">
                 {analysis.closet.overlaps.length > 0 && (
                   <div className="rounded-xl bg-white px-4 py-3 shadow-sm">
-                    <p className="text-sm font-bold text-oy-text">이미 가진 기능이에요</p>
-                    <ul className="mt-1.5 space-y-1.5">
+                    <p className="text-[13px] font-extrabold text-oy-text">이미 가진 기능이에요</p>
+                    <p className="mt-0.5 text-[11px] text-oy-sub">이 제품과 같은 기능을 다른 보유 제품도 강하게 갖고 있어요</p>
+                    <ul className="mt-2 space-y-2">
                       {analysis.closet.overlaps.map((o) => (
-                        <li key={o.function} className="text-[13px] leading-snug text-oy-text">
-                          <b>{o.name}</b> 기능은{' '}
-                          {o.products.map((p, i) => (
-                            <span key={p.id}>
-                              {i > 0 && ', '}
-                              <button type="button" onClick={() => navigate(`/closet/${p.id}/analysis`)} className="font-semibold text-primary underline decoration-dotted underline-offset-4">
-                                {p.name}
+                        <li key={o.function} className="flex items-start gap-2">
+                          <span className="mt-0.5 w-14 shrink-0 rounded-full bg-primary-light py-0.5 text-center text-[11px] font-bold text-primary">
+                            {o.name}
+                          </span>
+                          <span className="flex flex-1 flex-wrap gap-1.5">
+                            {o.products.map((p) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => navigate(`/analysis/${p.id}`)}
+                                className="max-w-full truncate rounded-full border border-oy-line px-2.5 py-1 text-[11px] font-semibold text-oy-text active:scale-95"
+                              >
+                                {p.name} ›
                               </button>
-                            </span>
-                          ))}
-                          에도 있어요
+                            ))}
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -260,7 +257,7 @@ export default function AnalysisPage() {
                 )}
                 {analysis.closet.gaps.length > 0 && (
                   <div className="rounded-xl border border-dashed border-primary/40 bg-primary-light px-4 py-3">
-                    <p className="text-sm font-bold text-primary">아직 부족한 기능이에요</p>
+                    <p className="text-[13px] font-extrabold text-primary">아직 부족한 기능이에요</p>
                     <p className="mt-1 text-[13px] leading-snug text-oy-text">
                       {typeLabel ?? '내 피부타입'}에 중요한{' '}
                       <b>{analysis.closet.gaps.map((g) => g.name).join(', ')}</b> 기능이 이 카테고리 제품들에서 약해요.
@@ -269,11 +266,11 @@ export default function AnalysisPage() {
                 )}
                 {analysis.closet.similar.length > 0 && (
                   <div className="rounded-xl bg-white px-4 py-3 shadow-sm">
-                    <p className="text-sm font-bold text-oy-text">기능이 닮은 내 제품</p>
+                    <p className="text-[13px] font-extrabold text-oy-text">성분이 비슷한 내 제품</p>
                     <ul className="mt-1.5 space-y-1">
                       {analysis.closet.similar.map((s) => (
                         <li key={s.id}>
-                          <button type="button" onClick={() => navigate(`/closet/${s.id}/analysis`)} className="flex w-full items-center justify-between gap-2 text-left text-[13px]">
+                          <button type="button" onClick={() => navigate(`/analysis/${s.id}`)} className="flex w-full items-center justify-between gap-2 text-left text-[13px]">
                             <span className="truncate text-oy-text">{s.name}</span>
                             <span className="shrink-0 text-xs font-bold text-primary">{s.percent}%</span>
                           </button>
@@ -289,11 +286,9 @@ export default function AnalysisPage() {
             )}
           </Section>
         </main>
-      )}
 
       {/* 8. 다음 행동 */}
-      {analysis && (
-        <div
+      <div
           className="fixed bottom-0 left-1/2 z-30 flex w-full max-w-[430px] -translate-x-1/2 gap-2 border-t border-oy-line bg-white px-4 pt-3"
           style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}
         >
@@ -312,7 +307,6 @@ export default function AnalysisPage() {
             비슷한 대체품 보기
           </button>
         </div>
-      )}
-    </PageWrapper>
+    </>
   );
 }
