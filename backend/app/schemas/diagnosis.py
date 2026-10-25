@@ -45,6 +45,12 @@ class DiagnosisIn(_CamelModel):
     analysis_id: uuid.UUID | None = None
 
 
+class ChooseIn(_CamelModel):
+    """결과 화면에서 1·2순위 중 고른 타입."""
+
+    skin_type: str
+
+
 class RankOut(_CamelModel):
     rank: int
     skin_type: str
