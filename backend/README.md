@@ -336,16 +336,15 @@ YOLO(ultralytics)를 쓰지 않는 이유는 AGPL-3.0 라이선스와 PyTorch �
 
 **원본 사진은 저장하지 않습니다.** `prepare_photo`가 회전을 픽셀에 반영한 뒤 EXIF(GPS 포함)를 지운 JPEG를 새로
 만듭니다. 업체가 돌려주는 항목별 분석 이미지(`mask_urls`, 2시간 만료 서명 URL)는 URL을 저장하지 않고, 분석 직후 서버가 받아
-**디스크 볼륨**에 둡니다(`services/skin_images.py`). 받아 보면 마스크는 **얼굴 사진이 없는 투명 PNG**(표시할 부위에만 색,
+**DB**(`skin_analysis_images`, bytea)에 둡니다(`services/skin_images.py`). 받아 보면 마스크는 **얼굴 사진이 없는 투명 PNG**(표시할 부위에만 색,
 1920×2560)이고, **원본 사진과 합성하지 않고 그대로** 저장하므로 얼굴 사진은 남지 않습니다. 화면이 중립 배경 위에 그립니다.
 `resize_image`(원본을 줄인 것)는 받지 않습니다.
 
-- 위치: `SKIN_IMAGE_DIR`(기본 `/data/skin_images`, docker 볼륨 `skin_images`) `/<user_id>/<analysis_id>/<항목>.png`.
-  저장소 밖이라 git에 올라가지 않고, **PC·서버마다 따로 쌓입니다** — 공용 Neon DB를 다른 PC에서 보면 점수만 보이고
-  이미지는 없습니다(`images`가 빈 배열). `docker compose down -v`는 볼륨을 지웁니다.
+- 위치: `skin_analysis_images`(분석·항목당 1행, 분석 1회 2~3MB). 컨테이너 디스크는 재배포 때 사라지므로(Lightsail은 영구 볼륨이 없다) DB에 둡니다.
+  분석 행과 **같은 트랜잭션**으로 저장하고, 공용 DB를 어느 PC에서 봐도 이미지가 같이 보입니다.
+  예전 디스크 파일(`/data/skin_images/…`)은 `scripts/import_skin_images.py`로 올립니다.
 - 받는 법: `GET /api/v1/skin-analysis/{id}/images/{항목}` — 본인 것만(남의 id는 404). 응답의 `images`가 받을 수 있는 키입니다.
-- 삭제: 동의 철회 시 사용자 폴더 전체, 계정 삭제 시에도 전체. 저장 실패는 분석을 막지 않습니다.
-- 배포: `Dockerfile.prod`에 `VOLUME`이 있으니 실행할 때 볼륨을 붙이세요(안 붙이면 컨테이너 재생성 때 이미지가 사라집니다).
+- 삭제: 분석이 지워지면(계정 삭제 포함) FK CASCADE로 함께(**동의를 철회해도 이미 만든 결과·이미지는 지우지 않습니다**). 내려받기가 실패한 항목은 건너뛰고 점수만 저장합니다.
 
 **SD와 HD**: 같은 사진에서 점수가 거의 같고(6개 중 5개 소수점까지 동일) SD가 더 싸서 SD가 기본입니다.
 `PERFECT_CORP_MODE=hd`로 바꾸면 이름만 `hd_` 접두사로 바뀝니다(HD는 짧은 변 1080px 이상 필요).

@@ -61,8 +61,6 @@ services:
       REDIS_HOST: redis
     volumes:
       - ./backend:/app
-      # 사진 분석 이미지(얼굴이 담김) — 저장소 밖 볼륨. `down -v`를 하면 지워진다.
-      - skin_images:/data/skin_images
     # postgres는 profile로 분리돼 있어 여전히 depends_on에 넣지 않는다
     # (Compose가 프로파일을 무시하고 함께 띄워 분리가 무의미해진다).
     # redis는 더 이상 profile에 묶여 있지 않으므로, 캐시 경로가 붙기 전
@@ -108,7 +106,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  skin_images:
 
 networks:
   swappy_net:

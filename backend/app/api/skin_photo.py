@@ -20,13 +20,10 @@ Perfect Corp(502/503). **한도는 분석이 성공한 뒤에만 쓴다** — �
 """
 from __future__ import annotations
 
-import asyncio
+import uuid
 from datetime import datetime, timedelta, timezone
 
-import uuid
-
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -96,11 +93,10 @@ async def set_face_consent(
 ) -> ConsentOut:
     """동의하면 **현재 문구 버전**으로 기록하고, 철회하면 철회 시각만 남긴다.
 
-    철회하면 **분석 이미지 파일은 바로 지우고**, 이미 만든 분석 결과(점수)는 지우지 않는다 —
-    원본 사진은 애초에 저장하지 않고, 점수 삭제는 계정 삭제와 함께 CASCADE로 이뤄진다.
+    철회해도 이미 만든 분석 결과(점수·이미지)는 지우지 않는다 — 새 분석만 막힌다.
+    원본 사진은 애초에 저장하지 않고, 결과 삭제는 계정 삭제와 함께 CASCADE로 이뤄진다.
     """
     now = datetime.now(timezone.utc)
-    withdrew = False
     row = await db.scalar(
         select(UserConsent).where(
             UserConsent.user_id == user.id, UserConsent.consent_type == FACE_PHOTO
@@ -117,11 +113,7 @@ async def set_face_consent(
             row.withdrawn_at = None
     elif row is not None and row.withdrawn_at is None:
         row.withdrawn_at = now
-        withdrew = True
     await db.commit()
-    if withdrew:
-        # 분석 이미지는 동의를 근거로 보관한다 — 철회하면 바로 지운다(점수는 남는다).
-        await asyncio.to_thread(skin_images.delete_user_images, user.id)
     return await _consent_out(db, user)
 
 
@@ -214,7 +206,9 @@ async def read_quota(
 MIN_SHORT_SIDE = {"sd": 480, "hd": 1080}
 
 
-def _analysis_out(row: SkinAnalysis, remaining: int | None = None) -> AnalysisOut:
+def _analysis_out(
+    row: SkinAnalysis, images: list[str], remaining: int | None = None
+) -> AnalysisOut:
     m = row.metrics
     types = m.get("skin_types") or {}
     return AnalysisOut(
@@ -226,7 +220,7 @@ def _analysis_out(row: SkinAnalysis, remaining: int | None = None) -> AnalysisOu
         ),
         concerns=[ConcernOut(key=k, score=v["ui"]) for k, v in m["concerns"].items()],
         extended=row.concern_set == "extended",
-        images=skin_images.available_keys(row.user_id, row.id),
+        images=images,
         remaining=remaining,
     )
 
@@ -301,10 +295,10 @@ async def analyze(
     parsed = parse_output(output)
     axes = to_axes(parsed)
 
-    # 분석 이미지를 받아 디스크에 둔다(최선 노력 — 실패해도 점수 분석은 성공이다).
+    # 분석 이미지를 받아 DB에 둔다(내려받기가 실패해도 점수 분석은 성공이다).
     analysis_id = uuid.uuid4()
-    masks = await fetch_masks(output, quota.concerns)
-    saved = await skin_images.save_images(user.id, analysis_id, masks)
+    masks = skin_images.valid_images(await fetch_masks(output, quota.concerns))
+    saved = sorted(masks)
 
     row = SkinAnalysis(
         id=analysis_id,
@@ -315,13 +309,11 @@ async def analyze(
         metrics={"axes": axes, **parsed, "images": saved},
     )
     db.add(row)
-    try:
-        await db.commit()
-    except Exception:
-        await asyncio.to_thread(skin_images.delete_analysis_images, user.id, analysis_id)
-        raise
+    await db.flush()                                  # 이미지 FK가 가리킬 분석 행을 먼저 만든다
+    skin_images.add_images(db, user.id, analysis_id, masks)
+    await db.commit()
     await db.refresh(row)
-    return _analysis_out(row, remaining=quota.remaining - 1)
+    return _analysis_out(row, saved, remaining=quota.remaining - 1)
 
 
 @router.get("/api/v1/skin-analysis", response_model=list[AnalysisOut],
@@ -338,28 +330,29 @@ async def analysis_history(
         .order_by(SkinAnalysis.created_at.desc())
         .limit(limit)
     )
-    return [_analysis_out(r) for r in rows]
+    rows = list(rows)
+    keys = await skin_images.keys_for(db, [r.id for r in rows])
+    return [_analysis_out(r, keys.get(r.id, [])) for r in rows]
 
 
 @router.get("/api/v1/skin-analysis/{analysis_id}/images/{key}",
-            summary="내 사진 분석 이미지 (PNG)", response_class=FileResponse)
+            summary="내 사진 분석 이미지 (PNG)", response_class=Response)
 async def analysis_image(
     analysis_id: uuid.UUID,
     key: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> FileResponse:
+) -> Response:
     """항목별 분석 결과 이미지(얼굴 사진 없는 투명 PNG). **본인 것만** 받을 수 있다(남의 id는 404)."""
     owned = await db.scalar(
         select(SkinAnalysis.id).where(
             SkinAnalysis.id == analysis_id, SkinAnalysis.user_id == user.id
         )
     )
-    path = skin_images.image_path(user.id, analysis_id, key) if owned else None
-    if path is None:
+    png = await skin_images.get_image(db, analysis_id, key) if owned else None
+    if png is None:
         raise HTTPException(status_code=404, detail="분석 이미지가 없어요")
-    return FileResponse(path, media_type="image/png",
-                        headers={"Cache-Control": "private, max-age=300"})
+    return Response(png, media_type="image/png", headers={"Cache-Control": "private, max-age=300"})
 
 
 @router.get("/api/v1/skin-analysis/latest", response_model=AnalysisOut,
@@ -375,4 +368,4 @@ async def latest_analysis(
     )
     if row is None:
         raise HTTPException(status_code=404, detail="사진 분석 기록이 없어요")
-    return _analysis_out(row)
+    return _analysis_out(row, (await skin_images.keys_for(db, [row.id])).get(row.id, []))

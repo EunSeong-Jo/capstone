@@ -4,6 +4,8 @@
 #   scripts/aws_db.sh dump               로컬 DB → ~/swappy-dumps/ 에 덤프 2개(기준 데이터, 조은성 데모 계정)
 #   scripts/aws_db.sh verify             AWS DB의 행 수를 로컬 DB와 견준다(읽기 전용)
 #   scripts/aws_db.sh restore --yes      덤프를 **빈** AWS DB에 복원한다
+#   scripts/aws_db.sh migrate --yes      AWS DB에 alembic upgrade head (백엔드 컨테이너로 실행)
+#   scripts/aws_db.sh demo --yes         조은성 데모 계정을 지우고 최신 데모 덤프로 다시 올린다(다른 계정은 건드리지 않음)
 #
 # AWS 접속 정보는 저장소 루트의 `.env.aws`(커밋 금지, .gitignore에 있음)에서만 읽는다:
 #     AWS_DATABASE_DSN=postgresql://사용자:URL인코딩한_비밀번호@호스트:5432/Master_database_name?sslmode=require
@@ -18,7 +20,7 @@ LOCAL_DB_CONTAINER="${LOCAL_DB_CONTAINER:-swappy_postgres}"
 DEMO_EMAIL="${DEMO_EMAIL:-eunseong@swappy.app}"
 
 # 사용자 데이터 테이블 — 기준 데이터 덤프에서는 **구조만** 넣고 행은 뺀다(테스트 계정·세션이 운영에 섞이지 않게).
-USER_TABLES="users profiles refresh_tokens diagnoses diagnosis_ranks closet_items cart_items likes orders order_items point_transactions recently_viewed reviews review_photos scan_results skin_analyses subscriptions user_consents gifts"
+USER_TABLES="users profiles refresh_tokens diagnoses diagnosis_ranks closet_items cart_items likes orders order_items point_transactions recently_viewed reviews review_photos scan_results skin_analyses skin_analysis_images subscriptions user_consents gifts"
 # 복원 뒤 행 수를 견주는 기준 데이터 테이블
 CHECK_TABLES="products product_ingredients similarities product_skin_fit ingredient_functions ingredients brands categories quiz_questions quiz_options quiz_versions"
 
@@ -67,17 +69,28 @@ cmd_dump() {
   chmod 600 "$cat"
   echo "✔ 기준 데이터: $cat ($(du -h "$cat" | cut -f1))"
 
-  # 데모 계정 한 명(users·profiles·diagnoses·diagnosis_ranks·closet_items)만 추린다. 세션·주문·후기·사진 분석은 넣지 않는다.
+  # 데모 계정 한 명의 모든 데이터(로그인 세션 refresh_tokens만 뺀다). 적용할 때 먼저 그 계정을 지우므로 여러 번 돌려도 된다.
   local demo="$DUMP_DIR/swappy_demo_${DEMO_EMAIL%%@*}_$stamp.sql" me="(select id from users where email='$DEMO_EMAIL')"
   [ -n "$(local_psql -c "select 1 from users where email='$DEMO_EMAIL'")" ] || die "로컬 DB에 $DEMO_EMAIL 계정이 없습니다."
   {
-    echo "-- $DEMO_EMAIL 계정과 프로필·진단 기록·화장대만. 기준 데이터 덤프를 복원한 뒤 적용한다. 비밀번호 해시가 있으니 공유 금지."
+    echo "-- $DEMO_EMAIL 계정의 모든 데이터(세션 제외). 기준 데이터 덤프를 복원한 뒤 적용한다. 비밀번호 해시가 있으니 공유 금지."
     echo "BEGIN;"
+    echo "DELETE FROM users WHERE email='$DEMO_EMAIL';"      # 자식 행은 ON DELETE CASCADE
     for spec in "users|select * from users where email='$DEMO_EMAIL'" \
                 "profiles|select * from profiles where user_id=$me" \
                 "diagnoses|select * from diagnoses where user_id=$me order by id" \
                 "diagnosis_ranks|select * from diagnosis_ranks where diagnosis_id in (select id from diagnoses where user_id=$me) order by diagnosis_id, rank" \
-                "closet_items|select * from closet_items where user_id=$me order by id"; do
+                "closet_items|select * from closet_items where user_id=$me order by id" \
+                "cart_items|select * from cart_items where user_id=$me order by id" \
+                "orders|select * from orders where user_id=$me order by id" \
+                "order_items|select * from order_items where order_id in (select id from orders where user_id=$me) order by id" \
+                "point_transactions|select * from point_transactions where user_id=$me order by id" \
+                "recently_viewed|select * from recently_viewed where user_id=$me" \
+                "scan_results|select * from scan_results where user_id=$me order by id" \
+                "user_consents|select * from user_consents where user_id=$me" \
+                "subscriptions|select * from subscriptions where user_id=$me" \
+                "skin_analyses|select * from skin_analyses where user_id=$me order by created_at" \
+                "skin_analysis_images|select * from skin_analysis_images where user_id=$me order by analysis_id, key"; do
       echo "COPY ${spec%%|*} FROM stdin;"
       local_psql -c "COPY (${spec#*|}) TO STDOUT"
       echo '\.'
@@ -141,9 +154,35 @@ cmd_verify_inner() {
 }
 cmd_verify() { load_target; cmd_verify_inner; }
 
+cmd_migrate() {
+  [ "${1:-}" = "--yes" ] || die "운영 DB의 스키마를 바꾸는 작업입니다. 확인한 뒤 --yes를 붙여 다시 실행하세요."
+  load_target
+  echo "AWS alembic 현재: $(q_remote -c 'select version_num from alembic_version')"
+  # 접속 정보는 환경 변수로만 넘긴다(-e 이름만 쓰면 값이 명령줄에 남지 않는다).
+  # 출력은 "Running upgrade" 줄만 보여 준다 — 오류 메시지에 접속 문자열이 섞여 나올 수 있어 나머지는 버린다.
+  local out; out=$(DATABASE_DSN="$PGDSN" docker exec -e DATABASE_DSN swappy_backend alembic upgrade head 2>&1) || echo "alembic 실패(출력은 접속 정보가 섞일 수 있어 숨김)"
+  printf '%s\n' "$out" | grep -E "^INFO .*Running upgrade" || true
+  echo "AWS alembic 이후: $(q_remote -c 'select version_num from alembic_version')"
+}
+
+cmd_demo() {
+  [ "${1:-}" = "--yes" ] || die "운영 DB의 $DEMO_EMAIL 계정을 지우고 다시 올립니다. 확인한 뒤 --yes를 붙여 다시 실행하세요."
+  load_target
+  PGDSN=$(keepalive "$PGDSN"); export PGDSN
+  local demo; demo=$(latest 'swappy_demo_*.sql'); [ -n "$demo" ] || die "데모 덤프가 없습니다. 먼저 scripts/aws_db.sh dump"
+  echo "적용: $(basename "$demo")"
+  psql_remote -q -f - < "$demo" >/dev/null
+  local me="(select id from users where email='$DEMO_EMAIL')" t
+  for t in profiles diagnoses closet_items orders user_consents subscriptions skin_analyses skin_analysis_images; do
+    printf "  %-22s AWS %s행\n" "$t" "$(q_remote -c "select count(*) from $t where user_id=$me")"
+  done
+}
+
 case "${1:-help}" in
   dump)    cmd_dump ;;
   restore) shift; cmd_restore "${1:-}" ;;
   verify)  cmd_verify ;;
+  migrate) shift; cmd_migrate "${1:-}" ;;
+  demo)    shift; cmd_demo "${1:-}" ;;
   *)       sed -n '2,12p' "$0" ;;
 esac

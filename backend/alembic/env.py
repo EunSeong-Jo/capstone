@@ -18,7 +18,8 @@ from app.config import settings  # noqa: E402
 from app.models import Base  # noqa: E402  — 전 모델 import가 여기서 일어난다
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC)
+# configparser는 %를 보간 문법으로 읽는다 — URL 인코딩된 비밀번호(%2B 등)가 있으면 %%로 이스케이프해야 한다.
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

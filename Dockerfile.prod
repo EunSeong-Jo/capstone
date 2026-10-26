@@ -35,10 +35,6 @@ COPY --from=frontend /app/dist /app/static
 ENV STATIC_DIR=/app/static \
     APP_ENV=production
 
-# 사진 분석 이미지(얼굴이 담김). 배포 시 이 경로에 볼륨을 붙이지 않으면 컨테이너를 다시 만들 때
-# 이미지가 사라진다(점수는 DB에 남고 이미지만 안 보인다).  예: docker run -v swappy_skin:/data/skin_images
-VOLUME ["/data/skin_images"]
-
 EXPOSE 8000
 
 # 포트는 서비스가 PORT를 주입하면 그것을, 아니면 8000을 쓴다.
