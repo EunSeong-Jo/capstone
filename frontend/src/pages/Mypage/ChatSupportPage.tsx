@@ -138,7 +138,7 @@ export default function ChatSupportPage() {
    * "+" 버튼 — 예전엔 "내 화장품 등록하기" FAQ 버튼과 똑같은 동작을 호출해서
    * 사용자가 어느 쪽을 눌러도 같은 안내만 반복됐다("현재 내 화장품 등록하기" 말이
    * 반복되는 중). 카톡처럼 첨부 메뉴를 열어 "사진으로 등록"과 "직접 입력"을
-   * 구분한다 — 이 앱엔 이미 성분표 촬영 스캔 기능(/scan)이 있으니 활용한다.
+   * 구분한다 — 이 앱엔 이미 앞면 사진으로 제품을 찾는 기능(/scan)이 있으니 활용한다.
    */
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -298,7 +298,7 @@ export default function ChatSupportPage() {
           '1. 피부타입 진단 — 간단한 질문에 답하면 내 피부타입을 알 수 있어요\n' +
           '2. 내 화장대 — 쓰는 제품을 등록하면 더 저렴하거나 잘 맞는 대체품을 추천해 드려요\n' +
           '3. 챗봇 — 성분이나 제품이 궁금하면 언제든 편하게 물어보세요\n' +
-          '4. 성분표 스캔 — 제품 뒷면을 촬영하면 전성분을 바로 확인할 수 있어요',
+          '4. 사진으로 찾기 — 제품 앞면을 촬영하면 같은 화장품을 찾아 드려요. 찾은 제품을 누르면 전성분을 볼 수 있어요',
       );
       return;
     }
@@ -435,7 +435,7 @@ export default function ChatSupportPage() {
                   onClick={openScanRegister}
                   className="flex w-full items-center gap-2 px-3 py-3 text-xs text-gray-100 active:bg-gray-5"
                 >
-                  📷 성분표 촬영해서 등록
+                  📷 제품 앞면 찍어서 등록
                 </button>
                 <button
                   onClick={openManualRegister}
