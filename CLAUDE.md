@@ -87,6 +87,7 @@
 | [docs/db-schema.md](docs/db-schema.md) | **DB 스키마 정본** — 테이블 18개, 인덱스, 적재 파이프라인 |
 | [docs/PRD_swappy_v1.8.md](docs/PRD_swappy_v1.8.md) | 요구사항. §7.9 스키마는 설계 시점 안이라 실제와 다름 |
 | [docs/dev_guidelines.md](docs/dev_guidelines.md) | 디자인 토큰, 화면별 체크리스트 |
+| [docs/aws-db-migration.md](docs/aws-db-migration.md) | 운영 DB(AWS) 생성·덤프·복원·서버 연결 절차 (`scripts/aws_db.sh`) |
 | [backend/README.md](backend/README.md) | 로컬 세팅, Alembic, Neon 주의사항 |
 | [frontend/README.md](frontend/README.md) | 프론트 개발 기준, 화면 규격 |
 
