@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Header } from '../../components/layout/Header';
@@ -13,6 +13,9 @@ import { useSkinType } from '../../hooks/useSkinType';
 import type { Product } from '../../types';
 
 type SortKey = 'similarity' | 'price' | 'skin';
+
+/** 대체품 후보 수. 유사도·가격·피부 궁합순은 이 후보를 정렬만 바꿔 보여 준다. */
+const ALTERNATIVES_LIMIT = 10;
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: 'similarity', label: '유사도순' },
@@ -76,7 +79,7 @@ function Notice({
 
 /** 대체품 결과 화면 — 검색/상품상세/내 화장대 3진입점 수렴 (/alternatives?seed=:id) */
 export default function AlternativesPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
 
   // seed가 없으면 없는 대로 다룬다. 예전에는 조용히 1로 떨어뜨렸는데, 실제
@@ -96,7 +99,7 @@ export default function AlternativesPage() {
   const seedProduct = useProduct(seedId);
   const { skinType } = useSkinType();
   const similar = useSimilarProducts(seedId, {
-    limit: 20,
+    limit: ALTERNATIVES_LIMIT,
     method,
     fitFor: skinType ?? undefined,
     seedProduct: seedProduct.product,
@@ -117,7 +120,19 @@ export default function AlternativesPage() {
         }
       : undefined);
 
-  const [sort, setSort] = useState<SortKey>('similarity');
+  // 정렬은 주소(?sort=)에 둔다 — 제품 상세에 들어갔다가 뒤로 와도 유지된다(state면 컴포넌트가 다시 만들어지며 유사도순으로 돌아간다).
+  const rawSort = params.get('sort');
+  const sort: SortKey = rawSort === 'price' || rawSort === 'skin' ? rawSort : 'similarity';
+  const setSort = (key: SortKey) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (key === 'similarity') next.delete('sort');
+        else next.set('sort', key);
+        return next;
+      },
+      { replace: true },
+    );
 
   // 옵션형 묶음의 원본이 기준으로 들어오면 첫 옵션으로 바꾼다(원본의 전성분은 모든 옵션의 합집합이라 비교할 수 없다)
   const firstOptionId = seedProduct.product?.composition === 'optgroup' ? seedProduct.product.options?.[0]?.id : undefined;
@@ -141,14 +156,17 @@ export default function AlternativesPage() {
     const arr = [...similar.alternatives];
     // 서버가 이미 점수 내림차순으로 주지만, 정렬을 오가도 복원되게 명시한다.
     if (sort === 'similarity') arr.sort((a, b) => b.similarityScore - a.similarityScore);
-    // 20개 후보 안에서의 최저가다. 카탈로그 전체의 최저가가 아니다.
+    // 후보(ALTERNATIVES_LIMIT개) 안에서의 최저가다. 카탈로그 전체의 최저가가 아니다.
     if (sort === 'price') arr.sort((a, b) => a.price - b.price);
     if (sort === 'skin') {
-      // 잘 맞음 > 무난 > 판정 없음 > 주의. 같은 등급 안에서는 유사도순.
-      const rank = (v?: { verdict: string }) =>
-        v?.verdict === 'good' ? 3 : v?.verdict === 'ok' ? 2 : v?.verdict === 'caution' ? 0 : 1;
+      // 카드에 적힌 궁합 점수 내림차순. 점수가 같으면 유사도순. 판정이 없으면(점수 없음) 점수 있는 것 뒤, 주의 앞.
+      // 주의(caution)는 점수가 높아도 맨 뒤다 — 자극 성분 때문에 붙는 판정이라 점수만으로는 안전하지 않다.
+      const tier = (v?: { verdict: string }) => (v?.verdict === 'caution' ? 0 : v?.verdict ? 2 : 1);
       arr.sort(
-        (a, b) => rank(b.skinMatch) - rank(a.skinMatch) || b.similarityScore - a.similarityScore,
+        (a, b) =>
+          tier(b.skinMatch) - tier(a.skinMatch) ||
+          (b.skinMatch?.score ?? -1) - (a.skinMatch?.score ?? -1) ||
+          b.similarityScore - a.similarityScore,
       );
     }
     return arr;

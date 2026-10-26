@@ -243,3 +243,12 @@ async def test_analysis_concerns_param(client: AsyncClient, pid: int) -> None:
     assert none["concernState"] == [] and none["concernSummary"] is None
     junk = (await client.get(f"/api/v1/products/{pid}/analysis", params={"concerns": "foo:1,bar:2"})).json()
     assert junk["concernState"] == []
+
+
+def test_fine_items_still_report_how_much_the_product_helps():
+    st = function_strengths([1, 2, 3, 4, 1, 2], L)
+    by = {r["key"]: r for r in concern_state({"moisture": 90, "pore": 95, "eye_bag": 95}, st, [])}
+    # 신경 쓸 필요가 적어도(status는 fine) 제품이 돕는 정도는 따로 말한다
+    assert by["moisture"]["status"] == "fine" and by["moisture"]["help"] in {"good", "some", "lack"}
+    assert by["pore"]["status"] == "fine" and by["pore"]["help"] == "lack"      # 피지·각질 성분 없음
+    assert by["eye_bag"]["help"] is None                                         # 성분으로 바뀌기 어려운 항목

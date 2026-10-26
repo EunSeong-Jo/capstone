@@ -25,6 +25,7 @@ const CancelReturnPage = lazy(() => import('./pages/Mypage/CancelReturnPage'));
 const DecoratePage   = lazy(() => import('./pages/Closet/DecoratePage'));
 const DetailPage     = lazy(() => import('./pages/ProductDetail'));
 const AlternativesPage = lazy(() => import('./pages/Alternatives'));
+const ComparePage = lazy(() => import('./pages/Compare'));
 const CartPage       = lazy(() => import('./pages/Cart'));
 const SearchPage     = lazy(() => import('./pages/Search'));
 const ScanPage       = lazy(() => import('./pages/Scan'));
@@ -93,6 +94,7 @@ export default function App() {
           <Route path="/closet/decorate" element={mine(<DecoratePage />)} />
           <Route path="/detail/:id" element={<DetailPage />} />
           <Route path="/alternatives" element={<AlternativesPage />} />
+          <Route path="/compare" element={<ComparePage />} />
           <Route path="/cart"       element={<CartPage />} />
           <Route path="/search"     element={<SearchPage />} />
           <Route path="/scan"       element={mine(<ScanPage />)} />

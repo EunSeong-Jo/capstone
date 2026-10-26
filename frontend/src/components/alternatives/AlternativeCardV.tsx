@@ -7,10 +7,12 @@ import { similarToState, similarityBadgeType } from '../../utils/alternatives';
 interface AlternativeCardVProps {
   alt: Alternative;
   width?: string;
+  /** '더 좋은 대체품'에서만: 쓰던 제품보다 궁합 점수가 얼마나 높은가 */
+  fitGain?: number;
 }
 
 /** 세로 대체품 카드 — 홈 캐러셀용 (유사도 뱃지 + 이유 태그) */
-export function AlternativeCardV({ alt, width = 'w-[160px]' }: AlternativeCardVProps) {
+export function AlternativeCardV({ alt, width = 'w-[160px]', fitGain }: AlternativeCardVProps) {
   const navigate = useNavigate();
   const saving = alt.priceDelta != null && alt.priceDelta < 0;
 
@@ -51,7 +53,16 @@ export function AlternativeCardV({ alt, width = 'w-[160px]' }: AlternativeCardVP
           {saving && (
             <span className="text-xs font-bold text-accent">{alt.priceDelta!.toLocaleString()}</span>
           )}
+          {/* 더 좋은 대체품: 더 싸지 않을 수 있어 가격 차이를 숨기지 않는다 */}
+          {fitGain !== undefined && alt.priceDelta !== undefined && alt.priceDelta > 0 && (
+            <span className="text-xs font-bold text-oy-sub">+{alt.priceDelta.toLocaleString()}</span>
+          )}
         </div>
+        {fitGain !== undefined && (
+          <span className="mt-1 inline-block rounded-full bg-primary-light px-2 py-0.5 text-[11px] font-bold text-primary">
+            내 피부 궁합 +{fitGain}점
+          </span>
+        )}
 
         {alt.reasonTags && alt.reasonTags.length > 0 && (
           <div className="mt-1.5">

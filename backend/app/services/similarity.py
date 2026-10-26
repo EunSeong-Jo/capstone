@@ -417,6 +417,58 @@ def detect_form(name: str) -> str | None:
     return None
 
 
+# 마스크팩 계열은 '팩'이 이름 끝에 와도 시트 마스크일 수 있어 맨 뒤 기준을 쓰지 않는다.
+_TAIL_KEEP = frozenset({"시트", "워시오프팩"})
+
+
+def detect_form_tail(name: str) -> str | None:
+    """대체품 후보 거르기 전용 제형 감지: 이름에서 **가장 뒤에 나온** 제형.
+
+    한국어 제품명은 제형이 끝에 오는 경우가 많다("…에센스 토너", "…버블 세럼", "…오일-프리 로션").
+    `detect_form`은 규칙 순서가 우선이라 이런 이름을 앞쪽 규칙(앰플세럼·폼·오일)으로 잘못 읽는다.
+    그 함수는 유사도 점수 계산에도 쓰여 바꾸면 점수를 다시 계산해야 하므로, 필터에만 쓰는 함수를 따로 둔다.
+    """
+    first = detect_form(name)
+    if first in _TAIL_KEEP:
+        return first
+    best: tuple[int, str] | None = None
+    for form, rx in _FORM_RX:
+        if form == "선":  # 한 글자 규칙이라 아무 데나 걸린다. 다른 제형이 없을 때만 쓴다.
+            continue
+        matches = list(rx.finditer(name))
+        if matches and (best is None or matches[-1].start() > best[0]):
+            best = (matches[-1].start(), form)
+    return best[1] if best else first
+
+
+# 대체품으로 서로 바꿔 쓸 수 있는 제형 묶음. 같은 묶음끼리만 대체품 후보가 된다.
+# 사용처가 같은 것끼리 묶는다 — 토너를 세럼으로, 크림을 미스트로 바꾸라고 할 수는 없다.
+_FORM_GROUPS: list[frozenset[str]] = [
+    frozenset({"토너", "미스트"}),
+    frozenset({"앰플세럼"}),
+    frozenset({"크림", "로션", "젤"}),
+    frozenset({"선", "쿠션", "스틱"}),
+    frozenset({"오일", "밤"}),
+    frozenset({"워터", "밀크"}),
+    frozenset({"폼"}),
+    frozenset({"패드"}),
+    frozenset({"시트"}),
+    frozenset({"워시오프팩"}),
+]
+_FORM_TO_GROUP = {form: i for i, g in enumerate(_FORM_GROUPS) for form in g}
+
+
+def form_compatible(seed_name: str, other_name: str) -> bool:
+    """두 제품이 서로의 대체품이 될 수 있는 제형 묶음인가.
+
+    제형을 모르는 쪽이 하나라도 있으면 막지 않는다(통과) — 모르는 것을 근거로 후보를 버리지 않는다.
+    """
+    a, b = detect_form_tail(seed_name), detect_form_tail(other_name)
+    if a is None or b is None:
+        return True
+    return _FORM_TO_GROUP.get(a) == _FORM_TO_GROUP.get(b)
+
+
 def build_form_matrix(forms: list[str | None]) -> csr_matrix:
     """제형 원-핫 행렬. 제형을 모르는 행은 0벡터라 점수에 기여하지 않는다."""
     rows, cols = [], []

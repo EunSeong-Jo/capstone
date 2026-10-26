@@ -336,3 +336,36 @@ def test_apply_curated_demotes_zero_and_promotes_two_symmetrically():
     assert list(out_i[0]) == [2, 1]              # 20은 0점 판정으로 밀리고 30은 2점 판정으로 오른다
     assert out_s[0][0] > 0.5 > out_s[0][1]
     assert list(out_i[1])[1] == 0                # 대칭: (20→10)도 같이 밀린다
+
+
+# --- 제형 호환(대체품 후보 거르기) ---
+
+from app.services.similarity import form_compatible  # noqa: E402
+
+
+def test_form_compatible_blocks_different_use():
+    assert not form_compatible("아비브 어성초 카밍 토너 200ml", "인삼스네일세럼 30ml")
+    assert not form_compatible("에스트라 아토베리어365 크림 80ml", "달바 퍼스트 스프레이 세럼 100ml")
+    assert not form_compatible("아누아 선쿠션 25g", "수분 크림 50ml")
+
+
+def test_form_compatible_allows_same_group():
+    assert form_compatible("에스트라 아토베리어365 크림 80ml", "에스트라 아토베리어365 로션 150ml")
+    assert form_compatible("아비브 어성초 토너 200ml", "달바 미스트 100ml")
+    assert form_compatible("히알루론 세럼 30ml", "나이아신아마이드 앰플 50ml")
+
+
+def test_form_compatible_passes_unknown_form():
+    assert form_compatible("이름에 제형이 없는 제품", "수분 크림 50ml")
+    assert form_compatible("수분 크림 50ml", "이름에 제형이 없는 제품")
+
+
+def test_form_compatible_uses_last_form_in_name():
+    # '에센스 토너'는 토너다 — 앞쪽 규칙(앰플세럼)이 아니라 맨 뒤 제형을 본다
+    assert form_compatible("마녀공장 판테토인 에센스 토너 200ml", "달바 미스트 100ml")
+    assert not form_compatible("마녀공장 판테토인 에센스 토너 200ml", "히알루론 세럼 30ml")
+    assert not form_compatible("코스알엑스 오일-프리 모이스쳐라이징 로션 100ml", "클렌징 오일 200ml")
+
+
+def test_form_compatible_keeps_mask_forms():
+    assert form_compatible("듀이셀 마스크팩 1매", "메디힐 시트 마스크 10매")
