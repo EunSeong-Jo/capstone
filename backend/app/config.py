@@ -171,11 +171,7 @@ class Settings(BaseSettings):
     FACE_MIN_LUMINANCE: float = 50.0
 
     # 얼굴 사진 수집 동의 문구의 버전. 문구(개인정보 처리방침)를 바꾸면 함께 올린다.
-    FACE_CONSENT_VERSION: str = "2026-10-21"
-
-    # 사진 분석 이미지(얼굴 위 분석 결과 PNG)를 두는 디렉터리 — docker 볼륨(저장소 밖).
-    # 쓸 수 없으면 이미지 없이 점수만 저장한다(services/skin_images.py).
-    SKIN_IMAGE_DIR: str = "/data/skin_images"
+    FACE_CONSENT_VERSION: str = "2026-10-26"
 
     # 호출 제한이 쓰는 클라이언트 IP. 프록시·로드밸런서 뒤에 둘 때만 true로 —
     # 그러면 X-Forwarded-For의 첫 주소를 쓴다(core/rate_limit.py).

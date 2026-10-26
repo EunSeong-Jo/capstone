@@ -35,7 +35,7 @@ from app.models.product import (
     Tag,
 )
 from app.models.recommendation import ProductSkinFit, Similarity, SkinTypeRule
-from app.models.skin_photo import SkinAnalysis, Subscription, UserConsent
+from app.models.skin_photo import SkinAnalysis, SkinAnalysisImage, Subscription, UserConsent
 from app.models.user import Profile, RefreshToken, User
 
 __all__ = [
@@ -79,4 +79,5 @@ __all__ = [
     "UserConsent",
     "Subscription",
     "SkinAnalysis",
+    "SkinAnalysisImage",
 ]

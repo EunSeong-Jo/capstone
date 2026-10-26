@@ -1,15 +1,16 @@
 """얼굴 사진 AI 피부 분석 도메인.
 
-세 테이블 모두 **원본 사진을 담지 않는다.** 사진은 분석 요청 중 메모리에만 있고
+**원본 사진을 담지 않는다.** 사진은 분석 요청 중 메모리에만 있고
 (`docs/dev_guidelines.md` 11.2), 여기에는 동의 기록·구독 상태·분석에서 뽑은
-점수만 남는다. 분석 업체가 돌려주는 마스크 이미지 URL도 저장하지 않는다.
+점수, 그리고 업체가 돌려준 **얼굴 없는 투명 마스크 PNG**(`SkinAnalysisImage`)만 남는다.
+마스크 이미지 URL(2시간 만료)은 저장하지 않는다.
 """
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Text, UniqueConstraint, text
+from sqlalchemy import DateTime, ForeignKey, Index, LargeBinary, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -96,3 +97,27 @@ class SkinAnalysis(Base):
     concern_set: Mapped[str] = mapped_column(Text, nullable=False)      # basic / extended
     provider_mode: Mapped[str] = mapped_column(Text, nullable=False)    # sd / hd / mock
     metrics: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class SkinAnalysisImage(Base):
+    """분석 항목별 결과 이미지(투명 PNG). (분석, 항목)당 1행.
+
+    컨테이너 디스크는 재배포 때 사라지므로 DB에 둔다. 한 장이 수백 KB라 분석 1회에 2~3MB.
+    분석이 지워지면(계정 삭제 포함) 함께 지워지고, 동의를 철회하면 사용자 단위로 지운다.
+    `user_id`는 철회 때 조인 없이 지우려고 둔다.
+    """
+
+    __tablename__ = "skin_analysis_images"
+    __table_args__ = (Index("idx_skin_analysis_images_user", "user_id"),)
+
+    analysis_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("skin_analyses.id", ondelete="CASCADE"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    png: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )

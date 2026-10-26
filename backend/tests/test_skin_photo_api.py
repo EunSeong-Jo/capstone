@@ -20,11 +20,11 @@ import pytest_asyncio
 from fastapi import HTTPException
 from httpx import AsyncClient
 from PIL import Image
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 
 from app.config import settings
 from app.db.session import AsyncSessionLocal
-from app.models.skin_photo import SkinAnalysis, Subscription
+from app.models.skin_photo import SkinAnalysis, SkinAnalysisImage, Subscription
 from app.models.user import User
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -43,10 +43,9 @@ def _photo_data_url(w: int = 600, h: int = 800) -> str:
 
 
 @pytest.fixture(autouse=True)
-def mock_provider(monkeypatch, tmp_path):
-    """모든 테스트가 실제 호출 없이 돈다. 사전 필터는 통과시키고, 분석 이미지는 임시 폴더에 둔다."""
+def mock_provider(monkeypatch):
+    """모든 테스트가 실제 호출 없이 돈다. 사전 필터는 통과시킨다."""
     monkeypatch.setattr(settings, "PERFECT_CORP_MOCK", True)
-    monkeypatch.setattr(settings, "SKIN_IMAGE_DIR", str(tmp_path / "skin_images"))
 
     async def _pass(_photo):
         return None
@@ -584,7 +583,7 @@ async def test_analysis_images_are_saved_and_served_to_the_owner_only(
     assert (await client.get(f"{ANALYZE}/{aid}/images/..%2F..%2Fetc", headers=h)).status_code == 404
 
 
-async def test_withdrawing_consent_deletes_images_but_keeps_scores(
+async def test_withdrawing_consent_keeps_past_results_and_images(
     client: AsyncClient, consented
 ) -> None:
     h = consented["headers"]
@@ -594,32 +593,37 @@ async def test_withdrawing_consent_deletes_images_but_keeps_scores(
     res = await client.put(f"{ME}/consents/face-photo", json={"agreed": False}, headers=h)
     assert res.status_code == 200
     latest = (await client.get(f"{ANALYZE}/latest", headers=h)).json()
-    assert latest["images"] == []                    # 파일은 지워졌다
-    assert latest["axes"] == made["axes"] and latest["concerns"]    # 점수는 남는다
-    gone = await client.get(f"{ANALYZE}/{made['analysisId']}/images/oiliness", headers=h)
-    assert gone.status_code == 404
+    assert latest["images"] == made["images"]        # 지난 결과의 이미지는 그대로
+    assert latest["axes"] == made["axes"] and latest["concerns"]
+    kept = await client.get(f"{ANALYZE}/{made['analysisId']}/images/oiliness", headers=h)
+    assert kept.status_code == 200
+
+    # 새 분석은 막힌다.
+    assert (await _analyze(client, consented)).status_code == 403
 
 
-async def test_deleting_the_account_deletes_the_image_files(client: AsyncClient) -> None:
-    import pathlib
-
+async def test_deleting_the_account_deletes_the_image_rows(client: AsyncClient) -> None:
     acc = await _signup(client, face_consent=True)
     made = (await _analyze(client, acc)).json()
-    folder = pathlib.Path(settings.SKIN_IMAGE_DIR) / str(acc["id"])
-    assert folder.is_dir() and any(folder.rglob("*.png"))
+    assert made["images"]
+    async with AsyncSessionLocal() as db:
+        n = await db.scalar(select(func.count()).select_from(SkinAnalysisImage).where(SkinAnalysisImage.user_id == acc["id"]))
+    assert n == len(made["images"])
 
     res = await client.delete(ME, headers=acc["headers"])
     assert res.status_code == 204, res.text
-    assert not folder.exists()
-    assert made["images"]
+    async with AsyncSessionLocal() as db:
+        n = await db.scalar(select(func.count()).select_from(SkinAnalysisImage).where(SkinAnalysisImage.user_id == acc["id"]))
+    assert n == 0
 
 
-async def test_analysis_still_succeeds_when_images_cannot_be_stored(
-    client: AsyncClient, consented, monkeypatch, tmp_path
+async def test_analysis_still_succeeds_when_no_image_can_be_downloaded(
+    client: AsyncClient, consented, monkeypatch
 ) -> None:
-    blocker = tmp_path / "not_a_dir"
-    blocker.write_text("x")                           # 이 아래로는 디렉터리를 만들 수 없다
-    monkeypatch.setattr(settings, "SKIN_IMAGE_DIR", str(blocker / "sub"))
+    async def _none(*_a, **_k):
+        return {}
+
+    monkeypatch.setattr("app.api.skin_photo.fetch_masks", _none)
     res = await _analyze(client, consented)
     assert res.status_code == 201, res.text
     assert res.json()["images"] == []
@@ -632,6 +636,6 @@ async def test_deleting_the_user_removes_every_photo_record(client: AsyncClient)
     await _cleanup(acc["email"])
 
     async with AsyncSessionLocal() as db:
-        for model in (SkinAnalysis, Subscription):
+        for model in (SkinAnalysis, SkinAnalysisImage, Subscription):
             rows = await db.scalars(select(model).where(model.user_id == acc["id"]))
             assert rows.all() == []

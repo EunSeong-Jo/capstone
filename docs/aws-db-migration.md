@@ -63,6 +63,8 @@ AWS_DATABASE_DSN=postgresql://사용자:비밀번호@엔드포인트:5432/dbmast
 cd capstone
 scripts/aws_db.sh dump              # 최신 로컬 상태로 덤프를 다시 만들 때(이미 있으면 생략 가능)
 scripts/aws_db.sh restore --yes     # 빈 AWS DB에 기준 데이터 + 조은성 계정 복원, 마지막에 행 수 검증
+scripts/aws_db.sh migrate --yes     # 스키마만 올릴 때(alembic upgrade head). 서버는 시작할 때 마이그레이션을 돌리지 않는다
+scripts/aws_db.sh demo --yes        # 조은성 계정을 지우고 최신 데모 덤프(세션 제외 전체)로 다시 올린다
 scripts/aws_db.sh verify            # 언제든 로컬과 AWS의 행 수·alembic 버전을 견준다(읽기 전용)
 ```
 
