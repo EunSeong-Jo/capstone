@@ -313,8 +313,13 @@ export default function SearchPage() {
                   <img src="/mascot/base_face_neutral.png" alt="" className="h-[82%] w-[82%] object-contain" />
                 </span>
                 <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-extrabold text-white">성분표가 어렵다면, 찍어보세요</span>
-                  <span className="block text-xs text-white/55 mt-0.5">AI가 전성분을 읽고 주의 성분을 알려드려요</span>
+                  {/* 예전 문구는 "AI가 전성분을 읽는다"였지만 /scan은 앞면 사진으로 제품을
+                      찾는 기능이다(뒷면 인식은 실사진 평가에서 0건). 전성분은 찾은 제품의
+                      상세 화면에서 보인다(QA 12). */}
+                  <span className="block text-sm font-extrabold text-white">제품명이 헷갈리면, 찍어보세요</span>
+                  <span className="block text-xs text-white/55 mt-0.5">
+                    앞면을 찍으면 화장품을 찾아 드려요. 제품을 누르면 전성분을 볼 수 있어요
+                  </span>
                 </span>
                 <span className="shrink-0 inline-flex items-center h-8 px-3.5 rounded-full bg-primary text-xs font-extrabold text-white">
                   스캔

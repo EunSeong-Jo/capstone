@@ -119,7 +119,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
         <div className="mt-6 rounded-[20px] border border-dashed border-[#C9CFC5] bg-white px-5 py-10 text-center">
           <p className="text-[13px] font-bold text-gray-70">화장대가 비어 있어요</p>
           <p className="mt-1 text-[11px] text-gray-50">
-            성분표를 스캔하거나 챗봇에게 제품명을 알려주면 여기에 담겨요
+            제품 앞면을 찍거나 챗봇에게 제품명을 알려주면 여기에 담겨요
           </p>
           <button
             onClick={() => navigate('/scan')}
