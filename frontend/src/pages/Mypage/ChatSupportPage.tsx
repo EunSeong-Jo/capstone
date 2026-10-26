@@ -27,6 +27,8 @@ interface Message {
   text?: string;
   isWelcome?: boolean;
   isButtons?: boolean;
+  /** 화장품 등록 완료 메시지. 이 메시지가 마지막일 때만 '내 화장대 보기'를 붙인다. */
+  closetLink?: boolean;
 }
 
 /**
@@ -132,7 +134,6 @@ export default function ChatSupportPage() {
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [registerMode, setRegisterMode] = useState(false);
-  const [registeredCount, setRegisteredCount] = useState(0);
   /**
    * "+" 버튼 — 예전엔 "내 화장품 등록하기" FAQ 버튼과 똑같은 동작을 호출해서
    * 사용자가 어느 쪽을 눌러도 같은 안내만 반복됐다("현재 내 화장품 등록하기" 말이
@@ -147,8 +148,8 @@ export default function ChatSupportPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(3);
 
-  const pushBot = (text: string) =>
-    setMessages((prev) => [...prev, { id: nextId.current++, role: 'bot', text }]);
+  const pushBot = (text: string, extra?: Pick<Message, 'closetLink'>) =>
+    setMessages((prev) => [...prev, { id: nextId.current++, role: 'bot', text, ...extra }]);
 
   /**
    * 입력한 제품명을 카탈로그에서 찾아 화장대에 담는다.
@@ -191,8 +192,8 @@ export default function ChatSupportPage() {
     });
     pushBot(
       `'${product.brand} ${product.name}'을(를) 화장대에 추가했어요! 🧴\n내 화장대에서 대체품 추천을 확인해 보세요.`,
+      { closetLink: true },
     );
-    setRegisteredCount((n) => n + 1);
   };
 
   const startRegister = () => {
@@ -377,6 +378,18 @@ export default function ChatSupportPage() {
                       {renderWithBold(msg.text)}
                     </div>
                   )}
+
+                  {/* 예전에는 입력창 위에 고정된 버튼이라 다른 대화로 넘어가도 계속
+                      남아 있었다(QA 9). 등록 완료 메시지에 붙이고, 다음 메시지가
+                      오면 사라진다. */}
+                  {msg.closetLink && msg.id === messages[messages.length - 1]?.id && (
+                    <button
+                      onClick={() => navigate('/closet')}
+                      className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-xs font-bold text-white active:scale-[.98] transition-transform"
+                    >
+                      내 화장대 보기
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -395,15 +408,6 @@ export default function ChatSupportPage() {
 
         <div ref={bottomRef} />
       </div>
-
-      {registeredCount > 0 && (
-        <button
-          onClick={() => navigate('/closet')}
-          className="mx-3 mb-2 flex items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-xs font-bold text-white active:scale-[.98] transition-transform"
-        >
-          내 화장대 보기 ({registeredCount}개 등록됨)
-        </button>
-      )}
 
       {guestLimitReached && (
         <div className="mx-3 mb-2 rounded-xl bg-gray-5 px-3 py-3 text-center">
