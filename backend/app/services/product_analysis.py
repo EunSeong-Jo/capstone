@@ -214,6 +214,11 @@ GOOD_COVER = 50
 SOME_COVER = 25
 
 
+def help_of(cover: int) -> str:
+    """이 제품이 그 항목을 돕는 정도: good 도와줘요 · some 부족 · lack 많이 부족. 신경 쓸 정도와 무관하게 성분만 본다."""
+    return "good" if cover >= GOOD_COVER else "some" if cover >= SOME_COVER else "lack"
+
+
 def concern_of(axis: str, score: int) -> int:
     return 10 - score if axis == "moisture" else score
 
@@ -270,7 +275,7 @@ def skin_state(
         out.append({
             "axis": axis, "name": name, "score": score, "health": health_of(concern), "concern": level,
             "level": level_text if level != "fine" else "괜찮은 편",
-            "need": [FUNC_NAMES[f] for f in need], "coverage": cover,
+            "need": [FUNC_NAMES[f] for f in need], "coverage": cover, "help": help_of(cover),
             "status": status, "message": message, "risk": risk,
         })
     rank = {"focus": 0, "mild": 1, "fine": 2}
@@ -351,8 +356,12 @@ def concern_state(
             "key": key, "name": name, "score": score, "concern": level,
             "level": level_text if level != "fine" else "좋은 편",
             "need": [FUNC_NAMES[f] for f in need], "coverage": 0,
-            "status": "fine", "message": "", "risk": None, "addressable": bool(need),
+            "status": "fine", "message": "", "risk": None, "addressable": bool(need), "help": None,
         }
+        if need:
+            # 신경 쓸 필요가 적은 항목도 이 제품이 얼마나 돕는지는 말할 수 있다(status는 fine으로 두고 help로 따로 낸다)
+            row["coverage"] = strengths[max(need, key=lambda f: strengths[f]["value"])]["value"]
+            row["help"] = help_of(row["coverage"])
         if not need:
             row["status"] = "na"
             row["message"] = (
@@ -363,7 +372,6 @@ def concern_state(
         else:
             best = max(need, key=lambda f: strengths[f]["value"])
             cover, count = strengths[best]["value"], strengths[best]["count"]
-            row["coverage"] = cover
             if cover >= GOOD_COVER:
                 row["status"], row["message"] = "good", f"{FUNC_NAMES[best]} 성분 {count}종이 도와줘요"
             elif cover >= SOME_COVER:

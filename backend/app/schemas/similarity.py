@@ -28,6 +28,8 @@ class SimilarProductOut(ProductOut):
     shared_functions: list[str] = []
     # skinType을 주면 채워진다: good | ok | caution | unknown
     skin_match: str | None = None
+    # 같은 사전 계산(product_skin_fit)의 0~100 점수. 궁합순 정렬과 카드 표시가 같은 값을 쓰게 낸다
+    skin_fit_score: int | None = None
 
 
 class SimilarListOut(_CamelModel):
@@ -39,4 +41,6 @@ class SimilarListOut(_CamelModel):
 
     seed_id: int
     method: str
+    # fitFor를 줬을 때 기준 제품의 궁합 점수. 대체품이 "더 잘 맞는가"를 견주려면 같은 척도의 기준값이 필요하다
+    seed_skin_fit_score: int | None = None
     items: list[SimilarProductOut]

@@ -163,3 +163,23 @@ def test_flag_penalty_is_not_doubled_for_multi_flag_ingredients():
     labels2[40] = ("", "s", "L", 3)
     only_l = evaluate([1, 2, 3, 40], labels2, names, "yuriguseul").score
     assert one == only_l        # I가 겹쳐 붙어 있다고 더 깎이지 않는다
+
+
+@pytestmark_api
+async def test_similar_items_carry_the_same_score_the_fit_verdict_came_from(client: AsyncClient, pid: int) -> None:
+    plain = (await client.get(f"/api/v1/products/{pid}/similar")).json()["items"]
+    typed = (await client.get(f"/api/v1/products/{pid}/similar", params={"fitFor": "samak"})).json()["items"]
+    assert all(i["skinFitScore"] is None for i in plain)
+    for i in typed:
+        if i["skinMatch"] == "unknown":
+            assert i["skinFitScore"] is None
+        else:
+            assert 0 <= i["skinFitScore"] <= 100
+
+
+@pytestmark_api
+async def test_similar_carries_the_seed_fit_score_only_when_type_given(client: AsyncClient, pid: int) -> None:
+    plain = (await client.get(f"/api/v1/products/{pid}/similar")).json()
+    typed = (await client.get(f"/api/v1/products/{pid}/similar", params={"fitFor": "samak"})).json()
+    assert plain["seedSkinFitScore"] is None
+    assert typed["seedSkinFitScore"] is None or 0 <= typed["seedSkinFitScore"] <= 100

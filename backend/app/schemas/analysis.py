@@ -88,6 +88,7 @@ class SkinStateOut(_CamelModel):
     need: list[str]              # 이 축을 돕는 기능 이름들
     coverage: int                # 그 기능들 중 이 제품의 최대 강도 0~100
     status: str                  # good | some | lack | fine
+    help: str | None = None      # good | some | lack — 신경 쓸 정도와 무관하게 이 제품이 돕는 정도
     message: str
     risk: str | None = None
 
@@ -103,6 +104,7 @@ class ConcernStateOut(_CamelModel):
     need: list[str] = []
     coverage: int = 0
     status: str                  # good | some | lack | fine | na(성분으로 바뀌기 어려운 항목)
+    help: str | None = None      # good | some | lack — 신경 쓸 정도와 무관하게 이 제품이 돕는 정도(na는 None)
     message: str
     risk: str | None = None
     addressable: bool = True
