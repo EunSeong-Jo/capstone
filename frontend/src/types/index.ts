@@ -80,7 +80,7 @@ export interface Alternative extends Product {
   basedOn?: string; // 어느 화장대 제품과 비슷해서 나왔는지(제품명) — 홈 '내 화장대와 비슷한 추천'
   priceDelta?: number; // 기준 대비 가격차 (음수=절약)
   savingRate?: number; // 절약률 % (양수)
-  skinMatch?: { skinType: SkinType; verdict: 'good' | 'ok' | 'caution' };
+  skinMatch?: { skinType: SkinType; verdict: 'good' | 'ok' | 'caution'; score?: number };
   situation?: AltSituation | null; // 상황 대응
   reasonTags?: AltReasonTag[]; // 카드 노출용 (직접 작성 or 파생)
   sharedKeyIngredients?: string[]; // 공통 주요성분 (유사도 근거)

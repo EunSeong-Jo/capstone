@@ -221,7 +221,7 @@ export function ProfileDashboard({
           {registry.totalSavings !== undefined ? (
             <>
               <span className="font-extrabold">
-                {registry.totalSavings.toLocaleString()}원 절약 가능
+                최대 {registry.totalSavings.toLocaleString()}원 절약 가능
               </span>
               {' — 내 화장대 '}
               {registry.count}

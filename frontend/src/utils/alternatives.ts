@@ -102,7 +102,7 @@ export function toAlternative(
   const verdict = item.skinMatch;
   const skinMatch =
     fitFor && (verdict === 'good' || verdict === 'ok' || verdict === 'caution')
-      ? { skinType: fitFor, verdict }
+      ? { skinType: fitFor, verdict, score: typeof item.skinFitScore === 'number' ? item.skinFitScore : undefined }
       : undefined;
   if (savingRate !== undefined && savingRate >= 10) {
     reasonTags.push({ type: 'priceSave', label: `${savingRate}% 저렴` });
@@ -183,7 +183,8 @@ export function splitSameProductVariants(
  * 라우터 state라 새로고침하거나 주소로 직접 들어오면 없다 — 그때는 아무것도 그리지 않는다.
  */
 export interface SimilarToState {
-  similarTo: { productId: number; seedId: number; seedName: string; score: number };
+  /** saving: 기준(화장대) 제품보다 싼 금액(원). 더 싸지 않으면 없다 */
+  similarTo: { productId: number; seedId: number; seedName: string; score: number; saving?: number };
 }
 
 export function similarToState(alt: Alternative): SimilarToState | undefined {
@@ -194,6 +195,7 @@ export function similarToState(alt: Alternative): SimilarToState | undefined {
       seedId: alt.seedId,
       seedName: alt.basedOn,
       score: alt.similarityScore,
+      saving: alt.priceDelta !== undefined && alt.priceDelta < 0 ? -alt.priceDelta : undefined,
     },
   };
 }
@@ -202,5 +204,5 @@ export function similarToState(alt: Alternative): SimilarToState | undefined {
 export function readSimilarTo(state: unknown, productId: number): SimilarToState['similarTo'] | null {
   const s = (state as Partial<SimilarToState> | null)?.similarTo;
   if (!s || s.productId !== productId || typeof s.seedName !== 'string') return null;
-  return s;
+  return { ...s, saving: typeof s.saving === 'number' && s.saving > 0 ? s.saving : undefined };
 }

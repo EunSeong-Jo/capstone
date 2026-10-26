@@ -19,7 +19,7 @@ import {
 import { useRecommendations } from '../../hooks/useRecommendations';
 import { useStats } from '../../hooks/useStats';
 import { useSkinType } from '../../hooks/useSkinType';
-import { useSwapSuggestion } from '../../hooks/useSwapSuggestion';
+import { HOME_SIMILARITY_MIN, totalSavingOf, useSwapSuggestion } from '../../hooks/useSwapSuggestion';
 import { useClosetSimilar } from '../../hooks/useClosetSimilar';
 import { useWeather } from '../../hooks/useWeather';
 import { useCareTip } from '../../hooks/useCareTip';
@@ -118,8 +118,10 @@ export default function HomePage() {
   // 화장대 제품들을 실제로 바꿨을 때 아낄 수 있는 금액. 후보가 없으면
   // undefined이고 대시보드가 문구를 바꾼다 — 고정값을 그리지 않는다.
   const totalSavings = useMemo(() => {
-    if (swap.candidates.length === 0) return undefined;
-    return swap.candidates.reduce((sum, c) => sum + -(c.alt.priceDelta ?? 0), 0);
+    // 홈 카드와 같은 하한을 적용해 카드에 보이는 제품의 합계가 되게 한다.
+    const shown = swap.candidates.filter((c) => c.alt.similarityScore >= HOME_SIMILARITY_MIN);
+    if (shown.length === 0) return undefined;
+    return totalSavingOf(shown);
   }, [swap.candidates]);
 
   // 로그인 시 페르소나/진단/화장대에서 대시보드 값 구성, 게스트는 목업 유지

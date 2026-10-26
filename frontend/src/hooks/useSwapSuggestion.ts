@@ -16,7 +16,6 @@ import { invalidate, load, peek } from '../api/queryCache';
 import { ClosetItem } from '../context/closet';
 import { Alternative, SkinType } from '../types';
 import {
-  SIMILARITY_HIGH,
   splitSameProductVariants,
   toAlternative,
 } from '../utils/alternatives';
@@ -39,8 +38,10 @@ export interface SwapSeed {
 export interface SwapSuggestion {
   /** 쓰던 제품 (화장대) */
   seed: SwapSeed;
-  /** 제안하는 대체품. priceDelta는 항상 음수다. */
+  /** 제안하는 대체품. '더 저렴한' 후보면 priceDelta가 음수다. */
   alt: Alternative;
+  /** '더 좋은' 후보에서만: 대체품이 쓰던 제품보다 내 피부에 더 잘 맞는 정도(궁합 점수 차) */
+  fitGain?: number;
 }
 
 /**
@@ -61,16 +62,23 @@ export type SwapOutcome = 'ok' | 'stale' | 'variantOnly' | 'none';
 interface UseSwapSuggestionResult {
   suggestion: SwapSuggestion | null;
   /**
-   * 조건을 만족한 교체 후보 전체. 절약액 내림차순이고 `suggestion`이 그 1위다.
+   * 조건을 만족한 교체 후보 전체. 절약액 내림차순(동률이면 유사도)이고 `suggestion`이 그 1위다.
    *
    * 홈의 "💰 더 저렴한 대체품" 캐러셀이 이걸 그린다. 예전에는 그 자리에
    * mocks/alternatives.ts의 고정 목업이 있었는데, 가짜 제품에 붙은 id가
    * 실재 카탈로그 id와 겹쳐 카드를 탭하면 전혀 다른 제품이 열렸다.
    */
   candidates: SwapSuggestion[];
+  /**
+   * 가격과 무관하게 내 피부에 **더 잘 맞는** 대체품(궁합 점수가 FIT_GAIN_MIN점 이상 높다).
+   * 더 싼 후보(`candidates`)와 겹칠 수 있다. 궁합 점수 차 내림차순.
+   */
+  betterCandidates: SwapSuggestion[];
   outcome: SwapOutcome;
   /** outcome이 'variantOnly'일 때 "같은 제품 대용량이 더 싸다"를 보여줄 거리. */
   variantHint: SwapSuggestion | null;
+  /** 같은 제품의 더 싼 다른 용량·리필(절약액 순). 홈의 '리필·다른 용량' 카드가 쓴다. */
+  refillCandidates: SwapSuggestion[];
   loading: boolean;
   /** 연결 실패·5xx처럼 재시도할 만한 고장일 때만 채워진다. 404는 여기 오지 않는다. */
   error: string | null;
@@ -83,10 +91,61 @@ interface UseSwapSuggestionResult {
  * 화장대가 20개여도 홈 진입마다 20번 요청할 이유는 없다. 최근에 넣은
  * 것일수록 지금 쓰는 제품일 가능성이 높아 앞에서부터 자른다.
  */
-const MAX_SEEDS = 4;
+const MAX_SEEDS = 5;
+
+/**
+ * 오늘 쓸 화장대 제품을 고른다. 화장대가 MAX_SEEDS개 이하면 전부, 많으면 날짜로 섞어 MAX_SEEDS개.
+ *
+ * 같은 날에는 항상 같은 제품이 뽑히고(새로고침해도 안 바뀐다) 날이 바뀌면 달라져서,
+ * 며칠 안에 화장대의 모든 제품이 한 번씩 나온다.
+ */
+function pickSeedsOfToday<T extends { id: number }>(items: T[], today: string): T[] {
+  if (items.length <= MAX_SEEDS) return items;
+  const hash = (id: number) => {
+    let h = 2166136261;
+    for (const ch of `${today}:${id}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+    return h >>> 0;
+  };
+  return [...items].sort((a, b) => hash(a.id) - hash(b.id)).slice(0, MAX_SEEDS);
+}
+
+/** 로컬 날짜(YYYY-MM-DD). 하루의 경계는 사용자 기기 기준이다. */
+function todayKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+/**
+ * 화장대 제품을 대체품으로 바꿨을 때 아끼는 금액.
+ *
+ * 쓰던 제품 하나는 한 번만 바꿀 수 있으므로 **쓰던 제품마다 1등 후보 하나**만 더한다
+ * (candidates는 절약액 순이라 제품별 첫 후보가 가장 많이 아끼는 대체품이므로 이 합계는 최대 절약액이다). 후보를 전부
+ * 더하면 같은 제품의 대체품 여러 개가 겹쳐 실제로 불가능한 금액이 나온다.
+ */
+export function totalSavingOf(candidates: SwapSuggestion[]): number {
+  const bySeed = new Map<number, number>();
+  candidates.forEach((c) => {
+    if (!bySeed.has(c.seed.id)) bySeed.set(c.seed.id, -(c.alt.priceDelta ?? 0));
+  });
+  let sum = 0;
+  bySeed.forEach((v) => { sum += v; });
+  return sum;
+}
+
+/**
+ * 홈의 교체 제안 카드(1순위)에 올릴 최소 성분 유사도(%). 절약액·궁합 점수로 1등을 뽑으므로,
+ * 이 하한이 없으면 성분이 많이 다른 제품이 1등이 될 수 있다. 목록 화면에는 적용하지 않는다.
+ */
+export const HOME_SIMILARITY_MIN = 50;
+
+/** '더 좋은 대체품'(가격 무관)이 되려면 쓰던 제품보다 궁합 점수가 이만큼 이상 높아야 한다 */
+export const FIT_GAIN_MIN = 5;
+
+/** '더 좋은 대체품' 구역에 낼 최대 개수 */
+const MAX_BETTER = 10;
 
 /** 시드당 받아올 후보 수. 같은 제품 변형이 섞여 걸러지므로 여유를 둔다. */
-const PER_SEED_LIMIT = 5;
+const PER_SEED_LIMIT = 7;
 
 /**
  * 절약액 내림차순. 동률이면 더 비슷한 쪽이 앞.
@@ -115,7 +174,9 @@ interface Loaded {
   key: string;
   suggestion: SwapSuggestion | null;
   candidates: SwapSuggestion[];
+  betterCandidates: SwapSuggestion[];
   variantHint: SwapSuggestion | null;
+  refillCandidates: SwapSuggestion[];
   outcome: SwapOutcome;
   error: string | null;
 }
@@ -140,7 +201,7 @@ const swapCacheKey = (seedKey: string, skinType?: SkinType) => `swap:${seedKey}:
  */
 async function computeSwap(current: SwapSeed[], skinType?: SkinType): Promise<SwapResult> {
   const results = await Promise.allSettled(
-    current.map((seed) => loadSimilarProducts(seed.id, { limit: PER_SEED_LIMIT, skinType })),
+    current.map((seed) => loadSimilarProducts(seed.id, { limit: PER_SEED_LIMIT, skinType, fitFor: skinType })),
   );
 
   // 404는 고장이 아니다. 화장대에는 카탈로그에 없는 id가 섞인다 —
@@ -166,26 +227,34 @@ async function computeSwap(current: SwapSeed[], skinType?: SkinType): Promise<Sw
     return {
       suggestion: null,
       candidates: [],
+      betterCandidates: [],
       variantHint: null,
+      refillCandidates: [],
       outcome: 'stale',
     };
   }
 
   const found: SwapSuggestion[] = [];
+  const better: SwapSuggestion[] = [];
   const variantCandidates: SwapSuggestion[] = [];
   results.forEach((result, i) => {
     if (result.status !== 'fulfilled') return;
     const seed = current[i];
-    const mapped = result.value.items.map((item) => toAlternative(item, seed));
+    // basedOn: 상세 페이지가 "내 화장대의 어느 제품과 비슷한지"를 알려 주는 데 쓴다(화장대가 기준이라 항상 참이다).
+    const seedFit = result.value.seedSkinFitScore ?? null;
+    const mapped = result.value.items.map((item) => ({ ...toAlternative(item, seed, skinType), basedOn: seed.name }));
     // 같은 제품의 다른 용량은 교체 제안이 아니다. 이걸 빼지 않으면
     // "유사도 100%" 1등이 대부분 자기 자신의 대용량 버전이 된다.
     // 다만 버리지는 않는다 — 진짜 대체품이 없을 때 "같은 제품 대용량이
-    // 더 싸다"는 여전히 쓸모 있는 안내라서 variantHint로 남긴다.
+    // 더 싸다"는 여전히 쓸모 있는 안내라서 refillCandidates로 남긴다.
     const { alternatives, variants } = splitSameProductVariants(seed, mapped);
     alternatives.forEach((alt) => {
-      if ((alt.priceDelta ?? 0) >= 0) return;
-      if (alt.similarityScore < SIMILARITY_HIGH) return;
-      found.push({ seed, alt });
+      if ((alt.priceDelta ?? 0) < 0) found.push({ seed, alt });
+      // 더 좋은 대체품은 가격과 무관하다 — 싸든 비싸든 내 피부 궁합이 확실히 높으면 된다. 주의 판정은 제외한다.
+      const fit = alt.skinMatch?.score;
+      if (seedFit !== null && fit !== undefined && alt.skinMatch?.verdict !== 'caution' && fit - seedFit >= FIT_GAIN_MIN) {
+        better.push({ seed, alt, fitGain: fit - seedFit });
+      }
     });
     variants.forEach((alt) => {
       if ((alt.priceDelta ?? 0) >= 0) return;
@@ -194,13 +263,25 @@ async function computeSwap(current: SwapSeed[], skinType?: SkinType): Promise<Sw
   });
 
   const ranked = rankCandidates(found);
+  const seenBetter = new Set<number>();
+  const betterRanked = better
+    .sort((a, b) => (b.fitGain ?? 0) - (a.fitGain ?? 0) || b.alt.similarityScore - a.alt.similarityScore)
+    .filter((c) => {
+      if (seenBetter.has(c.alt.id)) return false;
+      seenBetter.add(c.alt.id);
+      return true;
+    })
+    .slice(0, MAX_BETTER);
   const best = ranked[0] ?? null;
-  const variant = best ? null : rankCandidates(variantCandidates)[0] ?? null;
+  const refills = rankCandidates(variantCandidates);
+  const variant = best ? null : refills[0] ?? null;
 
   return {
     suggestion: best,
     candidates: ranked,
+    betterCandidates: betterRanked,
     variantHint: variant,
+    refillCandidates: refills,
     outcome: best ? 'ok' : variant ? 'variantOnly' : 'none',
   };
 }
@@ -218,10 +299,10 @@ export function useSwapSuggestion(
   const seedKey = useMemo(
     () =>
       JSON.stringify(
-        items
-          .filter((c) => (c.price ?? 0) > 0)
-          .sort((a, b) => b.addedAt - a.addedAt)
-          .slice(0, MAX_SEEDS)
+        pickSeedsOfToday(
+          items.filter((c) => (c.price ?? 0) > 0),
+          todayKey(),
+        )
           .map<SwapSeed>((c) => ({
             id: c.id,
             brand: c.brand,
@@ -254,7 +335,9 @@ export function useSwapSuggestion(
           key,
           suggestion: null,
           candidates: [],
+          betterCandidates: [],
           variantHint: null,
+          refillCandidates: [],
           outcome: 'none',
           error: err instanceof Error ? err.message : '교체 제안을 불러오지 못했습니다.',
         });
@@ -273,8 +356,10 @@ export function useSwapSuggestion(
     return {
       suggestion: null,
       candidates: [],
+      betterCandidates: [],
       outcome: 'none',
       variantHint: null,
+      refillCandidates: EMPTY_CANDIDATES,
       loading: false,
       error: null,
       reload,
@@ -288,8 +373,10 @@ export function useSwapSuggestion(
   return {
     suggestion: current?.suggestion ?? null,
     candidates: current?.candidates ?? EMPTY_CANDIDATES,
+    betterCandidates: current?.betterCandidates ?? EMPTY_CANDIDATES,
     outcome: current?.outcome ?? 'none',
     variantHint: current?.variantHint ?? null,
+    refillCandidates: current?.refillCandidates ?? EMPTY_CANDIDATES,
     loading: current === null,
     error: current?.error ?? null,
     reload,

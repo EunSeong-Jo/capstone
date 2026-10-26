@@ -316,7 +316,7 @@ export default function ProductDetailPage() {
             {similarTo && (
               <button
                 type="button"
-                onClick={() => navigate(`/alternatives?seed=${similarTo.seedId}&from=detail`)}
+                onClick={() => navigate(`/compare?a=${similarTo.seedId}&b=${productId}`, { state: { similarTo } })}
                 className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-primary-light px-3.5 py-2.5 text-left active:scale-[.99]"
               >
                 <span className="min-w-0">
@@ -325,6 +325,11 @@ export default function ProductDetailPage() {
                   <span className="block text-xs text-oy-text">
                     내 화장대 제품과 성분 <b>{similarTo.score}%</b> 비슷해요
                   </span>
+                  {similarTo.saving !== undefined && (
+                    <span className="mt-0.5 block text-xs font-bold text-accent">
+                      {similarTo.saving.toLocaleString()}원 더 저렴해요
+                    </span>
+                  )}
                 </span>
                 <span className="shrink-0 text-xs font-bold text-primary">비교 ›</span>
               </button>

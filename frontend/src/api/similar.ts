@@ -41,11 +41,15 @@ export interface SimilarItem extends Product {
   sharedFunctions?: string[];
   /** fitFor를 주면 채워진다: good | ok | caution | unknown */
   skinMatch?: 'good' | 'ok' | 'caution' | 'unknown' | null;
+  /** 같은 판정의 0~100 점수. 판정이 unknown이면 없다 */
+  skinFitScore?: number | null;
 }
 
 export interface SimilarResponse {
   seedId: number;
   method: string;
+  /** fitFor를 줬을 때 기준 제품의 궁합 점수(0~100). 대체품의 skinFitScore와 같은 척도다 */
+  seedSkinFitScore?: number | null;
   items: SimilarItem[];
 }
 
