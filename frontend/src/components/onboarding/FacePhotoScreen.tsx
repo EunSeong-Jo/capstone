@@ -1,3 +1,4 @@
+import { CameraVideo } from '../common/CameraVideo';
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AnalysisDto, analyzeFace, checkPhoto, fetchQuota, setConsent } from '../../api/skinPhoto';
@@ -344,15 +345,8 @@ export default function FacePhotoScreen({
           // 3:4로 잡은 이유: 720p(1280×720) 카메라에서 이 비율로 자르면 540×720이라 업체가 요구하는
           // 짧은 변 480px을 넘는다. 화면 전체를 꽉 채우면(약 9:19) 387px로 모자라 분석이 거절된다.
           <div className="absolute left-0 right-0 top-1/2 aspect-[3/4] -translate-y-1/2 overflow-hidden">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              aria-hidden
-              // 전면 카메라는 거울처럼 좌우를 뒤집어 보여 준다. 찍히는 사진은 원본 방향이다.
-              className="h-full w-full -scale-x-100 object-cover"
-            />
+            {/* 전면 카메라는 거울처럼 좌우를 뒤집어 보여 준다. 찍히는 사진은 원본 방향이다. */}
+            <CameraVideo videoRef={videoRef} className="h-full w-full -scale-x-100 object-cover" />
           </div>
         )}
         {showShot && (

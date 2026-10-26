@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/auth';
 import { PERSONAS } from '../../data/personas';
+import { useDemoPanel } from '../../hooks/useDemoPanel';
+import { useToast } from '../../context/toast';
 
 // 로그인 화면. `POST /api/v1/auth/login`으로 실제 인증한다.
 // (스플래시 → 로그인 → 위피 인삿말(/onboarding) 순서)
@@ -11,6 +13,9 @@ export default function LoginPage() {
   // RequireAuth가 막아서 온 경우 원래 가려던 곳. 없으면 인삿말로 간다.
   const from = (location.state as { from?: string } | null)?.from ?? null;
   const { login, loginAs, continueAsGuest } = useAuth();
+  // 데모 계정 패널 표시 여부 — 로고를 연달아 눌러 켜고 끈다(비밀 명령, hooks/useDemoPanel.ts)
+  const demo = useDemoPanel();
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -46,8 +51,12 @@ export default function LoginPage() {
       {/* 로고 */}
       <div className="mt-2.5 flex flex-col items-center">
         <p
-          className="whitespace-nowrap text-[50px] leading-none"
+          className="select-none whitespace-nowrap text-[50px] leading-none"
           style={{ fontFamily: "'Rubik Doodle Shadow', system-ui, sans-serif" }}
+          onClick={() => {
+            const next = demo.tapLogo();
+            if (next !== null) showToast(next ? '데모 계정 표시: 켜짐' : '데모 계정 표시: 꺼짐');
+          }}
         >
           <span style={{ color: '#ef969f' }}>S</span>
           <span className="text-ob-green-deep">wappy</span>
@@ -99,26 +108,28 @@ export default function LoginPage() {
         <button type="button" onClick={() => navigate('/forgot-password')}>비밀번호 찾기</button>
       </div>
 
-      {/* 데모 계정 빠른 로그인 — 시연·테스트용. 실제 로그인 UI가 아니다 */}
-      <div className="mt-6 rounded-2xl border border-dashed border-[#C9CFC5] bg-white/60 p-3">
-        <p className="mb-2 text-center text-[11px] font-bold text-gray-50">데모 계정으로 바로 로그인 (팀원 6종 — 게스트 포함)</p>
-        <div className="grid grid-cols-3 gap-2">
-          {PERSONAS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => quickLogin(p.id)}
-              className="rounded-lg border border-[#DCE8E1] bg-white px-2 py-2 text-left active:scale-95 transition-transform"
-            >
-              <span className="block text-[11px] font-semibold text-primary-dark">{p.nickname}</span>
-              <span className="block text-[9px] text-gray-50">{p.role}</span>
-            </button>
-          ))}
+      {/* 데모 계정 빠른 로그인 — 시연·테스트용. 실제 로그인 UI가 아니다. 로고를 7번 연달아 누르면 켜고 끈다 */}
+      {demo.visible && (
+        <div className="mt-6 rounded-2xl border border-dashed border-[#C9CFC5] bg-white/60 p-3">
+          <p className="mb-2 text-center text-[11px] font-bold text-gray-50">데모 계정으로 바로 로그인 (팀원 6종 — 게스트 포함)</p>
+          <div className="grid grid-cols-3 gap-2">
+            {PERSONAS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => quickLogin(p.id)}
+                className="rounded-lg border border-[#DCE8E1] bg-white px-2 py-2 text-left active:scale-95 transition-transform"
+              >
+                <span className="block text-[11px] font-semibold text-primary-dark">{p.nickname}</span>
+                <span className="block text-[9px] text-gray-50">{p.role}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-center text-[10px] text-gray-50">
+            비밀번호는 전부 swappy1234 (예: donggyun@swappy.app)
+          </p>
         </div>
-        <p className="mt-2 text-center text-[10px] text-gray-50">
-          비밀번호는 전부 swappy1234 (예: donggyun@swappy.app)
-        </p>
-      </div>
+      )}
 
       <button
         type="button"

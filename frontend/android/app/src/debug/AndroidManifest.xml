@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 디버그 빌드 전용: 내 PC의 로컬 서버(http://localhost:8000, adb reverse)를 부르려면 평문(HTTP) 통신이 열려 있어야 한다.
+         src/debug 아래라 release 빌드에는 합쳐지지 않는다. 운영 서버(HTTPS)로 빌드할 때는 쓰이지 않는다. -->
+    <application android:usesCleartextTraffic="true" />
+</manifest>

@@ -1,5 +1,6 @@
 import { OptionPicker } from '../product/OptionPicker';
 import { useMemo } from 'react';
+import { useAuth } from '../../context/auth';
 import type { ProductAnalysis, CautionKind } from '../../api/analysis';
 import type { AnalysisDto } from '../../api/skinPhoto';
 import type { SkinStateSource } from '../../hooks/useSkinStateSource';
@@ -67,6 +68,7 @@ export function AnalysisView({
   owned?: boolean;
 }) {
   const reloadPhoto = onReloadPhoto;
+  const { isUser } = useAuth();
   const focus = useMemo(() => new Set(analysis.focusFunctions ?? []), [analysis]);
   return (
     <>
@@ -156,8 +158,20 @@ export function AnalysisView({
                 />
                 {stateSource === 'qna' && <PhotoCta compact onDone={reloadPhoto} />}
               </>
-            ) : (
+            ) : isUser ? (
               <PhotoCta onDone={reloadPhoto} />
+            ) : (
+              // 비로그인: 사진 분석·진단 결과가 없으니 로그인을 안내한다(비워 두면 제목만 덩그러니 남는다)
+              <div className="rounded-xl border border-dashed border-oy-line bg-white px-4 py-5 text-center">
+                <p className="text-sm text-oy-sub">로그인하고 피부 진단을 하면 이 제품이 내 피부 상태에 어떤지 견주어 드려요.</p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/login')}
+                  className="mt-3 rounded-full bg-primary px-4 py-2 text-sm font-bold text-white active:scale-95"
+                >
+                  로그인하기
+                </button>
+              </div>
             )}
           </Section>
           <Divider />
