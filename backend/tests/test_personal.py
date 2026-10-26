@@ -34,6 +34,20 @@ PASSWORD = "swappy1234"
 NO_SUCH_PRODUCT = 999_999_999
 
 
+async def _deliver(order_id: str) -> None:
+    """배송 단계는 주문 시각에서 계산한다. 시각을 과거로 돌려 배송완료를 만든다.
+
+    후기는 배송완료 뒤에만 쓸 수 있어서(QA 8) 후기 테스트마다 필요하다.
+    """
+    async with AsyncSessionLocal() as db:
+        await db.execute(
+            update(Order)
+            .where(Order.id == uuid.UUID(order_id))
+            .values(placed_at=datetime.now(timezone.utc) - timedelta(hours=1))
+        )
+        await db.commit()
+
+
 @pytest_asyncio.fixture(loop_scope="session")
 async def account(client: AsyncClient):
     email = f"pytest-{uuid.uuid4().hex[:12]}@example.com"
@@ -273,10 +287,28 @@ async def test_review_requires_purchase(client: AsyncClient, account) -> None:
     assert res.status_code == 404
 
 
+async def test_review_needs_delivered_order(client: AsyncClient, account, product_ids) -> None:
+    """결제 직후에는 쓸 수 없다 — 받아 본 뒤에 쓰는 것이 후기다(QA 8)."""
+    await client.post(f"{ME}/cart", json={"productId": product_ids[0], "qty": 1}, **account)
+    order = (await client.post(ORDERS, **account)).json()
+    assert order["stage"] == "paid"
+    res = await client.post(
+        f"{ME}/reviews", json={"orderItemId": order["items"][0]["id"], "rating": 5}, **account
+    )
+    assert res.status_code == 409
+
+    await _deliver(order["id"])
+    res = await client.post(
+        f"{ME}/reviews", json={"orderItemId": order["items"][0]["id"], "rating": 5}, **account
+    )
+    assert res.status_code == 201, res.text
+
+
 async def test_review_once_per_order_item(client: AsyncClient, account, product_ids) -> None:
     await client.post(f"{ME}/cart", json={"productId": product_ids[0], "qty": 1}, **account)
     order = (await client.post(ORDERS, **account)).json()
     item_id = order["items"][0]["id"]
+    await _deliver(order["id"])
 
     first = await client.post(
         f"{ME}/reviews", json={"orderItemId": item_id, "rating": 5, "body": "좋아요"}, **account
@@ -528,6 +560,7 @@ async def test_stats_counts_exp_from_records(
     )
     order = await client.post(ORDERS, headers=account["headers"])
     assert order.status_code == 201
+    await _deliver(order.json()["id"])
     # 후기 +20
     await client.post(
         f"{ME}/reviews",
@@ -828,14 +861,7 @@ async def test_return_after_delivery(
     client: AsyncClient, account, product_ids: list[int]
 ) -> None:
     order = await _place_order(client, account, product_ids[0])
-    # 배송 단계는 주문 시각에서 계산한다. 시각을 과거로 돌려 배송완료를 만든다.
-    async with AsyncSessionLocal() as db:
-        await db.execute(
-            update(Order)
-            .where(Order.id == uuid.UUID(order["id"]))
-            .values(placed_at=datetime.now(timezone.utc) - timedelta(hours=1))
-        )
-        await db.commit()
+    await _deliver(order["id"])
 
     listed = (await client.get(f"{ME}/orders", headers=account["headers"])).json()
     assert listed[0]["stage"] == "delivered"
@@ -859,6 +885,7 @@ _PNG = (
 
 async def test_review_with_photos(client: AsyncClient, account, product_ids: list[int]) -> None:
     order = await _place_order(client, account, product_ids[0])
+    await _deliver(order["id"])
     res = await client.post(
         f"{ME}/reviews", headers=account["headers"],
         json={"orderItemId": order["items"][0]["id"], "rating": 4, "photos": [_PNG, _PNG]},
@@ -877,6 +904,7 @@ async def test_review_with_photos(client: AsyncClient, account, product_ids: lis
 
 async def test_review_rejects_non_image(client: AsyncClient, account, product_ids: list[int]) -> None:
     order = await _place_order(client, account, product_ids[0])
+    await _deliver(order["id"])
     res = await client.post(
         f"{ME}/reviews", headers=account["headers"],
         json={"orderItemId": order["items"][0]["id"], "rating": 4,
@@ -891,6 +919,7 @@ async def test_product_reviews_filter_and_sort(
     """별점·피부타입 필터와 정렬. 작성자 피부타입이 함께 온다."""
     pid = product_ids[1]
     order = await _place_order(client, account, pid)
+    await _deliver(order["id"])
     res = await client.post(
         f"{ME}/reviews", headers=account["headers"],
         json={"orderItemId": order["items"][0]["id"], "rating": 3, "body": "보통이에요"},

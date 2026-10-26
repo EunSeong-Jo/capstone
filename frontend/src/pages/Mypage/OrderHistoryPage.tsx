@@ -24,6 +24,8 @@ import { useOrders } from '../../hooks/useOrders';
  *
  * '후기 작성'은 예전에 별점 4점을 고정으로 보냈다(입력 화면이 없었다).
  * 지금은 `ReviewWriteSheet`에서 사용자가 직접 고른다.
+ *
+ * '후기 작성'은 배송완료 뒤에만 열린다(QA 8). 예전에는 결제 직후에도 눌렸다.
  */
 
 const fmtDate = (iso: string) =>
@@ -175,11 +177,20 @@ export default function OrderHistoryPage() {
                       재구매
                     </button>
                     <button
-                      disabled={item.reviewed || item.productId === null || isClosed(order.status)}
+                      disabled={
+                        item.reviewed ||
+                        item.productId === null ||
+                        isClosed(order.status) ||
+                        order.stage !== 'delivered'
+                      }
                       onClick={() => setTarget(item)}
                       className="rounded-lg border border-gray-20 py-2 text-[13px] font-medium text-gray-100 disabled:opacity-40"
                     >
-                      {item.reviewed ? '후기 작성됨' : '후기 작성'}
+                      {item.reviewed
+                        ? '후기 작성됨'
+                        : !isClosed(order.status) && order.stage !== 'delivered'
+                          ? '배송완료 후 후기 작성'
+                          : '후기 작성'}
                     </button>
                   </div>
                 </div>
