@@ -66,6 +66,8 @@ export interface ConcernState {
   coverage: number;
   /** good 충분히 도움 · some 도움은 되나 부족 · lack 돕는 성분 부족 · fine 신경 쓸 필요 적음 · na 화장품 성분으로 바뀌기 어려운 항목 */
   status: 'good' | 'some' | 'lack' | 'fine' | 'na';
+  /** 신경 쓸 정도와 무관하게 이 제품이 돕는 정도. 성분으로 바뀌기 어려운 항목은 null */
+  help?: 'good' | 'some' | 'lack' | null;
   message: string;
   risk: string | null;
   addressable: boolean;
@@ -87,6 +89,8 @@ export interface SkinStateAxis {
   coverage: number;
   /** good 충분히 도움 · some 도움은 되나 부족 · lack 돕는 성분 부족 · fine 신경 쓸 필요 적음 */
   status: 'good' | 'some' | 'lack' | 'fine';
+  /** 신경 쓸 정도와 무관하게 이 제품이 돕는 정도 */
+  help?: 'good' | 'some' | 'lack' | null;
   message: string;
   risk: string | null;
 }
