@@ -119,7 +119,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
         <div className="mt-6 rounded-[20px] border border-dashed border-[#C9CFC5] bg-white px-5 py-10 text-center">
           <p className="text-[13px] font-bold text-gray-70">화장대가 비어 있어요</p>
           <p className="mt-1 text-[11px] text-gray-50">
-            성분표를 스캔하거나 챗봇에게 제품명을 알려주면 여기에 담겨요
+            제품 앞면을 찍거나 챗봇에게 제품명을 알려주면 여기에 담겨요
           </p>
           <button
             onClick={() => navigate('/scan')}
@@ -167,6 +167,9 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
                     i < shown.length - 1 ? 'border-b border-surface-warm' : ''
                   }`}
                 >
+                  {/* 제품을 누르면 내 제품 성분 분석으로 간다. 예전에는 대체품 추천으로
+                      바로 넘어가 내 제품을 눌렀는데 다른 제품들이 나와 당황스러웠다(QA 10).
+                      대체품은 오른쪽 '대체품' 버튼으로 따로 연다. */}
                   <button
                     onClick={() =>
                       navigate(removed ? `/detail/${item.id}` : `/analysis/${item.id}`)
@@ -210,15 +213,23 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
                       </button>
                     </span>
                   ) : (
-                    <button
-                      onClick={() => remove(item)}
-                      aria-label="화장대에서 빼기"
-                      className="shrink-0 rounded-full p-1.5 text-gray-50 active:scale-90 transition-transform"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M6 6l12 12M18 6L6 18" stroke="#9AA0A6" strokeWidth="2" strokeLinecap="round" />
-                      </svg>
-                    </button>
+                    <span className="flex shrink-0 items-center gap-1">
+                      <button
+                        onClick={() => navigate(`/alternatives?seed=${item.id}&from=closet`)}
+                        className="inline-flex h-8 items-center rounded-lg border border-[#DCE8E1] px-3 text-[11px] font-bold text-primary-dark active:scale-95 transition-transform"
+                      >
+                        대체품
+                      </button>
+                      <button
+                        onClick={() => remove(item)}
+                        aria-label="화장대에서 빼기"
+                        className="rounded-full p-1.5 text-gray-50 active:scale-90 transition-transform"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M6 6l12 12M18 6L6 18" stroke="#9AA0A6" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    </span>
                   )}
                 </div>
               );
