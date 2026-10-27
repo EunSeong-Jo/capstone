@@ -28,7 +28,8 @@ const SOURCE_LABEL: Record<ClosetItem['addedVia'], string> = {
 };
 
 type VanityFilter = 'owned' | 'removed';
-const HINT_KEY = 'swappy:closet:altHintClosed';
+// v2 — 안내 문구가 '대체품 찾기 버튼'에서 '제품을 누르면'으로 바뀌어, 예전에 닫은 사람에게도 새 문구를 한 번 보인다.
+const HINT_KEY = 'swappy:closet:altHintClosed:v2';
 
 /**
  * 비회원의 '내 화장대' 자리. 화장대·예산은 개인 데이터라 로그인한 사용자만 쓴다.
@@ -69,7 +70,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
   const { items, removedItems, removeItem, restoreItem, purgeItem } = useCloset();
   const { showToast } = useToast();
   const [filter, setFilter] = useState<VanityFilter>('owned');
-  // '대체품 찾기' 버튼 안내 — 한 번 닫으면 다시 안 띄운다(저장이 막히면 그냥 매번 보인다)
+  // 화장대 사용 안내(제품을 누르면 성분 분석·대체품) — 한 번 닫으면 다시 안 띄운다(저장이 막히면 그냥 매번 보인다)
   const [hintClosed, setHintClosed] = useState(() => readJSON<boolean>(HINT_KEY, false));
   const closeHint = () => {
     setHintClosed(true);
@@ -159,7 +160,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
           {filter === 'owned' && !hintClosed && items.length > 0 && (
             <div className="mb-2 flex items-start gap-2 rounded-2xl bg-primary-light/60 px-3.5 py-3">
               <p className="min-w-0 flex-1 text-[12px] leading-relaxed text-gray-70">
-                제품 오른쪽 <b className="font-bold text-primary-dark">대체품 찾기</b>를 누르면 더 저렴하거나 비슷한 제품을 보여 드려요.
+                제품을 누르면 <b className="font-bold text-primary-dark">성분 분석과 대체품</b>을 볼 수 있어요.
               </p>
               <button
                 type="button"
@@ -193,7 +194,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
                   <div className="flex items-center gap-3">
                     {/* 제품을 누르면 내 제품 성분 분석으로 간다. 예전에는 대체품 추천으로
                         바로 넘어가 내 제품을 눌렀는데 다른 제품들이 나와 당황스러웠다(QA 10).
-                        대체품은 아래 '대체품 찾기' 버튼으로 따로 연다 — 이름 옆에 두면 이름이 3~4글자만 남는다. */}
+                        대체품은 분석 화면 아래 '비슷한 대체품 보기'로 이어진다 — 목록에 버튼을 두면 행이 커지고 이름이 좁아진다. */}
                     <button
                       onClick={() =>
                         navigate(removed ? `/detail/${item.id}` : `/analysis/${item.id}`)
@@ -248,18 +249,6 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
                       </button>
                     )}
                   </div>
-
-                  {!removed && (
-                    <button
-                      onClick={() => navigate(`/alternatives?seed=${item.id}&from=closet`)}
-                      className="ml-[66px] mt-2 inline-flex h-9 items-center gap-0.5 rounded-lg bg-primary-light px-3 text-[12px] font-bold text-primary-dark active:scale-95 transition-transform"
-                    >
-                      대체품 찾기
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  )}
                 </div>
               );
             })}
