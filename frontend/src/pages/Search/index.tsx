@@ -7,11 +7,12 @@ import { ProductCard } from '../../components/product/ProductCard';
 import {
   POPULAR_SEARCH_FILTERS,
   POPULAR_SEARCH_RANKING,
-  INGREDIENT_DICTIONARY,
   PopularSearchFilter,
 } from '../../mocks/search';
 import { useRecentSearches } from '../../hooks/useRecentSearches';
 import { useMyIngredients } from '../../hooks/useMyIngredients';
+import { IngredientDictPanel } from '../../components/ingredient/IngredientDictPanel';
+import { MyIngredientsPanel } from '../../components/ingredient/MyIngredientsPanel';
 import { useSearchProducts } from '../../hooks/useSearchProducts';
 import { useProducts } from '../../hooks/useProducts';
 import { useCloset } from '../../context/closet';
@@ -391,55 +392,9 @@ export default function SearchPage() {
             </div>
 
             {ingredientSubTab === 'dict' ? (
-              <div className="flex flex-col">
-                {INGREDIENT_DICTIONARY.map((cat) => (
-                  <div
-                    key={cat.id}
-                    className="flex items-center justify-between py-3.5 border-b border-gray-10 last:border-0"
-                  >
-                    <button className="flex items-center gap-3 flex-1 text-left active:opacity-60 transition-opacity">
-                      <span className="text-xl">{cat.emoji}</span>
-                      <span className="text-sm text-gray-100">{cat.label}</span>
-                    </button>
-                    <button
-                      onClick={() => myIngredients.addIngredient(cat.label)}
-                      aria-label={`${cat.label} 마이 성분에 추가`}
-                      className={`w-7 h-7 rounded-lg border flex items-center justify-center text-sm font-light transition-colors ${
-                        myIngredients.items.includes(cat.label)
-                          ? 'border-primary text-primary bg-primary-light'
-                          : 'border-gray-20 text-gray-50'
-                      }`}
-                    >
-                      +
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : myIngredients.items.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 pt-12 text-center">
-                <span className="w-12 h-12 rounded-full border border-gray-20 flex items-center justify-center text-lg font-bold text-gray-50">!</span>
-                <p className="text-sm font-semibold text-gray-100">즐겨찾는 성분이 없어요</p>
-                <p className="text-xs text-gray-50 leading-relaxed">
-                  성분 사전에서 + 버튼을 눌러
-                  <br />
-                  나만의 성분을 관리해 보세요.
-                </p>
-              </div>
+              <IngredientDictPanel my={myIngredients} onFindProducts={(name) => handleSearch(name, 'ingredient')} />
             ) : (
-              <div className="flex flex-col">
-                {myIngredients.items.map((name) => (
-                  <div key={name} className="flex items-center justify-between py-3.5 border-b border-gray-10 last:border-0">
-                    <span className="text-sm text-gray-100">{name}</span>
-                    <button
-                      onClick={() => myIngredients.removeIngredient(name)}
-                      aria-label={`${name} 삭제`}
-                      className="text-gray-50 text-sm active:scale-90 transition-transform"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <MyIngredientsPanel my={myIngredients} onFindProducts={(name) => handleSearch(name, 'ingredient')} />
             )}
           </>
         )}
