@@ -4,6 +4,7 @@ import { Icon } from '../../components/category/Icon';
 import { OySectionHeader } from '../../components/home/oy/OySectionHeader';
 import { useLikedProducts } from '../../context/liked';
 import { useCart } from '../../context/cart';
+import { HeaderActions } from '../../components/layout/HeaderActions';
 import { useProduct } from '../../hooks/useProduct';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
 import { AlternativeCarousel } from '../../components/home/oy/sections/AlternativeCarousel';
@@ -240,16 +241,7 @@ export default function ProductDetailPage() {
           <Icon name="arrow_back" size={24} />
         </button>
         <div className="flex-1" />
-        {asProduct && (
-          <button
-            type="button"
-            onClick={() => toggleLike(asProduct)}
-            aria-label={liked ? '찜 해제' : '찜하기'}
-            className={`active:scale-90 ${liked ? 'text-accent' : 'text-oy-text'}`}
-          >
-            <Icon name="favorite" size={24} />
-          </button>
-        )}
+        <HeaderActions showHome />
       </header>
 
       {loading && <DetailSkeleton />}
@@ -301,7 +293,7 @@ export default function ProductDetailPage() {
                   <Icon name="star" size={14} />
                 </span>
                 <span className="font-semibold">{product.rating.toFixed(1)}</span>
-                {product.reviewCount != null && (
+                {!!product.reviewCount && (
                   <span className="text-oy-sub">
                     리뷰 {product.reviewCount.toLocaleString()}
                   </span>
@@ -505,6 +497,17 @@ export default function ProductDetailPage() {
           className="fixed bottom-0 left-1/2 z-30 flex w-full max-w-[430px] -translate-x-1/2 gap-2 border-t border-oy-line bg-white px-4 pt-3"
           style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}
         >
+          {asProduct && (
+            <button
+              type="button"
+              onClick={() => toggleLike(asProduct)}
+              aria-label={liked ? '찜 해제' : '찜하기'}
+              aria-pressed={liked}
+              className={`flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl border border-oy-line active:scale-[.98] ${liked ? 'text-accent' : 'text-oy-text'}`}
+            >
+              <Icon name="favorite" size={22} />
+            </button>
+          )}
           <button
             type="button"
             aria-label="선물하기"

@@ -116,7 +116,9 @@ class Product(Base, TimestampMixin):
     list_price: Mapped[int | None] = mapped_column(Integer)      # 할인 전 정가
     discount_rate: Mapped[int | None] = mapped_column(SmallInteger)
     rating: Mapped[float | None] = mapped_column(Numeric(2, 1))
-    review_count: Mapped[int | None] = mapped_column(Integer)
+    review_count: Mapped[int | None] = mapped_column(Integer)  # 올리브영 크롤링값 — 인기순·점수의 입력(덮어쓰지 않는다)
+    # 화면에 보이는 리뷰 수 = 이 앱에 등록된 후기 개수(reviews 집계, 작성·삭제와 시드 스크립트가 맞춘다)
+    registered_review_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     image_url: Mapped[str | None] = mapped_column(Text)
     product_url: Mapped[str | None] = mapped_column(Text)

@@ -147,7 +147,7 @@ async def list_similar(
             price=p.price or 0,
             image_url=p.image_url,
             rating=float(p.rating) if p.rating is not None else None,
-            review_count=p.review_count,
+            review_count=p.registered_review_count,
             composition=p.composition,
             unit_price=float(p.unit_price) if p.unit_price is not None else None,
             unit_label=p.unit_label,

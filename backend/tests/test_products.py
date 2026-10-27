@@ -81,7 +81,17 @@ async def test_sort_by_price(client: AsyncClient, sort: str, reverse: bool) -> N
 
 
 async def test_sort_popular_is_review_desc(client: AsyncClient) -> None:
-    counts = [i["reviewCount"] for i in await _items(client, sort="popular", size=50)]
+    # 인기순의 입력은 올리브영 리뷰 수(products.review_count)다. 응답의 reviewCount는 화면용
+    # 등록 후기 수(registered_review_count)라 달라서, DB의 원본 값으로 순서를 본다.
+    from sqlalchemy import select
+
+    from app.db.session import AsyncSessionLocal
+    from app.models.product import Product
+
+    ids = [i["id"] for i in await _items(client, sort="popular", size=50)]
+    async with AsyncSessionLocal() as db:
+        by_id = dict((await db.execute(select(Product.id, Product.review_count).where(Product.id.in_(ids)))).all())
+    counts = [by_id[i] for i in ids]
     assert all(c is not None for c in counts), "결측이 앞으로 오면 안 된다"
     assert counts == sorted(counts, reverse=True)
 

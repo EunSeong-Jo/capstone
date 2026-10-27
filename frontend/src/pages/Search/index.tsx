@@ -348,7 +348,7 @@ export default function SearchPage() {
                           <span className="block text-sm font-medium text-gray-100 truncate">{p.name}</span>
                           <span className="flex items-center gap-1.5 mt-0.5">
                             {p.rating != null && <span className="text-xs text-star">⭐ {p.rating}</span>}
-                            {p.reviewCount != null && (
+                            {!!p.reviewCount && (
                               <span className="text-xs text-gray-50">리뷰 {p.reviewCount.toLocaleString()}</span>
                             )}
                             <span className="text-xs font-semibold text-gray-100">{p.price.toLocaleString()}원</span>
