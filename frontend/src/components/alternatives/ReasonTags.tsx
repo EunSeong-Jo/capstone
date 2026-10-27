@@ -34,14 +34,14 @@ export function ReasonTags({ reasons, max = 3, excludeSimilarity = true }: Reaso
       {shown.map((r, i) => (
         <span
           key={i}
-          className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${STYLE[r.type]}`}
+          className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-bold ${STYLE[r.type]}`}
         >
           {ICON[r.type] && <span>{ICON[r.type]}</span>}
           {r.label}
         </span>
       ))}
       {rest > 0 && (
-        <span className="inline-flex items-center rounded-md bg-gray-10 px-1.5 py-0.5 text-[10px] font-bold text-gray-70">
+        <span className="inline-flex items-center rounded-md bg-gray-10 px-1.5 py-0.5 text-[11px] font-bold text-gray-70">
           +{rest}
         </span>
       )}

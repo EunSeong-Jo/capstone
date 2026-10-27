@@ -13,8 +13,8 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,6 +70,32 @@ async def _get_or_create_profile(db: AsyncSession, user: User) -> Profile:
 @router.get("", response_model=UserOut, summary="내 계정")
 async def read_me(user: User = Depends(get_current_user)) -> UserOut:
     return _to_user_out(user)
+
+
+@router.delete(
+    "",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    summary="회원 탈퇴",
+)
+async def delete_me(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """계정을 **즉시 삭제**한다 (소프트 삭제가 아니다).
+
+    `is_active=False`로 두면 `users.email` UNIQUE 때문에 같은 이메일로 다시
+    가입할 수 없다. 그래서 행을 지운다. 프로필·진단·리프레시 토큰·화장대·
+    장바구니·주문·후기·동의·구독·피부 분석은 모두 `ON DELETE CASCADE`라 함께
+    사라지고, 내가 받은 선물의 `recipient_user_id`만 SET NULL이 된다.
+    이미 발급된 액세스 토큰은 `get_current_user`가 사용자 행을 다시 읽으므로
+    다음 요청부터 401이다.
+    """
+    # ORM의 db.delete(user)는 관계를 먼저 NULL로 바꾸려 해서 CASCADE를 DB에 맡기지
+    # 못한다. 행 단위 DELETE 한 번으로 DB의 ON DELETE CASCADE가 처리하게 한다.
+    await db.execute(delete(User).where(User.id == user.id))
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch("", response_model=UserOut, summary="닉네임·이메일 수정")

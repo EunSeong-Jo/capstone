@@ -1,19 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '../../components/category/Icon';
 import { OySectionHeader } from '../../components/home/oy/OySectionHeader';
 import { useLikedProducts } from '../../context/liked';
 import { useCart } from '../../context/cart';
+import { HeaderActions } from '../../components/layout/HeaderActions';
 import { useProduct } from '../../hooks/useProduct';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
 import { AlternativeCarousel } from '../../components/home/oy/sections/AlternativeCarousel';
 import { useRecentlyViewed } from '../../hooks/useRecentlyViewed';
 import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 import { Product } from '../../types';
-import { countIngredients, groupIngredients } from '../../utils/ingredients';
+import { countIngredients, groupIngredients, ingredientNotes } from '../../utils/ingredients';
+import { readSimilarTo } from '../../utils/alternatives';
+import { skinTypes } from '../../data/skinTypes';
 import type { ProductIngredient } from '../../api/products';
 import { ProductReviews } from '../../components/product/ProductReviews';
 import { IngredientSheet } from '../../components/product/IngredientSheet';
+import { SkinFitCard } from '../../components/product/SkinFitCard';
+import { OptionPicker } from '../../components/product/OptionPicker';
+import { KEEP_SCROLL } from '../../components/layout/keepScroll';
+import { useSkinType } from '../../hooks/useSkinType';
 
 /** 처음에 펼쳐 보여줄 성분 개수. 제품당 중앙값이 37개라 20개면 절반쯤 보입니다. */
 const PREVIEW_COUNT = 20;
@@ -23,23 +30,17 @@ const PREVIEW_COUNT = 20;
  *
  * grade가 없는 성분은 **중립**으로 둡니다. 분류 근거가 없다는 뜻이지
  * 안전하다는 뜻이 아니므로, 초록으로 칠해 안심시키면 안 됩니다.
+ * 추천(key)은 내 피부타입을 알 때만 나옵니다 — 진단 전에는 모두 중립이고 주의(warn)만 보입니다.
  */
-function chipClass(grade: ProductIngredient['grade']): string {
-  if (grade === 'warn') return 'warn';
-  if (grade === 'key') return '';
-  return 'neutral';
+function chipClass(grade: ProductIngredient['grade'], highlighted: boolean): string {
+  const base = grade === 'warn' ? 'warn' : grade === 'key' ? '' : 'neutral';
+  return highlighted ? `${base} hl` : base;
 }
 
-/** 칩에 마우스를 올렸을 때의 설명. 등급이 무엇을 뜻하는지 밝힙니다. */
-function chipTitle(ing: ProductIngredient): string {
-  const parts: string[] = [];
-  if (ing.nameEn) parts.push(ing.nameEn);
-  if (ing.grade === 'key') parts.push('피부타입 추천 성분');
-  else if (ing.grade === 'warn') parts.push('기피 성분 (착향제·향료·건조 유발 알코올)');
-  else if (ing.grade === 'normal') parts.push('일반 성분');
-  else parts.push('분류 미정');
-  if (ing.isAllergen) parts.push('식약처 표시 의무 알레르기 유발 착향제');
-  return parts.join(' · ');
+/** 칩에 마우스를 올렸을 때의 설명. 서버 판정의 근거를 말로 옮깁니다. */
+function chipTitle(ing: ProductIngredient, skinTypeLabel?: string | null): string {
+  const head = ing.grade === 'warn' ? '주의 성분' : ing.grade === 'key' ? '추천 성분' : null;
+  return [ing.nameEn, head, ...ingredientNotes(ing, skinTypeLabel)].filter(Boolean).join(' · ');
 }
 
 /** 섹션 사이 굵은 구분 띠 — 홈과 같은 리듬 */
@@ -133,15 +134,51 @@ export default function ProductDetailPage() {
   const { requireLogin } = useLoginPrompt();
   const { id } = useParams();
   const productId = Number(id);
-  const { product, loading, error, notFound, reload } = useProduct(productId);
+  // 홈 '내 화장대와 비슷한 추천' 카드에서 들어왔으면 어느 제품과 비슷한지 알려 준다
+  const similarTo = readSimilarTo(useLocation().state, productId);
+  // 전성분의 추천·주의 분류는 내 피부타입 기준이다. 타입을 알 때까지 요청을 미뤄 두 번 받지 않는다.
+  const { skinType, loading: typeLoading } = useSkinType();
+  const { product, loading, error, notFound, reload } = useProduct(productId, {
+    skinType,
+    wait: typeLoading,
+  });
+  const skinTypeLabel = skinTypes.find((t) => t.id === skinType)?.label ?? null;
+
+  // 옵션형 묶음의 원본(옛 링크·화장대·스캔 기록)이면 첫 옵션으로 보낸다. 원본의 전성분은 모든 옵션의 합집합이라 보여 줄 수 없다.
+  const firstOptionId = product?.composition === 'optgroup' ? product.options?.[0]?.id : undefined;
+  useEffect(() => {
+    if (firstOptionId !== undefined) navigate(`/detail/${firstOptionId}`, { replace: true, state: KEEP_SCROLL });
+  }, [firstOptionId, navigate]);
+  // 옵션을 고르면 그 옵션의 상세로 바꾼다(전성분·궁합·대체품이 그 옵션 기준으로 바뀐다). 스크롤은 그대로 둔다.
+  const pickOption = (id: number) => navigate(`/detail/${id}`, { replace: true, state: KEEP_SCROLL });
   // 대체품. useProduct와 같은 렌더에서 함께 나가므로 순차 대기가 없다.
   // 기준제품이 도착하면 절약액이 뒤이어 계산된다(재요청 없음).
-  const similar = useSimilarProducts(productId, { limit: 10, seedProduct: product });
+  const similar = useSimilarProducts(productId, {
+    limit: 10,
+    seedProduct: product,
+    fitFor: skinType ?? undefined,
+  });
 
   const { addRecentlyViewed } = useRecentlyViewed();
   const { isLiked, toggleLike } = useLikedProducts();
   const { addToCart, inCart } = useCart();
   const [showAll, setShowAll] = useState(false);
+  // 궁합 카드의 이유를 눌렀을 때 강조할 성분(전성분 표기 순서). 칩 key의 id는 겹칠 수 있어 position으로 센다.
+  const [highlight, setHighlight] = useState<ReadonlySet<number>>(new Set());
+  const ingredientsRef = useRef<HTMLElement | null>(null);
+  const onReasonClick = useCallback((positions: number[]) => {
+    setHighlight(new Set(positions));
+    setShowAll(true); // 접힌 구간(21번째~)에 있는 성분도 보이게
+    requestAnimationFrame(() =>
+      ingredientsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    );
+  }, []);
+  // 잠깐 보여 주고 거둔다
+  useEffect(() => {
+    if (highlight.size === 0) return;
+    const t = setTimeout(() => setHighlight(new Set()), 6000);
+    return () => clearTimeout(t);
+  }, [highlight]);
   // 설명 시트에 띄울 성분. 시트의 useEffect가 onClose에 의존하므로 참조를 고정한다.
   const [selected, setSelected] = useState<ProductIngredient | null>(null);
   const closeSheet = useCallback(() => setSelected(null), []);
@@ -204,16 +241,7 @@ export default function ProductDetailPage() {
           <Icon name="arrow_back" size={24} />
         </button>
         <div className="flex-1" />
-        {asProduct && (
-          <button
-            type="button"
-            onClick={() => toggleLike(asProduct)}
-            aria-label={liked ? '찜 해제' : '찜하기'}
-            className={`active:scale-90 ${liked ? 'text-accent' : 'text-oy-text'}`}
-          >
-            <Icon name="favorite" size={24} />
-          </button>
-        )}
+        <HeaderActions showHome />
       </header>
 
       {loading && <DetailSkeleton />}
@@ -247,6 +275,11 @@ export default function ProductDetailPage() {
             <h1 className="mt-1.5 text-xl font-bold leading-snug">
               {product.name}
             </h1>
+            {product.options && product.options.length > 1 && (
+              <div className="mt-3">
+                <OptionPicker options={product.options} currentId={product.id} onPick={pickOption} />
+              </div>
+            )}
 
             {/* 할인율·정가는 크롤러가 수집하지 않아 표시하지 않는다 */}
             <p className="mt-3 text-2xl font-extrabold">
@@ -260,7 +293,7 @@ export default function ProductDetailPage() {
                   <Icon name="star" size={14} />
                 </span>
                 <span className="font-semibold">{product.rating.toFixed(1)}</span>
-                {product.reviewCount != null && (
+                {!!product.reviewCount && (
                   <span className="text-oy-sub">
                     리뷰 {product.reviewCount.toLocaleString()}
                   </span>
@@ -271,31 +304,74 @@ export default function ProductDetailPage() {
             <span className="mt-3 inline-block rounded-full bg-oy-chip px-2.5 py-1 text-xs text-oy-sub">
               {product.category}
             </span>
+
+            {similarTo && (
+              <button
+                type="button"
+                onClick={() => navigate(`/compare?a=${similarTo.seedId}&b=${productId}`, { state: { similarTo } })}
+                className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-primary-light px-3.5 py-2.5 text-left active:scale-[.99]"
+              >
+                <span className="min-w-0">
+                  {/* 긴 제품명은 한 줄에서 자르고, 설명은 짧게 */}
+                  <span className="block truncate text-sm font-bold text-primary">{similarTo.seedName}</span>
+                  <span className="block text-xs text-oy-text">
+                    내 화장대 제품과 성분 <b>{similarTo.score}%</b> 비슷해요
+                  </span>
+                  {similarTo.saving !== undefined && (
+                    <span className="mt-0.5 block text-xs font-bold text-accent">
+                      {similarTo.saving.toLocaleString()}원 더 저렴해요
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 text-xs font-bold text-primary">비교 ›</span>
+              </button>
+            )}
           </Section>
 
           <Divider />
 
+          {/* ── 내 피부와의 궁합 — 전성분보다 먼저 ───────── */}
+          <SkinFitCard productId={product.id} onReasonClick={onReasonClick} />
+          {/* 성분 분석 — 기능 강도·핵심/주의 성분·전성분 해부도·내 피부 상태와 견주기·내 화장대와 견주기 */}
+          <div className="-mt-2 px-4 pb-5">
+            {/* 스와피 로고의 연한 물결 색(#9DCDB8) + 진한 물결 색(#2B6B52) 글자 */}
+            <button
+              type="button"
+              onClick={() => navigate(`/analysis/${product.id}`)}
+              className="flex w-full items-center gap-3 rounded-2xl bg-[#9DCDB8] px-4 py-3.5 text-left shadow-sm active:scale-[.98]"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-extrabold text-[#2B6B52]">이 제품 성분 분석 보기</span>
+                <span className="block text-xs text-[#2B6B52]/80">기능별 강도 · 핵심·주의 성분 · 전성분 해부도</span>
+              </span>
+              <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-extrabold text-[#2B6B52]">분석 ›</span>
+            </button>
+          </div>
+          <Divider />
+
           {/* ── 전성분 (핵심 섹션) ───────────────────── */}
-          <Section>
+          <section ref={ingredientsRef} className="px-4 py-5 scroll-mt-14">
             <OySectionHeader title={`전성분 ${total}개`} />
             <p className="-mt-1 mb-3 text-xs text-oy-sub">
               화장품 전성분은 함량이 많은 순서로 표기됩니다.
               {hasLabels && ' 이 상품은 구성품별로 나뉘어 있어요.'}
             </p>
 
-            {(gradeCount.key > 0 || gradeCount.warn > 0) && (
+            {(gradeCount.key > 0 || gradeCount.warn > 0 || !skinType) && (
               <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                 {gradeCount.key > 0 && (
                   <span className="text-primary">추천 성분 {gradeCount.key}개</span>
                 )}
                 {gradeCount.warn > 0 && (
                   <span className="text-accent">
-                    기피 성분 {gradeCount.warn}개
+                    주의 성분 {gradeCount.warn}개
                     {gradeCount.allergen > 0 && ` (알레르기 유발 착향제 ${gradeCount.allergen}개)`}
                   </span>
                 )}
                 <span className="text-oy-sub">
-                  피부타입 규칙(skin_type_rules) 기준이에요
+                  {skinType
+                    ? `${skinTypeLabel ?? '내 피부타입'} 기준이에요`
+                    : '피부타입 진단을 하면 추천 성분도 알려드려요'}
                 </span>
               </div>
             )}
@@ -330,8 +406,8 @@ export default function ProductDetailPage() {
                             <button
                               type="button"
                               onClick={() => setSelected(ing)}
-                              className={`igr-chip ${chipClass(ing.grade)} active:scale-95`}
-                              title={chipTitle(ing)}
+                              className={`igr-chip ${chipClass(ing.grade, highlight.has(ing.position))} active:scale-95`}
+                              title={chipTitle(ing, skinTypeLabel)}
                             >
                               {ing.name}
                               {ing.isAllergen && <span className="ml-1">⚠</span>}
@@ -357,7 +433,7 @@ export default function ProductDetailPage() {
                 </span>
               </button>
             )}
-          </Section>
+          </section>
 
           <Divider />
 
@@ -411,11 +487,6 @@ export default function ProductDetailPage() {
               />
             ))}
           <Divider />
-          <ComingSoon
-            title="내 피부와의 궁합"
-            reason="피부타입 진단을 연결하면 이 제품이 내 피부에 맞는지 알려드려요."
-          />
-          <Divider />
           <ProductReviews productId={product.id} />
         </main>
       )}
@@ -426,6 +497,17 @@ export default function ProductDetailPage() {
           className="fixed bottom-0 left-1/2 z-30 flex w-full max-w-[430px] -translate-x-1/2 gap-2 border-t border-oy-line bg-white px-4 pt-3"
           style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}
         >
+          {asProduct && (
+            <button
+              type="button"
+              onClick={() => toggleLike(asProduct)}
+              aria-label={liked ? '찜 해제' : '찜하기'}
+              aria-pressed={liked}
+              className={`flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl border border-oy-line active:scale-[.98] ${liked ? 'text-accent' : 'text-oy-text'}`}
+            >
+              <Icon name="favorite" size={22} />
+            </button>
+          )}
           <button
             type="button"
             aria-label="선물하기"
@@ -472,7 +554,7 @@ export default function ProductDetailPage() {
         </div>
       )}
 
-      <IngredientSheet ingredient={selected} onClose={closeSheet} />
+      <IngredientSheet ingredient={selected} onClose={closeSheet} skinTypeLabel={skinTypeLabel} />
     </div>
   );
 }

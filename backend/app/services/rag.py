@@ -14,6 +14,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.services.option_scope import listable
 from app.models.product import Brand, Ingredient, Product, ProductIngredient
 from app.services.skin_type import SkinRule, apply_exclusions, load_rule
 
@@ -109,7 +110,7 @@ async def search_products(
         .where(Product.status == "active")
         # 기획세트·굿즈 동봉·증량판은 앱 다른 화면(products.py, recommendations_main.py)과
         # 동일하게 제외한다 — 여기 빠져있어서 챗봇만 세트/굿즈 상품을 추천하던 버그가 있었다.
-        .where(Product.composition == "single")
+        .where(Product.composition == "single", listable())
         .where(
             or_(
                 *[Product.name.ilike(p, escape="\\") for p in name_patterns],
@@ -137,7 +138,7 @@ async def _fallback_top_rated(
     stmt = (
         select(Product)
         .where(Product.status == "active")
-        .where(Product.composition == "single")
+        .where(Product.composition == "single", listable())
         .options(joinedload(Product.brand), joinedload(Product.category))
         .order_by(Product.rating.desc().nullslast(), Product.review_count.desc().nullslast())
         .limit(top_k)

@@ -157,6 +157,125 @@ async def get_weather_snapshot() -> WeatherSnapshot:
     return snap
 
 
+# ── 오늘 하루 예보 ───────────────────────────────────────────
+# 현재 날씨(`/weather`)의 min/max는 관측소의 지금 값이라 '오늘의 최저·최고'가 아니다. 케어 문구는
+# "지금"이 아니라 **오늘 하루에 일어날 일**(비·눈·강풍·일교차…)을 보고 써야 하므로 3시간 간격
+# 예보(`/forecast`, 무료)에서 오늘 구간을 모아 요약한다.
+
+OUTLOOK_KEY = "weather:outlook:v1"
+OUTLOOK_TTL = 1800  # 30분 — 하루 단위 요약이라 현재 날씨보다 느슨해도 된다
+_RAINY = {"Rain", "Drizzle", "Thunderstorm"}
+_POP_RAIN = 0.6            # 강수확률이 이 이상이면 비로 본다
+_GUST_MS = 12.0            # 돌풍 기준(초속)
+_RANGE_DEG = 10            # 일교차 기준
+_HOT, _COLD = 30, 0        # 더위·추위 기준(최고·최저)
+_DRY_HUMIDITY = 35         # 건조 기준(평균 습도)
+
+
+@dataclass
+class DayOutlook:
+    """오늘 하루 예보 요약. `events`는 케어 문구가 중심으로 삼을 특이 날씨(없으면 빈 목록)."""
+
+    temp_min: int
+    temp_max: int
+    pop_max: int                # 강수확률 최대(%)
+    humidity_avg: int | None
+    events: list[str]
+
+
+def _hour_label(h: int) -> str:
+    h %= 24
+    if h == 0:
+        return "자정"
+    return f"오전 {h}시" if h < 12 else f"오후 {h - 12 or 12}시"
+
+
+def _window(hours: list[int]) -> str:
+    """예보 칸(3시간)의 시작 시각들 → '오후 3시~오후 6시'."""
+    return f"{_hour_label(min(hours))}~{_hour_label(max(hours) + 3)}"
+
+
+def summarize_day(entries: list[dict], today) -> DayOutlook | None:
+    """3시간 예보 목록 → 오늘 하루 요약.
+
+    오늘 칸이 너무 적으면(늦은 밤에 부른 경우) 앞으로 24시간을 쓴다.
+    """
+    def local(e: dict) -> datetime:
+        return datetime.fromtimestamp(e["dt"], SEOUL_TZ)
+
+    day = [e for e in entries if local(e).date() == today]
+    if len(day) < 3:
+        day = entries[:8]
+    if not day:
+        return None
+
+    temps = [e["main"]["temp"] for e in day]
+    t_min, t_max = round(min(temps)), round(max(temps))
+    pop = max(float(e.get("pop", 0.0)) for e in day)
+    hums = [e["main"]["humidity"] for e in day if "humidity" in e["main"]]
+    hum = round(sum(hums) / len(hums)) if hums else None
+
+    def hours_of(pred) -> list[int]:
+        return [local(e).hour for e in day if pred(e)]
+
+    events: list[str] = []
+    snow = hours_of(lambda e: e["weather"][0]["main"] == "Snow")
+    rain = hours_of(lambda e: e["weather"][0]["main"] in _RAINY or float(e.get("pop", 0.0)) >= _POP_RAIN)
+    if snow:
+        events.append(f"눈({_window(snow)})")
+    if rain and not snow:
+        events.append(f"비({_window(rain)}, 강수확률 {round(pop * 100)}%)")
+    wind = hours_of(
+        lambda e: e.get("wind", {}).get("speed", 0.0) >= _WINDY_THRESHOLD_MS
+        or e.get("wind", {}).get("gust", 0.0) >= _GUST_MS
+    )
+    if wind:
+        events.append(f"강풍({_window(wind)})")
+    if t_max >= _HOT:
+        events.append(f"더위(최고 {t_max}도)")
+    if t_min <= _COLD:
+        events.append(f"추위(최저 {t_min}도)")
+    if t_max - t_min >= _RANGE_DEG:
+        events.append(f"일교차 {t_max - t_min}도(최저 {t_min}~최고 {t_max}도)")
+    if hum is not None and hum <= _DRY_HUMIDITY:
+        events.append(f"건조(습도 {hum}%)")
+
+    return DayOutlook(
+        temp_min=t_min, temp_max=t_max, pop_max=round(pop * 100), humidity_avg=hum, events=events,
+    )
+
+
+async def get_day_outlook() -> DayOutlook | None:
+    """오늘 하루 예보 요약(캐시). **실패하면 None** — 예보가 없어도 케어 문구는 현재 날씨로 만든다."""
+    cached = await cache_get(OUTLOOK_KEY)
+    if cached is not None:
+        try:
+            return DayOutlook(**json.loads(cached))
+        except (TypeError, ValueError):
+            pass
+    if not settings.OPENWEATHER_API_KEY:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                "https://api.openweathermap.org/data/2.5/forecast",
+                params={
+                    "lat": SEOUL_LAT, "lon": SEOUL_LON, "appid": settings.OPENWEATHER_API_KEY,
+                    "units": "metric", "lang": "kr", "cnt": 16,
+                },
+            )
+        if resp.status_code != 200:
+            log.warning("openweather_forecast_failed", status=resp.status_code, body=resp.text[:200])
+            return None
+        outlook = summarize_day(resp.json().get("list", []), datetime.now(SEOUL_TZ).date())
+    except (httpx.HTTPError, KeyError, ValueError) as exc:
+        log.warning("openweather_forecast_unreachable", error=str(exc)[:200])
+        return None
+    if outlook is not None:
+        await cache_set(OUTLOOK_KEY, json.dumps(asdict(outlook), ensure_ascii=False), OUTLOOK_TTL)
+    return outlook
+
+
 @router.get("", response_model=WeatherOut, summary="현재 날씨 (서울 고정)")
 async def get_weather(response: Response) -> WeatherOut | Response:
     cached = await cache_get(CACHE_KEY)

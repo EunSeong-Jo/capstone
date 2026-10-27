@@ -20,7 +20,7 @@
                    호수별 전성분을 이어 붙여 어느 호수의 성분인지 알 수 없다.
   성분 5개 미만    벡터가 짧아 흔한 성분 몇 개로 점수가 1.0 가까이 튄다.
 
-세 방식(tfidf·jaccard·rbo)을 모두 적재하는 이유는 similarities의 PK가
+두 방식(tfidf·hybrid)을 모두 적재하는 이유는 similarities의 PK가
 (product_id, similar_id, method)라 나란히 두고 비교할 수 있기 때문이다.
 어느 쪽이 나은지는 눈으로 보고 정한다 — 정답 데이터가 없다.
 """
@@ -29,7 +29,6 @@ from __future__ import annotations
 import argparse
 import sys
 import time
-from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -41,21 +40,20 @@ sys.path.insert(0, str(REPO / "backend"))
 
 from app.config import settings  # noqa: E402
 from app.services.similarity import (  # noqa: E402
+    DEFAULT_ALPHA,
+    DEFAULT_BETA,
+    DEFAULT_GAMMA,
+    apply_curated,
     METHODS,
     build_matrix,
     build_vocab,
     compute_idf,
     is_bundle,
-    jaccard,
     min_ingredients,
-    rbo,
     shared_top,
+    hybrid_topk,
     topk_cosine,
 )
-
-# rbo는 쌍마다 선형 시간이 든다. 전 쌍에 돌리면 감당이 안 되므로
-# tfidf 상위 후보만 재순위한다. 100이면 상위 20을 뽑기에 넉넉하다.
-RBO_CANDIDATES = 100
 
 # 중복 제품 후보로 볼 기준. 성분 구성이 이 정도로 같으면 같은 제품이거나
 # 용량만 다른 변형이다.
@@ -65,7 +63,7 @@ DUPLICATE_THRESHOLD = 0.999
 def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]], dict]:
     """(product_id 목록, 성분 목록, 메타) — position 오름차순.
 
-    성분 순서를 유지해야 rbo가 의미를 갖는다.
+    성분 순서(position)는 hybrid의 함량 가중에 쓰인다.
     """
     # 단일제품만 계산한다. 증정·굿즈·묶음은 전성분이 제품 하나에 대응한다고
     # 보장할 수 없다 — 특히 묶음은 여러 제품의 전성분이 한 셀에 뭉쳐 있어
@@ -79,12 +77,13 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
     cur.execute(
         f"""
         SELECT p.id, p.name, p.ingredient_count_raw,
-               array_agg(pi.ingredient_id ORDER BY pi.position) AS ings
+               array_agg(pi.ingredient_id ORDER BY pi.position) AS ings,
+               coalesce(p.option_parent_id, 0) AS family
           FROM products p
           JOIN product_ingredients pi ON pi.product_id = p.id
           LEFT JOIN categories c ON c.id = p.category_id
           {where}
-         GROUP BY p.id, p.name, p.ingredient_count_raw
+         GROUP BY p.id, p.name, p.ingredient_count_raw, p.option_parent_id
          ORDER BY p.id
         """,
         args,
@@ -97,7 +96,8 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
     dropped: list[int] = []
     skipped = {"composition": 0, "bundle": 0, "too_few": 0}
 
-    for pid, name, raw_count, ings in rows:
+    families: dict[int, int] = {}
+    for pid, name, raw_count, ings, family in rows:
         if not min_ingredients(len(ings)):
             skipped["too_few"] += 1
             dropped.append(pid)
@@ -109,6 +109,7 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
         ids.append(pid)
         docs.append(list(ings))
         names[pid] = name
+        families[pid] = family
 
     # composition으로 걸러진 건수는 위 SQL이 애초에 안 가져오므로 따로 센다.
     # 보고에서 '전체 N건 중 M건 제외'가 말이 되게 하려는 것뿐이다.
@@ -123,6 +124,7 @@ def load_products(cur, category: str | None) -> tuple[list[int], list[list[int]]
     return ids, docs, {
         "skipped": skipped,
         "names": names,
+        "families": families,
         "dropped": dropped,
         "total": len(rows) + skipped["composition"],
     }
@@ -153,48 +155,71 @@ def rows_tfidf(ids, docs, vocab, idf, matrix, ing_names, topk):
     return out, (idx, score)
 
 
-def rows_jaccard(ids, docs, vocab, idf, ing_names, topk):
-    """전 쌍을 도는 대신 성분 → 제품 역색인으로 후보를 좁힌다.
+CURATED_FILE = REPO / "data" / "seed" / "similarity_curated.csv"
+# 보정 뒤 위로 올라올 수 있게 넉넉히 뽑는다
+CURATED_POOL = 40
 
-    교집합이 0인 쌍은 애초에 점수가 0이라 볼 필요가 없다. 흔한 성분 때문에
-    후보가 크게 줄지는 않지만, 그래도 파이썬 루프를 절반 이하로 줄인다.
+
+def load_curated(cur) -> dict[tuple[int, int], int]:
+    """data/seed/similarity_curated.csv(goods_no 키)를 이 환경의 제품 id 쌍으로."""
+    if not CURATED_FILE.exists():
+        return {}
+    import csv
+
+    with CURATED_FILE.open(encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    goods = {r["seed_goods_no"] for r in rows} | {r["cand_goods_no"] for r in rows}
+    cur.execute("SELECT goods_no, id FROM products WHERE goods_no = ANY(%s)", (list(goods),))
+    gid = dict(cur.fetchall())
+    return {
+        (gid[r["seed_goods_no"]], gid[r["cand_goods_no"]]): int(r["grade"])
+        for r in rows
+        if r["seed_goods_no"] in gid and r["cand_goods_no"] in gid
+    }
+
+
+def load_labels(cur) -> dict[int, tuple]:
+    """ingredient_functions → {ingredient_id: (functions, role, flags, confidence)}."""
+    cur.execute(
+        """SELECT ingredient_id, array_to_string(functions, ''), role,
+                  array_to_string(flags, ''), confidence
+             FROM ingredient_functions"""
+    )
+    return {i: (f or "", r, fl or "", c) for i, f, r, fl, c in cur.fetchall()}
+
+
+def load_inorganic_uv(cur) -> set[int]:
+    """무기자차 성분 id(징크옥사이드·티타늄디옥사이드). 선케어 유형을 가르는 데 쓴다."""
+    cur.execute(
+        """SELECT id FROM ingredients
+            WHERE name_ko LIKE '징크옥사이드%%' OR name_ko LIKE '티타늄디옥사이드%%'
+               OR name_ko LIKE '티타늄다이옥사이드%%' OR name_ko LIKE '산화아연%%'"""
+    )
+    return {r[0] for r in cur.fetchall()}
+
+
+def rows_hybrid(
+    ids, docs, names, vocab, idf, ing_names, topk, labels, args, inorganic, curated=None, families=None
+):
+    """역할 가중 tfidf × α + 기능 프로필 × β + 제형 일치 × γ, 같은 제품의 변형은 접는다.
+
+    판정(curated)이 있는 쌍은 점수를 보정해 다시 정렬한다.
     """
-    sets = [set(d) for d in docs]
-    inverted: dict[int, list[int]] = defaultdict(list)
-    for i, s in enumerate(sets):
-        for ing in s:
-            inverted[ing].append(i)
-
+    pool = CURATED_POOL if curated else topk
+    idx, score = hybrid_topk(
+        docs, names, vocab, idf, labels, pool,
+        alpha=args.alpha, beta=args.beta, gamma=args.gamma, inorganic_uv=inorganic,
+        families=families,
+    )
+    if curated:
+        idx, score = apply_curated(idx, score, ids, curated, topk)
     out = []
     for i, pid in enumerate(ids):
-        candidates: set[int] = set()
-        for ing in sets[i]:
-            candidates.update(inverted[ing])
-        candidates.discard(i)
-
-        scored = [(jaccard(sets[i], sets[j]), j) for j in candidates]
-        scored = [x for x in scored if x[0] > 0]
-        scored.sort(key=lambda x: (-x[0], ids[x[1]]))
-        for s, j in scored[:topk]:
+        for j, s in zip(idx[i], score[i]):
+            if j < 0:
+                continue
             out.append((
-                pid, ids[j], "jaccard", float(s),
-                Json(shared_top(docs[i], docs[j], vocab, idf, ing_names)),
-            ))
-    return out
-
-
-def rows_rbo(ids, docs, vocab, idf, ing_names, topk, tfidf_pool):
-    """tfidf 상위 RBO_CANDIDATES건을 순서까지 보고 다시 세운다."""
-    idx, _ = tfidf_pool
-    out = []
-    for i, pid in enumerate(ids):
-        pool = [j for j in idx[i][:RBO_CANDIDATES] if j >= 0]
-        scored = [(rbo(docs[i], docs[j]), j) for j in pool]
-        scored = [x for x in scored if x[0] > 0]
-        scored.sort(key=lambda x: (-x[0], ids[x[1]]))
-        for s, j in scored[:topk]:
-            out.append((
-                pid, ids[j], "rbo", float(s),
+                pid, ids[j], "hybrid", float(s),
                 Json(shared_top(docs[i], docs[j], vocab, idf, ing_names)),
             ))
     return out
@@ -252,7 +277,9 @@ def report_duplicates(ids, names, rows) -> None:
         print(f"          [{sid}] {names.get(sid, '?')[:44]}")
 
 
-def run_category(cur, category: str, methods, args) -> dict[str, list]:
+def run_category(
+    cur, category: str, methods, args, labels=None, inorganic=frozenset(), curated=None
+) -> dict[str, list]:
     """카테고리 하나를 처리한다. 반환은 방식별 적재 행.
 
     IDF를 카테고리 안에서 계산한다. 선케어에서는 자외선차단제 성분이 흔해
@@ -277,25 +304,24 @@ def run_category(cur, category: str, methods, args) -> dict[str, list]:
     matrix = build_matrix(docs, vocab, idf)
     print(f"  성분 {len(vocab):,}종 · 비영요소 {matrix.nnz:,}")
 
-    # rbo 재순위에 쓰려고 넉넉히 뽑는다.
-    tfidf_rows, tfidf_pool = rows_tfidf(
-        ids, docs, vocab, idf, matrix, ing_names, max(args.topk, RBO_CANDIDATES)
-    )
-    trimmed: dict[int, list] = defaultdict(list)
-    for row in tfidf_rows:
-        if len(trimmed[row[0]]) < args.topk:
-            trimmed[row[0]].append(row)
-    tfidf_rows = [r for rows in trimmed.values() for r in rows]
+    tfidf_rows, _ = rows_tfidf(ids, docs, vocab, idf, matrix, ing_names, args.topk)
 
+    labels = labels or {}
     produced: dict[str, list] = {}
     for method in methods:
         t = time.perf_counter()
         if method == "tfidf":
             rows = tfidf_rows
-        elif method == "jaccard":
-            rows = rows_jaccard(ids, docs, vocab, idf, ing_names, args.topk)
+        elif method == "hybrid":
+            if not labels:
+                raise SystemExit("ingredient_functions가 비어 있습니다 — seed_ingredient_functions.py를 먼저 돌리세요.")
+            rows = rows_hybrid(
+                ids, docs, [meta["names"][i] for i in ids], vocab, idf, ing_names,
+                args.topk, labels, args, inorganic, curated,
+                families=[meta["families"][i] for i in ids],
+            )
         else:
-            rows = rows_rbo(ids, docs, vocab, idf, ing_names, args.topk, tfidf_pool)
+            raise SystemExit(f"알 수 없는 방식: {method}")
         produced[method] = rows
 
         scores = np.array([r[3] for r in rows]) if rows else np.array([0.0])
@@ -349,6 +375,10 @@ def main() -> None:
     ap.add_argument("--method", choices=(*METHODS, "all"), default="all")
     ap.add_argument("--category", help="카테고리 코드 하나만 처리 (기본: 전부)")
     ap.add_argument("--topk", type=int, default=20)
+    ap.add_argument("--alpha", type=float, default=DEFAULT_ALPHA, help="hybrid: 역할 가중 tfidf 비중")
+    ap.add_argument("--beta", type=float, default=DEFAULT_BETA, help="hybrid: 기능 프로필 비중")
+    ap.add_argument("--gamma", type=float, default=DEFAULT_GAMMA, help="hybrid: 제형 일치 비중")
+    ap.add_argument("--no-curated", action="store_true", help="hybrid: 판정 보정을 적용하지 않음")
     ap.add_argument("--dry-run", action="store_true", help="적재 없이 통계만")
     ap.add_argument("--duplicates", action="store_true", help="중복 후보 목록 출력")
     args = ap.parse_args()
@@ -367,10 +397,15 @@ def main() -> None:
 
     print(f"대상 {len(categories)}개 카테고리 · 방식 {'·'.join(methods)} · 상위 {args.topk}개")
 
+    labels = load_labels(cur) if "hybrid" in methods else {}
+    inorganic = load_inorganic_uv(cur) if labels else frozenset()
+    curated = load_curated(cur) if labels and not args.no_curated else {}
+    if curated:
+        print(f"판정 보정 {len(curated):,}쌍 적용")
     t0 = time.perf_counter()
     total = 0
     for category in categories:
-        produced = run_category(cur, category, methods, args)
+        produced = run_category(cur, category, methods, args, labels, inorganic, curated)
         total += sum(len(r) for r in produced.values())
 
     if args.dry_run:

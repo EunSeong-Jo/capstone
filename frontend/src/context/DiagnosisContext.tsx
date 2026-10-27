@@ -6,11 +6,14 @@ import {
   useState,
 } from 'react';
 import {
+  chooseSkinType as postChoice,
+  discardLatestDiagnosis,
   DiagnosisDto,
   fetchLatestDiagnosis,
   submitDiagnosis,
 } from '../api/diagnosis';
 import type { AxisScores } from '../data/personas';
+import type { SkinType } from '../types';
 import {
   DiagnosisContext,
   DiagnosisContextValue,
@@ -54,6 +57,9 @@ function toResult(dto: DiagnosisDto): DiagnosisResult {
       score: r.score,
     })),
     source: 'quiz',
+    photoUsed: dto.photoUsed,
+    photoOnly: dto.photoOnly,
+    answeredCount: dto.answeredCount,
     ts: new Date(dto.createdAt).getTime(),
   };
 }
@@ -157,31 +163,74 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
    * ('타입 미리 정하기')은 진단이 아니므로 diagnoses에 남기지 않는다.
    */
   const saveDiagnosis = useCallback(
-    (r: Omit<DiagnosisResult, 'ts'>) => {
+    (
+      r: Omit<DiagnosisResult, 'ts'>,
+      opts?: { analysisId?: string },
+    ): Promise<DiagnosisResult> => {
       const full: DiagnosisResult = { ...r, ts: Date.now() };
       setResult(full);
       writeJSON(keyOf(scope), full);
 
-      if (r.source !== 'quiz' || !r.answers) return;
+      if (r.source !== 'quiz' || !r.answers) return Promise.resolve(full);
 
       const answers: Record<string, number> = {};
       r.answers.forEach((choice, i) => {
         if (choice !== null) answers[`q${i + 1}`] = choice;
       });
-      if (Object.keys(answers).length === 0) return;
+      if (Object.keys(answers).length === 0) return Promise.resolve(full);
 
-      submitDiagnosis(answers)
+      return submitDiagnosis(answers, opts?.analysisId)
         .then((dto) => {
           const next = toResult(dto);
           writeJSON(keyOf(scope), next);
           setResult(next);
+          return next;
         })
         .catch(() => {
           // 서버 저장에 실패해도 화면은 로컬 결과로 계속 간다.
+          return full;
         });
     },
     [scope, setResult],
   );
+
+  const diagnoseWithPhoto = useCallback(
+    async (picked: (number | null)[], analysisId: string): Promise<DiagnosisResult> => {
+      const answers: Record<string, number> = {};
+      picked.forEach((choice, i) => {
+        if (choice !== null) answers[`q${i + 1}`] = choice;
+      });
+      const next = toResult(await submitDiagnosis(answers, analysisId));
+      writeJSON(keyOf(scope), next);
+      setResult(next);
+      return next;
+    },
+    [scope, setResult],
+  );
+
+  const chooseSkinType = useCallback(
+    async (picked: SkinType): Promise<DiagnosisResult> => {
+      const next = toResult(await postChoice(picked));
+      writeJSON(keyOf(scope), next);
+      setResult(next);
+      return next;
+    },
+    [scope, setResult],
+  );
+
+  const discardLatest = useCallback(async () => {
+    await discardLatestDiagnosis();
+    // 서버가 정본이다 — 되돌아간 이전 진단을 다시 읽는다(없으면 404 → 진단 전 상태)
+    const prev = await fetchLatestDiagnosis().catch(() => null);
+    if (prev) {
+      const next = toResult(prev);
+      writeJSON(keyOf(scope), next);
+      setResult(next);
+    } else {
+      setResult(null);
+      removeKey(keyOf(scope));
+    }
+  }, [scope, setResult]);
 
   const clearDiagnosis = useCallback(() => {
     setResult(null);
@@ -196,6 +245,9 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       // 비회원은 서버에 물을 것이 없다 — 로컬 값이 곧 답이다.
       loading: authLoading || (status === 'user' && settledScope !== scope),
       saveDiagnosis,
+      diagnoseWithPhoto,
+      chooseSkinType,
+      discardLatest,
       clearDiagnosis,
     }),
     [
@@ -205,6 +257,9 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       settledScope,
       scope,
       saveDiagnosis,
+      diagnoseWithPhoto,
+      chooseSkinType,
+      discardLatest,
       clearDiagnosis,
     ],
   );

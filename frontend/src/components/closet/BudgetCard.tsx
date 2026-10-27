@@ -101,7 +101,7 @@ export function BudgetCard() {
           aria-valuetext={shown ? won(shown.max) : '미설정'}
         />
       </div>
-      <div className="mt-1.5 flex justify-between text-[10px] text-gray-50">
+      <div className="mt-1.5 flex justify-between text-[11px] text-gray-50">
         <span>0원</span>
         <span>{won(BUDGET_LIMIT)}</span>
       </div>

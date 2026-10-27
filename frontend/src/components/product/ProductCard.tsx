@@ -4,6 +4,7 @@ import { useToast } from '../../context/toast';
 import { useLikedProducts } from '../../context/liked';
 import { formatUnitPrice } from '../../utils/unitPrice';
 import { HeartIcon } from '../ui/OutlineIcons';
+import { FitBadge } from './FitBadge';
 
 const CARD_BG = [
   'from-green-50 to-emerald-100',
@@ -48,6 +49,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           <span className="text-4xl opacity-40">🧴</span>
         )}
 
+        <FitBadge productId={product.id} className="absolute top-2 right-2 shadow-sm" />
+
         {/* 배지 */}
         {product.isBest && (
           <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-xs font-bold text-white bg-warning">
@@ -80,7 +83,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           <div className="flex items-center gap-1 mb-1.5">
             <span className="text-star text-xs">★</span>
             <span className="text-xs text-gray-70">{product.rating.toFixed(1)}</span>
-            {product.reviewCount && (
+            {!!product.reviewCount && (
               <span className="text-xs text-gray-50">({product.reviewCount.toLocaleString()})</span>
             )}
           </div>

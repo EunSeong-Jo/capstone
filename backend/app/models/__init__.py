@@ -1,4 +1,4 @@
-"""모델 27개 (Phase 1 제품·사용자·진단 18 + Phase 2 개인 데이터 9).
+"""모델 30개 (Phase 1 제품·사용자·진단 18 + Phase 2 개인 데이터 9 + 사진 분석 3).
 
 Alembic이 Base.metadata로 스키마를 자동 생성하므로, 새 모델을 만들면
 반드시 여기서 import해야 마이그레이션에 잡힌다.
@@ -28,12 +28,14 @@ from app.models.product import (
     Ingredient,
     IngredientAlias,
     IngredientDescription,
+    IngredientFunction,
     IngredientTag,
     Product,
     ProductIngredient,
     Tag,
 )
-from app.models.recommendation import Similarity, SkinTypeRule
+from app.models.recommendation import ProductSkinFit, Similarity, SkinTypeRule
+from app.models.skin_photo import SkinAnalysis, SkinAnalysisImage, Subscription, UserConsent
 from app.models.user import Profile, RefreshToken, User
 
 __all__ = [
@@ -45,6 +47,7 @@ __all__ = [
     "Ingredient",
     "IngredientAlias",
     "IngredientDescription",
+    "IngredientFunction",
     "ProductIngredient",
     "Tag",
     "IngredientTag",
@@ -60,6 +63,7 @@ __all__ = [
     "DiagnosisRank",
     # 추천
     "Similarity",
+    "ProductSkinFit",
     "SkinTypeRule",
     # 개인 데이터 (Phase 2)
     "ClosetItem",
@@ -71,4 +75,9 @@ __all__ = [
     "Review",
     "PointTransaction",
     "ScanResult",
+    # 얼굴 사진 AI 분석
+    "UserConsent",
+    "Subscription",
+    "SkinAnalysis",
+    "SkinAnalysisImage",
 ]

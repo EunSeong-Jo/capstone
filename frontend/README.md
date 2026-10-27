@@ -266,6 +266,58 @@ frontend/
 
 ---
 
+## 9-1. 안드로이드 디버그 APK (Capacitor)
+
+웹앱을 Capacitor로 감싸 안드로이드 앱으로 실행합니다. **서명 키 없이 만드는 디버그 APK**까지가 범위입니다(릴리스 서명·스토어 등록은 별도).
+앱 화면은 `https://localhost`에서 열리고 API는 서버 주소로 부르므로, 빌드할 때 `VITE_API_BASE_URL`에 서버 주소를 넣습니다.
+
+### 처음 한 번: 도구 설치 (WSL/Linux, root 불필요)
+```bash
+# JDK 21 (Temurin) → ~/tools/jdk-21
+mkdir -p ~/tools && cd ~/tools
+curl -L -o jdk21.tar.gz "https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse"
+tar -xzf jdk21.tar.gz && mv jdk-21* jdk-21 && rm jdk21.tar.gz
+
+# Android SDK 명령줄 도구 → ~/Android/Sdk  (zip 압축 해제는 unzip이 없으면 python -m zipfile -e 로)
+#   https://developer.android.com/studio#command-line-tools-only 에서 commandlinetools-linux-*.zip 을 받아
+#   ~/Android/Sdk/cmdline-tools/latest/ 로 풉니다.
+source scripts/android-env.sh
+yes | sdkmanager --sdk_root="$ANDROID_HOME" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+```
+폰 연결은 **Windows의 `adb.exe`를 WSL에서 부릅니다**(Android Studio가 깔려 있으면 `platform-tools`에 있고, usbipd 설정이 필요 없습니다).
+다른 경로면 `ADB=/path/to/adb.exe`로 지정하세요. 폰에서는 개발자 옵션 → USB 디버깅을 켜고 연결을 허용합니다.
+
+### 빌드·설치
+```bash
+cd frontend
+npm run android:devices                     # 폰이 'device'로 보이는지
+npm run android:local                       # ① 내 PC 로컬 서버(:8000)로 빌드·설치·실행
+bash scripts/android.sh debug https://서버주소   # ② 운영 서버(HTTPS)로 APK만 빌드
+npm run android:install                     # ②로 만든 APK를 폰에 설치·실행
+```
+APK는 `android/app/build/outputs/apk/debug/app-debug.apk`에 생깁니다(저장소에 올리지 않음). 첫 Gradle 빌드는 의존성을 받느라 10~20분 걸립니다.
+
+- **①(`android:local`)**: `adb reverse tcp:8000 tcp:8000`으로 폰의 `localhost:8000`을 PC 서버에 이어 줍니다. 앱 화면이 HTTPS라 HTTP 호출은 혼합 콘텐츠로 막히므로,
+  이때만 `CAP_LOCAL=1`(`capacitor.config.ts`의 `allowMixedContent`)과 디버그 전용 `android/app/src/debug/AndroidManifest.xml`(평문 통신 허용)이 쓰입니다.
+  **운영 서버로 빌드하는 ②에는 적용되지 않습니다.** 백엔드(`docker compose up`)가 떠 있어야 합니다.
+- **웹 빌드의 base는 `/`**입니다(`CAPACITOR_BUILD`를 쓰지 않음). 웹뷰가 `https://localhost/`를 루트로 서빙하고 `faceCheck.ts`가 `/mediapipe/...` 절대 경로를 씁니다.
+- **안드로이드 15+ 엣지-투-엣지**: 화면이 시스템 바 아래까지 그려지므로 Capacitor `SystemBars`가 주입하는 `--safe-area-inset-*`를 `index.css`의 `--safe-top/--safe-bottom`이 우선 읽습니다.
+- **하드웨어 뒤로가기**는 `components/layout/AndroidBackButton.tsx`가 처리합니다(최상위 탭이면 종료, 아니면 이전 화면). 웹·iOS에서는 동작하지 않습니다.
+- 서명 키(`*.jks`·`*.keystore`)와 `local.properties`는 `.gitignore`에 있어 올라가지 않습니다. 디버그 APK는 자동 생성된 임시 키로 서명되므로 배포용이 아닙니다.
+
+### 로그인 화면의 데모 계정 패널 (비밀 명령)
+시연용 '데모 계정으로 바로 로그인' 패널은 팀원 이름과 공용 비밀번호가 보여서, 배포용 빌드에서는 숨깁니다.
+- **기본값**은 빌드 변수 `VITE_DEMO_PANEL`: `off`면 숨김, 비우면 표시(개발·웹). 배포용 빌드는 `VITE_DEMO_PANEL=off`로 만듭니다.
+- **비밀 명령**: 로그인 화면의 `Swappy` 로고를 **7번 연달아**(탭 사이 1.2초 이내) 누르면 패널이 켜지고/꺼지며 토스트로 알려 줍니다. 선택은 기기에 저장돼 다음 실행에도 유지됩니다(`hooks/useDemoPanel.ts`).
+
+### 문제 해결
+| 증상 | 원인 / 해결 |
+|---|---|
+| `adb devices`에 안 보임 / `unauthorized` | 케이블·USB 디버깅 확인, 폰에서 RSA 지문 허용. `adb.exe kill-server` 후 다시 |
+| 앱에서 모든 API가 실패 | 서버 주소가 `https`인지, 로컬이면 `npm run android:local`로 빌드했는지(`adb reverse` 포함) |
+| 헤더·하단 탭이 시스템 바에 가려짐 | `--safe-area-inset-*`가 주입되지 않는 경우 — `capacitor.config.ts`의 `SystemBars.insetsHandling`이 `css`인지 확인 |
+| Gradle 메모리 부족 | `android/gradle.properties`의 `org.gradle.jvmargs` 조정 |
+
 ## 10. 팀원 화면 제출 규칙 ⭐ (2026-07 병합 작업에서 정리)
 
 `category_yb`, `history_misong`, `dg_mypage`, 그리고 최근본/좋아요/자주구매 4건 — 총 6건의 병합

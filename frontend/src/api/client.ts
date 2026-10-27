@@ -7,8 +7,11 @@
  * 상대 경로를 쓰는 이유: vite.config.ts가 `/api`를 백엔드로 프록시합니다.
  * 개발 환경에서 base URL을 따로 설정할 필요가 없습니다.
  *
- * ⚠️ Capacitor 네이티브 빌드에서는 프록시가 없어 절대 URL이 필요합니다.
- *    그때 API_BASE만 환경변수로 빼면 됩니다.
+ * Capacitor 앱 빌드에서는 프록시가 없어 절대 URL이 필요합니다. 그때만
+ * `VITE_API_BASE_URL`(서버 주소)을 넣고 빌드합니다. 웹·도커 빌드는 비워 두므로
+ * 지금처럼 상대 경로입니다. fetch를 직접 쓰거나 서버가 내려준 `/api/...` 경로를
+ * `<img src>`·`href`에 쓸 때는 `apiUrl()`을 거치세요 — 앱에서는 상대 경로가
+ * 서버가 아니라 앱 안(`https://localhost`)을 가리킵니다.
  *
  * 인증(Task 12)
  * -------------
@@ -24,7 +27,12 @@ import {
   setTokens,
 } from './tokenStore';
 
-const API_BASE = '';
+export const API_BASE: string = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+
+/** 서버가 가리키는 경로를 요청·`src`에 쓸 주소로. 이미 절대 URL이면 그대로 둔다. */
+export function apiUrl(path: string): string {
+  return path.startsWith('/') ? `${API_BASE}${path}` : path;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -123,7 +131,10 @@ async function toResult<T>(res: Response): Promise<T> {
  * `send`를 콜백으로 받는 이유: 재시도할 때 헤더를 **새 토큰으로 다시
  * 만들어야** 하기 때문입니다. Request 객체를 재사용하면 옛 토큰이 남습니다.
  */
-async function withAuthRetry<T>(send: () => Promise<Response>): Promise<T> {
+async function withAuthRetry<T>(
+  send: () => Promise<Response>,
+  parse: (res: Response) => Promise<T> = toResult<T>,
+): Promise<T> {
   let res: Response;
   try {
     res = await send();
@@ -145,7 +156,19 @@ async function withAuthRetry<T>(send: () => Promise<Response>): Promise<T> {
     }
   }
 
-  return toResult<T>(res);
+  return parse(res);
+}
+
+/** 이미지 같은 바이너리 응답. `<img src>`는 Authorization 헤더를 못 붙이므로 blob으로 받아 쓴다. */
+export async function requestBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+  const url = `${API_BASE}${path}`;
+  return withAuthRetry<Blob>(
+    () => fetch(url, { signal, headers: authHeaders({ Accept: 'image/*' }) }),
+    async (res) => {
+      if (!res.ok) throw new ApiError(res.status, `이미지를 불러오지 못했어요. (${res.status})`);
+      return res.blob();
+    },
+  );
 }
 
 export async function request<T>(
@@ -199,6 +222,25 @@ export async function patchJson<T>(
   return withAuthRetry<T>(() =>
     fetch(url, {
       method: 'PATCH',
+      signal,
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: payload,
+    }),
+  );
+}
+
+/** PUT + JSON body. 동의처럼 "이 값으로 맞춘다"는 의미의 갱신에 씁니다. */
+export async function putJson<T>(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  const url = `${API_BASE}${path}`;
+  const payload = JSON.stringify(body);
+
+  return withAuthRetry<T>(() =>
+    fetch(url, {
+      method: 'PUT',
       signal,
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: payload,

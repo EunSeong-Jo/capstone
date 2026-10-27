@@ -8,6 +8,7 @@ import { useToast } from '../../context/toast';
 import { useCloset } from '../../context/closet';
 import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 import { ProductMatch, scanProductImage } from '../../api/products';
+import { CameraVideo } from '../../components/common/CameraVideo';
 import { ApiError } from '../../api/client';
 import { captureVideoFrame, fileToScanImage } from '../../utils/scanImage';
 
@@ -25,7 +26,7 @@ import { captureVideoFrame, fileToScanImage } from '../../utils/scanImage';
  * (scripts/IMAGE_MATCH_SUMMARY.md ③). 그래서 후보를 보여 주고 "찾는 제품이 없어요"를
  * 함께 둔다. 앞면 사진은 텍스트 1위가 6/6이라 첫 후보가 대개 맞다.
  *
- * 인식 키가 없거나(503) 후보가 없으면 **제품명 검색**으로 이어진다. 카메라를 쓸 수
+ * 인식 키가 없거나(503), 하루 호출 한도를 넘었거나(429), 후보가 없으면 **제품명 검색**으로 이어진다. 카메라를 쓸 수
  * 없으면 그 사실을 화면에 적고, 셔터는 사진 고르기로 대신한다.
  *
  * 로그인 전용이다(`/scan`·`/scan/history` 모두 RequireAuth). OCR은 호출 수로 무료 한도·
@@ -43,6 +44,8 @@ export default function ScanPage() {
   const { showToast } = useToast();
   const [phase, setPhase] = useState<'idle' | 'scanning' | 'candidates' | 'search' | 'result'>('idle');
   const [candidates, setCandidates] = useState<ProductMatch[]>([]);
+  // 변형이 있는 후보에서 드롭다운으로 고른 제품 (대표 id → 고른 제품 id)
+  const [variantPick, setVariantPick] = useState<Record<number, number>>({});
   // 읽고 있는 사진. 찍은 것이든 갤러리에서 고른 것이든 카메라 화면 자리에 멈춰
   // 보여 준다 — 무엇을 읽는지 보이고, 후보를 고를 때 사진과 견줘 볼 수 있다.
   // 읽는 중·후보 단계에서만 보이고, 다른 단계로 가면 다시 카메라가 나온다.
@@ -51,6 +54,8 @@ export default function ScanPage() {
   const [shot, setShot] = useState<{ image: string; id: number; from: 'camera' | 'gallery' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // 검색창을 눌렀을 때만 최근 스캔을 보여 준다(평소에는 카메라 화면을 가리지 않게 숨긴다)
+  const [searchFocused, setSearchFocused] = useState(false);
   const [result, setResult] = useState<Product | null>(null);
   const [query, setQuery] = useState('');
   // 목록으로 길게 보여 준다. 끝까지 내려 보며 고를 수 있게 넉넉히 받는다.
@@ -70,6 +75,7 @@ export default function ScanPage() {
   const goSearch = (message: string) => {
     showNotice(message);
     setCandidates([]);
+    setVariantPick({});
     setPhase('search');
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   };
@@ -96,6 +102,11 @@ export default function ScanPage() {
       }
       if (err instanceof ApiError && err.status === 503) {
         goSearch('지금은 사진으로 찾을 수 없어요. 제품명으로 찾아 주세요');
+        return;
+      }
+      if (err instanceof ApiError && err.status === 429) {
+        // 하루 호출 한도(OCR 무료 한도 보호). 다시 찍어도 소용없으니 검색으로 보낸다.
+        goSearch('오늘 사진으로 찾기 횟수를 모두 썼어요. 제품명으로 찾아 주세요');
         return;
       }
       showNotice('사진을 읽지 못했어요. 제품 앞면이 잘 보이게 다시 찍어 주세요');
@@ -178,6 +189,7 @@ export default function ScanPage() {
   const reset = () => {
     setResult(null);
     setCandidates([]);
+    setVariantPick({});
     setQuery('');
     setPhase('idle');
   };
@@ -191,14 +203,7 @@ export default function ScanPage() {
           이라는 인상만 만들었다. */}
       <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-[#1b1b20] to-[#0d0d10]" />
       {phase === 'idle' && cameraReady && (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          aria-hidden
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+        <CameraVideo videoRef={videoRef} className="absolute inset-0 h-full w-full object-cover" />
       )}
       {showShot && (
         <>
@@ -350,7 +355,7 @@ export default function ScanPage() {
         </div>
       )}
 
-      {/* 제품 찾기 + 최근 스캔 바텀시트 */}
+      {/* 제품 찾기 바텀시트 — 검색창을 누르면 최근 스캔이 펼쳐진다 */}
       <div className="relative z-10 rounded-t-3xl bg-white px-5 pt-3.5" style={{ paddingBottom: 'calc(var(--safe-bottom) + 26px)' }}>
         <div className="mx-auto mb-2.5 h-1 w-9 rounded-full bg-gray-20" />
 
@@ -366,6 +371,13 @@ export default function ScanPage() {
             onChange={(e) => {
               setQuery(e.target.value);
               setPhase(e.target.value ? 'search' : 'idle');
+            }}
+            onFocus={() => setSearchFocused(true)}
+            // 최근 스캔을 누르는 순간 blur가 먼저 와서 목록이 사라지면 클릭이 빗나간다 — 잠깐 늦춰 닫는다
+            onBlur={() => {
+              window.setTimeout(() => setSearchFocused(false), 150);
+              // 입력이 비었는데 '제품명으로 찾는 중' 상태에 남으면 카메라가 꺼진 채 갇힌다 — 카메라로 돌아간다
+              if (!query.trim()) setPhase((p) => (p === 'search' ? 'idle' : p));
             }}
             placeholder="제품명으로 찾기 (2자 이상)"
             className="min-w-0 flex-1 bg-transparent text-sm text-gray-100 outline-none placeholder:text-gray-50"
@@ -407,8 +419,8 @@ export default function ScanPage() {
                           )}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-xs font-bold text-gray-100">{p.name}</span>
-                          <span className="mt-0.5 block text-[10px] text-gray-50">
+                          <span className="line-clamp-2 text-xs font-bold leading-snug text-gray-100">{p.name}</span>
+                          <span className="mt-0.5 block text-[11px] text-gray-50">
                             {p.brand} · {p.price.toLocaleString()}원
                           </span>
                         </span>
@@ -431,6 +443,8 @@ export default function ScanPage() {
           </div>
         )}
 
+        {searchFocused && query.trim().length < 2 && (
+          <>
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-extrabold text-gray-100">최근 스캔</h3>
           <button onClick={() => navigate('/scan/history')} className="text-[11px] font-semibold text-gray-50 active:opacity-60">
@@ -456,13 +470,15 @@ export default function ScanPage() {
                 )}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-bold text-gray-100">{item.name}</span>
-                <span className="mt-0.5 block text-[10px] text-gray-50">
+                <span className="line-clamp-2 text-xs font-bold leading-snug text-gray-100">{item.name}</span>
+                <span className="mt-0.5 block text-[11px] text-gray-50">
                   {item.brand}
                 </span>
               </span>
             </button>
           ))
+        )}
+          </>
         )}
       </div>
 
@@ -480,24 +496,44 @@ export default function ScanPage() {
             <h3 className="text-[15px] font-extrabold text-gray-100">이 제품인가요?</h3>
             <p className="mt-0.5 text-[11px] text-gray-50">사진에서 읽은 글자로 찾은 제품이에요. 맞는 제품을 골라 주세요</p>
             <ul className="mt-3 divide-y divide-gray-5">
-              {candidates.map(({ product: p }) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    onClick={() => pick(p)}
-                    className="flex w-full items-center gap-3 py-2.5 text-left active:opacity-70"
-                  >
-                    <span className="h-12 w-12 shrink-0 overflow-hidden rounded-[10px] bg-gray-10">
-                      {p.imageUrl && <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[10px] font-bold text-gray-50">{p.brand}</span>
-                      <span className="line-clamp-2 text-[13px] font-semibold leading-snug text-gray-100">{p.name}</span>
-                    </span>
-                    <span className="shrink-0 text-[12px] font-extrabold text-gray-100">{p.price.toLocaleString()}원</span>
-                  </button>
-                </li>
-              ))}
+              {candidates.map(({ product: rep, variants }) => {
+                // 같은 제품의 용량·기획 변형은 한 줄로 접혀 있고, 아래 드롭다운으로 고른다
+                const p = variants?.find((v) => v.product.id === variantPick[rep.id])?.product ?? rep;
+                return (
+                  <li key={rep.id}>
+                    <button
+                      type="button"
+                      onClick={() => pick(p)}
+                      className="flex w-full items-center gap-3 py-2.5 text-left active:opacity-70"
+                    >
+                      <span className="h-12 w-12 shrink-0 overflow-hidden rounded-[10px] bg-gray-10">
+                        {p.imageUrl && <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[11px] font-bold text-gray-50">{p.brand}</span>
+                        <span className="line-clamp-2 text-[13px] font-semibold leading-snug text-gray-100">{p.name}</span>
+                      </span>
+                      <span className="shrink-0 text-[12px] font-extrabold text-gray-100">{p.price.toLocaleString()}원</span>
+                    </button>
+                    {variants && variants.length > 1 && (
+                      <label className="mb-2.5 ml-[60px] flex items-center gap-2 text-[11px] text-gray-50">
+                        용량·구성
+                        <select
+                          value={p.id}
+                          onChange={(e) => setVariantPick((prev) => ({ ...prev, [rep.id]: Number(e.target.value) }))}
+                          className="min-w-0 flex-1 truncate rounded-lg border border-gray-20 bg-white px-2 py-1 text-[11px] font-semibold text-gray-100"
+                        >
+                          {variants.map((v) => (
+                            <option key={v.product.id} value={v.product.id}>
+                              {v.label} · {v.product.price.toLocaleString()}원
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
             <div className="mt-4 flex gap-2">
               <button
@@ -526,7 +562,7 @@ export default function ScanPage() {
           >
             <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-gray-20" />
             <p className="text-[11px] font-bold text-primary">스캔 기록에 저장했어요</p>
-            <p className="mt-1 text-[10px] font-bold text-gray-50">{result.brand}</p>
+            <p className="mt-1 text-[11px] font-bold text-gray-50">{result.brand}</p>
             <h3 className="text-[15px] font-extrabold text-gray-100">{result.name}</h3>
 
             <div className="mt-3 flex items-center gap-3">

@@ -20,7 +20,13 @@ from sqlalchemy import delete, select
 from app.db.session import AsyncSessionLocal
 from app.models.diagnosis import Diagnosis, QuizOption, QuizQuestion, QuizVersion
 from app.models.user import User
-from app.services.diagnosis import PROFILES, rank_types, score_answers
+from app.services.diagnosis import (
+    PROFILES,
+    blend_partial,
+    rank_types,
+    score_answers,
+    touched_axes,
+)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -158,6 +164,65 @@ async def test_latest_returns_most_recent(
     assert latest.json()["id"] == second.json()["id"]
 
 
+async def test_choose_second_rank_makes_it_first_and_updates_profile(
+    client: AsyncClient, codes: list[str], account
+) -> None:
+    sub = await client.post(QUIZ, json={"answers": {c: 0 for c in codes}}, **account)
+    ranks = sub.json()["ranks"]
+    second = ranks[1]["skinType"]
+
+    res = await client.patch(f"{QUIZ}/latest", json={"skinType": second}, **account)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["skinType"] == second
+    assert body["ranks"][0]["skinType"] == second and body["ranks"][1]["skinType"] == ranks[0]["skinType"]
+    assert body["ranks"][0]["score"] == ranks[1]["score"]        # 타입과 점수는 함께 움직인다
+
+    latest = (await client.get(f"{QUIZ}/latest", **account)).json()
+    assert latest["skinType"] == second
+    profile = (await client.get("/api/v1/me/profile", **account)).json()
+    assert profile["skinType"] == second
+
+
+async def test_choose_first_rank_is_noop_and_other_types_rejected(
+    client: AsyncClient, codes: list[str], account
+) -> None:
+    sub = await client.post(QUIZ, json={"answers": {c: 0 for c in codes}}, **account)
+    ranks = sub.json()["ranks"]
+    ok = await client.patch(f"{QUIZ}/latest", json={"skinType": ranks[0]["skinType"]}, **account)
+    assert ok.status_code == 200 and ok.json()["ranks"] == ranks
+
+    third = await client.patch(f"{QUIZ}/latest", json={"skinType": ranks[2]["skinType"]}, **account)
+    assert third.status_code == 422
+    assert (await client.patch(f"{QUIZ}/latest", json={"skinType": "nope"}, **account)).status_code == 422
+
+
+async def test_choose_requires_login_and_history(client: AsyncClient, account) -> None:
+    assert (await client.patch(f"{QUIZ}/latest", json={"skinType": "ondalsam"})).status_code == 401
+    assert (await client.patch(f"{QUIZ}/latest", json={"skinType": "ondalsam"}, **account)).status_code == 404
+
+
+async def test_discard_restores_previous_type(client: AsyncClient, codes: list[str], account) -> None:
+    first = (await client.post(QUIZ, json={"answers": {c: 0 for c in codes}}, **account)).json()
+    await client.post(QUIZ, json={"answers": {c: 3 for c in codes}}, **account)
+
+    assert (await client.delete(f"{QUIZ}/latest", **account)).status_code == 204
+    latest = (await client.get(f"{QUIZ}/latest", **account)).json()
+    assert latest["id"] == first["id"]
+    profile = (await client.get("/api/v1/me/profile", **account)).json()
+    assert profile["skinType"] == first["skinType"]
+
+
+async def test_discard_first_diagnosis_clears_type(client: AsyncClient, codes: list[str], account) -> None:
+    await client.post(QUIZ, json={"answers": {c: 0 for c in codes}}, **account)
+    assert (await client.delete(f"{QUIZ}/latest", **account)).status_code == 204
+    assert (await client.get(f"{QUIZ}/latest", **account)).status_code == 404
+    profile = (await client.get("/api/v1/me/profile", **account)).json()
+    assert profile["skinType"] is None
+    assert (await client.delete(f"{QUIZ}/latest", **account)).status_code == 404
+    assert (await client.delete(f"{QUIZ}/latest")).status_code == 401
+
+
 async def test_latest_404_without_history(client: AsyncClient, account) -> None:
     fresh_email = f"pytest-{uuid.uuid4().hex[:12]}@example.com"
     signup = await client.post(
@@ -213,3 +278,19 @@ async def test_scores_are_clamped() -> None:
     scores = score_answers({"q1": 0, "q2": 0}, weights)
     assert scores["oil"] == 10
     assert scores["moisture"] == 0
+
+
+async def test_partial_blend_keeps_photo_values_on_untouched_axes() -> None:
+    weights = {("q1", 0): {"oil": -2, "moisture": -3}, ("q2", 3): {"sensitivity": -2}}
+    qna = score_answers({"q1": 0}, weights)             # 수분 2·유분 3, 나머지 5
+    photo = {"moisture": 6, "oil": 3, "sensitivity": 1, "pigmentation": 1, "trouble": 3}
+
+    touched = touched_axes({"q1": 0, "q9": 1}, weights)  # 모르는 문항은 무시
+    assert touched == {"oil", "moisture"}
+
+    out = blend_partial(qna, photo, touched, 0.5)
+    assert out["moisture"] == round(0.5 * 2 + 0.5 * 6)
+    assert out["oil"] == 3
+    # 건드리지 않은 축은 QnA 기본값 5가 아니라 사진 값이다.
+    assert (out["sensitivity"], out["pigmentation"], out["trouble"]) == (1, 1, 3)
+    assert blend_partial(qna, photo, set(), 0.5) == photo

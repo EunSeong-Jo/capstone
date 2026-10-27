@@ -106,6 +106,11 @@ class Diagnosis(Base):
     )
     answers: Mapped[dict] = mapped_column(JSONB, nullable=False)      # 응답 원본
     scores: Mapped[dict] = mapped_column(JSONB, nullable=False)      # 산출 5축
+    # 얼굴 사진 분석을 섞어 낸 진단이면 그 분석. NULL이면 QnA 100%다.
+    # 섞인 뒤의 점수는 위 scores에 있고, answers로 QnA만의 점수도 재산정할 수 있다.
+    analysis_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("skin_analyses.id", ondelete="SET NULL")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )

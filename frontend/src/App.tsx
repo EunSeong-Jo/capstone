@@ -1,7 +1,9 @@
 import { lazy, ReactElement, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { RequireAuth } from './components/auth/RequireAuth';
 import { MascotPreloader } from './components/character/MascotPreloader';
+import { ScrollToTop } from './components/layout/ScrollToTop';
+import { AndroidBackButton } from './components/layout/AndroidBackButton';
 
 const SplashPage     = lazy(() => import('./pages/Splash'));
 const OnboardingPage = lazy(() => import('./pages/Onboarding'));
@@ -11,11 +13,19 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword'));
 const HomePage       = lazy(() => import('./pages/Home'));
 const CheaperAlternativesPage = lazy(() => import('./pages/Home/CheaperAlternativesPage'));
 const ClosetPage     = lazy(() => import('./pages/Closet'));
+const AnalysisPage   = lazy(() => import('./pages/Analysis/AnalysisPage'));
+
+/** 예전 주소(/closet/:id/analysis)로 들어와도 성분 분석으로 보낸다 */
+function AnalysisRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/analysis/${id}`} replace />;
+}
 const ScanHistoryPage = lazy(() => import('./pages/Scan/ScanHistoryPage'));
 const CancelReturnPage = lazy(() => import('./pages/Mypage/CancelReturnPage'));
 const DecoratePage   = lazy(() => import('./pages/Closet/DecoratePage'));
 const DetailPage     = lazy(() => import('./pages/ProductDetail'));
 const AlternativesPage = lazy(() => import('./pages/Alternatives'));
+const ComparePage = lazy(() => import('./pages/Compare'));
 const CartPage       = lazy(() => import('./pages/Cart'));
 const SearchPage     = lazy(() => import('./pages/Search'));
 const ScanPage       = lazy(() => import('./pages/Scan'));
@@ -31,6 +41,8 @@ const NoticesPage      = lazy(() => import('./pages/Mypage/NoticesPage'));
 const OrderDetailPage  = lazy(() => import('./pages/Mypage/OrderDetailPage'));
 const OrderTrackingPage = lazy(() => import('./pages/Mypage/OrderTrackingPage'));
 const PointsPage      = lazy(() => import('./pages/Mypage/PointsPage'));
+const SubscriptionPage = lazy(() => import('./pages/Mypage/SubscriptionPage'));
+const FaceConsentPage = lazy(() => import('./pages/Mypage/FaceConsentPage'));
 const ReviewPage      = lazy(() => import('./pages/Mypage/ReviewPage'));
 const CustomerServicePage = lazy(() => import('./pages/Mypage/CustomerServicePage'));
 const ChatSupportPage = lazy(() => import('./pages/Mypage/ChatSupportPage'));
@@ -56,6 +68,8 @@ const mine = (el: ReactElement) => <RequireAuth>{el}</RequireAuth>;
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
+      <AndroidBackButton />
       {/* 내 캐릭터 이미지를 미리 디코딩해 둔다 — 탭 이동 때 캐릭터가 늦게 뜨지 않게 */}
       <MascotPreloader />
       <Suspense fallback={<LoadingScreen />}>
@@ -74,9 +88,13 @@ export default function App() {
           <Route path="/home"       element={<HomePage />} />
           <Route path="/home/cheaper-alternatives" element={<CheaperAlternativesPage />} />
           <Route path="/closet"     element={<ClosetPage />} />
+          {/* 성분 분석은 화장대에 국한되지 않는다 — 어느 제품의 상세에서든 들어온다 */}
+          <Route path="/analysis/:id" element={<AnalysisPage />} />
+          <Route path="/closet/:id/analysis" element={<AnalysisRedirect />} />
           <Route path="/closet/decorate" element={mine(<DecoratePage />)} />
           <Route path="/detail/:id" element={<DetailPage />} />
           <Route path="/alternatives" element={<AlternativesPage />} />
+          <Route path="/compare" element={<ComparePage />} />
           <Route path="/cart"       element={<CartPage />} />
           <Route path="/search"     element={<SearchPage />} />
           <Route path="/scan"       element={mine(<ScanPage />)} />
@@ -94,6 +112,7 @@ export default function App() {
           <Route path="/notifications"        element={mine(<NotificationsPage />)} />
           <Route path="/mypage/gifts"         element={mine(<SentGiftsPage />)} />
           <Route path="/mypage/points"        element={mine(<PointsPage />)} />
+          <Route path="/mypage/subscription"  element={mine(<SubscriptionPage />)} />
           <Route path="/mypage/reviews"       element={mine(<ReviewPage />)} />
           <Route path="/mypage/customer-service" element={<CustomerServicePage />} />
           <Route path="/mypage/chat-support"  element={<ChatSupportPage />} />
@@ -103,6 +122,7 @@ export default function App() {
           <Route path="/mypage/settings/email"    element={mine(<EmailChangePage />)} />
           <Route path="/mypage/settings/password" element={mine(<PasswordChangePage />)} />
           <Route path="/mypage/settings/withdraw" element={mine(<WithdrawPage />)} />
+          <Route path="/mypage/settings/face-consent" element={mine(<FaceConsentPage />)} />
           <Route path="/mypage/settings/notices"  element={<NoticesPage />} />
           <Route path="/mypage/settings/terms"    element={<LegalPage doc="terms" />} />
           <Route path="/mypage/settings/privacy"  element={<LegalPage doc="privacy" />} />

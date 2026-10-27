@@ -81,7 +81,17 @@ async def test_sort_by_price(client: AsyncClient, sort: str, reverse: bool) -> N
 
 
 async def test_sort_popular_is_review_desc(client: AsyncClient) -> None:
-    counts = [i["reviewCount"] for i in await _items(client, sort="popular", size=50)]
+    # 인기순의 입력은 올리브영 리뷰 수(products.review_count)다. 응답의 reviewCount는 화면용
+    # 등록 후기 수(registered_review_count)라 달라서, DB의 원본 값으로 순서를 본다.
+    from sqlalchemy import select
+
+    from app.db.session import AsyncSessionLocal
+    from app.models.product import Product
+
+    ids = [i["id"] for i in await _items(client, sort="popular", size=50)]
+    async with AsyncSessionLocal() as db:
+        by_id = dict((await db.execute(select(Product.id, Product.review_count).where(Product.id.in_(ids)))).all())
+    counts = [by_id[i] for i in ids]
     assert all(c is not None for c in counts), "결측이 앞으로 오면 안 된다"
     assert counts == sorted(counts, reverse=True)
 
@@ -154,7 +164,23 @@ async def test_total_is_stable_across_pages(client: AsyncClient) -> None:
 async def test_search_matches_name(client: AsyncClient) -> None:
     items = await _items(client, SEARCH, q="토너", size=20)
     assert items
-    assert all("토너" in i["name"] for i in items)
+    # 옵션형 묶음은 옵션 이름('… - 토너')에 걸려도 그룹명으로 나온다. 그 경우만 이름에 검색어가 없을 수 있다.
+    plain = [i for i in items if "토너" not in i["name"]]
+    if plain:
+        from sqlalchemy import text
+
+        from app.db.session import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as db:
+            grouped = {
+                r[0]
+                for r in await db.execute(
+                    text("""select p.id from products p where p.id = any(:ids) and exists (
+                              select 1 from products s where s.option_parent_id = p.option_parent_id and s.name like '%토너%')"""),
+                    {"ids": [i["id"] for i in plain]},
+                )
+            }
+        assert {i["id"] for i in plain} <= grouped
 
 
 async def test_search_requires_two_chars(client: AsyncClient) -> None:
@@ -313,13 +339,28 @@ class TestUnitPrice:
 
 
 async def test_product_reviews_empty_by_default(client: AsyncClient) -> None:
-    """후기는 산 제품에만 쓸 수 있어서, 대부분의 제품은 비어 있다.
+    """후기가 없는 제품은 빈 목록과 null 평균을 낸다.
 
-    `products.review_count`(크롤링으로 받아 온 올리브영 리뷰 수)와 다른
-    값이다 — 저쪽은 내용을 갖고 있지 않다.
+    후기는 산 제품에만 쓸 수 있어서 대부분의 제품은 비어 있다. `products.review_count`
+    (크롤링으로 받아 온 올리브영 리뷰 수)와 다른 값이다 — 저쪽은 내용을 갖고 있지 않다.
+
+    공용 DB에는 QA·데모 후기가 쌓일 수 있으므로, 첫 제품이 비어 있다고 가정하지 않고
+    **후기가 하나도 없는 제품을 DB에서 골라** 확인한다.
     """
-    listing = await client.get("/api/v1/products", params={"size": 1})
-    product_id = listing.json()["items"][0]["id"]
+    from sqlalchemy import select
+
+    from app.db.session import AsyncSessionLocal
+    from app.models.personal import Review
+    from app.models.product import Product
+
+    async with AsyncSessionLocal() as db:
+        product_id = await db.scalar(
+            select(Product.id)
+            .where(~select(Review.id).where(Review.product_id == Product.id).exists())
+            .order_by(Product.id)
+            .limit(1)
+        )
+    assert product_id is not None, "후기가 없는 제품이 하나도 없다"
 
     res = await client.get(f"/api/v1/products/{product_id}/reviews")
     assert res.status_code == 200

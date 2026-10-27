@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
   // 않습니다(getaddrinfo ENOTFOUND backend). 로컬에서 백엔드를 직접 띄웠다면
   // frontend/.env.local에 한 줄 적으세요:
   //   VITE_API_BASE_URL=http://localhost:8000
-  const apiTarget = env.VITE_API_BASE_URL || 'http://backend:8000'
+  const apiTarget = env.API_PROXY_TARGET || env.VITE_API_BASE_URL || 'http://backend:8000'
 
   return {
     plugins: [react()],

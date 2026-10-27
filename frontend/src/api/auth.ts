@@ -4,7 +4,7 @@
  * 토큰 보관은 `tokenStore.ts`가 맡고, 헤더 주입과 401 재시도는 `client.ts`가
  * 합니다. 이 파일은 요청 모양만 정의합니다.
  */
-import { patchJson, postJson, request } from './client';
+import { apiUrl, patchJson, postJson, request } from './client';
 import { SkinType } from '../types';
 
 export interface AuthUser {
@@ -39,8 +39,10 @@ export function signup(
   email: string,
   password: string,
   nickname?: string,
+  /** (선택) 얼굴 사진 수집·이용 동의. 서버가 가입과 같은 트랜잭션으로 기록한다 */
+  faceConsent = false,
 ): Promise<TokenBundle> {
-  return postJson<TokenBundle>('/api/v1/auth/signup', { email, password, nickname });
+  return postJson<TokenBundle>('/api/v1/auth/signup', { email, password, nickname, faceConsent });
 }
 
 export function login(email: string, password: string): Promise<TokenBundle> {
@@ -53,11 +55,22 @@ export function refreshTokens(refreshToken: string): Promise<TokenBundle> {
 
 export function logout(refreshToken: string): Promise<void> {
   // 204라 본문이 없습니다. postJson은 JSON을 기대하므로 여기서만 fetch를 씁니다.
-  return fetch('/api/v1/auth/logout', {
+  return fetch(apiUrl('/api/v1/auth/logout'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
   }).then(() => undefined);
+}
+
+/** 회원 탈퇴. 서버가 계정과 딸린 데이터를 즉시 지웁니다(204, 본문 없음). */
+export async function deleteAccount(): Promise<void> {
+  const { getAccessToken } = await import('./tokenStore');
+  const token = getAccessToken();
+  const res = await fetch(apiUrl('/api/v1/me'), {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`탈퇴에 실패했어요 (${res.status})`);
 }
 
 export function fetchMe(): Promise<AuthUser> {

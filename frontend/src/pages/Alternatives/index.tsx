@@ -1,26 +1,27 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { Header } from '../../components/layout/Header';
 import { AlternativeCard } from '../../components/alternatives/AlternativeCard';
-import { ProductCard } from '../../components/product/ProductCard';
 import { toSimilarMethod } from '../../api/similar';
 import { useCloset } from '../../context/closet';
 import { ClosetSeedPicker } from '../../components/alternatives/ClosetSeedPicker';
+import { SeedSwitcher } from '../../components/alternatives/SeedSwitcher';
 import { useProduct } from '../../hooks/useProduct';
-import { useProducts } from '../../hooks/useProducts';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
+import { useSkinType } from '../../hooks/useSkinType';
 import type { Product } from '../../types';
 
 type SortKey = 'similarity' | 'price' | 'skin';
 
-const SORTS: { key: SortKey; label: string; disabled?: boolean }[] = [
+/** 대체품 후보 수. 유사도·가격·피부 궁합순은 이 후보를 정렬만 바꿔 보여 준다. */
+const ALTERNATIVES_LIMIT = 10;
+
+const SORTS: { key: SortKey; label: string }[] = [
   { key: 'similarity', label: '유사도순' },
   { key: 'price', label: '가격 낮은순' },
-  // 피부 궁합은 서버가 skinMatch를 주지 않아 판단 근거가 없다. 칩을 지우지 않고
-  // 비활성으로 두는 이유는, Task 13·14에서 profiles·skin_type_rules가 채워지면
-  // 이 한 줄만 지우면 아래 정렬 분기가 그대로 살아나기 때문이다.
-  { key: 'skin', label: '내 피부 궁합', disabled: true },
+  // 피부 궁합은 진단 결과(피부타입)가 있을 때만 의미가 있다 — 없으면 칩이 보이지 않는다.
+  { key: 'skin', label: '내 피부 궁합' },
 ];
 
 /** 결과 목록 자리를 채우는 로딩 자리표시자. 카드 높이에 맞춘다. */
@@ -76,51 +77,9 @@ function Notice({
   );
 }
 
-/**
- * 성분 유사도를 낼 수 없는 기준제품의 대비책.
- *
- * 챗봇으로 직접 등록한 화장품처럼 카탈로그에 없는 제품이 여기 온다. 성분을
- * 모르니 대체품도 계산할 수 없지만, 빈 화면을 내미는 것보다는 같은 분류의
- * 실제 제품을 보여주는 편이 낫다. **유사도 뱃지가 달린 카드를 쓰지 않는
- * 이유가 여기 있다** — 점수가 없는데 카드가 점수 자리를 가지면 지어내게 된다.
- *
- * 폴백이 필요할 때만 마운트되도록 컴포넌트로 뺐다. 페이지 본문에서 훅을
- * 부르면 대체품이 정상인 경우에도 제품 목록을 한 번 더 받아온다.
- */
-function CategoryFallback({ category }: { category: string }) {
-  const { products, loading } = useProducts({ category, size: 6 });
-
-  if (loading) return <ListSkeleton />;
-  if (products.length === 0) {
-    return (
-      <Notice
-        emoji="🔬"
-        title="아직 보여드릴 제품이 없어요"
-        description="성분 분석이 끝나면 대체품을 추천해 드릴게요."
-      />
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <p className="text-sm font-bold text-gray-100">같은 분류의 인기 제품</p>
-        <p className="text-xs text-gray-70 mt-0.5">
-          등록하신 제품은 성분 정보가 없어 유사도를 계산하지 못했어요
-        </p>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {products.map((p, i) => (
-          <ProductCard key={p.id} product={p} index={i} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /** 대체품 결과 화면 — 검색/상품상세/내 화장대 3진입점 수렴 (/alternatives?seed=:id) */
 export default function AlternativesPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
 
   // seed가 없으면 없는 대로 다룬다. 예전에는 조용히 1로 떨어뜨렸는데, 실제
@@ -130,7 +89,7 @@ export default function AlternativesPage() {
   const hasSeedParam = rawSeed !== null;
 
   // 방식 비교는 개발용이라 UI로 내지 않는다. 방식마다 점수 척도가 달라
-  // ("유사도 61%"가 tfidf와 rbo에서 다른 의미다) 칩으로 노출하면 오해를 부른다.
+  // ("유사도 61%"가 tfidf와 hybrid에서 다른 의미다) 칩으로 노출하면 오해를 부른다.
   // URL로만 바꿀 수 있게 두면 UI 비용 없이 시연·QA에서 비교할 수 있다.
   const method = toSimilarMethod(params.get('method'));
 
@@ -138,9 +97,11 @@ export default function AlternativesPage() {
   const closetMatch = closetItems.find((c) => c.id === seedId);
 
   const seedProduct = useProduct(seedId);
+  const { skinType } = useSkinType();
   const similar = useSimilarProducts(seedId, {
-    limit: 20,
+    limit: ALTERNATIVES_LIMIT,
     method,
+    fitFor: skinType ?? undefined,
     seedProduct: seedProduct.product,
   });
 
@@ -159,18 +120,53 @@ export default function AlternativesPage() {
         }
       : undefined);
 
-  const [sort, setSort] = useState<SortKey>('similarity');
+  // 정렬은 주소(?sort=)에 둔다 — 제품 상세에 들어갔다가 뒤로 와도 유지된다(state면 컴포넌트가 다시 만들어지며 유사도순으로 돌아간다).
+  const rawSort = params.get('sort');
+  const sort: SortKey = rawSort === 'price' || rawSort === 'skin' ? rawSort : 'similarity';
+  const setSort = (key: SortKey) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (key === 'similarity') next.delete('sort');
+        else next.set('sort', key);
+        return next;
+      },
+      { replace: true },
+    );
+
+  // 옵션형 묶음의 원본이 기준으로 들어오면 첫 옵션으로 바꾼다(원본의 전성분은 모든 옵션의 합집합이라 비교할 수 없다)
+  const firstOptionId = seedProduct.product?.composition === 'optgroup' ? seedProduct.product.options?.[0]?.id : undefined;
+  useEffect(() => {
+    if (firstOptionId === undefined) return;
+    const from = params.get('from');
+    navigate(`/alternatives?seed=${firstOptionId}${from ? `&from=${from}` : ''}`, { replace: true });
+  }, [firstOptionId, navigate, params]);
+
+  // 기준 제품을 화면 안에서 바꿀 수 있는 후보: 기준 제품과 같은 카테고리의 내 화장대 제품(2개 이상일 때만).
+  // 화장대에 없는 제품(상세·검색에서 온 경우)이 기준이면 바꿀 대상이 없다.
+  const switchOptions = closetMatch ? closetItems.filter((c) => c.category === closetMatch.category) : [];
+  const canSwitch = !!seed && switchOptions.length >= 2;
+  const pickSeed = (id: number) => {
+    // replace: 바꿀 때마다 히스토리가 쌓이지 않아 뒤로가기는 한 번에 이전 화면으로 간다
+    const from = params.get('from');
+    navigate(`/alternatives?seed=${id}${from ? `&from=${from}` : ''}`, { replace: true });
+  };
 
   const list = useMemo(() => {
     const arr = [...similar.alternatives];
     // 서버가 이미 점수 내림차순으로 주지만, 정렬을 오가도 복원되게 명시한다.
     if (sort === 'similarity') arr.sort((a, b) => b.similarityScore - a.similarityScore);
-    // 20개 후보 안에서의 최저가다. 카탈로그 전체의 최저가가 아니다.
+    // 후보(ALTERNATIVES_LIMIT개) 안에서의 최저가다. 카탈로그 전체의 최저가가 아니다.
     if (sort === 'price') arr.sort((a, b) => a.price - b.price);
     if (sort === 'skin') {
-      const ok = (v?: { verdict: string }) => (v?.verdict === 'good' ? 1 : 0);
+      // 카드에 적힌 궁합 점수 내림차순. 점수가 같으면 유사도순. 판정이 없으면(점수 없음) 점수 있는 것 뒤, 주의 앞.
+      // 주의(caution)는 점수가 높아도 맨 뒤다 — 자극 성분 때문에 붙는 판정이라 점수만으로는 안전하지 않다.
+      const tier = (v?: { verdict: string }) => (v?.verdict === 'caution' ? 0 : v?.verdict ? 2 : 1);
       arr.sort(
-        (a, b) => ok(b.skinMatch) - ok(a.skinMatch) || b.similarityScore - a.similarityScore,
+        (a, b) =>
+          tier(b.skinMatch) - tier(a.skinMatch) ||
+          (b.skinMatch?.score ?? -1) - (a.skinMatch?.score ?? -1) ||
+          b.similarityScore - a.similarityScore,
       );
     }
     return arr;
@@ -186,8 +182,8 @@ export default function AlternativesPage() {
     );
   }
 
-  // 카탈로그에 없고 화장대에도 없으면 정말 모르는 제품이다.
-  if (seedProduct.notFound && !closetMatch) {
+  // 카탈로그에 없는 제품이다(챗봇 등록도 카탈로그에서 찾아 담으므로 화장대에만 있는 제품은 없다).
+  if (seedProduct.notFound) {
     return (
       <PageWrapper>
         <Header showBack title="대체품 추천" />
@@ -202,8 +198,40 @@ export default function AlternativesPage() {
     );
   }
 
-  // 화장대에만 있는 제품(챗봇 직접 등록 등)은 성분을 모른다 → 분류로 대신한다.
-  const useFallback = seedProduct.notFound && !!closetMatch;
+  // 기준 제품 한 줄(썸네일·이름·가격). 바꿀 수 있으면 SeedSwitcher가 이 줄을 버튼으로 감싼다.
+  const seedRow = (
+    <div className="flex items-center gap-3">
+      {seed ? (
+        <>
+          <div className="w-14 h-14 rounded-lg overflow-hidden bg-white flex items-center justify-center shrink-0">
+            {seed.imageUrl ? (
+              <img src={seed.imageUrl} alt={seed.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-2xl opacity-40">🧴</span>
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-70">{seed.brand}</p>
+            <p className="text-sm font-bold leading-snug text-gray-100 line-clamp-2">{seed.name}</p>
+            {seed.price > 0 && (
+              <p className="text-sm font-bold text-gray-100 mt-0.5">
+                {seed.price.toLocaleString()}원
+              </p>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="w-14 h-14 shrink-0 rounded-lg bg-white/70 animate-pulse" />
+          <div className="flex-1 min-w-0 animate-pulse">
+            <div className="h-3 w-1/4 rounded bg-white/70" />
+            <div className="mt-2 h-3 w-2/3 rounded bg-white/70" />
+            <div className="mt-2 h-3 w-1/3 rounded bg-white/70" />
+          </div>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <PageWrapper>
@@ -212,76 +240,42 @@ export default function AlternativesPage() {
       {/* 기준제품 헤더 */}
       <div className="px-4 pt-3">
         <p className="text-xs text-gray-70 mb-2">
-          {useFallback
-            ? '등록하신 화장품과 같은 분류의 제품이에요'
-            : '이 제품을 대신할 만한 추천이에요'}
+          {closetMatch ? '내 화장대의 이 제품을 대신할 만한 추천이에요' : '이 제품을 대신할 만한 추천이에요'}
         </p>
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-primary-light/60 border border-primary/15">
-          {seed ? (
-            <>
-              <div className="w-14 h-14 rounded-lg overflow-hidden bg-white flex items-center justify-center shrink-0">
-                {seed.imageUrl ? (
-                  <img src={seed.imageUrl} alt={seed.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-2xl opacity-40">🧴</span>
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-gray-70">{seed.brand}</p>
-                <p className="text-sm font-bold text-gray-100 truncate">{seed.name}</p>
-                {seed.price > 0 && (
-                  <p className="text-sm font-bold text-gray-100 mt-0.5">
-                    {seed.price.toLocaleString()}원
-                  </p>
-                )}
-              </div>
-            </>
+        <div className="p-3 rounded-xl bg-primary-light/60 border border-primary/15">
+          {seed && canSwitch ? (
+            <SeedSwitcher seedId={seed.id} options={switchOptions} onPick={pickSeed}>
+              {seedRow}
+            </SeedSwitcher>
           ) : (
-            <>
-              <div className="w-14 h-14 shrink-0 rounded-lg bg-white/70 animate-pulse" />
-              <div className="flex-1 min-w-0 animate-pulse">
-                <div className="h-3 w-1/4 rounded bg-white/70" />
-                <div className="mt-2 h-3 w-2/3 rounded bg-white/70" />
-                <div className="mt-2 h-3 w-1/3 rounded bg-white/70" />
-              </div>
-            </>
+            seedRow
           )}
         </div>
       </div>
 
-      {/* 정렬 칩 — 폴백은 유사도가 없어 정렬이 의미 없다 */}
-      {!useFallback && (
-        <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
-          {SORTS.map((s) => {
-            const on = s.key === sort;
-            return (
-              <button
-                key={s.key}
-                onClick={() => !s.disabled && setSort(s.key)}
-                disabled={s.disabled}
-                aria-disabled={s.disabled}
-                title={s.disabled ? '준비 중이에요' : undefined}
-                className={`shrink-0 px-3 h-8 rounded-full text-sm font-medium border transition-colors ${
-                  s.disabled
-                    ? 'bg-gray-5 text-gray-40 border-gray-20 cursor-not-allowed'
-                    : on
-                      ? 'bg-gray-100 text-white border-gray-100'
-                      : 'bg-white text-gray-70 border-gray-20'
-                }`}
-              >
-                {s.label}
-                {s.disabled && <span className="ml-1 text-[10px]">준비 중</span>}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {/* 정렬 칩 */}
+      <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
+        {SORTS.filter((s) => s.key !== 'skin' || skinType).map((s) => {
+          const on = s.key === sort;
+          return (
+            <button
+              key={s.key}
+              onClick={() => setSort(s.key)}
+              className={`shrink-0 px-3 h-8 rounded-full text-sm font-medium border transition-colors ${
+                on
+                  ? 'bg-gray-100 text-white border-gray-100'
+                  : 'bg-white text-gray-70 border-gray-20'
+              }`}
+            >
+              {s.label}
+            </button>
+          );
+        })}
+      </div>
 
       {/* 결과 리스트 */}
-      <div className={`px-4 pb-8 ${useFallback ? 'pt-3' : ''}`}>
-        {useFallback && closetMatch ? (
-          <CategoryFallback category={closetMatch.category} />
-        ) : similar.loading ? (
+      <div className="px-4 pb-8">
+        {similar.loading ? (
           <ListSkeleton />
         ) : similar.error ? (
           <Notice

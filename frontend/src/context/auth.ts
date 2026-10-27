@@ -51,6 +51,8 @@ export interface AuthContextValue {
     email: string,
     password: string,
     nickname: string,
+    /** (선택) 얼굴 사진 수집·이용 동의 */
+    faceConsent?: boolean,
   ) => Promise<LoginResult>;
   loginAs: (personaId: string) => Promise<LoginResult>;
   /** 계정 정보를 서버에서 다시 받는다 (닉네임·이메일을 고친 뒤) */

@@ -24,7 +24,7 @@ export interface Q {
   options: { title: string; desc: string }[];
 }
 
-export const QUESTION_HINT = '자신의 피부 상태에 가장 가까운 것을 선택해 주세요.';
+export const QUESTION_HINT = '선택한 보기를 다시 누르면 해제돼요.';
 
 export const QUESTIONS: Q[] = [
   {

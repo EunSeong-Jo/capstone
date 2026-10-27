@@ -18,6 +18,8 @@ interface UseSimilarProductsOptions {
   limit?: number;
   /** 서버가 기피 성분 제품을 걸러냅니다. 지금은 어느 화면도 넘기지 않습니다. */
   skinType?: SkinType;
+  /** 이 피부타입 기준의 궁합 판정을 카드에 붙입니다(걸러내지는 않습니다). */
+  fitFor?: SkinType;
   /**
    * 절약액 계산용 기준제품. 별도 요청(useProduct)으로 오므로 목록보다
    * 늦게 도착하고, 없는 동안에는 가격 파생이 생략됩니다.
@@ -70,7 +72,7 @@ export function useSimilarProducts(
   seedId: number | undefined,
   options: UseSimilarProductsOptions = {},
 ): UseSimilarProductsResult {
-  const { method, limit, skinType, seedProduct = null } = options;
+  const { method, limit, skinType, fitFor, seedProduct = null } = options;
 
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [nonce, setNonce] = useState(0);
@@ -78,7 +80,7 @@ export function useSimilarProducts(
   // 요청에 영향을 주는 값만 키에 넣습니다. seedProduct는 병행 요청의 결과라
   // 목록보다 늦게 도착하는데, 이게 의존성에 섞이면 기준제품이 로드되는
   // 순간 /similar가 한 번 더 나갑니다. 파생은 아래 useMemo가 따로 합니다.
-  const queryKey = JSON.stringify({ method, limit, skinType });
+  const queryKey = JSON.stringify({ method, limit, skinType, fitFor });
 
   const key = `${seedId}:${queryKey}#${nonce}`;
   // 잘못된 id로 들어오는 경로가 실제로 있습니다(seed 없는 진입, 목업 링크).
@@ -136,9 +138,9 @@ export function useSimilarProducts(
 
   // 기준제품이 늦게 도착해도 재요청 없이 절약액만 다시 계산됩니다.
   const { alternatives, variants } = useMemo(() => {
-    const mapped = items.map((item) => toAlternative(item, seedProduct));
+    const mapped = items.map((item) => toAlternative(item, seedProduct, fitFor));
     return splitSameProductVariants(seedProduct, mapped);
-  }, [items, seedProduct]);
+  }, [items, seedProduct, fitFor]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 

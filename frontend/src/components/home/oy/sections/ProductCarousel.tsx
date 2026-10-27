@@ -8,7 +8,6 @@ import { HScroll } from '../HScroll';
 interface ProductCarouselProps {
   title: ReactNode;
   products: Product[];
-  ad?: boolean;
   onMore?: () => void;
   chips?: string[];
   /** 카드 좌상단 순위 뱃지 표시 */
@@ -16,10 +15,10 @@ interface ProductCarouselProps {
 }
 
 /** 가로 상품 캐러셀 섹션 (3·10·13·22 공용) */
-export function ProductCarousel({ title, products, ad, onMore, chips, ranked }: ProductCarouselProps) {
+export function ProductCarousel({ title, products, onMore, chips, ranked }: ProductCarouselProps) {
   return (
     <section className="px-4 py-5">
-      <OySectionHeader title={title} ad={ad} onMore={onMore} />
+      <OySectionHeader title={title} onMore={onMore} />
       {chips && <ChipFilter chips={chips} className="mb-4 -mx-4 px-4" />}
       <HScroll>
         {products.map((p, i) => (

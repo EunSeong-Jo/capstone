@@ -4,19 +4,17 @@ import {
   ReviewSort,
   fetchProductReviews,
 } from '../../api/products';
+import { apiUrl } from '../../api/client';
 import { useSkinType } from '../../hooks/useSkinType';
 import { SKIN_TYPE_META, SkinType } from '../../types';
 
 /**
  * 제품 상세의 후기 섹션.
  *
- * 후기는 **산 제품에만** 쓸 수 있다(`reviews.order_item_id`). 그래서 지금은
- * 대부분의 제품이 빈 목록이고, 그게 정상이다 — 없는 후기를 지어내는 대신
- * 아직 없다고 적는다.
- *
- * 카드 위에 적힌 별점·리뷰 수(`products.reviewCount`)는 크롤링으로 받아 온
- * 올리브영 값이라 이 목록과 다르다. 두 숫자가 섞여 보이지 않도록 여기서는
- * 이 앱에서 쓴 후기만 세어 보여준다.
+ * 실제 후기는 **산 제품에만** 쓸 수 있다(`reviews.order_item_id`). 시연용으로 제품마다
+ * 10개 안팎이 미리 채워져 있고(`reviews.is_sample`, scripts/seed_sample_reviews.py) 화면에서는
+ * 구분하지 않는다. 카드의 "리뷰 N"은 이 목록의 총수(`products.registered_review_count`)다 —
+ * 올리브영에서 받아 온 `products.review_count`는 인기순 정렬에만 쓴다.
  */
 const fmtDate = (iso: string) =>
   new Date(iso)
@@ -205,8 +203,8 @@ export function ProductReviews({ productId }: { productId: number }) {
                 {r.photoUrls?.length > 0 && (
                   <div className="mt-2 flex gap-1.5">
                     {r.photoUrls.map((url) => (
-                      <a key={url} href={url} target="_blank" rel="noreferrer">
-                        <img src={url} alt="후기 사진" className="h-20 w-20 rounded-lg object-cover" />
+                      <a key={url} href={apiUrl(url)} target="_blank" rel="noreferrer">
+                        <img src={apiUrl(url)} alt="후기 사진" className="h-20 w-20 rounded-lg object-cover" />
                       </a>
                     ))}
                   </div>

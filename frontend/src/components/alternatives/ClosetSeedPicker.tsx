@@ -64,8 +64,8 @@ export function ClosetSeedPicker() {
               {item.imageUrl && <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[10px] font-bold text-gray-50">{item.brand}</span>
-              <span className="block truncate text-[13px] font-semibold text-gray-100">
+              <span className="block text-[11px] font-bold text-gray-50">{item.brand}</span>
+              <span className="line-clamp-2 text-[13px] font-semibold leading-snug text-gray-100">
                 {item.name}
               </span>
               {item.price != null && item.price > 0 && (

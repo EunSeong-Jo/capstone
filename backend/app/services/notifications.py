@@ -22,7 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.diagnosis import Diagnosis
@@ -101,23 +101,23 @@ async def build_feed(db: AsyncSession, user: User) -> list[Notification]:
 
     # 아직 후기를 안 쓴 주문 항목. 개수만 알리고 목록으로 보낸다 —
     # 항목마다 알림을 내면 한 번 주문에 알림이 여러 개 쌓인다.
-    unreviewed = list(
+    # 개수와 가장 최근 주문 시각만 필요하므로 행을 내려받지 않고 DB에서 센다(예전에는 전부 읽어 왔다).
+    todo_count, todo_at = (
         await db.execute(
-            select(OrderItem.id, Order.placed_at)
+            select(func.count(OrderItem.id), func.max(Order.placed_at))
             .join(Order, Order.id == OrderItem.order_id)
             .outerjoin(Review, Review.order_item_id == OrderItem.id)
             .where(Order.user_id == user.id, Review.id.is_(None))
-            .order_by(Order.placed_at.desc())
         )
-    )
-    if unreviewed:
+    ).one()
+    if todo_count:
         items.append(
             Notification(
-                id=f"review-todo:{len(unreviewed)}",
+                id=f"review-todo:{todo_count}",
                 kind="review",
                 title="후기를 기다리는 제품이 있어요",
-                body=f"{len(unreviewed)}건 · 주문내역에서 바로 쓸 수 있어요",
-                at=unreviewed[0][1],
+                body=f"{todo_count}건 · 주문내역에서 바로 쓸 수 있어요",
+                at=todo_at,
                 link="/mypage/order-history",
             )
         )

@@ -131,7 +131,7 @@ export function ReviewWriteSheet({
                 disabled={saving}
                 onClick={() => setPhotos((prev) => prev.filter((_, j) => j !== i))}
                 aria-label={`사진 ${i + 1} 삭제`}
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-oy-black text-[10px] text-white"
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-oy-black text-[11px] text-white"
               >
                 ✕
               </button>
@@ -148,7 +148,7 @@ export function ReviewWriteSheet({
                 <path d="M4 8a2 2 0 012-2h1.5l1.2-1.8A1.5 1.5 0 0110 3.5h4a1.5 1.5 0 011.3.7L16.5 6H18a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2V8z" />
                 <circle cx="12" cy="12.5" r="3.2" />
               </svg>
-              <span className="mt-0.5 text-[10px] font-semibold">
+              <span className="mt-0.5 text-[11px] font-semibold">
                 {photos.length}/{MAX_PHOTOS}
               </span>
             </button>

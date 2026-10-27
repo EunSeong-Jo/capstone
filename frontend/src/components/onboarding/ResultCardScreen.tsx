@@ -1,18 +1,38 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { SkinType } from '../../data/skinTypes';
 import { RESULT_DETAILS } from '../../data/skinTypes';
 
 interface ResultCardScreenProps {
+  /** 1순위 타입 */
   resultType: SkinType;
-  onClose: () => void;
-  onRecommend: () => void;
+  /** 1·2순위 후보(순서대로). 2개일 때만 고르는 화면이 된다. 그 밖에는 1순위 하나만 보여 준다 */
+  choices?: SkinType[];
+  onClose: () => void | Promise<void>;
+  /** 고른 타입 id로 확정한다. false면 저장하지 못한 것이라 화면에 머문다 */
+  onConfirm: (skinTypeId: string) => Promise<boolean>;
 }
 
 // Figma "수부지" (node 433:403). 배경은 assets/bg/<id>.png.
-// 배지 · 태그라인 · 해시태그 · 추천 성분은 RESULT_DETAILS[id]에 있을 때만 노출.
-export default function ResultCardScreen({ resultType, onClose, onRecommend }: ResultCardScreenProps) {
-  const detail = RESULT_DETAILS[resultType.id];
-  const t = resultType.theme;
+// 배지 · 태그라인 · 해시태그는 RESULT_DETAILS[id]에 있을 때만 노출.
+// 진단은 1순위와 2순위를 같이 내므로, 둘 중 하나를 골라 확정한다.
+export default function ResultCardScreen({ resultType, choices, onClose, onConfirm }: ResultCardScreenProps) {
+  const options = choices && choices.length === 2 ? choices : null;
+  const [pickedId, setPickedId] = useState(resultType.id);
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const shown = options?.find((o) => o.id === pickedId) ?? resultType;
+  const detail = RESULT_DETAILS[shown.id];
+  const t = shown.theme;
+
+  const confirm = async () => {
+    if (saving) return;
+    setSaving(true);
+    setFailed(false);
+    const ok = await onConfirm(shown.id);
+    setSaving(false);
+    if (!ok) setFailed(true);
+  };
 
   return (
     <motion.div
@@ -46,24 +66,24 @@ export default function ResultCardScreen({ resultType, onClose, onRecommend }: R
         {/* 결과 카드 */}
         <div
           className="relative mt-8 overflow-hidden rounded-[18px] border bg-cover bg-center px-5 pb-5 pt-4"
-          style={{ borderColor: t.border, backgroundImage: `url(${resultType.bg})` }}
+          style={{ borderColor: t.border, backgroundImage: `url(${shown.bg})` }}
         >
           <div className="flex flex-col items-center gap-1.5">
             <span
               className="rounded-full px-3 py-1 text-[12px] font-medium text-white"
               style={{ background: t.accent }}
             >
-              {detail?.badge ?? `${resultType.label} 타입`}
+              {detail?.badge ?? `${shown.label} 타입`}
             </span>
             <p
               className="text-[28px] font-black leading-tight tracking-tight"
               style={{ color: t.accent, textShadow: `1.5px 1.5px 0 ${t.titleShadow}` }}
             >
-              {resultType.short} 피부
+              {shown.short} 피부
             </p>
             <img
-              src={resultType.image}
-              alt={resultType.label}
+              src={shown.image}
+              alt={shown.label}
               draggable={false}
               className="my-1 w-[150px] select-none"
             />
@@ -90,55 +110,58 @@ export default function ResultCardScreen({ resultType, onClose, onRecommend }: R
               </p>
             ) : (
               <p className="mt-1.5 text-center text-[14px] leading-[1.6]" style={{ color: t.cardText }}>
-                {resultType.description}
+                {shown.description}
               </p>
             )}
           </div>
         </div>
 
-        {/* 추천하는 성분 */}
-        {detail && (
+        {/* 카드 아래: 1·2순위 중 고르기. 순위 안내는 카드 밖 글로 적는다 */}
+        {options && (
           <>
-            <p className="mt-6 text-[15px] font-semibold text-black">추천하는 성분</p>
-            <div className="mt-3 grid grid-cols-3 gap-3">
-              {detail.ingredients.map((ing) => (
-                <div
-                  key={ing.name}
-                  className="flex flex-col items-center rounded-[9px] bg-white p-2"
-                  style={{ boxShadow: '0 0 1.5px rgba(0,0,0,0.6)' }}
-                >
-                  <div
-                    className="mb-1.5 h-11 w-full rounded-[7px]"
-                    style={{ background: ing.tagBg }}
-                  />
-                  <p className="text-center text-[11px] font-semibold leading-tight text-black">
-                    {ing.name}
-                  </p>
-                  <span
-                    className="mt-1 rounded-full px-1.5 py-[1px] text-[9px] font-medium"
-                    style={{ color: ing.tagColor, background: ing.tagBg }}
-                  >
-                    {ing.tag}
-                  </span>
-                  <p className="mt-1 text-center text-[9px] leading-tight" style={{ color: '#aaa' }}>
-                    {ing.desc}
-                  </p>
-                </div>
-              ))}
+            <div role="radiogroup" aria-label="피부 타입 선택" className="mt-6 grid grid-cols-2 gap-2.5">
+              {options.map((o, i) => {
+                const on = o.id === pickedId;
+                return (
+                  <div key={o.id} className="flex flex-col items-center">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setPickedId(o.id)}
+                      className="flex w-full flex-col items-center gap-0.5 rounded-[14px] border-2 bg-white px-2 py-2.5 transition-colors"
+                      style={{ borderColor: on ? o.theme.accent : '#E6E6E6' }}
+                    >
+                      <img src={o.image} alt="" draggable={false} className="h-14 select-none" />
+                      <span className="text-[14px] font-bold" style={{ color: on ? o.theme.accent : '#333' }}>
+                        {o.short} 피부
+                      </span>
+                    </button>
+                    {/* 순위 안내는 선택 카드 밖, 각 카드 아래에 */}
+                    <p className="mt-1.5 text-[12px] font-semibold" style={{ color: o.theme.accent }}>{i === 0 ? '가장 가까워요' : '다음으로 가까워요'}</p>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
       </div>
 
-      {/* 하단: 맞춤 스킨케어 추천 받기 */}
+      {/* 하단: 고른 타입으로 확정하고 맞춤 추천으로 */}
       <div className="px-6 pb-[25px] pt-2">
+        {failed && (
+          <p role="alert" className="mb-2 text-center text-[12px] text-red-500">
+            선택을 저장하지 못했어요. 잠시 뒤에 다시 눌러 주세요.
+          </p>
+        )}
         <button
           type="button"
-          onClick={onRecommend}
-          className="h-12 w-full rounded-full text-[15px] font-medium text-white"
+          onClick={confirm}
+          disabled={saving}
+          className="h-12 w-full rounded-full text-[15px] font-medium text-white disabled:opacity-60"
           style={{ background: t.deep }}
         >
-          맞춤 스킨케어 추천 받기
+          {saving ? '저장하는 중…' : options ? `${shown.short} 피부로 맞춤 추천 받기` : '맞춤 스킨케어 추천 받기'}
         </button>
       </div>
     </motion.div>

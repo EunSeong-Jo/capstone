@@ -26,6 +26,11 @@
 ".env copy.example"
 .env.local
 .env.*.local
+# 운영(AWS) DB 접속 정보 — scripts/aws_db.sh가 읽는다. 절대 커밋하지 않는다
+.env.aws
+# DB 덤프(사용자 비밀번호 해시가 들어 있을 수 있다)
+*.dump
+swappy_demo_*.sql
 
 
 # ───────────────────────────────
@@ -150,3 +155,15 @@ SWAPPY*.pdf
 
 # 올리브영 글로벌 수집기 재개용 체크포인트 (scripts/collect_global_oliveyoung.py)
 data/raw/global/.*_checkpoint.json
+
+# 얼굴 사진 테스트용 원본(GPS EXIF 포함)과 분석 응답(얼굴 이미지 URL 포함) — 커밋 금지
+skin_test.jpg
+skin_test*.jpg
+skin_test_*_result.txt
+# 사진 분석 이미지(얼굴이 담김) — 기본 경로는 docker 볼륨이라 저장소 밖이지만, 로컬 실행 시 실수로 올리지 않도록
+skin_images/
+
+# MediaPipe wasm — npm install 후 frontend/scripts/copy-mediapipe.mjs가 복사한다 (약 40MB)
+frontend/public/mediapipe/wasm/
+# 얼굴 가림 검사용 분할 모델(약 16MB, 서버가 쓴다) — 이미지를 빌드할 때·처음 쓸 때 내려받는다(services/occlusion.py)
+backend/app/assets/models/selfie_multiclass_256x256.tflite

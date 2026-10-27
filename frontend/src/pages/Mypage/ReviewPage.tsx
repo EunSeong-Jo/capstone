@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { MyReviewDto, OrderDto, fetchMyReviews, fetchOrders, writeReview } from '../../api/personal';
-import { ApiError } from '../../api/client';
+import { ApiError, apiUrl } from '../../api/client';
 import { ReviewDraft, ReviewWriteSheet } from '../../components/reviews/ReviewWriteSheet';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/toast';
-import { isClosed } from '../../utils/orderStage';
+import { STAGE_LABEL, isClosed } from '../../utils/orderStage';
 
 /**
  * 후기.
@@ -21,6 +21,10 @@ import { isClosed } from '../../utils/orderStage';
  *
  * 산 제품에만 쓸 수 있다는 규칙은 화면이 아니라 DB가 강제한다
  * (`reviews.order_item_id` FK). 취소·반품한 주문은 서버가 막는다.
+ *
+ * 배송완료 전 주문은 '작성 가능'에 보이되 버튼을 잠근다(QA 8) — 서버도
+ * 배송완료 전에는 409로 막는다. 목록에서 아예 빼면 산 제품이 왜 안 보이는지
+ * 알 수 없어서 단계를 같이 보여 준다.
  */
 
 type Tab = 'writable' | 'written';
@@ -31,6 +35,8 @@ interface Row {
   productName: string;
   brandName: string | null;
   placedAt: string;
+  /** 주문 단계(paid·preparing·shipping·delivered). 후기는 delivered부터. */
+  stage: string;
 }
 
 const fmtDate = (iso: string) =>
@@ -50,6 +56,7 @@ function collect(orders: OrderDto[], reviewed: boolean): Row[] {
           productName: i.productName,
           brandName: i.brandName,
           placedAt: o.placedAt,
+          stage: o.stage,
         })),
     );
 }
@@ -171,7 +178,13 @@ export default function ReviewPage() {
                   {row.brandName} · {fmtDate(row.placedAt)} 주문
                 </p>
 
-                {tab === 'writable' && (
+                {tab === 'writable' && row.stage !== 'delivered' && (
+                  <div className="mt-3 rounded-lg bg-gray-5 py-2.5 text-center text-[12px] text-gray-50">
+                    {STAGE_LABEL[row.stage] ?? row.stage} · 배송이 완료되면 후기를 쓸 수 있어요
+                  </div>
+                )}
+
+                {tab === 'writable' && row.stage === 'delivered' && (
                   <button
                     onClick={() => setTarget(row)}
                     className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-[13px] font-bold text-white active:scale-[.98]"
@@ -199,8 +212,8 @@ export default function ReviewPage() {
                     {review.photoUrls.length > 0 && (
                       <div className="mt-2 flex gap-1.5">
                         {review.photoUrls.map((url) => (
-                          <a key={url} href={url} target="_blank" rel="noreferrer">
-                            <img src={url} alt="후기 사진" className="h-20 w-20 rounded-lg object-cover" />
+                          <a key={url} href={apiUrl(url)} target="_blank" rel="noreferrer">
+                            <img src={apiUrl(url)} alt="후기 사진" className="h-20 w-20 rounded-lg object-cover" />
                           </a>
                         ))}
                       </div>

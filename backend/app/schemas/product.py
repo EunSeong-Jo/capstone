@@ -70,17 +70,25 @@ class IngredientOut(_CamelModel):
     name_en: str | None = None
     position: int
 
-    # 성분 분류. `scripts/seed_skin_type_tags.py`가 ingredient_tags에서 도출한다.
+    # 성분 분류. 정본은 성분 기능 라벨(ingredient_functions)이고 `services/skin_fit.classify_ingredient`가 계산한다.
+    # 궁합 카드·배지·목록 필터와 같은 기준이다.
     #
-    #   key     추천 태그(보습·진정·항산화 등)가 붙은 성분
-    #   warn    기피 태그(표시 의무 착향제·향료·건조 유발 알코올)
-    #   normal  제품에 쓰이지만 어느 쪽도 아닌 성분
-    #   None    분류 근거가 없는 성분 — 화면은 '등급 미정'으로 중립 표시한다
+    #   key     내 피부타입(skinType을 준 경우)의 선호 기능을 가진 활성·에몰리언트 성분
+    #   warn    주의 성분 — 식약처 알레르기 유발 착향제·일반 향료·건조 알코올(타입과 무관),
+    #           그리고 내 타입이 기피하는 플래그(확신도 3)
+    #   normal  라벨은 있지만 어느 쪽도 아닌 성분
+    #   None    분류 근거(라벨)가 없는 성분 — 화면은 '분류 미정'으로 중립 표시한다
     #
     # ewg_grade는 내지 않는다. 컬럼은 있지만 비어 있고, 출처를 검증할 수 없는
     # 숫자를 채우면 화면이 근거 없는 안전 등급을 주장하게 된다.
     grade: str | None = None
+    # 식약처 알레르기 유발 착향제 고시 목록의 성분인가 (ingredient_functions.allergen_listed)
     is_allergen: bool = False
+    # 성분 기능 라벨. 화면이 "보습·진정 성분" 같은 설명과 이유 연결에 쓴다. 라벨이 없으면 비어 있다.
+    functions: list[str] = []      # H B S W A O P E U
+    role: str | None = None        # a e s f t p x j
+    flags: list[str] = []          # I F L
+    confidence: int | None = None  # 1~3
 
     # 성분 설명. `scripts/seed_ingredient_descriptions.py`가
     # ingredient_descriptions에 적재한다. 설명이 없는 성분은 셋 다 비어 있다.
@@ -94,8 +102,22 @@ class IngredientOut(_CamelModel):
     description_source: str | None = None
 
 
+class ProductOptionOut(_CamelModel):
+    """옵션형 묶음 제품의 옵션 한 줄 (드롭다운용). 고르면 그 옵션 제품(id)의 상세로 간다."""
+
+    id: int
+    label: str                 # '화장발'
+    order_no: int
+
+
 class ProductDetailOut(ProductOut):
     """상세용. 상품정보제공고시 항목과 전성분이 붙는다."""
+
+    # 옵션형 묶음이면 채워진다(그렇지 않으면 None·빈 목록). 원본(composition='optgroup')을 조회하면 options만 있고
+    # 화면은 첫 옵션으로 보낸다.
+    option_parent_id: int | None = None
+    option_label: str | None = None
+    options: list[ProductOptionOut] = []
 
     product_url: str | None = None
     volume: str | None = None
@@ -180,18 +202,30 @@ class MatchSignalsOut(_CamelModel):
     text: MatchSignalOut
 
 
+class MatchVariantOut(_CamelModel):
+    """같은 제품의 용량·구성 변형 한 줄 (드롭다운용)."""
+
+    product: ProductOut
+    label: str               # '350ml' · '350ml · 더블기획 (+어성초 크림 20ml)'
+
+
 class ProductMatchOut(_CamelModel):
-    """OCR 텍스트로 찾은 제품 후보."""
+    """OCR 텍스트로 찾은 제품 후보.
+
+    같은 제품의 용량·기획 변형은 한 후보로 접는다. `product`는 그 묶음에서 **가장 용량이 작은**
+    제품이고, 변형이 둘 이상이면 `variants`에 대표를 포함한 전부(용량 오름차순)가 들어 있다.
+    """
 
     product: ProductOut
     signals: MatchSignalsOut
+    variants: list[MatchVariantOut] = []
 
 
 class ProductScanIn(_CamelModel):
     """사진으로 화장품 찾기. 화면이 장변 1024px JPEG로 줄여 data URL로 보낸다."""
 
     image: str = Field(max_length=4_000_000)
-    limit: int = Field(default=5, ge=1, le=10)
+    limit: int = Field(default=3, ge=1, le=10)
 
 
 class ProductScanOut(_CamelModel):

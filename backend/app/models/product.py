@@ -6,6 +6,8 @@
                                        (scripts/seed_ingredients.py)
   - ingredient_descriptions : data/seed/ingredient_descriptions.csv
                               (scripts/seed_ingredient_descriptions.py)
+  - ingredient_functions : data/seed/ingredient_functions/labels.csv
+                           (scripts/seed_ingredient_functions.py)
   - tags / ingredient_tags / grade / ewg : 수동 큐레이션 (아직 미착수)
 """
 from __future__ import annotations
@@ -23,6 +25,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    text,
 )
 from sqlalchemy import FetchedValue
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -73,6 +76,7 @@ class Product(Base, TimestampMixin):
         Index("idx_products_category", "category_id"),
         Index("idx_products_status", "status"),
         Index("idx_products_composition", "composition"),
+        Index("idx_products_option_parent", "option_parent_id"),
         Index("idx_products_price", "price"),
         Index("idx_products_unit_price", "unit_price"),
         Index("idx_products_rating", "rating"),
@@ -112,7 +116,9 @@ class Product(Base, TimestampMixin):
     list_price: Mapped[int | None] = mapped_column(Integer)      # 할인 전 정가
     discount_rate: Mapped[int | None] = mapped_column(SmallInteger)
     rating: Mapped[float | None] = mapped_column(Numeric(2, 1))
-    review_count: Mapped[int | None] = mapped_column(Integer)
+    review_count: Mapped[int | None] = mapped_column(Integer)  # 올리브영 크롤링값 — 인기순·점수의 입력(덮어쓰지 않는다)
+    # 화면에 보이는 리뷰 수 = 이 앱에 등록된 후기 개수(reviews 집계, 작성·삭제와 시드 스크립트가 맞춘다)
+    registered_review_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     image_url: Mapped[str | None] = mapped_column(Text)
     product_url: Mapped[str | None] = mapped_column(Text)
@@ -176,7 +182,15 @@ class Product(Base, TimestampMixin):
     # 빼고 앱에도 노출하지 않는다. 판정 규칙은 app/utils/composition.py.
     composition: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="single"
-    )  # single / bonus / goods / bundle
+    )  # single / bonus / goods / bundle / optgroup
+    # 옵션형 묶음("A/B/C 택1")의 분해 결과. 원본 행은 composition='optgroup'으로 표시해 인식·추천·유사도에서
+    # 빼고, 라벨별 전성분을 가진 옵션 행이 option_parent_id로 원본을 가리킨다. 원본이 아닌 일반 제품은 전부 NULL.
+    # 분해 규칙은 app/utils/product_options.py, 적재는 scripts/load_products.py(expand_options).
+    option_parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE")
+    )
+    option_label: Mapped[str | None] = mapped_column(Text)        # '화장발' · '카밍풀'
+    option_order: Mapped[int | None] = mapped_column(SmallInteger)  # 1부터. 1이 그룹의 대표
     source: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="oliveyoung"
     )
@@ -267,6 +281,39 @@ class IngredientDescription(Base, TimestampMixin):
         ARRAY(Text), nullable=False, server_default="{}"
     )
     source: Mapped[str] = mapped_column(String(20), nullable=False)
+
+
+class IngredientFunction(Base, TimestampMixin):
+    """성분 기능 분류 — 이 성분이 무슨 일을 하는가.
+
+    원본은 data/seed/ingredient_functions/labels.csv(분류표·지침은 같은 폴더 README)이고
+    scripts/seed_ingredient_functions.py가 적재한다. 유사도(`hybrid`)와 피부 궁합이 쓴다.
+
+    `tags`(피부타입 규칙이 이름으로 참조)와 **별개의 어휘**다 — 기존 태그는 키워드 매칭이라
+    과대·과소 포함이 있고, 바꾸면 규칙이 어긋난다.
+
+    functions: 기능 코드 H보습 B장벽 S진정 W미백 A주름·탄력 O항산화 P피지·모공 E각질 U자외선(복수)
+    role:      a활성 e에몰리언트 s용매 f계면활성 t점증 p방부 x기타 j오염(분류 제외) — 하나
+    flags:     I자극 소지 F향료 L건조 알코올(복수)
+    confidence: 1낮음(검수 대상, 궁합 판정 근거에서 제외) · 2보통 · 3확실
+    source:    'ai_expert'(AI가 성분 지식으로 판정) | 'reviewed'(사람 검수) | 'mfds'(식약처 고시 목록) | 'cosing'(EU CosIng 확인)
+    allergen_listed: 식약처 알레르기 유발 착향제 고시 목록의 성분인가(이게 화면의 "알레르기 유발" 표시와 하드 필터의 근거)
+    """
+
+    __tablename__ = "ingredient_functions"
+
+    ingredient_id: Mapped[int] = mapped_column(
+        ForeignKey("ingredients.id", ondelete="CASCADE"), primary_key=True
+    )
+    functions: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default="{}")
+    role: Mapped[str] = mapped_column(String(1), nullable=False)
+    flags: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default="{}")
+    confidence: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
+    allergen_listed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
 
 
 class ProductIngredient(Base):

@@ -74,6 +74,51 @@ def score_answers(
     return {axis: max(MIN_SCORE, min(MAX_SCORE, v)) for axis, v in scores.items()}
 
 
+def blend_scores(
+    qna: dict[str, int], photo: dict[str, int], weight: float
+) -> dict[str, int]:
+    """QnA 5축에 사진 5축을 `weight` 비중으로 섞는다 (0이면 QnA, 1이면 사진).
+
+    사진을 쓰지 않은 진단은 이 함수를 거치지 않는다 — QnA 100%는 기존 경로 그대로다.
+    사진에 없는 축은 QnA 값을 유지한다.
+    """
+    w = max(0.0, min(1.0, weight))
+    return {
+        axis: max(MIN_SCORE, min(MAX_SCORE, round((1 - w) * v + w * photo.get(axis, v))))
+        for axis, v in qna.items()
+    }
+
+
+def touched_axes(
+    answers: dict[str, int],
+    weights_by_option: dict[tuple[str, int], dict[str, int]],
+) -> set[str]:
+    """응답이 실제로 점수를 건드린 축. 모르는 문항·선택지는 `score_answers`처럼 무시한다."""
+    touched: set[str] = set()
+    for code, option_no in answers.items():
+        touched.update(a for a in weights_by_option.get((code, option_no), {}) if a in AXES)
+    return touched
+
+
+def blend_partial(
+    qna: dict[str, int], photo: dict[str, int], touched: set[str], weight: float
+) -> dict[str, int]:
+    """일부 문항만 답하고 촬영했을 때의 혼합.
+
+    답한 문항이 건드린 축에서만 QnA와 사진을 `weight` 비중으로 섞고, 건드리지 않은 축은
+    **사진 값을 그대로** 쓴다. `blend_scores`는 미답 축까지 기본값 5와 섞어 사진 값을 중립
+    쪽으로 끌어당기므로, 답이 적을수록 사진이 왜곡된다.
+    """
+    w = max(0.0, min(1.0, weight))
+    return {
+        axis: max(
+            MIN_SCORE,
+            min(MAX_SCORE, round((1 - w) * qna[axis] + w * photo[axis]) if axis in touched else photo[axis]),
+        )
+        for axis in qna
+    }
+
+
 def rank_types(scores: dict[str, int]) -> list[dict]:
     """5축 점수 → 타입 순위.
 

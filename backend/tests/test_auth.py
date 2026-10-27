@@ -428,3 +428,25 @@ async def test_nickname_update_needs_no_password(
     )
     assert res.status_code == 200
     assert res.json()["nickname"] == "비번없이"
+
+
+async def test_withdraw_deletes_account_and_frees_email(
+    client: AsyncClient, fresh_account
+) -> None:
+    """탈퇴하면 계정이 즉시 사라지고, 같은 이메일로 다시 가입할 수 있다."""
+    email = fresh_account["user"]["email"]
+    headers = {"Authorization": f"Bearer {fresh_account['accessToken']}"}
+
+    res = await client.delete(ME, headers=headers)
+    assert res.status_code == 204
+
+    # 남은 토큰으로는 더 이상 들어올 수 없다.
+    assert (await client.get(ME, headers=headers)).status_code == 401
+    login = await client.post(f"{AUTH}/login", json={"email": email, "password": PASSWORD})
+    assert login.status_code == 401
+
+    # 같은 이메일로 재가입 — 지운 계정이 이메일을 붙잡고 있으면 409다.
+    again = await client.post(
+        f"{AUTH}/signup", json={"email": email, "password": PASSWORD, "nickname": "다시"}
+    )
+    assert again.status_code == 201, again.text

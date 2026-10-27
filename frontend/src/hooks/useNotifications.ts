@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchNotifications } from '../api/personal';
+import { fetchNotifications, type NotificationsDto } from '../api/personal';
 import { useAuth } from '../context/auth';
 import { invalidate, load, meKey, peek, put } from '../api/queryCache';
 
@@ -10,6 +10,9 @@ import { invalidate, load, meKey, peek, put } from '../api/queryCache';
 const UNREAD_FRESH_MS = 60 * 1000;
 
 const unreadKey = (scope: string) => meKey(scope, 'unread');
+/** 알림함이 첫 화면에 바로 그릴 목록. 배지 조회가 이미 받아 온 응답을 그대로 담아 둔다. */
+export const notificationsKey = (scope: string) => meKey(scope, 'notifications');
+
 
 /** 알림함을 열어 읽음 처리하면 배지를 바로 0으로 */
 export function markUnreadSeen(scope: string) {
@@ -42,7 +45,15 @@ export function useUnreadNotifications() {
     if (authLoading || !isUser) return;
 
     let alive = true;
-    load(cacheKey, () => fetchNotifications().then((res) => res.unreadCount), UNREAD_FRESH_MS)
+    load(
+      cacheKey,
+      () =>
+        fetchNotifications().then((res: NotificationsDto) => {
+          put(notificationsKey(scope), res);
+          return res.unreadCount;
+        }),
+      UNREAD_FRESH_MS,
+    )
       .then((unreadCount) => {
         if (alive) setLoaded({ key, unreadCount });
       })
@@ -53,7 +64,7 @@ export function useUnreadNotifications() {
     return () => {
       alive = false;
     };
-  }, [key, cacheKey, isUser, authLoading]);
+  }, [key, cacheKey, isUser, authLoading, scope]);
 
   const reload = useCallback(() => {
     invalidate(cacheKey);

@@ -82,10 +82,13 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      # 컨테이너 안에서 백엔드는 'backend' 호스트다. localhost는 자기 자신이라
-      # .env의 VITE_API_BASE_URL(로컬 npm run dev 전용)이 새어들면 프록시가 깨진다.
-      # 치환을 쓰지 않고 고정하는 이유가 이것이다.
-      VITE_API_BASE_URL: http://backend:8000
+      # 컨테이너 안에서 백엔드는 'backend' 호스트다. vite 프록시가 이 주소로 넘긴다.
+      # 프록시 대상은 VITE_API_BASE_URL이 아니라 API_PROXY_TARGET으로 따로 둔다 —
+      # VITE_API_BASE_URL은 브라우저 번들에 들어가 fetch의 접두사가 되는데(api/client.ts),
+      # 'http://backend:8000'은 컨테이너 안에서만 통하는 이름이라 브라우저 요청이 전부
+      # "서버에 연결할 수 없습니다"로 실패한다. 웹·도커에서는 비워 상대 경로(프록시)를 쓴다.
+      API_PROXY_TARGET: http://backend:8000
+      VITE_API_BASE_URL: ""
       # 도커에는 backend가 함께 떠 있다. 여기서의 조회 실패는 감출 것이 아니라
       # 드러나야 할 고장이므로 목업 폴백을 끈다. 이 값이 없으면 useProducts는
       # import.meta.env.DEV로 떨어지는데, 위 Dockerfile의 CMD가 `npm run dev`라

@@ -212,12 +212,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * 그러면 그 브라우저에서만 존재하는 계정이 됐다.
    */
   const register = useCallback(
-    async (email: string, password: string, nickname: string): Promise<LoginResult> => {
+    async (
+      email: string,
+      password: string,
+      nickname: string,
+      faceConsent = false,
+    ): Promise<LoginResult> => {
       try {
         const bundle = await apiSignup(
           email.trim(),
           password,
           nickname.trim() || undefined,
+          faceConsent,
         );
         setTokens(bundle.accessToken, bundle.refreshToken);
         applyLogin(bundle.user);

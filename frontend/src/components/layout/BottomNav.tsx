@@ -99,7 +99,7 @@ export function BottomNav() {
               <>
                 {icon(isActive)}
                 <span
-                  className="text-[10px] font-medium"
+                  className="text-[11px] font-medium"
                   style={{ color: isActive ? 'var(--primary)' : 'var(--gray50)' }}
                 >
                   {label}

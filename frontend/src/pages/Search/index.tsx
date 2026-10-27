@@ -65,7 +65,7 @@ function RecentSearchChips({
               <button
                 onClick={() => onRemove(s)}
                 aria-label={`${s} 삭제`}
-                className="text-gray-20 text-[10px] active:scale-90 transition-transform"
+                className="text-gray-20 text-[11px] active:scale-90 transition-transform"
               >
                 ✕
               </button>
@@ -246,8 +246,8 @@ export default function SearchPage() {
                             <span className="flex h-full w-full items-center justify-center text-lg opacity-40">🧴</span>
                           )}
                         </span>
-                        <span className="block text-[10px] font-semibold text-gray-50">{p.brand}</span>
-                        <span className="block text-xs font-bold text-gray-100 truncate mb-2">{p.name}</span>
+                        <span className="block text-[11px] font-semibold text-gray-50">{p.brand}</span>
+                        <span className="mb-2 line-clamp-2 min-h-[2.5em] text-xs font-bold leading-snug text-gray-100">{p.name}</span>
                         <button
                           onClick={() => navigate(`/alternatives?seed=${p.id}&from=search`)}
                           className="flex items-center justify-center w-full h-7 rounded-lg bg-primary text-[11px] font-extrabold text-white active:scale-95 transition-transform"
@@ -313,8 +313,13 @@ export default function SearchPage() {
                   <img src="/mascot/base_face_neutral.png" alt="" className="h-[82%] w-[82%] object-contain" />
                 </span>
                 <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-extrabold text-white">성분표가 어렵다면, 찍어보세요</span>
-                  <span className="block text-xs text-white/55 mt-0.5">AI가 전성분을 읽고 주의 성분을 알려드려요</span>
+                  {/* 예전 문구는 "AI가 전성분을 읽는다"였지만 /scan은 앞면 사진으로 제품을
+                      찾는 기능이다(뒷면 인식은 실사진 평가에서 0건). 전성분은 찾은 제품의
+                      상세 화면에서 보인다(QA 12). */}
+                  <span className="block text-sm font-extrabold text-white">제품명이 헷갈리면, 찍어보세요</span>
+                  <span className="block text-xs text-white/55 mt-0.5">
+                    앞면을 찍으면 화장품을 찾아 드려요. 제품을 누르면 전성분을 볼 수 있어요
+                  </span>
                 </span>
                 <span className="shrink-0 inline-flex items-center h-8 px-3.5 rounded-full bg-primary text-xs font-extrabold text-white">
                   스캔
@@ -340,10 +345,10 @@ export default function SearchPage() {
                         </span>
                         <span className="flex-1 min-w-0 text-left">
                           <span className="block text-xs text-gray-50">{p.brand}</span>
-                          <span className="block text-sm font-medium text-gray-100 truncate">{p.name}</span>
+                          <span className="text-sm font-medium leading-snug text-gray-100 line-clamp-2">{p.name}</span>
                           <span className="flex items-center gap-1.5 mt-0.5">
                             {p.rating != null && <span className="text-xs text-star">⭐ {p.rating}</span>}
-                            {p.reviewCount != null && (
+                            {!!p.reviewCount && (
                               <span className="text-xs text-gray-50">리뷰 {p.reviewCount.toLocaleString()}</span>
                             )}
                             <span className="text-xs font-semibold text-gray-100">{p.price.toLocaleString()}원</span>

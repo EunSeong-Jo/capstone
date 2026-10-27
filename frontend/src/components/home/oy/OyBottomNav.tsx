@@ -102,7 +102,7 @@ export function OyBottomNav() {
                 >
                   {ScanIcon}
                 </button>
-                <span className="absolute left-1/2 -translate-x-1/2 bottom-1.5 text-[10px] font-bold text-primary-dark">
+                <span className="absolute left-1/2 -translate-x-1/2 bottom-1.5 text-[11px] font-bold text-primary-dark">
                   스캔
                 </span>
               </div>
@@ -116,7 +116,7 @@ export function OyBottomNav() {
               className="flex-1 flex flex-col items-center justify-center h-14 gap-0.5 active:scale-95 transition-transform"
             >
               {tab.icon(active)}
-              <span className={`text-[10px] ${active ? 'font-bold text-oy-black' : 'text-oy-sub'}`}>
+              <span className={`text-[11px] ${active ? 'font-bold text-oy-black' : 'text-oy-sub'}`}>
                 {tab.label}
               </span>
             </button>

@@ -826,23 +826,27 @@ async def write_review(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ReviewOut:
-    """산 제품에만 쓸 수 있다.
+    """산 제품에만, 배송이 끝난 뒤에 쓸 수 있다.
 
     order_item을 거치는 이유: "구매한 사람의 후기"라는 조건을 DB 구조로
     강제하기 위해서다. product_id만 받으면 사지 않은 제품에도 쓸 수 있다.
     """
     row = (
         await db.execute(
-            select(OrderItem, Order.status)
+            select(OrderItem, Order.status, Order.placed_at)
             .join(Order, Order.id == OrderItem.order_id)
             .where(OrderItem.id == body.order_item_id, Order.user_id == user.id)
         )
     ).first()
     if row is None:
         raise HTTPException(status_code=404, detail="주문 내역에서 찾을 수 없습니다")
-    item, order_status = row
+    item, order_status, placed_at = row
     if order_status in CLOSED_STATUSES:
         raise HTTPException(status_code=409, detail="취소·반품한 주문에는 후기를 쓸 수 없어요")
+    # 받아 보지도 않은 제품에 후기를 쓸 수 있으면 안 된다(QA 8). 예전에는 결제
+    # 직후에도 '후기 작성'이 열려 있었다. 반품과 같은 기준 — 배송완료 단계부터.
+    if order_stage(order_status, placed_at) != "delivered":
+        raise HTTPException(status_code=409, detail="배송이 완료된 뒤에 후기를 쓸 수 있어요")
     # 사진은 저장 전에 전부 검사한다. 한 장이 잘못돼 후기만 남으면 안 된다.
     decoded = [decode_photo(p) for p in body.photos]
     if item.product_id is None:
@@ -869,6 +873,12 @@ async def write_review(
     ]
     db.add_all(photo_rows)
     db.add(PointTransaction(user_id=user.id, amount=REVIEW_POINT, reason="review"))
+    # 화면의 리뷰 수(products.registered_review_count)를 같은 트랜잭션에서 맞춘다
+    await db.execute(
+        update(Product)
+        .where(Product.id == item.product_id)
+        .values(registered_review_count=Product.registered_review_count + 1)
+    )
     await db.commit()
     await db.refresh(review)
 

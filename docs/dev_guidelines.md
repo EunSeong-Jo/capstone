@@ -559,6 +559,7 @@ services:
 - 비밀번호: bcrypt 해싱 (절대 평문 저장 금지)
 - 게스트 모드: 로컬 `sessionStorage`에 임시 UUID 발급, 개인화 API 호출 시 401 → Soft-gate 모달
 - 이미지 업로드: OCR 처리 후 즉시 삭제 (서버·로컬 모두 보관 금지)
+- 얼굴 사진 분석: **원본 사진은 저장 금지**(분석 중 메모리에만). 단 업체가 돌려주는 분석 이미지(얼굴 사진이 없는 투명 마스크 PNG, 합성하지 않음)는 지난 결과를 보여 주려고 DB(`skin_analysis_images`)에 보관한다 — 본인만 인증 API로 받고, 계정 삭제 때만 삭제(동의 철회로는 지우지 않는다). 동의 문구(`data/faceConsent.ts`)와 `FACE_CONSENT_VERSION`이 이 보관을 포함한다
 
 ### 11.3 유사도 알고리즘 (ML Engineer 필독)
 

@@ -14,13 +14,20 @@ import numpy as np
 import pytest
 
 from app.services.similarity import (
+    apply_curated,
+    build_form_matrix,
+    dedupe_topk,
+    detect_form,
+    variant_body,
+    build_profile_matrix,
+    build_role_matrix,
+    shared_functions,
+    topk_blend,
     build_matrix,
     build_vocab,
     compute_idf,
     is_bundle,
-    jaccard,
     min_ingredients,
-    rbo,
     shared_top,
     topk_cosine,
 )
@@ -81,15 +88,6 @@ def test_common_ingredients_score_low():
     assert sim[4][3] == pytest.approx(0.0, abs=1e-9)
     # 5와 6은 성분이 완전히 같지만 전부 IDF 0이라 벡터가 영벡터가 된다
     assert sim[5][6] == pytest.approx(0.0, abs=1e-9)
-
-
-def test_jaccard_scores_the_same_pair_high():
-    """같은 쌍을 Jaccard는 높게 본다 — 두 방식의 차이를 고정한다."""
-    docs = _corpus()
-    a, b = set(docs[4]), set(docs[3])
-    assert jaccard(a, b) == pytest.approx(3 / 5)  # 3 공통 / 5 합집합
-    # tfidf는 같은 쌍을 0으로 본다. 이 간극이 IDF를 쓰는 이유다.
-    assert _cosine(docs)[4][3] < 0.01
 
 
 def test_identical_documents_score_one():
@@ -157,34 +155,6 @@ def test_block_size_does_not_change_result():
     assert np.allclose(a_score, b_score)
 
 
-# ── RBO ─────────────────────────────────────────────────────────────
-
-def test_rbo_identical_is_one():
-    assert rbo([1, 2, 3, 4], [1, 2, 3, 4]) == pytest.approx(1.0)
-
-
-def test_rbo_is_order_sensitive():
-    """같은 집합, 다른 순서 → 1.0 미만. 이게 Jaccard와 다른 점이다."""
-    order = [1, 2, 3, 4, 5]
-    assert rbo(order, list(reversed(order))) < 1.0
-    assert jaccard(set(order), set(reversed(order))) == 1.0
-
-
-def test_rbo_weights_the_top():
-    """앞쪽이 겹치는 쪽이 뒤쪽이 겹치는 쪽보다 높다.
-
-    전성분은 함량 내림차순이라 앞 순위가 제형을 결정한다.
-    """
-    base = [1, 2, 3, 4, 5, 6]
-    head_match = [1, 2, 3, 9, 8, 7]
-    tail_match = [9, 8, 7, 4, 5, 6]
-    assert rbo(base, head_match) > rbo(base, tail_match)
-
-
-def test_rbo_disjoint_is_zero():
-    assert rbo([1, 2, 3], [4, 5, 6]) == pytest.approx(0.0)
-
-
 # ── 경계 입력 ────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("doc", [[], [WATER]])
@@ -196,11 +166,6 @@ def test_degenerate_documents_do_not_raise(doc):
     idx, score = topk_cosine(mat, k=1)
     assert idx.shape == (2, 1)
     assert np.all(score >= 0.0)
-
-
-def test_empty_inputs_return_zero():
-    assert jaccard(set(), {1, 2}) == 0.0
-    assert rbo([], [1, 2]) == 0.0
 
 
 # ── 근거 표시 ────────────────────────────────────────────────────────
@@ -241,3 +206,166 @@ def test_bundle_detection():
 def test_min_ingredients_filter():
     assert min_ingredients(5) is True
     assert min_ingredients(4) is False
+
+
+# ── hybrid: 성분 기능 라벨을 쓰는 유사도 ─────────────────────────────────
+# 라벨 = (functions, role, flags, confidence)
+SOOTH_A, SOOTH_B, HUMECT, BASE_SURF, JUNK = 20, 21, 22, 23, 24
+LABELS = {
+    PANTHENOL: ("BHS", "a", "", 3),
+    SOOTH_A: ("S", "a", "", 3),
+    SOOTH_B: ("S", "a", "", 3),     # SOOTH_A와 다른 성분이지만 같은 기능
+    HUMECT: ("H", "a", "", 3),
+    BASE_SURF: ("", "f", "", 3),
+    JUNK: ("", "j", "", 3),
+}
+
+
+def _blend(docs, alpha=0.65, beta=0.35):
+    vocab = build_vocab(docs)
+    idf = compute_idf(docs, vocab)
+    role = build_role_matrix(docs, vocab, idf, LABELS)
+    prof = build_profile_matrix(docs, LABELS)
+    return (alpha * (role @ role.T) + beta * (prof @ prof.T)).toarray()
+
+
+def test_hybrid_rewards_same_function_with_different_ingredients():
+    # 0과 1은 성분이 겹치지 않지만 둘 다 진정, 2는 보습뿐
+    docs = [COMMON + [SOOTH_A], COMMON + [SOOTH_B], COMMON + [HUMECT]]
+    m = _blend(docs)
+    assert m[0, 1] > m[0, 2]
+
+
+def test_hybrid_ignores_base_only_overlap():
+    # 계면활성제만 같은 쌍은, 활성이 같은 쌍보다 낮아야 한다
+    docs = [
+        COMMON + [BASE_SURF, SOOTH_A], COMMON + [BASE_SURF, HUMECT],
+        COMMON + [SOOTH_A],
+    ]
+    m = _blend(docs)
+    assert m[0, 2] > m[0, 1]
+
+
+def test_hybrid_junk_ingredient_has_no_weight():
+    docs = [COMMON + [JUNK, SOOTH_A], COMMON + [JUNK, HUMECT]]
+    m_with = _blend(docs)
+    m_without = _blend([COMMON + [SOOTH_A], COMMON + [HUMECT]])
+    assert m_with[0, 1] == pytest.approx(m_without[0, 1], abs=1e-9)
+
+
+def test_hybrid_unlabeled_ingredient_still_counts():
+    docs = [COMMON + [99], COMMON + [99], COMMON + [98]]
+    m = _blend(docs)
+    assert m[0, 1] > m[0, 2]
+
+
+def test_topk_blend_matches_manual_blend_and_excludes_self():
+    docs = [COMMON + [SOOTH_A], COMMON + [SOOTH_B], COMMON + [HUMECT]]
+    vocab = build_vocab(docs)
+    idf = compute_idf(docs, vocab)
+    role = build_role_matrix(docs, vocab, idf, LABELS)
+    prof = build_profile_matrix(docs, LABELS)
+    idx, score = topk_blend([(role, 0.65), (prof, 0.35)], k=2)
+    full = _blend(docs)
+    assert 0 not in idx[0]
+    assert idx[0][0] == 1
+    assert score[0][0] == pytest.approx(full[0, 1])
+    assert (score <= 1.0).all()
+
+
+def test_shared_functions_needs_both_sides_and_ignores_low_confidence():
+    labels = dict(LABELS)
+    labels[30] = ("W", "a", "", 1)          # 확신도 1 → 근거에서 제외
+    a = [SOOTH_A, HUMECT, 30]
+    b = [SOOTH_B, 30]
+    assert shared_functions(a, b, labels) == ["진정"]
+
+
+# ── 제형·변형·판정 보정 ──────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("name,form", [
+    ("토코보 선스틱 SPF50+ PA++++", "스틱"),
+    ("라운드랩 자작나무 수분 선쿠션 15g", "쿠션"),
+    ("아누아 어성초 포어 컨트롤 클렌징오일 200ml", "오일"),
+    ("바이오더마 센시비오 H2O 500ml", "워터"),
+    ("메디힐 모공톡스 탄산 버블 시트 10매", "시트"),
+    ("그라운드플랜 앰플 40ml", "앰플세럼"),
+    ("아무 이름", None),
+])
+def test_detect_form(name, form):
+    assert detect_form(name) == form
+
+
+def test_form_matrix_unknown_form_contributes_nothing():
+    m = build_form_matrix(["스틱", None, "스틱"]).toarray()
+    assert (m @ m.T)[0, 2] == 1.0 and (m @ m.T)[0, 1] == 0.0 and m[1].sum() == 0.0
+
+
+def test_variant_body_strips_size_and_count():
+    assert variant_body("어나더페이스 마스크팩 4매") == variant_body("어나더페이스 마스크팩 1매")
+    assert variant_body("바이오더마 아토덤 밤 500ml") == variant_body("바이오더마 아토덤 밤 200ml")
+    assert variant_body("토리든 마스크 20매") != variant_body("토리든 앰플 20매")
+
+
+def test_dedupe_keeps_one_per_variant_group_and_fills_k():
+    docs = [[1, 2, 3], [1, 2, 4], [1, 2, 4], [1, 2, 5], [1, 2, 6]]
+    names = ["브랜드 시드 100ml", "브랜드 A 1매", "브랜드 A 5매", "브랜드 B 50ml", "브랜드 C 30ml"]
+    idx = np.array([[1, 2, 3, 4], [0, 2, 3, 4], [0, 1, 3, 4], [0, 1, 2, 4], [0, 1, 2, 3]])
+    score = np.array([[0.9, 0.8, 0.7, 0.6]] * 5)
+    out_i, out_s = dedupe_topk(idx, score, names, docs, k=3)
+    assert list(out_i[0]) == [1, 3, 4]          # 2번은 1번의 변형이라 접힌다
+    assert list(out_s[0]) == [0.9, 0.7, 0.6]
+
+
+def test_dedupe_keeps_seed_variants_up_to_limit():
+    docs = [[1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 9]]
+    names = ["브랜드 토너 100ml", "브랜드 토너 200ml", "브랜드 토너 300ml", "브랜드 토너 400ml",
+             "브랜드 토너 500ml", "다른 로션"]
+    idx = np.array([[1, 2, 3, 4, 5]] + [[0, 2, 3, 4, 5]] * 5)
+    score = np.array([[0.99, 0.98, 0.97, 0.96, 0.5]] * 6)
+    out_i, _ = dedupe_topk(idx, score, names, docs, k=5, seed_variants_max=3)
+    assert list(out_i[0][:4]) == [1, 2, 3, 5]    # 시드 변형은 3개까지, 그 뒤는 다른 제품
+
+
+def test_apply_curated_demotes_zero_and_promotes_two_symmetrically():
+    ids = [10, 20, 30]
+    idx = np.array([[1, 2], [0, 2], [0, 1]])
+    score = np.array([[0.6, 0.5], [0.6, 0.5], [0.5, 0.5]])
+    out_i, out_s = apply_curated(idx, score, ids, {(10, 20): 0, (30, 10): 2}, k=2)
+    assert list(out_i[0]) == [2, 1]              # 20은 0점 판정으로 밀리고 30은 2점 판정으로 오른다
+    assert out_s[0][0] > 0.5 > out_s[0][1]
+    assert list(out_i[1])[1] == 0                # 대칭: (20→10)도 같이 밀린다
+
+
+# --- 제형 호환(대체품 후보 거르기) ---
+
+from app.services.similarity import form_compatible  # noqa: E402
+
+
+def test_form_compatible_blocks_different_use():
+    assert not form_compatible("아비브 어성초 카밍 토너 200ml", "인삼스네일세럼 30ml")
+    assert not form_compatible("에스트라 아토베리어365 크림 80ml", "달바 퍼스트 스프레이 세럼 100ml")
+    assert not form_compatible("아누아 선쿠션 25g", "수분 크림 50ml")
+
+
+def test_form_compatible_allows_same_group():
+    assert form_compatible("에스트라 아토베리어365 크림 80ml", "에스트라 아토베리어365 로션 150ml")
+    assert form_compatible("아비브 어성초 토너 200ml", "달바 미스트 100ml")
+    assert form_compatible("히알루론 세럼 30ml", "나이아신아마이드 앰플 50ml")
+
+
+def test_form_compatible_passes_unknown_form():
+    assert form_compatible("이름에 제형이 없는 제품", "수분 크림 50ml")
+    assert form_compatible("수분 크림 50ml", "이름에 제형이 없는 제품")
+
+
+def test_form_compatible_uses_last_form_in_name():
+    # '에센스 토너'는 토너다 — 앞쪽 규칙(앰플세럼)이 아니라 맨 뒤 제형을 본다
+    assert form_compatible("마녀공장 판테토인 에센스 토너 200ml", "달바 미스트 100ml")
+    assert not form_compatible("마녀공장 판테토인 에센스 토너 200ml", "히알루론 세럼 30ml")
+    assert not form_compatible("코스알엑스 오일-프리 모이스쳐라이징 로션 100ml", "클렌징 오일 200ml")
+
+
+def test_form_compatible_keeps_mask_forms():
+    assert form_compatible("듀이셀 마스크팩 1매", "메디힐 시트 마스크 10매")

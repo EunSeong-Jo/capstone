@@ -63,7 +63,7 @@ export function HistoryListCard({ product, liked, onToggleLike, extraBadge }: Hi
           <div className="flex items-center gap-1 mb-1">
             <span className="text-star text-xs">★</span>
             <span className="text-xs text-gray-70">{product.rating.toFixed(1)}</span>
-            {product.reviewCount && (
+            {!!product.reviewCount && (
               <span className="text-xs text-gray-50">({product.reviewCount.toLocaleString()})</span>
             )}
           </div>
@@ -75,7 +75,7 @@ export function HistoryListCard({ product, liked, onToggleLike, extraBadge }: Hi
             <span className="text-xs text-gray-50 line-through">{product.originalPrice.toLocaleString()}원</span>
           )}
           {extraBadge && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white bg-accent">{extraBadge}</span>
+            <span className="px-1.5 py-0.5 rounded text-[11px] font-bold text-white bg-accent">{extraBadge}</span>
           )}
         </div>
       </div>

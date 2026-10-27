@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
@@ -27,15 +27,20 @@ interface Message {
   text?: string;
   isWelcome?: boolean;
   isButtons?: boolean;
+  /** 화장품 등록 완료 메시지. 이 메시지가 마지막일 때만 '내 화장대 보기'를 붙인다. */
+  closetLink?: boolean;
 }
 
-const quickButtons = [
-  ['온라인몰 주문내역 문의', '이벤트'],
-  ['온라인몰 주문 전 문의', '결제/영수증'],
-  ['쿠폰/포인트/기프트카드', '멤버십/회원정보'],
-  ['단종상품 문의', 'FAQ/공지사항'],
-  ['성분 분석 문의', 'Swappy머니'],
-  ['배송 문의', '취소/교환/반품'],
+/**
+ * 예전엔 6쌍(12개) 전부 눌러도 "문의를 접수했습니다"만 반복됐다 — 실제로
+ * 아무 동작도 안 하는 가짜 버튼이었다. 개수를 줄이고, 각 항목이 실제로
+ * 쓸모 있는 동작(진단 화면 이동 / 사용법 안내 / 챗봇 성분 질문 유도)을
+ * 하도록 바꿨다.
+ */
+const quickButtons: { key: 'diagnosis' | 'guide' | 'ingredient'; label: string }[] = [
+  { key: 'diagnosis', label: '🧬 피부타입 진단하기' },
+  { key: 'guide', label: '📱 어플 사용법' },
+  { key: 'ingredient', label: '🧪 성분이 궁금해요' },
 ];
 
 /** 챗봇 아바타 — 로봇 이모지 대신 사용자 본인의 캐릭터(피부타입 마스코트 + 꾸미기)를 보여준다.
@@ -121,10 +126,21 @@ export default function ChatSupportPage() {
    */
   const { skinType } = useSkinType();
   const { decorationId } = useCharacter();
+  // 예전엔 "2026년 6월 25일"이 하드코딩돼 있어서 날짜가 바뀌어도 그대로였다.
+  const todayLabel = useMemo(
+    () => new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }),
+    [],
+  );
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [registerMode, setRegisterMode] = useState(false);
-  const [registeredCount, setRegisteredCount] = useState(0);
+  /**
+   * "+" 버튼 — 예전엔 "내 화장품 등록하기" FAQ 버튼과 똑같은 동작을 호출해서
+   * 사용자가 어느 쪽을 눌러도 같은 안내만 반복됐다("현재 내 화장품 등록하기" 말이
+   * 반복되는 중). 카톡처럼 첨부 메뉴를 열어 "사진으로 등록"과 "직접 입력"을
+   * 구분한다 — 이 앱엔 이미 앞면 사진으로 제품을 찾는 기능(/scan)이 있으니 활용한다.
+   */
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, role: 'bot', isWelcome: true },
     { id: 2, role: 'bot', isButtons: true },
@@ -132,8 +148,8 @@ export default function ChatSupportPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(3);
 
-  const pushBot = (text: string) =>
-    setMessages((prev) => [...prev, { id: nextId.current++, role: 'bot', text }]);
+  const pushBot = (text: string, extra?: Pick<Message, 'closetLink'>) =>
+    setMessages((prev) => [...prev, { id: nextId.current++, role: 'bot', text, ...extra }]);
 
   /**
    * 입력한 제품명을 카탈로그에서 찾아 화장대에 담는다.
@@ -176,8 +192,8 @@ export default function ChatSupportPage() {
     });
     pushBot(
       `'${product.brand} ${product.name}'을(를) 화장대에 추가했어요! 🧴\n내 화장대에서 대체품 추천을 확인해 보세요.`,
+      { closetLink: true },
     );
-    setRegisteredCount((n) => n + 1);
   };
 
   const startRegister = () => {
@@ -192,6 +208,16 @@ export default function ChatSupportPage() {
       },
     ]);
     setRegisterMode(true);
+  };
+
+  const openScanRegister = () => {
+    setShowAttachMenu(false);
+    navigate('/scan');
+  };
+
+  const openManualRegister = () => {
+    setShowAttachMenu(false);
+    startRegister();
   };
 
   useEffect(() => {
@@ -257,14 +283,27 @@ export default function ChatSupportPage() {
     }
   };
 
-  const handleQuickBtn = (label: string) => {
-    const userMsg: Message = { id: nextId.current++, role: 'user', text: label };
-    const botReply: Message = {
-      id: nextId.current++,
-      role: 'bot',
-      text: `'${label}'에 대한 문의를 접수했습니다.\n담당자가 빠르게 확인 후 답변 드릴게요! 🙏`,
-    };
-    setMessages((prev) => [...prev, userMsg, botReply]);
+  const handleQuickBtn = (btn: (typeof quickButtons)[number]) => {
+    setMessages((prev) => [...prev, { id: nextId.current++, role: 'user', text: btn.label }]);
+
+    if (btn.key === 'diagnosis') {
+      pushBot('피부타입 진단 화면으로 이동할게요! 몇 가지 질문에 답하면 내 피부타입을 알 수 있어요.');
+      navigate('/onboarding');
+      return;
+    }
+
+    if (btn.key === 'guide') {
+      pushBot(
+        'Swappy 사용법을 간단히 알려드릴게요 📱\n\n' +
+          '1. 피부타입 진단 — 간단한 질문에 답하면 내 피부타입을 알 수 있어요\n' +
+          '2. 내 화장대 — 쓰는 제품을 등록하면 더 저렴하거나 잘 맞는 대체품을 추천해 드려요\n' +
+          '3. 챗봇 — 성분이나 제품이 궁금하면 언제든 편하게 물어보세요\n' +
+          '4. 사진으로 찾기 — 제품 앞면을 촬영하면 같은 화장품을 찾아 드려요. 찾은 제품을 누르면 전성분을 볼 수 있어요',
+      );
+      return;
+    }
+
+    pushBot('궁금한 성분 이름을 편하게 적어주세요! 예) "나이아신아마이드가 뭐예요?"');
   };
 
   return (
@@ -273,7 +312,7 @@ export default function ChatSupportPage() {
 
       <div className="flex-1 overflow-y-auto px-3 py-4">
         <div className="flex justify-center mb-5">
-          <span className="text-xs text-gray-70 bg-black/[.08] px-3.5 py-1.5 rounded-full">2026년 6월 25일</span>
+          <span className="text-xs text-gray-70 bg-black/[.08] px-3.5 py-1.5 rounded-full">{todayLabel}</span>
         </div>
 
         {messages.map((msg) => (
@@ -320,22 +359,15 @@ export default function ChatSupportPage() {
                       >
                         🧴 내 화장품 등록하기
                       </button>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {quickButtons.map(([left, right]) => (
-                          <Fragment key={left}>
-                            <button
-                              onClick={() => handleQuickBtn(left)}
-                              className="py-2.5 px-2 rounded-lg border border-gray-20 text-xs text-gray-100 text-center leading-snug"
-                            >
-                              {left}
-                            </button>
-                            <button
-                              onClick={() => handleQuickBtn(right)}
-                              className="py-2.5 px-2 rounded-lg border border-gray-20 text-xs text-gray-100 text-center leading-snug"
-                            >
-                              {right}
-                            </button>
-                          </Fragment>
+                      <div className="flex flex-col gap-1.5">
+                        {quickButtons.map((btn) => (
+                          <button
+                            key={btn.key}
+                            onClick={() => handleQuickBtn(btn)}
+                            className="py-2.5 px-3 rounded-lg border border-gray-20 text-xs text-gray-100 text-left leading-snug"
+                          >
+                            {btn.label}
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -345,6 +377,18 @@ export default function ChatSupportPage() {
                     <div className="bg-white rounded-tl-[4px] rounded-tr-2xl rounded-b-2xl px-3.5 py-3 shadow-sm text-[13px] text-gray-100 leading-relaxed whitespace-pre-line">
                       {renderWithBold(msg.text)}
                     </div>
+                  )}
+
+                  {/* 예전에는 입력창 위에 고정된 버튼이라 다른 대화로 넘어가도 계속
+                      남아 있었다(QA 9). 등록 완료 메시지에 붙이고, 다음 메시지가
+                      오면 사라진다. */}
+                  {msg.closetLink && msg.id === messages[messages.length - 1]?.id && (
+                    <button
+                      onClick={() => navigate('/closet')}
+                      className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-xs font-bold text-white active:scale-[.98] transition-transform"
+                    >
+                      내 화장대 보기
+                    </button>
                   )}
                 </div>
               </div>
@@ -365,15 +409,6 @@ export default function ChatSupportPage() {
         <div ref={bottomRef} />
       </div>
 
-      {registeredCount > 0 && (
-        <button
-          onClick={() => navigate('/closet')}
-          className="mx-3 mb-2 flex items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-xs font-bold text-white active:scale-[.98] transition-transform"
-        >
-          내 화장대 보기 ({registeredCount}개 등록됨)
-        </button>
-      )}
-
       {guestLimitReached && (
         <div className="mx-3 mb-2 rounded-xl bg-gray-5 px-3 py-3 text-center">
           <p className="text-[12px] text-gray-70">
@@ -390,13 +425,36 @@ export default function ChatSupportPage() {
       )}
 
       <div className="bg-white border-t border-gray-20 px-3 py-2.5 flex items-center gap-2" style={{ paddingBottom: 'calc(10px + var(--safe-bottom))' }}>
-        <button
-          onClick={startRegister}
-          aria-label="내 화장품 등록"
-          className="w-[34px] h-[34px] rounded-full border-[1.5px] border-gray-20 flex items-center justify-center shrink-0 text-gray-70"
-        >
-          +
-        </button>
+        <div className="relative shrink-0">
+          {showAttachMenu && (
+            <>
+              {/* 바깥을 탭하면 메뉴 닫힘 */}
+              <div className="fixed inset-0 z-10" onClick={() => setShowAttachMenu(false)} />
+              <div className="absolute bottom-[42px] left-0 w-48 rounded-xl border border-gray-20 bg-white shadow-lg overflow-hidden z-20">
+                <button
+                  onClick={openScanRegister}
+                  className="flex w-full items-center gap-2 px-3 py-3 text-xs text-gray-100 active:bg-gray-5"
+                >
+                  📷 제품 앞면 찍어서 등록
+                </button>
+                <button
+                  onClick={openManualRegister}
+                  className="flex w-full items-center gap-2 px-3 py-3 text-xs text-gray-100 active:bg-gray-5 border-t border-gray-20"
+                >
+                  ✍️ 직접 입력해서 등록
+                </button>
+              </div>
+            </>
+          )}
+          <button
+            onClick={() => setShowAttachMenu((v) => !v)}
+            aria-label="추가 기능"
+            aria-expanded={showAttachMenu}
+            className="relative z-20 w-[34px] h-[34px] rounded-full border-[1.5px] border-gray-20 flex items-center justify-center shrink-0 text-gray-70"
+          >
+            {showAttachMenu ? '×' : '+'}
+          </button>
+        </div>
         <input
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}

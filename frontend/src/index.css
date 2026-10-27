@@ -83,9 +83,11 @@
     --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.10);
     --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.14);
 
-    /* Safe area (Capacitor / iOS) */
-    --safe-top: env(safe-area-inset-top, 0px);
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    /* Safe area (Capacitor / iOS)
+       안드로이드 앱은 엣지-투-엣지라 Capacitor(SystemBars)가 시스템 바 높이를 --safe-area-inset-*로 주입한다.
+       그 값이 있으면 우선하고, 없으면(웹·iOS) 브라우저의 env()를 쓴다. */
+    --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+    --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 
     /* 레이아웃 규격 (전 페이지 공통) */
     --bottom-nav-h: 56px; /* 하단 탭바 높이 (OyBottomNav·BottomNav 공통) */
@@ -113,6 +115,10 @@
     min-height: 100dvh;
     padding-top: var(--safe-top);
     overflow-x: hidden;
+    /* 한글은 어절(띄어쓰기) 단위로만 줄바꿈한다 — 기본값은 글자 단위라 "세/럼"처럼 단어가 쪼개진다.
+       어절 하나가 줄보다 길면(긴 영문·URL) 그 자리에서 끊어 상자 밖으로 넘치지 않게 한다. */
+    word-break: keep-all;
+    overflow-wrap: anywhere;
   }
 }
 
@@ -154,6 +160,15 @@
     border-color: var(--accent);
     color: var(--accent);
     background: var(--accent-light);
+  }
+
+  /* 궁합 카드의 이유를 눌렀을 때 강조되는 성분 */
+  .igr-chip.hl {
+    box-shadow: 0 0 0 2px var(--primary);
+    font-weight: 700;
+  }
+  .igr-chip.warn.hl {
+    box-shadow: 0 0 0 2px var(--accent);
   }
 
   /* 유사도 뱃지 */
@@ -234,4 +249,11 @@
 }
 .dual-range:focus-visible::-webkit-slider-thumb {
   outline: 3px solid rgba(0, 145, 109, 0.35);
+}
+
+/* 카메라 미리보기: 안드로이드 웹뷰가 첫 프레임 전에 그리는 기본 재생 버튼(▶)을 숨긴다 */
+video::-webkit-media-controls-start-playback-button,
+video::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+  -webkit-appearance: none;
 }

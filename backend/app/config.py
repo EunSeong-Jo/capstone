@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "swappy"
     POSTGRES_USER: str = "swappy"
     POSTGRES_PASSWORD: str = "swappy_dev"
+    # True면 30초마다 SELECT 1을 보내 연결을 데워 둔다(요청 경로의 pre_ping 생략).
+    # Neon은 유휴 5분이면 컴퓨트를 끄는데(scale to zero), 이 핑이 그것을 막아
+    # 서버를 켜 둔 시간만큼 CU-hrs가 쌓인다. 그래서 기본은 False — 끊긴 연결은
+    # pool_pre_ping이 요청 때 걸러 낸다. 상시 운영 서버에서만 True로 켠다.
+    DB_KEEPALIVE: bool = False
 
     @property
     def DATABASE_URL(self) -> str:
@@ -81,6 +86,9 @@ class Settings(BaseSettings):
     def REDIS_URL(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
 
+    # 프론트엔드 빌드 결과(dist) 위치. 비어 있으면 정적 서빙을 끈다(개발 환경).
+    STATIC_DIR: str = ""
+
     # CORS
     FRONTEND_URL: str = "http://localhost:3000"
 
@@ -90,11 +98,20 @@ class Settings(BaseSettings):
     # 로그
     LOG_LEVEL: str = "INFO"
 
-    # LLM (챗봇)
+    # LLM (챗봇·케어 문구)
+    # 공급자는 LLM_CHAIN 순서로 시도하고, 하나가 실패(키 만료·한도·타임아웃)하면 다음으로 넘어간다.
+    # 전부 실패하면 챗봇은 DB 기반 답변(services/chat_fallback.py)으로 대신한다.
+    # LLM_PROVIDER는 하위 호환: 체인에 없으면 맨 앞에 붙는다.
     LLM_PROVIDER: str = "openai"          # "openai" | "claude"
-    LLM_MODEL: str = "gpt-4o-mini"        # Claude 전환 시: "claude-sonnet-4-20250514"
+    LLM_CHAIN: str = "openai,claude"      # 쉼표 구분. "ollama"는 OLLAMA_BASE_URL이 있을 때만 유효
+    LLM_MODEL: str = "gpt-4o-mini"        # OpenAI 모델
+    CLAUDE_MODEL: str = "claude-haiku-5-5"
+    LLM_TIMEOUT: float = 20.0             # 공급자 한 곳당 초
     OPENAI_API_KEY: str = ""              # OpenAI API 키
-    ANTHROPIC_API_KEY: str = ""           # Claude 전환 시 사용
+    ANTHROPIC_API_KEY: str = ""           # Claude API 키
+    # 로컬 개발용(선택): Ollama의 OpenAI 호환 주소, 예) http://host.docker.internal:11434/v1
+    OLLAMA_BASE_URL: str = ""
+    OLLAMA_MODEL: str = "llama3.2:3b"
 
     # 날씨 (홈 대시보드) — https://openweathermap.org 무료 티어 키
     OPENWEATHER_API_KEY: str = ""
@@ -104,6 +121,66 @@ class Settings(BaseSettings):
     # 비어 있으면 스캔 API가 503을 낸다(화면은 제품명 검색으로 안내한다).
     CLOVA_OCR_SECRET: str = ""
     CLOVA_OCR_INVOKE_URL: str = ""
+
+    # 스캔 호출 한도 — CLOVA 무료 한도를 지키려는 장치(services/ocr_quota.py).
+    # 허용 계정(쉼표로 구분한 이메일)은 한도에서 면제, 나머지는 하루(서울 날짜)
+    # 계정당·전체 한도를 둔다. 초과하면 429, 화면이 제품명 검색을 안내한다.
+    OCR_ALLOWED_EMAILS: str = ""
+    OCR_USER_DAILY_LIMIT: int = 3
+    OCR_GLOBAL_DAILY_LIMIT: int = 15
+
+    # 얼굴 사진 AI 피부 분석 — Perfect Corp YouCam Skin Analysis (services/skin_photo.py).
+    # 호출은 유닛을 쓴다(SD 5~8개 유형 12유닛, 9~12개 14유닛). 개발·테스트는 MOCK으로 돌린다.
+    # 키가 없고 MOCK도 아니면 분석 API가 503을 낸다(화면은 QnA만으로 진단을 이어 간다).
+    PERFECT_CORP_API_KEY: str = ""
+    PERFECT_CORP_BASE_URL: str = "https://yce-api-01.makeupar.com/s2s/v2.0"
+    PERFECT_CORP_MODE: str = "sd"          # "sd" | "hd" — 같은 사진에서 점수 거의 동일, SD가 더 싸다
+    PERFECT_CORP_MOCK: bool = False        # True면 저장해 둔 응답을 쓴다(외부 호출·유닛 소모 없음)
+
+    # 사진 분석 이용 한도 (services/skin_quota.py). 월 경계는 Asia/Seoul.
+    # 무료는 얼굴 사진 수집에 동의한 사용자만, 구독자는 동의 + 활성 구독이 필요하다.
+    SKIN_FREE_MONTHLY: int = 1
+    SKIN_SUBSCRIBER_MONTHLY: int = 4
+
+    # 사진 점수를 5축으로 옮길 때의 보정(services/skin_photo.to_axes). 건강한 피부는 점수가
+    # 한쪽에 몰려 축 값이 낮게 나오므로 실측 뒤 조정한다. 기본값은 보정 없음.
+    PHOTO_AXIS_GAIN: float = 1.0
+    PHOTO_SKIN_TYPE_NUDGE: float = 1.0
+
+    # 사진 점수를 QnA 점수와 섞는 비중(0~1). 사진을 쓰지 않은 진단은 항상 QnA 100%다.
+    PHOTO_BLEND_WEIGHT: float = 0.4
+    # 일부 문항만 답하고 촬영한 진단에서, 답한 문항이 건드린 축의 사진 비중(0~1).
+    # 건드리지 않은 축은 사진 100%다(services/diagnosis.blend_partial).
+    PHOTO_PARTIAL_WEIGHT: float = 0.5
+
+    # 얼굴 사전 필터 임계값 (services/face_gate.py). 거절 로그와 실제 사진으로 조정한다.
+    # 폭 비율은 Perfect Corp 요구(60%)보다 느슨하게 시작한다 — 검출기 상자가 얼굴보다
+    # 조금 좁게 잡혀서 같은 기준을 쓰면 정상 사진이 걸러진다.
+    FACE_MIN_SCORE: float = 0.8
+    # 업체(Perfect Corp)의 촬영 요구를 서버에서 같은 기준으로 먼저 본다(services/face_gate.py).
+    # 얼굴 폭 = 두 눈 사이 거리 ÷ 0.45(귀~귀 폭에 대한 비율)로 어림한 값이 사진 폭의 60% 이상이어야 한다.
+    # 검출 상자 폭은 얼굴보다 좁게 잡혀서 쓰지 않는다 — 업체가 정상 처리한 시험 사진이 상자로는 58.8%,
+    # 어림값으로는 64%였다. 눈 위치를 못 얻을 때만 상자 폭(FACE_MIN_BOX_RATIO)으로 대신한다.
+    FACE_MIN_WIDTH_RATIO: float = 0.60
+    FACE_MIN_BOX_RATIO: float = 0.40
+    # 정면: 눈을 잇는 선의 기울기(roll)와 코끝의 좌우 치우침(yaw, 눈 사이 거리 대비). 업체 기준 ±15°.
+    FACE_MAX_ROLL_DEG: float = 15.0
+    FACE_MAX_YAW_OFFSET: float = 0.12
+    # 조명: 너무 밝음(평균 200 초과)·한쪽만 밝음(좌우 밝기 차 ÷ 평균). 시험 사진은 120 · 9%.
+    FACE_MAX_LUMINANCE: float = 200.0
+    FACE_MAX_LIGHT_IMBALANCE: float = 0.4
+    # 초점: 얼굴을 128×128 회색으로 줄여 잰 라플라시안 분산. 시험 사진 2240, 가우시안 σ=3 흐림 68, σ=4 37.
+    FACE_MIN_SHARPNESS: float = 60.0
+    # 가림: 얼굴 상자 안 영역별 '얼굴 피부' 비율이 이 값 이상이어야 한다(services/occlusion.py).
+    # 시험 사진은 볼 95·96%·코와 입 100%·턱 76~79%(목과 맞닿아 80%를 넘기 어렵다), 흰 마스크는 17~32·25~36·6%,
+    # 피부색 손 모양은 코와 입 34~49%·턱 22~48%. 일부만 가린 경우까지 잡도록 올렸고, 정상 사진과의 여유를 남겼다.
+    FACE_SKIN_MIN_CHEEK: float = 0.70
+    FACE_SKIN_MIN_NOSE_MOUTH: float = 0.80
+    FACE_SKIN_MIN_CHIN: float = 0.60
+    FACE_MIN_LUMINANCE: float = 50.0
+
+    # 얼굴 사진 수집 동의 문구의 버전. 문구(개인정보 처리방침)를 바꾸면 함께 올린다.
+    FACE_CONSENT_VERSION: str = "2026-10-26"
 
     # 호출 제한이 쓰는 클라이언트 IP. 프록시·로드밸런서 뒤에 둘 때만 true로 —
     # 그러면 X-Forwarded-For의 첫 주소를 쓴다(core/rate_limit.py).

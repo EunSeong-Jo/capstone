@@ -61,23 +61,6 @@ export interface Product {
   unitLabel?: string | null;
 }
 
-// ===== 성분 =====
-export type IngredientGrade = 'key' | 'normal' | 'warn'; // 주요 / 일반 / 주의
-
-export interface Ingredient {
-  id: number;
-  name: string; // '히알루론산'
-  /**
-   * 성분 등급. 아직 큐레이션 전이라 API가 주지 않습니다.
-   * DB(ingredients.grade)가 전부 NULL이며, 상위 200종이 전체 출현의
-   * 58%를 덮으므로 그 범위부터 채울 예정입니다.
-   */
-  grade?: IngredientGrade;
-  ewg?: number; // EWG 등급(선택). grade와 같은 이유로 아직 비어 있습니다
-  /** 피부타입별 궁합 (good=잘 맞음, caution=주의) */
-  skinAffinity?: Partial<Record<SkinType, 'good' | 'caution'>>;
-}
-
 // ===== 대체품 추천 =====
 /** 추천 이유 4축 */
 export type AltReasonType = 'skinMatch' | 'similarity' | 'priceSave' | 'situation';
@@ -94,9 +77,10 @@ export type AltSituation = 'discontinued' | 'soldout' | 'restock';
 export interface Alternative extends Product {
   similarityScore: number; // 0~100 (성분 유사도)
   seedId?: number; // 기준제품 id
+  basedOn?: string; // 어느 화장대 제품과 비슷해서 나왔는지(제품명) — 홈 '내 화장대와 비슷한 추천'
   priceDelta?: number; // 기준 대비 가격차 (음수=절약)
   savingRate?: number; // 절약률 % (양수)
-  skinMatch?: { skinType: SkinType; verdict: 'good' | 'caution' };
+  skinMatch?: { skinType: SkinType; verdict: 'good' | 'ok' | 'caution'; score?: number };
   situation?: AltSituation | null; // 상황 대응
   reasonTags?: AltReasonTag[]; // 카드 노출용 (직접 작성 or 파생)
   sharedKeyIngredients?: string[]; // 공통 주요성분 (유사도 근거)

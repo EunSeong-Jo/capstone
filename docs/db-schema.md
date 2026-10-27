@@ -10,8 +10,8 @@
 | DBMS | PostgreSQL 16.15 |
 | 호스팅 | Neon (serverless) · branch `production` · db `neondb` |
 | 확장 | `pg_trgm` 1.6 |
-| alembic head | `a9c1e2f3d4b5` |
-| 테이블 | 31 (Phase 1 18 + 개인 데이터 11 + 성분 설명 1 + 영문 제품명 1) |
+| alembic head | `c3d9a1e7b2f4` |
+| 테이블 | 34 (Phase 1 18 + 개인 데이터 11 + 성분 설명 1 + 영문 제품명 1 + 얼굴 사진 분석 3) |
 | 기준일 | 2026-10-03 |
 
 ---
@@ -97,7 +97,8 @@ erDiagram
 | | `list_price` | int | NULL | 할인 전 정가 |
 | | `discount_rate` | smallint | NULL | |
 | | `rating` | numeric(2,1) | NULL | |
-| | `review_count` | int | NULL | |
+| | `review_count` | int | NULL | 올리브영 크롤링값. **인기순 정렬·점수의 입력** — 화면의 리뷰 수가 아니다 |
+| | `registered_review_count` | int | NOT NULL, 기본 0 | 화면에 보이는 리뷰 수 = 이 앱에 등록된 후기 개수(`reviews` 집계). 옵션 묶음은 그룹이 같은 값을 쓴다 (`f4a6b8c0d2e3`) |
 | | `image_url` | text | NULL | |
 | | `product_url` | text | NULL | |
 | | `volume` | text | NULL | 상품정보제공고시 원문 |
@@ -115,7 +116,9 @@ erDiagram
 | | `ingredient_count_raw` | int | NULL | 원본 성분 개수 (아래 설명) |
 | | `status` | text | NOT NULL | `= 'active'` · active/soldout/discontinued |
 | | `source` | text | NOT NULL | `= 'oliveyoung'` |
-| | `composition` | text | NOT NULL | `= 'single'` · single/bonus/goods/bundle (아래 설명) |
+| | `composition` | text | NOT NULL | `= 'single'` · single/bonus/goods/bundle/optgroup (아래 설명) |
+| | `option_parent_id` | int | FK `products.id` CASCADE | 옵션형 묶음의 옵션 행이 원본 행을 가리킨다. 그 밖의 제품은 NULL |
+| | `option_label` `option_order` | text · smallint | | 옵션 이름('화장발')과 순서(1부터, 1이 그룹 대표). 옵션 행만 값이 있다 |
 | | `created_at` `updated_at` | timestamptz | NOT NULL | `= now()` |
 
 **`name`과 `display_name`**은 역할이 다릅니다. `name`은 정제 전 원본이라 `기획`·`N종 택1`·`+50ml` 같은 문구가 살아 있고, 그게 `composition` 판정의 입력이라 지우면 분류가 깨집니다. 화면에는 `display_name`(v5 정제명)을 쓰고, NULL이면 `name`으로 떨어집니다. 검색은 양쪽을 모두 봅니다 — 정제 과정에서 지워진 단어로 검색한 사용자가 아무것도 못 찾으면 안 되기 때문입니다.
@@ -152,6 +155,8 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 **`volume_uncertain`이 true인 113건은 숫자가 있어도 믿으면 안 됩니다.** v5 정제 작업자가 총량을 하나로 말할 수 없다고 표시한 제품입니다 — `'각 옵션별 용량이 다름'`이거나, `'409ml (6개) + 210매'`처럼 본품과 동봉품의 단위가 섞여 있습니다. 파서는 그중 103건에서 숫자를 뽑아내므로, 단가(`price / volume_ml`)를 낼 때는 이 제품을 빼야 합니다.
 
 **`composition`**은 제품 구성입니다. `status`(판매 상태)와는 다른 축이라 '품절된 단일제품'이 성립합니다. `single` 외에는 전성분이 제품 하나에 대응한다고 보장할 수 없어 **유사도 계산에서 빼고 조회 API도 기본으로 숨깁니다**. 판정 규칙은 [`backend/app/utils/composition.py`](../backend/app/utils/composition.py)이고, `scripts/load_products.py`가 적재하면서 채웁니다. 묶음분리로 한 제품이 여러 행이 된 경우에는 **가장 오염된 판정이 이깁니다** — 하나라도 묶음이면 그 제품은 묶음입니다.
+
+**옵션형 묶음(`optgroup`)**: "A/B/C 택1"처럼 옵션이 여럿인 상품은 판매자가 옵션별 전성분을 `[라벨]`로 이어 한 칸에 적습니다. `(제품, 성분)`이 키라 이대로는 옵션 구분과 중복이 사라지므로, 적재가 라벨 구간별로 **옵션 행**(`composition = 'single'`, `option_parent_id`, `option_label`, `option_order`, `goods_no = 원본~n`)을 만들고 **원본 행은 `optgroup`으로 표시**합니다(삭제하지 않음 — 찜·주문이 가리킬 수 있습니다). 원본은 목록·검색·추천·사진 인식·유사도에서 빠지고, 목록에는 그룹당 대표(`option_order = 1`)만 나오며, 상세·성분 분석 화면의 드롭다운으로 옵션을 고릅니다. 가격·평점·리뷰수·이미지는 원본 값을 옵션이 그대로 가지고 후기는 그룹 단위로 읽습니다. 규칙은 [`backend/app/utils/product_options.py`](../backend/app/utils/product_options.py), 공통 조건은 [`backend/app/services/option_scope.py`](../backend/app/services/option_scope.py), 적재는 `scripts/load_products.py`(`--options-only`로 이 단계만 실행).
 
 | 값 | 건수 | 설명 |
 |---|---:|---|
@@ -251,9 +256,26 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 `parent_id` 자기참조로 2단계를 담을 수 있지만 지금은 1단계만 씁니다. 스킨케어 소분류(토너·세럼·크림)가 붙을 자리입니다.
 
-### `tags` — 11행 · `ingredient_tags` — 489행
+### `ingredient_functions` — 1,686행 (성분 기능 분류 — **현행 정본**)
 
-효능 태그 마스터와 성분 ↔ 태그 조인.
+성분마다 기능·역할·주의 플래그·확신도를 한 번만 분류해 둔 테이블입니다. 유사도(`hybrid`)·피부 궁합·피부타입 필터·전성분 칩이
+모두 이것을 씁니다. 원본은 `data/seed/ingredient_functions/labels.csv`, 적재는 `scripts/seed_ingredient_functions.py`.
+
+| | 컬럼 | 타입 | | 비고 |
+|---|---|---|---|---|
+| PK FK | `ingredient_id` | int | NOT NULL | → `ingredients` [CASCADE] |
+| | `functions` | text[] | NOT NULL | H보습 B장벽 S진정 W미백 A주름·탄력 O항산화 P피지·모공 E각질 U자외선 |
+| | `role` | char(1) | NOT NULL | a활성 e에몰리언트 s용매 f계면활성 t점증 p방부 x기타 j오염 |
+| | `flags` | text[] | NOT NULL | I자극 소지 F향료 L건조 알코올 |
+| | `confidence` | smallint | NOT NULL | 1낮음(근거에서 제외) · 2보통 · 3확실 |
+| | `source` | varchar(20) | NOT NULL | ai_expert · reviewed · mfds · cosing |
+| | `allergen_listed` | bool | NOT NULL | 식약처 알레르기 유발 착향제 고시 목록의 성분 |
+| | `note` · `created_at` · `updated_at` | | | |
+
+### `tags` — 11행 · `ingredient_tags` — 489행 ⚠️ 더 이상 읽지 않음
+
+효능 태그 마스터와 성분 ↔ 태그 조인. **`ingredient_functions` 기반으로 전환했고 코드는 이 테이블을 읽지 않습니다**
+(`skin_type_rules`, `ingredients.grade`·`is_allergen` 포함). 안정되면 다음 릴리스에서 삭제합니다.
 
 ```
 tags              : id(PK) · code(UQ, 예: moisture_balance) · label(예: 유수분 밸런싱)
@@ -305,18 +327,35 @@ ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 |---|---|---|---|---|
 | PK FK | `product_id` | int | NOT NULL | → `products` [CASCADE] · **기준 제품** |
 | PK FK | `similar_id` | int | NOT NULL | → `products` [CASCADE] · **대체품** |
-| PK | `method` | text | NOT NULL | tfidf / jaccard / rbo |
+| PK | `method` | text | NOT NULL | tfidf / hybrid |
 | | `score` | float8 | NOT NULL | 0~1 |
 | | `shared_ingredients` | jsonb | NULL | 근거 표시용 |
 | | `computed_at` | timestamptz | NOT NULL | `= now()` |
 
 **방향이 있는 관계입니다.** 제품별 상위 20개만 저장하므로 A의 상위권에 B가 있어도 B의 상위권에 A가 있다는 보장이 없습니다. 양방향 조회가 필요하면 배치가 두 행을 모두 넣어야 합니다.
 
-`method`를 PK에 포함해 TF-IDF·Jaccard·RBO 결과를 나란히 두고 비교할 수 있게 했습니다.
+`method`를 PK에 포함해 TF-IDF·hybrid 결과를 나란히 두고 비교할 수 있게 했습니다.
 
-### `skin_type_rules` — 8행
+### `product_skin_fit` — 32,104행 (제품 × 피부타입 궁합, 사전 계산)
 
-피부타입 8종별 추천·회피 태그. 진단 결과를 제품 필터로 번역하는 규칙입니다.
+`services/skin_fit.evaluate`가 성분 기능 라벨로 계산한 결과를 `scripts/compute_skin_fit.py`가 적재합니다(전 제품 × 8타입, 멱등).
+**목록 정렬(`sort=skinFit`)·피부타입 필터(`excluded`)·홈 추천 점수·예산 가이드·궁합 배지/대체품 `skinMatch`가 모두 이 테이블을 읽습니다.**
+라벨이나 규칙(`PREFER`/`AVOID`/하드 제외)을 바꾸면 배치를 다시 돌려야 합니다.
+
+| | 컬럼 | 타입 | | 비고 |
+|---|---|---|---|---|
+| PK FK | `product_id` | int | NOT NULL | → `products` [CASCADE] |
+| PK | `skin_type` | text | NOT NULL | 8타입 코드 |
+| | `score` | smallint | NULL | 0~100. 근거 부족이면 NULL |
+| | `verdict` | text | NOT NULL | good / ok / caution / unknown |
+| | `matched` | smallint | NOT NULL | 그 타입의 선호 기능을 가진 성분 수 |
+| | `excluded` | bool | NOT NULL | 이 타입의 필터가 목록에서 빼는 제품(고시 목록·일반 향료 / 건조 알코올) |
+| | `has_fragrance` · `has_drying_alcohol` | bool | NOT NULL | 타입과 무관한 사실(예산 가이드의 무향·무알코올) |
+| | `computed_at` | timestamptz | NOT NULL | |
+
+### `skin_type_rules` — 8행 ⚠️ 더 이상 읽지 않음
+
+(예전) 피부타입 8종별 추천·회피 태그. 규칙의 정본은 이제 `services/skin_fit.py`의 `PREFER`/`AVOID`입니다. 아래는 옛 설명입니다.
 
 ```
 id(PK) · skin_type(UQ) · include_tags(jsonb) · exclude_tags(jsonb)
@@ -384,7 +423,8 @@ is_active(bool = true) · updated_at
 | | `guest_token` | text | NULL | Soft-gate 시절의 흔적 — 더 채워지지 않음 |
 | FK | `version_id` | int | NOT NULL | → `quiz_versions` [RESTRICT] |
 | | `answers` | jsonb | NOT NULL | |
-| | `scores` | jsonb | NOT NULL | 5개 축 |
+| | `scores` | jsonb | NOT NULL | 5개 축. 얼굴 사진 분석을 섞었으면 **섞인 뒤의 값** |
+| FK | `analysis_id` | uuid | NULL | → `skin_analyses` [SET NULL]. 사진 분석을 섞은 진단이면 그 분석, NULL이면 QnA 100% |
 | | `created_at` | timestamptz | NOT NULL | `= now()` |
 
 문항이 바뀌어도 과거 결과를 해석할 수 있도록 `version_id`를 남깁니다. FK가 RESTRICT라 진단 기록이 있는 버전은 삭제되지 않습니다.
@@ -401,6 +441,37 @@ quiz_questions  : id(PK) · version_id(FK) · code · axis · body · order_no
 quiz_options    : id(PK) · question_id(FK) · label · weights(jsonb) · order_no
                   → weights에 축별 가중치를 담아 점수 계산을 데이터로 뺐다
 ```
+
+---
+
+## 얼굴 사진 AI 분석
+
+QnA 진단에 **얼굴 사진 분석**(Perfect Corp YouCam Skin Analysis)을 선택으로 더합니다. **원본 사진은 담지 않습니다** — 사진은 요청 중 메모리에만 있습니다(`docs/dev_guidelines.md` 11.2). 업체가 돌려주는 분석 이미지 URL(2시간 만료)은 저장하지 않고, 서버가 분석 직후 그 마스크(얼굴 사진 없는 투명 PNG)를 받아 **`skin_analysis_images`**(PK `analysis_id`+`key`, `png` bytea, `user_id`)에 보관합니다. 분석·사용자 삭제 시에만 CASCADE로 지우고, 동의를 철회해도 이미 만든 결과는 남깁니다. 마이그레이션 `c3d9a1e7b2f4`(세 테이블), `e3f5a7b9c1d2`(이미지 테이블).
+
+```
+user_consents : id(PK, uuid) · user_id(FK → users [CASCADE]) · consent_type(= 'face_photo')
+                version · agreed_at · withdrawn_at(NULL 허용)
+                UNIQUE(user_id, consent_type)
+                → (사용자, 종류)당 1행. 재동의·철회는 같은 행을 갱신한다.
+                  version은 동의받을 당시 문구의 버전(config FACE_CONSENT_VERSION) —
+                  문구가 바뀌면 옛 동의는 현재 문구에 대한 동의로 보지 않는다
+
+subscriptions : id(PK, uuid) · user_id(FK → users [CASCADE]) · plan(= 'ai_skin_care')
+                status(= 'active' | 'cancelled') · current_period_start · current_period_end
+                created_at · cancelled_at(NULL 허용)          INDEX(user_id, current_period_end)
+                → **결제는 붙어 있지 않다**(데모 활성화, 기간 30일). 해지해도
+                  current_period_end까지는 구독자로 본다
+
+skin_analyses : id(PK, uuid) · user_id(FK → users [CASCADE]) · created_at
+                quota_kind(free | subscription) · concern_set(basic | extended)
+                provider_mode(sd | hd | mock) · metrics(jsonb)  INDEX(user_id, created_at)
+                → 성공한 분석 1회 = 1행. 월 이용 횟수도 이 행을 센다.
+                  metrics = {axes, concerns{key:{raw,ui}}, skin_types{whole,t_zone,u_zone}}
+```
+
+**이용 한도**(`services/skin_quota.py`): 얼굴 사진 수집에 동의한 사용자만 쓸 수 있고, 무료 월 1회·구독자 월 4회입니다(Asia/Seoul 달 경계). 얼굴이 인식되지 않는 등 **실패는 행을 만들지 않아 한도를 쓰지 않습니다.** 분석 항목은 무료 8개(호출당 12유닛), 구독자 12개(14유닛)입니다.
+
+**진단 혼합**: `POST /profile/skin-quiz`에 `analysisId`를 실으면 서버가 저장된 분석의 5축 점수를 QnA에 `PHOTO_BLEND_WEIGHT`(기본 0.4) 비중으로 섞습니다. 점수는 클라이언트가 보내지 않으며, 1시간 안의 본인 분석만 받습니다. `analysisId`가 없으면 QnA 100%입니다.
 
 ---
 
@@ -540,6 +611,7 @@ Neon에는 컨테이너 초기화 훅이 없어 `CREATE EXTENSION`을 첫 마이
 | `orders.closed_at` · `close_reason` | 취소·반품 시각과 사유. `status`는 `placed` / `cancelled` / `returned`. 배송 단계(결제완료~배송완료)는 **저장하지 않고** `placed_at`에서 계산합니다(`services/order_stage.py`) — 택배 연동이 없기 때문입니다 |
 | `point_transactions.reason` | `order_cancel` / `order_return`이 더해졌습니다. 취소·반품 시 그 주문의 적립을 음수로 회수합니다 |
 | `gifts.recipient_user_id` | 받는 사람 계정(닉네임으로 찾음, FK SET NULL). '받은 선물'이 여기서 나옵니다. 이전 행은 NULL — 이름만 적었던 선물입니다 |
+| `reviews` (생성 후기) | `is_sample=true` 행은 `user_id`·`order_item_id`가 NULL이고 작성자는 `author_nickname`·`author_skin_type`. `CHECK ck_review_real_or_sample`이 실제 후기의 필수 조건은 유지. 제품당 10개 안팎(`scripts/seed_sample_reviews.py`, 멱등) |
 | `review_photos` | 후기 사진. 파일 서버가 없어 **바이트를 DB에 둡니다**(장당 2MB, 후기당 3장, `reviews` CASCADE). `GET /api/v1/reviews/photos/{id}`로 공개 |
 
 PR #64로 들어왔다가 revert됐고(PR #67), dev 위에 다시 얹으며 `Revises`를 `a0fd1f8a5d3a`로 옮겼습니다.

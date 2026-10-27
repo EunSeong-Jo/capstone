@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Alternative } from '../../types';
 import { Badge } from '../ui/Badge';
 import { ReasonTags } from './ReasonTags';
+import { FitPill } from '../product/FitBadge';
 import { formatUnitPrice } from '../../utils/unitPrice';
 import { similarityBadgeType } from '../../utils/alternatives';
 
@@ -36,7 +37,7 @@ export function AlternativeCard({ alt, showSeedDelta = true, maxReasons = 3, onC
 
       <div className="flex-1 min-w-0">
         <p className="text-xs text-gray-70">{alt.brand}</p>
-        <p className="text-sm font-semibold text-gray-100 truncate">{alt.name}</p>
+        <p className="text-sm font-semibold leading-snug text-gray-100 line-clamp-2">{alt.name}</p>
         <div className="flex items-baseline gap-1.5 mt-0.5">
           <span className="text-sm font-bold text-gray-100">{alt.price.toLocaleString()}원</span>
           {saving && (
@@ -51,7 +52,10 @@ export function AlternativeCard({ alt, showSeedDelta = true, maxReasons = 3, onC
         )}
       </div>
 
-      <Badge type={similarityBadgeType(alt.similarityScore)} label={`${alt.similarityScore}%`} />
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <FitPill verdict={alt.skinMatch?.verdict} />
+        <Badge type={similarityBadgeType(alt.similarityScore)} label={`${alt.similarityScore}%`} />
+      </div>
     </div>
   );
 }
