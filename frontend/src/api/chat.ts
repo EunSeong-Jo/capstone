@@ -19,6 +19,8 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   reply: string;
+  /** 'fallback'이면 AI 키·장애로 서버가 저장된 정보(DB)로 답한 것 — 답변 첫 줄에 안내가 이미 들어 있다. */
+  mode?: 'ai' | 'fallback';
 }
 
 export function sendChatMessage(

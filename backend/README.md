@@ -66,9 +66,10 @@ backend/
 │   ├── api/
 │   │   └── chat.py             # 유일한 라우터
 │   ├── services/
-│   │   ├── llm.py              # OpenAI / Anthropic 이중 프로바이더
+│   │   ├── llm.py              # LLM 공급자 체인(OpenAI → Anthropic, 선택 Ollama). 전부 실패하면 LLMUnavailable
 │   │   ├── rag.py              # 키워드 스코어링 검색 (벡터 아님)
-│   │   └── rag_seed.py         # ⚠️ 임시 SQLite 저장소
+│   │   ├── chat_fallback.py    # LLM 키·장애 시 DB 기반 챗봇 답변(성분·제품·추천·대체품)
+│   │   └── rag_seed.py         # ⚠️ 옛 SQLite 시드(현재 rag.py는 PostgreSQL을 읽는다)
 │   ├── data_collection/        # 식약처 API · 올리브영 크롤러
 │   └── utils/
 │       └── ingredients.py      # 전성분 파싱·정규화
@@ -269,7 +270,7 @@ cd backend && uvicorn app.main:app --reload
 
 ## 알아둘 것
 
-**챗봇의 RAG 저장소가 임시입니다.** `app/services/rag_seed.py`가 gitignore된 SQLite(`backend/data/products.db`)를 씁니다. 파일 상단 주석대로 PostgreSQL 전환이 필요하며, 함수 내부 교체만으로는 안 됩니다. 지금 DB에 제품 4,150건이 있으니 전환 시점입니다.
+**챗봇 폴백.** `LLM_CHAIN`의 공급자가 모두 실패하면(키 만료·한도·타임아웃) `POST /chat`은 503 대신 200과 `mode:"fallback"`으로, `services/chat_fallback.py`가 DB(성분 설명·기능 라벨·제품 RAG·유사도·피부 궁합)로 만든 답을 준다. 모델을 쓰지 않아 서버 부담이 작고, 서버 로그에 `chat_llm_fallback`이 남으면 키를 점검한다. 챗봇 RAG(`rag.py`)는 이미 PostgreSQL을 읽는다.
 
 **Redis는 컨테이너만 떠 있고 코드에서 쓰지 않습니다.** `config.py`에 `REDIS_URL` 프로퍼티만 정의돼 있습니다. Task 14의 추천 캐싱에서 처음 쓰이게 됩니다.
 

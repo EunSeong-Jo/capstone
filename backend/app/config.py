@@ -98,11 +98,20 @@ class Settings(BaseSettings):
     # 로그
     LOG_LEVEL: str = "INFO"
 
-    # LLM (챗봇)
+    # LLM (챗봇·케어 문구)
+    # 공급자는 LLM_CHAIN 순서로 시도하고, 하나가 실패(키 만료·한도·타임아웃)하면 다음으로 넘어간다.
+    # 전부 실패하면 챗봇은 DB 기반 답변(services/chat_fallback.py)으로 대신한다.
+    # LLM_PROVIDER는 하위 호환: 체인에 없으면 맨 앞에 붙는다.
     LLM_PROVIDER: str = "openai"          # "openai" | "claude"
-    LLM_MODEL: str = "gpt-4o-mini"        # Claude 전환 시: "claude-sonnet-4-20250514"
+    LLM_CHAIN: str = "openai,claude"      # 쉼표 구분. "ollama"는 OLLAMA_BASE_URL이 있을 때만 유효
+    LLM_MODEL: str = "gpt-4o-mini"        # OpenAI 모델
+    CLAUDE_MODEL: str = "claude-haiku-5-5"
+    LLM_TIMEOUT: float = 20.0             # 공급자 한 곳당 초
     OPENAI_API_KEY: str = ""              # OpenAI API 키
-    ANTHROPIC_API_KEY: str = ""           # Claude 전환 시 사용
+    ANTHROPIC_API_KEY: str = ""           # Claude API 키
+    # 로컬 개발용(선택): Ollama의 OpenAI 호환 주소, 예) http://host.docker.internal:11434/v1
+    OLLAMA_BASE_URL: str = ""
+    OLLAMA_MODEL: str = "llama3.2:3b"
 
     # 날씨 (홈 대시보드) — https://openweathermap.org 무료 티어 키
     OPENWEATHER_API_KEY: str = ""
