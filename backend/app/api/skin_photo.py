@@ -50,6 +50,13 @@ from app.schemas.skin_photo import (
 from app.services.face_gate import check_face, inspect_photo, prepare_photo
 from app.services.review_photos import decode_photo
 from app.services.skin_photo import analyze_face, fetch_masks, parse_output, to_axes
+from app.services.skin_sample import (
+    SAMPLE_MODE,
+    find_sample,
+    image_source_id,
+    live_analysis_allowed,
+    sample_metrics,
+)
 from app.services.skin_quota import (
     SUBSCRIPTION_PERIOD_DAYS,
     active_subscription,
@@ -225,6 +232,13 @@ def _analysis_out(
     )
 
 
+def _image_keys(row: SkinAnalysis, stored: dict[uuid.UUID, list[str]]) -> list[str]:
+    """화면에 줄 이미지 키. 표본 분석은 자기 이미지가 없어 점수와 함께 복사해 둔 키 목록을 쓴다."""
+    if "sample_of" in row.metrics:
+        return list(row.metrics.get("images", []))
+    return stored.get(row.id, [])
+
+
 # 사전 검증은 한도를 쓰지 않아 서버 CPU만 든다 — 하루 이 횟수까지(촬영·재촬영을 충분히 허용한다).
 PRECHECK_DAILY_LIMIT = 100
 
@@ -291,6 +305,28 @@ async def analyze(
     photo = prepare_photo(data, MIN_SHORT_SIDE.get(settings.PERFECT_CORP_MODE, 480))
     await check_face(photo)
 
+    if not live_analysis_allowed(user):
+        # 허용 계정이 아니면 Perfect Corp을 부르지 않는다. 표본 계정에 저장된 분석 결과를 이 계정의 분석으로 남긴다
+        # (services/skin_sample.py). 사진은 여기서 버려진다 — 외부로 나가지도, 저장되지도 않는다.
+        source = await find_sample(db)
+        if source is None:
+            raise HTTPException(status_code=503, detail="사진 분석을 지금은 쓸 수 없어요")
+        metrics, concern_set, fake = sample_metrics(source, quota)
+        row = SkinAnalysis(
+            id=uuid.uuid4(),
+            user_id=user.id,
+            quota_kind=quota.quota_kind,
+            concern_set=concern_set,
+            provider_mode=SAMPLE_MODE,
+            metrics=metrics,
+        )
+        db.add(row)
+        await db.flush()
+        skin_images.add_images(db, user.id, row.id, skin_images.valid_images(fake))
+        await db.commit()
+        await db.refresh(row)
+        return _analysis_out(row, metrics["images"], remaining=quota.remaining - 1)
+
     output = await analyze_face(photo.jpeg, quota.concerns)
     parsed = parse_output(output)
     axes = to_axes(parsed)
@@ -332,7 +368,7 @@ async def analysis_history(
     )
     rows = list(rows)
     keys = await skin_images.keys_for(db, [r.id for r in rows])
-    return [_analysis_out(r, keys.get(r.id, [])) for r in rows]
+    return [_analysis_out(r, _image_keys(r, keys)) for r in rows]
 
 
 @router.get("/api/v1/skin-analysis/{analysis_id}/images/{key}",
@@ -345,11 +381,17 @@ async def analysis_image(
 ) -> Response:
     """항목별 분석 결과 이미지(얼굴 사진 없는 투명 PNG). **본인 것만** 받을 수 있다(남의 id는 404)."""
     owned = await db.scalar(
-        select(SkinAnalysis.id).where(
+        select(SkinAnalysis).where(
             SkinAnalysis.id == analysis_id, SkinAnalysis.user_id == user.id
         )
     )
-    png = await skin_images.get_image(db, analysis_id, key) if owned else None
+    # 표본으로 만든 분석은 이미지를 복사하지 않고 원본 분석의 것을 읽는다(services/skin_sample.py)
+    png = None
+    if owned:
+        # 가짜로 채운 항목은 자기 행에, 실제 항목은 원본 분석에 있다
+        png = await skin_images.get_image(db, owned.id, key)
+        if png is None:
+            png = await skin_images.get_image(db, image_source_id(owned), key)
     if png is None:
         raise HTTPException(status_code=404, detail="분석 이미지가 없어요")
     return Response(png, media_type="image/png", headers={"Cache-Control": "private, max-age=300"})
@@ -368,4 +410,4 @@ async def latest_analysis(
     )
     if row is None:
         raise HTTPException(status_code=404, detail="사진 분석 기록이 없어요")
-    return _analysis_out(row, (await skin_images.keys_for(db, [row.id])).get(row.id, []))
+    return _analysis_out(row, _image_keys(row, await skin_images.keys_for(db, [row.id])))
