@@ -23,6 +23,7 @@ from app.api.care_tip import router as care_tip_router
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
 from app.api.diagnosis import router as diagnosis_router
+from app.api.ingredients import router as ingredients_router
 from app.api.me import router as me_router
 from app.api.personal import (
     gifts_router,
@@ -93,6 +94,7 @@ app.include_router(orders_router)
 app.include_router(gifts_router)
 app.include_router(reviews_router)
 app.include_router(chat_router)
+app.include_router(ingredients_router)
 app.include_router(products_router)
 app.include_router(recommendations_router)
 app.include_router(skin_fit_router)

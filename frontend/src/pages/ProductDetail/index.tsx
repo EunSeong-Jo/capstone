@@ -17,6 +17,7 @@ import { skinTypes } from '../../data/skinTypes';
 import type { ProductIngredient } from '../../api/products';
 import { ProductReviews } from '../../components/product/ProductReviews';
 import { IngredientSheet } from '../../components/product/IngredientSheet';
+import { useMyIngredients } from '../../hooks/useMyIngredients';
 import { SkinFitCard } from '../../components/product/SkinFitCard';
 import { OptionPicker } from '../../components/product/OptionPicker';
 import { KEEP_SCROLL } from '../../components/layout/keepScroll';
@@ -181,6 +182,7 @@ export default function ProductDetailPage() {
   }, [highlight]);
   // 설명 시트에 띄울 성분. 시트의 useEffect가 onClose에 의존하므로 참조를 고정한다.
   const [selected, setSelected] = useState<ProductIngredient | null>(null);
+  const myIngredients = useMyIngredients();
   const closeSheet = useCallback(() => setSelected(null), []);
 
   // 전성분은 라벨을 분리해 묶음으로 만든다. 기획세트가 아니면 묶음 1개다.
@@ -220,8 +222,8 @@ export default function ProductDetailPage() {
   );
 
   useEffect(() => {
-    if (asProduct) addRecentlyViewed(asProduct);
-  }, [asProduct, addRecentlyViewed]);
+    if (asProduct) addRecentlyViewed(asProduct, product?.optionParentId);
+  }, [asProduct, product?.optionParentId, addRecentlyViewed]);
 
   const liked = asProduct ? isLiked(asProduct.id) : false;
 
@@ -411,6 +413,11 @@ export default function ProductDetailPage() {
                             >
                               {ing.name}
                               {ing.isAllergen && <span className="ml-1">⚠</span>}
+                              {myIngredients.has(ing.id) && (
+                                <span className="ml-1" title="마이 성분" aria-label="마이 성분">
+                                  ♥
+                                </span>
+                              )}
                             </button>
                           </li>
                         ))}
@@ -554,7 +561,12 @@ export default function ProductDetailPage() {
         </div>
       )}
 
-      <IngredientSheet ingredient={selected} onClose={closeSheet} skinTypeLabel={skinTypeLabel} />
+      <IngredientSheet
+        ingredient={selected}
+        onClose={closeSheet}
+        skinTypeLabel={skinTypeLabel}
+        isMine={selected !== null && myIngredients.has(selected.id)}
+      />
     </div>
   );
 }

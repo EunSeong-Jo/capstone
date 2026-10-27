@@ -28,7 +28,8 @@ const initialItems = (scope: string, isUser: boolean) =>
     ? (peek<RecentlyViewedItem[]>(meKey(scope, 'recent'))?.value ?? [])
     : readJSON<RecentlyViewedItem[]>(GUEST_KEY, []);
 
-export type RecentlyViewedItem = Product & { viewedAt: number };
+/** optionGroup: 옵션형 묶음 제품의 원본 id. 옵션끼리는 id가 달라도 같은 제품이라 한 줄로 접는다. */
+export type RecentlyViewedItem = Product & { viewedAt: number; optionGroup?: number };
 
 export function useRecentlyViewed() {
   const { scope, isUser, loading: authLoading } = useAuth();
@@ -94,10 +95,12 @@ export function useRecentlyViewed() {
   );
 
   const addRecentlyViewed = useCallback(
-    (product: Product) => {
+    (product: Product, optionGroup?: number | null) => {
+      const group = optionGroup ?? undefined;
       setItems((prev) => {
-        const rest = prev.filter((p) => p.id !== product.id);
-        const next = [{ ...product, viewedAt: Date.now() }, ...rest].slice(0, MAX_ITEMS);
+        // 같은 제품(id)이거나 같은 옵션 그룹의 다른 옵션이면 옛 기록을 빼고 맨 앞에 새로 넣는다.
+        const rest = prev.filter((p) => p.id !== product.id && !(group !== undefined && p.optionGroup === group));
+        const next = [{ ...product, viewedAt: Date.now(), optionGroup: group }, ...rest].slice(0, MAX_ITEMS);
         persist(next);
         return next;
       });

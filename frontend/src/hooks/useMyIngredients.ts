@@ -14,21 +14,38 @@ import { useAuth } from '../context/auth';
  *
  * 서버로 옮기지 않은 이유
  * ----------------------
- * 성분 이름만 담는 목록이고 아직 화면 하나(`pages/Search`의 성분 사전)에서만
- * 쓴다. 제품 id처럼 카탈로그와 어긋날 여지가 없어 localStorage로 충분하다.
+ * 성분 id만 담는 목록이라 localStorage로 충분하다. 성분 마스터(`ingredients`)의 id는
+ * 제품 id와 달리 카탈로그를 다시 적재해도 바뀌지 않는 표준 명칭 기준이다.
+ *
+ * v2 — 성분 사전이 실제 성분을 가리키게 되면서 문자열 대신 `{id, name}`을 담는다.
+ * v1은 목업 분류 이름("20가지 주의 성분" 등)이라 실제 성분으로 옮길 수 없어 이관하지 않는다.
+ * `name`은 사전을 불러오기 전(오프라인)에도 목록을 그리기 위한 사본이다.
  */
-const keyOf = (scope: string) => `swappy:ingredients:v1:${scope}`;
+export interface MyIngredient {
+  id: number;
+  name: string;
+}
 
-function readStorage(scope: string): string[] {
+/** 담을 수 있는 최대 개수. 서버 목록 조회(`size`)의 상한과 같다. */
+export const MY_INGREDIENT_MAX = 50;
+
+const keyOf = (scope: string) => `swappy:ingredients:v2:${scope}`;
+
+function readStorage(scope: string): MyIngredient[] {
   try {
     const raw = localStorage.getItem(keyOf(scope));
-    return raw ? (JSON.parse(raw) as string[]) : [];
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (x): x is MyIngredient =>
+        typeof x === 'object' && x !== null && Number.isInteger((x as MyIngredient).id) && typeof (x as MyIngredient).name === 'string',
+    );
   } catch {
     return [];
   }
 }
 
-function writeStorage(scope: string, items: string[]) {
+function writeStorage(scope: string, items: MyIngredient[]) {
   try {
     localStorage.setItem(keyOf(scope), JSON.stringify(items));
   } catch {
@@ -41,7 +58,7 @@ export function useMyIngredients() {
   const { scope } = useAuth();
 
   /** 목록 + 그것이 어느 계정의 것인지. 계정이 바뀌면 남의 목록이다. */
-  const [store, setStore] = useState<{ scope: string; items: string[] }>(() => ({
+  const [store, setStore] = useState<{ scope: string; items: MyIngredient[] }>(() => ({
     scope,
     items: readStorage(scope),
   }));
@@ -56,20 +73,23 @@ export function useMyIngredients() {
     writeStorage(store.scope, store.items);
   }, [store]);
 
-  const addIngredient = useCallback((name: string) => {
-    setStore((prev) =>
-      prev.items.includes(name)
-        ? prev
-        : { scope: prev.scope, items: [name, ...prev.items] },
-    );
+  const has = useCallback((id: number) => store.items.some((i) => i.id === id), [store.items]);
+
+  /** 담기. 이미 있거나 가득 차면 false. */
+  const add = useCallback(
+    (item: MyIngredient): boolean => {
+      if (store.items.some((i) => i.id === item.id) || store.items.length >= MY_INGREDIENT_MAX) return false;
+      setStore((prev) => ({ scope: prev.scope, items: [item, ...prev.items] }));
+      return true;
+    },
+    [store.items],
+  );
+
+  const remove = useCallback((id: number) => {
+    setStore((prev) => ({ scope: prev.scope, items: prev.items.filter((i) => i.id !== id) }));
   }, []);
 
-  const removeIngredient = useCallback((name: string) => {
-    setStore((prev) => ({
-      scope: prev.scope,
-      items: prev.items.filter((i) => i !== name),
-    }));
-  }, []);
+  const full = store.items.length >= MY_INGREDIENT_MAX;
 
-  return { items: store.items, addIngredient, removeIngredient };
+  return { items: store.items, has, add, remove, full };
 }

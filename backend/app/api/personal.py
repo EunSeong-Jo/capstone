@@ -448,7 +448,28 @@ async def list_recent(
         )
     )
     products = await _products_of(db, [r.product_id for r in rows])
-    return [products[r.product_id] for r in rows if r.product_id in products]
+
+    # 옵션형 묶음의 옵션들은 id가 다른 별개 제품 행이지만 화면에서는 이름이 같은 한 제품이다.
+    # 옵션을 바꿔 보면 같은 제품이 연달아 쌓이므로, 옵션 그룹당 가장 최근 것 하나만 남긴다.
+    group_of = dict(
+        (await db.execute(
+            select(Product.id, Product.option_parent_id).where(
+                Product.id.in_([r.product_id for r in rows]), Product.option_parent_id.is_not(None)
+            )
+        )).all()
+    )
+    seen: set[int] = set()
+    out: list[ProductOut] = []
+    for r in rows:  # viewed_at 내림차순이라 먼저 만나는 것이 가장 최근이다
+        if r.product_id not in products:
+            continue
+        group = group_of.get(r.product_id)
+        if group is not None:
+            if group in seen:
+                continue
+            seen.add(group)
+        out.append(products[r.product_id])
+    return out
 
 
 @router.post("/recently-viewed", status_code=204, response_class=Response,
@@ -468,6 +489,17 @@ async def touch_recent(
             constraint="uq_recent_user_product", set_={"viewed_at": now}
         )
     )
+
+    # 같은 옵션 그룹의 다른 옵션을 본 기록은 지운다 — 한 제품이 옵션 수만큼 쌓이지 않게(목록 조회도 같은 기준으로 접는다).
+    group = await db.scalar(select(Product.option_parent_id).where(Product.id == body.product_id))
+    if group is not None:
+        await db.execute(
+            delete(RecentlyViewed).where(
+                RecentlyViewed.user_id == user.id,
+                RecentlyViewed.product_id != body.product_id,
+                RecentlyViewed.product_id.in_(select(Product.id).where(Product.option_parent_id == group)),
+            )
+        )
 
     # 목록이 무한히 자라지 않도록 오래된 것을 지운다. LIMIT/OFFSET을 서브쿼리로
     # 쓰는 이유는 "최신 N개를 제외한 나머지"를 한 문장으로 표현하기 위해서다.

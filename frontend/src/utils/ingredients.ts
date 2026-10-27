@@ -18,6 +18,7 @@
  * 실제로 메디힐 7종 세트는 라벨 7개 중 6개가 이 형태입니다.
  */
 import { ProductIngredient } from '../api/products';
+import type { DictIngredient } from '../api/ingredients';
 
 /** 라벨 하나로 묶인 성분 묶음. label이 null이면 구분 없는 일반 제품입니다. */
 export interface IngredientGroup {
@@ -120,6 +121,28 @@ const FLAG_LABEL: Record<string, string> = {
   L: '건조를 부르는 알코올',
   I: '자극이 될 수 있는 성분',
 };
+
+/**
+ * 성분 사전의 성분을 전성분 칩과 같은 시트·문구로 보여 주기 위한 변환.
+ * 사전에는 표기 순서가 없어 position은 0이고, 피부타입 기준 분류('key')도 없다.
+ */
+export function dictToProductIngredient(d: DictIngredient): ProductIngredient {
+  return {
+    id: d.id,
+    name: d.name,
+    nameEn: d.nameEn ?? undefined,
+    position: 0,
+    grade: d.grade ?? null,
+    isAllergen: d.isAllergen,
+    functions: d.functions,
+    role: d.role ?? null,
+    flags: d.flags,
+    confidence: d.confidence ?? null,
+    description: d.description ?? null,
+    keywords: d.keywords,
+    descriptionSource: d.descriptionSource === 'llm' || d.descriptionSource === 'reviewed' ? d.descriptionSource : null,
+  };
+}
 
 /** 기능 코드 → 한글 이름들 ('HS' → ['보습','진정']) */
 export function functionNames(ing: ProductIngredient): string[] {
