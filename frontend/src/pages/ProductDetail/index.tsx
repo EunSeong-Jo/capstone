@@ -222,8 +222,8 @@ export default function ProductDetailPage() {
   );
 
   useEffect(() => {
-    if (asProduct) addRecentlyViewed(asProduct);
-  }, [asProduct, addRecentlyViewed]);
+    if (asProduct) addRecentlyViewed(asProduct, product?.optionParentId);
+  }, [asProduct, product?.optionParentId, addRecentlyViewed]);
 
   const liked = asProduct ? isLiked(asProduct.id) : false;
 
