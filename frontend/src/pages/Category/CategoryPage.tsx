@@ -78,7 +78,7 @@ export default function CategoryPage() {
   // 알 수 없는 카테고리로 들어온 경우. 빈 목록을 그리는 대신 바로 알린다.
   if (!category) {
     return (
-      <div className="min-h-dvh bg-white">
+      <div className="min-h-dvh bg-surface-warm">
         <TopNavBar title="카테고리" />
         <div className="px-4 py-16 text-center">
           <p className="text-sm text-gray-70">없는 카테고리예요.</p>
@@ -112,7 +112,7 @@ export default function CategoryPage() {
 
   return (
     <div
-      className="min-h-dvh bg-white"
+      className="min-h-dvh bg-surface-warm"
       style={{ paddingBottom: 'calc(var(--bottom-nav-h) + var(--safe-bottom))' }}
     >
       <TopNavBar title={category.label} />
