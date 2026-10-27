@@ -65,11 +65,11 @@ function toResult(dto: DiagnosisDto): DiagnosisResult {
 }
 
 export function DiagnosisProvider({ children }: { children: ReactNode }) {
-  const { scope, status, user: account, loading: authLoading } = useAuth();
+  const { scope, status, isUser, user: account, loading: authLoading } = useAuth();
 
   /** 진단 결과 + 그것이 어느 계정의 것인지. 계정이 바뀌면 이전 결과는 남의 것이다. */
   const [store, setStore] = useState<{ scope: string; result: DiagnosisResult | null }>(
-    () => ({ scope, result: readJSON<DiagnosisResult | null>(keyOf(scope), null) }),
+    () => ({ scope, result: scope === 'guest' ? null : readJSON<DiagnosisResult | null>(keyOf(scope), null) }),
   );
 
   /**
@@ -77,14 +77,14 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
    *
    * 로컬 사본을 먼저 넣는 이유: 새로고침 직후 피부타입이 비어 보이면 홈이
    * 기본 타입(옹달샘)으로 렌더됐다가 서버 응답에 맞춰 다시 그려진다.
+   *
+   * 비회원(scope 'guest')은 진단이 없다 — 진단은 로그인 전용이다. 게스트 칸을 읽지 않는다:
+   * 거기에 남은 값은 전부 다른 계정의 것이다(아래 서버 조회 effect 주석).
    */
   if (store.scope !== scope) {
     setStore({
       scope,
-      result: readJSON<DiagnosisResult | null>(
-        keyOf(status === 'user' ? scope : 'guest'),
-        null,
-      ),
+      result: scope === 'guest' ? null : readJSON<DiagnosisResult | null>(keyOf(scope), null),
     });
   }
 
@@ -104,16 +104,20 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
    */
   const [settledScope, setSettledScope] = useState<string | null>(null);
 
-  // Soft-gate 시절에 남은 게스트 진단을 지운다. 진단이 로그인 전용이 된
-  // 지금은 이 키들이 있을 이유가 없고, 남아 있으면 둘러보기만 한 사람에게
-  // 남의 진단처럼 보인다.
+  // 게스트 칸의 진단을 지운다. 진단이 로그인 전용이 된 지금은 거기에 있을 이유가 없고, 남아 있으면
+  // 둘러보기만 한 사람에게 남의 진단처럼 보인다. 마운트 때와 로그아웃해 게스트가 될 때마다 지운다.
   useEffect(() => {
-    LEGACY_GUEST_KEYS.forEach(removeKey);
-  }, []);
+    if (scope === 'guest') LEGACY_GUEST_KEYS.forEach(removeKey);
+  }, [scope]);
 
   // 로그인 계정의 서버 진단 조회.
+  //
+  // `status`가 아니라 `isUser`로 거른다. 앱을 켜면 저장된 로그인 상태(status 'user')가 먼저 서고 계정 정보
+  // (`account`)는 /auth/me가 돌아와야 채워진다 — 그 사이 scope는 'guest'다. 예전에는 이 구간에 서버 진단을
+  // 받아 `keyOf(scope)` = 게스트 칸에 써 버렸고, 로그아웃해 둘러보기를 누르면 그 값이 비회원에게
+  // "내 피부타입 캐릭터"로 보였다(홈의 '요즘 인기 있는 상품' 대신 'OO를 위한 상품'도 같은 원인).
   useEffect(() => {
-    if (status !== 'user') return;
+    if (!isUser) return;
 
     let alive = true;
     (async () => {
@@ -150,7 +154,7 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, [scope, status, account, setResult]);
+  }, [scope, isUser, account, setResult]);
 
   /**
    * 진단 결과 저장.
@@ -243,7 +247,7 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       skinType: result?.skinType ?? null,
       hasDiagnosis: !!result,
       // 비회원은 서버에 물을 것이 없다 — 로컬 값이 곧 답이다.
-      loading: authLoading || (status === 'user' && settledScope !== scope),
+      loading: authLoading || (status === 'user' && (!isUser || settledScope !== scope)),
       saveDiagnosis,
       diagnoseWithPhoto,
       chooseSkinType,
@@ -254,6 +258,7 @@ export function DiagnosisProvider({ children }: { children: ReactNode }) {
       result,
       authLoading,
       status,
+      isUser,
       settledScope,
       scope,
       saveDiagnosis,
