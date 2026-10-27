@@ -309,6 +309,11 @@ PERFECT_CORP_MOCK=true     # 개발·테스트: 저장해 둔 응답(app/assets/
 `GET https://yce-api-01.makeupar.com/s2s/v1.0/client/credit`(Bearer 키)로 봅니다.
 키가 없고 MOCK도 아니면 분석 API는 503이고, 화면은 QnA만으로 진단을 이어 갑니다.
 
+**허용 계정만 실호출합니다.** `SKIN_ANALYSIS_ALLOWED_EMAILS`(기본 `capstone@gmail.com`)에 든 계정만 Perfect Corp을 부릅니다.
+그 밖의 계정은 사진을 받아 정리·얼굴 검증까지 하지만 **외부로 보내지 않고**, `SKIN_SAMPLE_EMAIL`(기본 `eunseong@swappy.app`) 계정의
+가장 최근 분석을 자기 분석으로 복사합니다(`app/services/skin_sample.py`). 동의·월 이용 한도는 실호출과 같고, 분석 이미지는 복사하지 않고
+원본을 가리킵니다(`metrics.sample_of`, `provider_mode='sample'`). 표본 계정에 분석이 없으면 503이고 화면은 QnA로 이어 갑니다.
+
 **요청 순서**(`app/api/skin_photo.py`): 동의(403) → 한도(402) → 사진 정리·EXIF 제거 → **얼굴 사전 필터**(422) →
 Perfect Corp. 앞 단계의 거절과 외부 오류는 분석 행을 만들지 않아 **한도를 쓰지 않습니다.**
 
