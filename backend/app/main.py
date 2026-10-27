@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import mimetypes
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -188,6 +189,9 @@ async def health_check():
 # 모든 API 라우트보다 뒤에 등록해야 한다 — 이 캐치올이 먼저면 /api가 가려진다.
 if settings.STATIC_DIR and Path(settings.STATIC_DIR).is_dir():
     _static_root = Path(settings.STATIC_DIR).resolve()
+    # 운영 이미지(python:slim)의 mimetypes에는 .apk가 없어 text/plain으로 내려갔다. 그러면 일부 안드로이드
+    # 브라우저가 설치 파일로 인식하지 못한다(로그인 화면의 '앱 설치하기').
+    mimetypes.add_type("application/vnd.android.package-archive", ".apk")
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_frontend(full_path: str):
