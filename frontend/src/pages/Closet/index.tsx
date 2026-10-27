@@ -188,76 +188,77 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
               return (
                 <div
                   key={item.id}
-                  className={`flex items-center gap-3 py-[13px] ${
-                    i < shown.length - 1 ? 'border-b border-surface-warm' : ''
-                  }`}
+                  className={`py-[13px] ${i < shown.length - 1 ? 'border-b border-surface-warm' : ''}`}
                 >
-                  {/* 제품을 누르면 내 제품 성분 분석으로 간다. 예전에는 대체품 추천으로
-                      바로 넘어가 내 제품을 눌렀는데 다른 제품들이 나와 당황스러웠다(QA 10).
-                      대체품은 오른쪽 '대체품' 버튼으로 따로 연다. */}
-                  <button
-                    onClick={() =>
-                      navigate(removed ? `/detail/${item.id}` : `/analysis/${item.id}`)
-                    }
-                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                  >
-                    <span className={`h-[54px] w-[54px] shrink-0 overflow-hidden rounded-[14px] bg-gray-10 ${removed ? 'opacity-50' : ''}`}>
-                      <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[10px] font-bold text-gray-50">{item.brand}</span>
-                      <span className={`block truncate text-[13px] font-semibold ${removed ? 'text-gray-50' : 'text-gray-100'}`}>
-                        {item.name}
+                  <div className="flex items-center gap-3">
+                    {/* 제품을 누르면 내 제품 성분 분석으로 간다. 예전에는 대체품 추천으로
+                        바로 넘어가 내 제품을 눌렀는데 다른 제품들이 나와 당황스러웠다(QA 10).
+                        대체품은 아래 '대체품 찾기' 버튼으로 따로 연다 — 이름 옆에 두면 이름이 3~4글자만 남는다. */}
+                    <button
+                      onClick={() =>
+                        navigate(removed ? `/detail/${item.id}` : `/analysis/${item.id}`)
+                      }
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    >
+                      <span className={`h-[54px] w-[54px] shrink-0 overflow-hidden rounded-[14px] bg-gray-10 ${removed ? 'opacity-50' : ''}`}>
+                        <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
                       </span>
-                      <span className="mt-0.5 flex items-center gap-1">
-                        <span className={`h-1.5 w-1.5 rounded-full ${removed ? 'bg-gray-50' : 'bg-primary'}`} />
-                        <span className={`text-[11px] font-semibold ${removed ? 'text-gray-50' : 'text-primary-dark'}`}>
-                          {removed ? '삭제됨' : '보유 중'}
-                          {via ? ` · ${via}` : ''}
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[11px] font-bold text-gray-50">{item.brand}</span>
+                        <span className={`line-clamp-2 text-[13px] font-semibold leading-snug ${removed ? 'text-gray-50' : 'text-gray-100'}`}>
+                          {item.name}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-1">
+                          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${removed ? 'bg-gray-50' : 'bg-primary'}`} />
+                          <span className={`text-[11px] font-semibold ${removed ? 'text-gray-50' : 'text-primary-dark'}`}>
+                            {removed ? '삭제됨' : '보유 중'}
+                            {via ? ` · ${via}` : ''}
+                          </span>
                         </span>
                       </span>
-                    </span>
-                  </button>
+                    </button>
 
-                  {removed ? (
-                    <span className="flex shrink-0 items-center gap-1">
-                      <button
-                        onClick={() => restore(item)}
-                        className="inline-flex h-8 items-center rounded-lg border border-[#DCE8E1] px-3 text-[11px] font-bold text-primary-dark active:scale-95 transition-transform"
-                      >
-                        복원
-                      </button>
-                      <button
-                        onClick={() => purge(item)}
-                        aria-label="완전히 삭제"
-                        className="rounded-full p-1.5 active:scale-90 transition-transform"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9AA0A6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3" />
-                        </svg>
-                      </button>
-                    </span>
-                  ) : (
-                    <span className="flex shrink-0 items-center gap-1">
-                      <button
-                        onClick={() => navigate(`/alternatives?seed=${item.id}&from=closet`)}
-                        className="inline-flex h-9 items-center gap-0.5 rounded-lg bg-primary-light px-3 text-[12px] font-bold text-primary-dark active:scale-95 transition-transform"
-                      >
-                        대체품 찾기
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-                          <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
+                    {removed ? (
+                      <span className="flex shrink-0 items-center gap-1">
+                        <button
+                          onClick={() => restore(item)}
+                          className="inline-flex h-8 items-center rounded-lg border border-[#DCE8E1] px-3 text-[11px] font-bold text-primary-dark active:scale-95 transition-transform"
+                        >
+                          복원
+                        </button>
+                        <button
+                          onClick={() => purge(item)}
+                          aria-label="완전히 삭제"
+                          className="rounded-full p-1.5 active:scale-90 transition-transform"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9AA0A6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3" />
+                          </svg>
+                        </button>
+                      </span>
+                    ) : (
                       <button
                         onClick={() => remove(item)}
                         aria-label="화장대에서 빼기"
-                        className="rounded-full p-1.5 text-gray-50 active:scale-90 transition-transform"
+                        className="shrink-0 self-start rounded-full p-1.5 text-gray-50 active:scale-90 transition-transform"
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                           <path d="M6 6l12 12M18 6L6 18" stroke="#9AA0A6" strokeWidth="2" strokeLinecap="round" />
                         </svg>
                       </button>
-                    </span>
+                    )}
+                  </div>
+
+                  {!removed && (
+                    <button
+                      onClick={() => navigate(`/alternatives?seed=${item.id}&from=closet`)}
+                      className="ml-[66px] mt-2 inline-flex h-9 items-center gap-0.5 rounded-lg bg-primary-light px-3 text-[12px] font-bold text-primary-dark active:scale-95 transition-transform"
+                    >
+                      대체품 찾기
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
                   )}
                 </div>
               );
