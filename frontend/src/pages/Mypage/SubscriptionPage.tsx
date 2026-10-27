@@ -23,7 +23,7 @@ import { invalidateSkinPhoto, useAnalysisHistory, useQuota, useSubscription } fr
  * 또는 여기서 **지금 촬영하기**(문답 없이). 촬영만으로는 피부타입 진단을 바꾸지 않는다 — 결과 화면의
  * '이 결과로 피부타입 진단 갱신'을 눌러 확인해야 한다(추천 제품이 바뀌기 때문).
  *
- * 분석 기록은 연도와 월·일 드롭다운으로 고른다. 같은 날 여러 번 분석했으면 그날의 마지막 결과를 보여 준다.
+ * 분석 기록은 연도와 월·일 드롭다운으로 고른다. 같은 날 여러 번 분석했으면 시각 드롭다운이 더해져 그날의 분석을 하나씩 고를 수 있다(기본은 그날 마지막).
  */
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -34,6 +34,13 @@ const mdOf = (iso: string) => {
   const d = new Date(iso);
   return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
+const timeOf = (iso: string) =>
+  new Date(iso).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit', hour12: true });
+/** 비교 라벨: 이웃 분석과 같은 날이면 구분되게 시각을 붙인다 */
+const stamp = (a: { createdAt: string }, other: { createdAt: string } | null) =>
+  other && mdOf(a.createdAt) === mdOf(other.createdAt) && yearOf(a.createdAt) === yearOf(other.createdAt)
+    ? `${fmtDate(a.createdAt)} ${timeOf(a.createdAt)}`
+    : fmtDate(a.createdAt);
 const mdLabel = (md: string) => `${Number(md.slice(0, 2))}월 ${Number(md.slice(3))}일`;
 
 const selectClass =
@@ -91,6 +98,8 @@ export default function SubscriptionPage() {
   // 드롭다운에서 고른 연도·월일. 목록에 없으면(처음·새 분석 뒤) 가장 최근 것으로 본다.
   const [selYear, setSelYear] = useState<number | null>(null);
   const [selMd, setSelMd] = useState<string | null>(null);
+  // 같은 날 분석이 여러 건일 때 고른 분석 id
+  const [selId, setSelId] = useState<string | null>(null);
 
   const refresh = () => {
     invalidateSkinPhoto(scope);
@@ -124,9 +133,10 @@ export default function SubscriptionPage() {
   const year = selYear !== null && years.includes(selYear) ? selYear : (years[0] ?? null);
   const days = history ? [...new Set(history.filter((a) => yearOf(a.createdAt) === year).map((a) => mdOf(a.createdAt)))] : [];
   const md = selMd !== null && days.includes(selMd) ? selMd : (days[0] ?? null);
-  // 그날 가장 마지막(=목록에서 가장 앞) 분석
-  const selectedIndex = history ? history.findIndex((a) => yearOf(a.createdAt) === year && mdOf(a.createdAt) === md) : -1;
-  const selected = selectedIndex >= 0 && history ? history[selectedIndex] : null;
+  // 그날의 분석들(최신순). 고른 것이 없으면 가장 마지막(=목록에서 가장 앞)
+  const dayItems = history ? history.filter((a) => yearOf(a.createdAt) === year && mdOf(a.createdAt) === md) : [];
+  const selected = dayItems.find((a) => a.analysisId === selId) ?? dayItems[0] ?? null;
+  const selectedIndex = history && selected ? history.indexOf(selected) : -1;
   const before = selectedIndex >= 0 && history ? (history[selectedIndex + 1] ?? null) : null;
 
   return (
@@ -226,6 +236,7 @@ export default function SubscriptionPage() {
                     onChange={(v) => {
                       setSelYear(Number(v));
                       setSelMd(null);
+                      setSelId(null);
                     }}
                     options={years.map((y) => ({ value: String(y), text: `${y}년` }))}
                   />
@@ -233,19 +244,37 @@ export default function SubscriptionPage() {
                     className="w-[94px] shrink-0"
                     label="분석 날짜 선택"
                     value={md}
-                    onChange={setSelMd}
+                    onChange={(v) => {
+                      setSelMd(v);
+                      setSelId(null);
+                    }}
                     options={days.map((d) => ({ value: d, text: mdLabel(d) }))}
                   />
                 </div>
               </div>
-              <p className="mt-0.5 text-[11px] text-gray-50">{fmtDate(selected.createdAt)}</p>
+              {dayItems.length > 1 && (
+                <div className="mt-2 flex items-center justify-end gap-2">
+                  <span className="text-[11px] text-gray-50">이 날 분석 {dayItems.length}번</span>
+                  <SelectBox
+                    className="w-[94px] shrink-0"
+                    label="분석 시각 선택"
+                    value={selected.analysisId}
+                    onChange={setSelId}
+                    options={dayItems.map((a) => ({ value: a.analysisId, text: timeOf(a.createdAt) }))}
+                  />
+                </div>
+              )}
+              <p className="mt-0.5 text-[11px] text-gray-50">
+                {fmtDate(selected.createdAt)}
+                {dayItems.length > 1 && ` ${timeOf(selected.createdAt)}`}
+              </p>
               <div className="mt-4">
                 <SkinAnalysisDetail
                   key={selected.analysisId}
                   analysis={selected}
                   previous={before}
-                  previousLabel={before ? fmtDate(before.createdAt) : undefined}
-                  currentLabel={fmtDate(selected.createdAt)}
+                  previousLabel={before ? stamp(before, selected) : undefined}
+                  currentLabel={stamp(selected, before)}
                   showUpsell={selected.analysisId === history[0].analysisId && !subscribed}
                 />
               </div>

@@ -51,6 +51,8 @@ def mock_provider(monkeypatch):
         return None
 
     monkeypatch.setattr("app.api.skin_photo.check_face", _pass)
+    # 기존 테스트는 실호출 경로(허용 계정)를 본다. 표본 경로는 아래 '허용 계정 외' 테스트가 따로 본다.
+    monkeypatch.setattr("app.api.skin_photo.live_analysis_allowed", lambda _user: True)
 
 
 async def _signup(client: AsyncClient, face_consent: bool | None = None) -> dict:
@@ -639,3 +641,171 @@ async def test_deleting_the_user_removes_every_photo_record(client: AsyncClient)
         for model in (SkinAnalysis, SkinAnalysisImage, Subscription):
             rows = await db.scalars(select(model).where(model.user_id == acc["id"]))
             assert rows.all() == []
+
+
+# ── 허용 계정 외: 외부 호출 없이 저장된 표본 분석을 쓴다 ─────────────────────────
+@pytest_asyncio.fixture(loop_scope="session")
+async def sample_owner(client: AsyncClient):
+    """표본 계정: 실호출(모의) 경로로 분석을 하나 만들어 둔 계정."""
+    acc = await _signup(client, face_consent=True)
+    res = await _analyze(client, acc)
+    assert res.status_code == 201, res.text
+    acc["analysis"] = res.json()
+    yield acc
+    await _cleanup(acc["email"])
+
+
+@pytest.fixture
+def non_allowed(monkeypatch, sample_owner):
+    """이후 분석 요청은 허용 계정이 아닌 것으로 본다. 표본은 sample_owner, 외부 호출은 있으면 실패."""
+    monkeypatch.setattr("app.api.skin_photo.live_analysis_allowed", lambda _user: False)
+    monkeypatch.setattr(settings, "SKIN_SAMPLE_EMAIL", sample_owner["email"])
+
+    async def _boom(*_a, **_k):
+        raise AssertionError("허용 계정이 아닌데 Perfect Corp을 불렀다")
+
+    monkeypatch.setattr("app.api.skin_photo.analyze_face", _boom)
+    monkeypatch.setattr("app.api.skin_photo.fetch_masks", _boom)
+
+
+async def test_non_allowed_account_gets_the_stored_sample_without_calling_the_provider(
+    client: AsyncClient, consented, sample_owner, non_allowed
+) -> None:
+    res = await _analyze(client, consented)
+    assert res.status_code == 201, res.text
+    body = res.json()
+    src = sample_owner["analysis"]
+    assert body["axes"] == src["axes"]
+    assert body["concerns"] == src["concerns"]
+    assert body["analysisId"] != src["analysisId"]          # 내 분석으로 따로 남는다
+    assert body["remaining"] == 0                          # 한도는 실호출과 똑같이 쓴다
+
+    async with AsyncSessionLocal() as db:
+        row = await db.scalar(select(SkinAnalysis).where(SkinAnalysis.id == uuid.UUID(body["analysisId"])))
+        assert row.provider_mode == "sample"
+        assert row.user_id == consented["id"]
+        copied = await db.scalar(
+            select(func.count()).select_from(SkinAnalysisImage).where(SkinAnalysisImage.analysis_id == row.id)
+        )
+    assert copied == 0                                      # 이미지는 복사하지 않고 원본을 가리킨다
+
+    latest = await client.get(f"{ANALYZE}/latest", headers=consented["headers"])
+    assert latest.status_code == 200 and latest.json()["analysisId"] == body["analysisId"]
+    assert latest.json()["images"] == src["images"]
+
+
+async def test_sample_analysis_serves_images_from_the_source(
+    client: AsyncClient, consented, sample_owner, non_allowed
+) -> None:
+    body = (await _analyze(client, consented)).json()
+    if not body["images"]:
+        pytest.skip("모의 응답에 분석 이미지가 없다")
+    key = body["images"][0]
+    ok = await client.get(f"{ANALYZE}/{body['analysisId']}/images/{key}", headers=consented["headers"])
+    assert ok.status_code == 200 and ok.headers["content-type"] == "image/png"
+    # 표본 원본 id로는 여전히 본인 것이 아니라 404
+    other = await client.get(
+        f"{ANALYZE}/{sample_owner['analysis']['analysisId']}/images/{key}", headers=consented["headers"]
+    )
+    assert other.status_code == 404
+
+
+async def test_non_allowed_account_is_limited_like_a_live_analysis(
+    client: AsyncClient, consented, non_allowed
+) -> None:
+    assert (await _analyze(client, consented)).status_code == 201
+    assert (await _analyze(client, consented)).status_code == 402      # 무료 월 1회
+
+
+async def test_non_allowed_without_consent_is_rejected(client: AsyncClient, user, non_allowed) -> None:
+    assert (await _analyze(client, user)).status_code == 403
+
+
+async def test_non_allowed_with_no_sample_is_503_and_keeps_the_quota(
+    client: AsyncClient, consented, non_allowed, monkeypatch
+) -> None:
+    monkeypatch.setattr(settings, "SKIN_SAMPLE_EMAIL", "nobody-" + uuid.uuid4().hex[:8] + "@example.com")
+    assert (await _analyze(client, consented)).status_code == 503
+    assert (await _quota(client, consented))["remaining"] == 1
+
+
+def test_live_allowed_matches_email_case_insensitively(monkeypatch) -> None:
+    from app.services.skin_sample import live_analysis_allowed
+
+    monkeypatch.setattr(settings, "SKIN_ANALYSIS_ALLOWED_EMAILS", " Capstone@Gmail.com , other@x.com ")
+    ok = type("U", (), {"email": "capstone@gmail.com"})()
+    no = type("U", (), {"email": "eunseong@swappy.app"})()
+    assert live_analysis_allowed(ok) is True
+    assert live_analysis_allowed(no) is False
+    monkeypatch.setattr(settings, "SKIN_ANALYSIS_ALLOWED_EMAILS", "")
+    assert live_analysis_allowed(ok) is False
+
+
+def test_sample_metrics_trims_to_the_users_concern_set() -> None:
+    from app.services.skin_quota import BASIC_CONCERNS, EXTENDED_CONCERNS, Quota
+    from app.services.skin_sample import sample_metrics
+
+    class Src:
+        id = uuid.uuid4()
+        concern_set = "extended"
+        metrics = {
+            "axes": {"oil": 5},
+            "skin_types": {"whole": "Normal"},
+            "concerns": {k: {"raw": 1.0, "ui": 50} for k in EXTENDED_CONCERNS if k != "skin_type"},
+            "images": ["moisture", "firmness"],
+        }
+
+    now = datetime.now(timezone.utc)
+    free = Quota(plan="free", allowance=1, used=0, resets_at=now, consent_granted=True)
+    sub = Quota(plan="subscriber", allowance=4, used=0, resets_at=now, consent_granted=True)
+
+    m, kind, fake = sample_metrics(Src, free)
+    assert fake == {}
+    assert kind == "basic" and set(m["concerns"]) <= set(BASIC_CONCERNS) and m["images"] == ["moisture"]
+    assert m["sample_of"] == str(Src.id)
+    m, kind, fake = sample_metrics(Src, sub)
+    assert kind == "extended" and "firmness" in m["concerns"] and m["images"] == ["moisture", "firmness"]
+    assert fake == {}
+
+    # 표본이 8항목뿐이어도 구독자는 16항목 — 모자란 항목은 가짜 점수·가짜 이미지로 채운다
+    class Basic:
+        id = uuid.uuid4()
+        concern_set = "basic"
+        metrics = {
+            "axes": {"oil": 5},
+            "concerns": {k: {"raw": 1.0, "ui": 50} for k in BASIC_CONCERNS if k != "skin_type"},
+            "images": ["moisture", "acne"],
+        }
+
+    m, kind, fake = sample_metrics(Basic, sub)
+    assert kind == "extended" and set(EXTENDED_CONCERNS) - {"skin_type"} <= set(m["concerns"])
+    assert m["concerns"]["moisture"] == {"raw": 1.0, "ui": 50}      # 실제 항목은 그대로
+    assert set(fake) == set(m["images"]) - {"moisture", "acne"} and "firmness" in fake
+    m, kind, fake = sample_metrics(Basic, free)
+    assert kind == "basic" and fake == {} and m["images"] == ["moisture", "acne"]
+
+
+async def test_subscriber_gets_16_items_real_from_sample_and_fake_for_the_rest(
+    client: AsyncClient, consented, sample_owner, non_allowed
+) -> None:
+    from app.services.skin_quota import BASIC_CONCERNS, EXTENDED_CONCERNS
+
+    assert (await client.post(f"{ME}/subscription", headers=consented["headers"])).status_code in (200, 201)
+    res = await _analyze(client, consented)
+    assert res.status_code == 201, res.text
+    body = res.json()
+    src = sample_owner["analysis"]
+    assert body["extended"] is True                          # "구독하면 16가지" 안내가 뜨지 않는다
+    want = {k for k in EXTENDED_CONCERNS if k != "skin_type"}
+    assert {c["key"] for c in body["concerns"]} >= want
+    real = {c["key"]: c["score"] for c in src["concerns"]}
+    got = {c["key"]: c["score"] for c in body["concerns"]}
+    assert all(got[k] == v for k, v in real.items() if k in BASIC_CONCERNS)   # 표본의 실제 항목은 그대로
+    extra = want - set(BASIC_CONCERNS)
+    assert extra <= set(body["images"])                      # 가짜로 채운 항목에도 이미지
+    for key in extra:
+        r = await client.get(f"{ANALYZE}/{body['analysisId']}/images/{key}", headers=consented["headers"])
+        assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+    for key in src["images"]:                                # 실제 항목은 원본 이미지
+        r = await client.get(f"{ANALYZE}/{body['analysisId']}/images/{key}", headers=consented["headers"])
+        assert r.status_code == 200
