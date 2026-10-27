@@ -1,9 +1,15 @@
 import { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/auth';
 import { PERSONAS } from '../../data/personas';
 import { useDemoPanel } from '../../hooks/useDemoPanel';
 import { useToast } from '../../context/toast';
+
+// APK 내려받기 버튼은 웹에서만 보인다(이미 앱 안이면 필요 없다).
+// 실제 내려받기는 안드로이드 브라우저에서만 한다 — PC·iPhone은 APK를 설치할 수 없어 안내만 띄운다.
+const SHOW_APK_DOWNLOAD = !Capacitor.isNativePlatform();
+const IS_ANDROID_BROWSER = /Android/i.test(navigator.userAgent);
 
 // 로그인 화면. `POST /api/v1/auth/login`으로 실제 인증한다.
 // (스플래시 → 로그인 → 위피 인삿말(/onboarding) 순서)
@@ -44,7 +50,29 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-ob-bg px-7">
+    <div className="relative flex min-h-dvh flex-col bg-ob-bg px-7">
+      {SHOW_APK_DOWNLOAD && (
+        <a
+          href="/swappy.apk"
+          download="swappy.apk"
+          onClick={(e) => {
+            if (IS_ANDROID_BROWSER) return;
+            e.preventDefault();
+            showToast('앱 설치는 안드로이드 폰에서만 가능해요. PC·iPhone에서는 설치할 수 없어요.');
+          }}
+          className="absolute inset-x-0 top-0 flex items-center gap-3 bg-ob-green-soft/30 px-4 pb-2.5 active:opacity-80"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 10px)' }}
+        >
+          <img src="/icons/icon-192.png" alt="" className="h-10 w-10 shrink-0 rounded-xl" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] font-bold leading-tight text-gray-100">Swappy 앱 설치하기</span>
+            <span className="mt-0.5 block text-[12px] leading-tight text-gray-70">안드로이드 전용 · 무료</span>
+          </span>
+          <span className="shrink-0 rounded-full bg-ob-green-deep px-3.5 py-1.5 text-[13px] font-semibold text-white">
+            설치
+          </span>
+        </a>
+      )}
       {/* 위 여백 — 콘텐츠 그룹을 화면 중앙보다 조금 아래에 둔다 */}
       <div className="flex-[4]" />
 
