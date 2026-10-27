@@ -239,7 +239,9 @@ export default function AlternativesPage() {
 
       {/* 기준제품 헤더 */}
       <div className="px-4 pt-3">
-        <p className="text-xs text-gray-70 mb-2">이 제품을 대신할 만한 추천이에요</p>
+        <p className="text-xs text-gray-70 mb-2">
+          {closetMatch ? '내 화장대의 이 제품을 대신할 만한 추천이에요' : '이 제품을 대신할 만한 추천이에요'}
+        </p>
         <div className="p-3 rounded-xl bg-primary-light/60 border border-primary/15">
           {seed && canSwitch ? (
             <SeedSwitcher seedId={seed.id} options={switchOptions} onPick={pickSeed}>

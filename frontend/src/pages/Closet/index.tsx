@@ -28,6 +28,7 @@ const SOURCE_LABEL: Record<ClosetItem['addedVia'], string> = {
 };
 
 type VanityFilter = 'owned' | 'removed';
+const HINT_KEY = 'swappy:closet:altHintClosed';
 
 /**
  * 비회원의 '내 화장대' 자리. 화장대·예산은 개인 데이터라 로그인한 사용자만 쓴다.
@@ -68,6 +69,12 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
   const { items, removedItems, removeItem, restoreItem, purgeItem } = useCloset();
   const { showToast } = useToast();
   const [filter, setFilter] = useState<VanityFilter>('owned');
+  // '대체품 찾기' 버튼 안내 — 한 번 닫으면 다시 안 띄운다(저장이 막히면 그냥 매번 보인다)
+  const [hintClosed, setHintClosed] = useState(() => readJSON<boolean>(HINT_KEY, false));
+  const closeHint = () => {
+    setHintClosed(true);
+    writeJSON(HINT_KEY, true);
+  };
 
   const shown = filter === 'owned' ? items : removedItems;
   const filters: [VanityFilter, string, number][] = [
@@ -149,6 +156,24 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
             })}
           </div>
 
+          {filter === 'owned' && !hintClosed && items.length > 0 && (
+            <div className="mb-2 flex items-start gap-2 rounded-2xl bg-primary-light/60 px-3.5 py-3">
+              <p className="min-w-0 flex-1 text-[12px] leading-relaxed text-gray-70">
+                제품 오른쪽 <b className="font-bold text-primary-dark">대체품 찾기</b>를 누르면 더 저렴하거나 비슷한 제품을 보여 드려요.
+              </p>
+              <button
+                type="button"
+                onClick={closeHint}
+                aria-label="안내 닫기"
+                className="shrink-0 rounded-full p-1 text-gray-50 active:scale-90"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           {/* 제품 목록 */}
           <div className="rounded-[20px] bg-white border border-[#ECEEE8] px-4">
             {shown.length === 0 && (
@@ -216,9 +241,12 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
                     <span className="flex shrink-0 items-center gap-1">
                       <button
                         onClick={() => navigate(`/alternatives?seed=${item.id}&from=closet`)}
-                        className="inline-flex h-8 items-center rounded-lg border border-[#DCE8E1] px-3 text-[11px] font-bold text-primary-dark active:scale-95 transition-transform"
+                        className="inline-flex h-9 items-center gap-0.5 rounded-lg bg-primary-light px-3 text-[12px] font-bold text-primary-dark active:scale-95 transition-transform"
                       >
-                        대체품
+                        대체품 찾기
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
                       </button>
                       <button
                         onClick={() => remove(item)}
