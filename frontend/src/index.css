@@ -115,6 +115,10 @@
     min-height: 100dvh;
     padding-top: var(--safe-top);
     overflow-x: hidden;
+    /* 한글은 어절(띄어쓰기) 단위로만 줄바꿈한다 — 기본값은 글자 단위라 "세/럼"처럼 단어가 쪼개진다.
+       어절 하나가 줄보다 길면(긴 영문·URL) 그 자리에서 끊어 상자 밖으로 넘치지 않게 한다. */
+    word-break: keep-all;
+    overflow-wrap: anywhere;
   }
 }
 
