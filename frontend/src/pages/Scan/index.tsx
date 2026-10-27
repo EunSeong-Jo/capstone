@@ -419,8 +419,8 @@ export default function ScanPage() {
                           )}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-xs font-bold text-gray-100">{p.name}</span>
-                          <span className="mt-0.5 block text-[10px] text-gray-50">
+                          <span className="line-clamp-2 text-xs font-bold leading-snug text-gray-100">{p.name}</span>
+                          <span className="mt-0.5 block text-[11px] text-gray-50">
                             {p.brand} · {p.price.toLocaleString()}원
                           </span>
                         </span>
@@ -470,8 +470,8 @@ export default function ScanPage() {
                 )}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-bold text-gray-100">{item.name}</span>
-                <span className="mt-0.5 block text-[10px] text-gray-50">
+                <span className="line-clamp-2 text-xs font-bold leading-snug text-gray-100">{item.name}</span>
+                <span className="mt-0.5 block text-[11px] text-gray-50">
                   {item.brand}
                 </span>
               </span>
@@ -510,7 +510,7 @@ export default function ScanPage() {
                         {p.imageUrl && <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[10px] font-bold text-gray-50">{p.brand}</span>
+                        <span className="block text-[11px] font-bold text-gray-50">{p.brand}</span>
                         <span className="line-clamp-2 text-[13px] font-semibold leading-snug text-gray-100">{p.name}</span>
                       </span>
                       <span className="shrink-0 text-[12px] font-extrabold text-gray-100">{p.price.toLocaleString()}원</span>
@@ -562,7 +562,7 @@ export default function ScanPage() {
           >
             <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-gray-20" />
             <p className="text-[11px] font-bold text-primary">스캔 기록에 저장했어요</p>
-            <p className="mt-1 text-[10px] font-bold text-gray-50">{result.brand}</p>
+            <p className="mt-1 text-[11px] font-bold text-gray-50">{result.brand}</p>
             <h3 className="text-[15px] font-extrabold text-gray-100">{result.name}</h3>
 
             <div className="mt-3 flex items-center gap-3">

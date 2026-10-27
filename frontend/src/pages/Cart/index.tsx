@@ -90,8 +90,8 @@ export default function CartPage() {
                     <img src={l.imageUrl} alt="" className="h-full w-full object-cover" />
                   </button>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-bold text-gray-50">{l.brand}</p>
-                    <p className="truncate text-[13px] font-semibold text-gray-100">{l.name}</p>
+                    <p className="text-[11px] font-bold text-gray-50">{l.brand}</p>
+                    <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-gray-100">{l.name}</p>
                     <p className="mt-1 text-[13px] font-extrabold text-gray-100">
                       {(l.price * l.qty).toLocaleString()}원
                     </p>

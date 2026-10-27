@@ -228,7 +228,7 @@ export function AnalysisView({
                       {g.ingredients.map((i) => (
                         <li key={i.position} className="igr-chip warn">
                           {i.name}
-                          <span className="ml-1 text-[10px] opacity-70">{i.position}번</span>
+                          <span className="ml-1 text-[11px] opacity-70">{i.position}번</span>
                         </li>
                       ))}
                     </ul>
@@ -259,11 +259,11 @@ export function AnalysisView({
                     <p className="mt-0.5 text-[11px] text-oy-sub">이 제품과 같은 기능을 다른 보유 제품도 강하게 갖고 있어요</p>
                     <ul className="mt-2 space-y-2">
                       {analysis.closet.overlaps.map((o) => (
-                        <li key={o.function} className="flex items-start gap-2">
+                        <li key={o.function} className="flex min-w-0 items-start gap-2">
                           <span className="mt-0.5 w-14 shrink-0 rounded-full bg-primary-light py-0.5 text-center text-[11px] font-bold text-primary">
                             {o.name}
                           </span>
-                          <span className="flex flex-1 flex-wrap gap-1.5">
+                          <span className="flex min-w-0 flex-1 flex-wrap gap-1.5">
                             {o.products.map((p) => (
                               <button
                                 key={p.id}

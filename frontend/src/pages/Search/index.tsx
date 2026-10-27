@@ -65,7 +65,7 @@ function RecentSearchChips({
               <button
                 onClick={() => onRemove(s)}
                 aria-label={`${s} 삭제`}
-                className="text-gray-20 text-[10px] active:scale-90 transition-transform"
+                className="text-gray-20 text-[11px] active:scale-90 transition-transform"
               >
                 ✕
               </button>
@@ -246,8 +246,8 @@ export default function SearchPage() {
                             <span className="flex h-full w-full items-center justify-center text-lg opacity-40">🧴</span>
                           )}
                         </span>
-                        <span className="block text-[10px] font-semibold text-gray-50">{p.brand}</span>
-                        <span className="block text-xs font-bold text-gray-100 truncate mb-2">{p.name}</span>
+                        <span className="block text-[11px] font-semibold text-gray-50">{p.brand}</span>
+                        <span className="mb-2 line-clamp-2 min-h-[2.5em] text-xs font-bold leading-snug text-gray-100">{p.name}</span>
                         <button
                           onClick={() => navigate(`/alternatives?seed=${p.id}&from=search`)}
                           className="flex items-center justify-center w-full h-7 rounded-lg bg-primary text-[11px] font-extrabold text-white active:scale-95 transition-transform"
@@ -345,7 +345,7 @@ export default function SearchPage() {
                         </span>
                         <span className="flex-1 min-w-0 text-left">
                           <span className="block text-xs text-gray-50">{p.brand}</span>
-                          <span className="block text-sm font-medium text-gray-100 truncate">{p.name}</span>
+                          <span className="text-sm font-medium leading-snug text-gray-100 line-clamp-2">{p.name}</span>
                           <span className="flex items-center gap-1.5 mt-0.5">
                             {p.rating != null && <span className="text-xs text-star">⭐ {p.rating}</span>}
                             {!!p.reviewCount && (

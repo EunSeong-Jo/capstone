@@ -31,7 +31,7 @@ export function AlternativeCardV({ alt, width = 'w-[160px]', fitGain }: Alternat
         <div className="absolute top-1.5 right-1.5 flex flex-col items-end gap-1">
           <FitPill verdict={alt.skinMatch?.verdict} className="shadow-sm" />
           <span
-            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
+            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-bold text-white"
             style={{
               backgroundColor:
                 similarityBadgeType(alt.similarityScore) === 'sim-high'
