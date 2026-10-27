@@ -14,7 +14,8 @@ from app.core.rate_limit import allow_daily, client_ip
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.weather import WeatherOut
-from app.services import llm, rag
+from app.services import chat_fallback, llm, rag
+from app.services.llm import LLMUnavailable
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
 log = structlog.get_logger()
@@ -80,6 +81,9 @@ _SYSTEM_TEMPLATE = """\
 """
 
 
+_MAX_HISTORY = 20
+
+
 class Message(BaseModel):
     role: str
     content: str
@@ -93,6 +97,8 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+    # "fallback"이면 LLM 키·장애로 DB 기반 답변(services/chat_fallback.py)을 준 것.
+    mode: str = "ai"
 
 
 async def _get_weather_context() -> str:
@@ -159,11 +165,26 @@ async def chat(
         products_context=products_context,
     )
 
-    messages = [{"role": m.role, "content": m.content} for m in req.history]
+    # history가 무제한이라 최근 것만 보낸다(토큰·비용 상한).
+    messages = [{"role": m.role, "content": m.content} for m in req.history[-_MAX_HISTORY:]]
     messages.append({"role": "user", "content": req.message})
 
     try:
         reply = await llm.chat_completion(messages, system)
+    except LLMUnavailable as exc:
+        # 키 만료·한도·장애 — 모델 없이 DB로 답한다. 로그는 키 교체 신호로 남긴다.
+        log.warning("chat_llm_fallback", error=str(exc)[:300])
+        try:
+            return ChatResponse(
+                reply=await chat_fallback.fallback_reply(db, req.message, req.skin_type),
+                mode="fallback",
+            )
+        except Exception as fb_exc:
+            log.error("chat_fallback_error", error=str(fb_exc)[:300])
+            raise HTTPException(
+                status_code=503,
+                detail="지금 답변을 가져오지 못했어요. 잠시 후 다시 시도해주세요.",
+            ) from fb_exc
     except Exception as exc:
         # 원본 예외 메시지(APIKey 인코딩 오류 등 내부 구현 디테일)를 그대로
         # 사용자에게 보여주면 안 된다 — 서버 로그로만 남기고, 사용자에게는
