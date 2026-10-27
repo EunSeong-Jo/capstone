@@ -192,6 +192,11 @@ export default function ProductDetailPage() {
   );
   const total = countIngredients(groups);
   const hasLabels = groups.some((g) => g.label !== null);
+  // 이 제품의 전성분 중 내가 마이 성분으로 담아 둔 것의 개수(같은 성분이 묶음마다 나와도 한 번만 센다)
+  const mineCount = useMemo(
+    () => new Set(groups.flatMap((g) => g.items.map((i) => i.id)).filter((id) => myIngredients.has(id))).size,
+    [groups, myIngredients],
+  );
 
   // 등급별 개수. 근거가 있는 것만 세고, 분류 미정은 세지 않는다.
   const gradeCount = useMemo(() => {
@@ -353,7 +358,16 @@ export default function ProductDetailPage() {
 
           {/* ── 전성분 (핵심 섹션) ───────────────────── */}
           <section ref={ingredientsRef} className="px-4 py-5 scroll-mt-14">
-            <OySectionHeader title={`전성분 ${total}개`} />
+            <OySectionHeader
+              title={`전성분 ${total}개`}
+              aside={
+                mineCount > 0 && (
+                  <span className="text-sm font-semibold text-primary" title="이 제품에 든 마이 성분" aria-label={`마이 성분 ${mineCount}개`}>
+                    ♥ {mineCount}
+                  </span>
+                )
+              }
+            />
             <p className="-mt-1 mb-3 text-xs text-oy-sub">
               화장품 전성분은 함량이 많은 순서로 표기됩니다.
               {hasLabels && ' 이 상품은 구성품별로 나뉘어 있어요.'}
