@@ -4,11 +4,13 @@ import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import {
   NotificationDto,
+  NotificationsDto,
   fetchNotifications,
   markNotificationsSeen,
 } from '../../api/personal';
+import { peek, put } from '../../api/queryCache';
 import { useAuth } from '../../context/auth';
-import { markUnreadSeen } from '../../hooks/useNotifications';
+import { markUnreadSeen, notificationsKey } from '../../hooks/useNotifications';
 
 /**
  * 알림함 (`GET /api/v1/me/notifications`).
@@ -51,8 +53,10 @@ function ago(iso: string): string {
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const { scope } = useAuth();
-  const [items, setItems] = useState<NotificationDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  // 홈 배지가 이미 받아 둔 목록이 있으면 그걸 바로 그린다(스켈레톤 없이). 뒤에서 새로 받아 갈아 끼운다.
+  const cacheKey = notificationsKey(scope);
+  const [items, setItems] = useState<NotificationDto[]>(() => peek<NotificationsDto>(cacheKey)?.value.items ?? []);
+  const [loading, setLoading] = useState(() => peek<NotificationsDto>(cacheKey) === undefined);
 
   useEffect(() => {
     let alive = true;
@@ -63,8 +67,9 @@ export default function NotificationsPage() {
         // unread 배지는 이번에 연 시점 기준으로 남겨 둔다 — 열자마자
         // 배지가 사라지면 무엇이 새로 왔는지 볼 수 없다.
         setItems(res.items);
+        put(cacheKey, res);
       })
-      .catch(() => alive && setItems([]))
+      .catch(() => alive && peek(cacheKey) === undefined && setItems([]))
       .finally(() => alive && setLoading(false));
 
     void markNotificationsSeen().catch(() => undefined);
@@ -73,8 +78,11 @@ export default function NotificationsPage() {
 
     return () => {
       alive = false;
+      // 다음에 열 때는 이미 읽은 것으로 보이게, 캐시의 안 읽음 표시를 끈다.
+      const cur = peek<NotificationsDto>(cacheKey)?.value;
+      if (cur) put(cacheKey, { ...cur, unreadCount: 0, items: cur.items.map((n) => ({ ...n, unread: false })) });
     };
-  }, [scope]);
+  }, [scope, cacheKey]);
 
   return (
     <PageWrapper className="bg-surface-warm">
