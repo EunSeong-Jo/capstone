@@ -94,7 +94,7 @@ export function ProductCardV({ product, width = 'w-[150px]', rank }: ProductCard
           <div className="flex items-center gap-1 mt-1.5">
             <span className="text-oy-text text-xs">★</span>
             <span className="text-xs text-oy-text">{product.rating.toFixed(1)}</span>
-            {product.reviewCount != null && (
+            {!!product.reviewCount && (
               <span className="text-xs text-oy-sub">
                 ({product.reviewCount > 99999 ? '99,999+' : product.reviewCount.toLocaleString()})
               </span>

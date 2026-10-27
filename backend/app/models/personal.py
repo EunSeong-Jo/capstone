@@ -21,6 +21,8 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -202,17 +204,26 @@ class Review(Base):
     __tablename__ = "reviews"
     __table_args__ = (
         UniqueConstraint("order_item_id", name="uq_review_order_item"),
+        CheckConstraint(
+            "is_sample OR (user_id IS NOT NULL AND order_item_id IS NOT NULL)", name="ck_review_real_or_sample"
+        ),
         Index("idx_reviews_user", "user_id"),
         Index("idx_reviews_product", "product_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[uuid.UUID] = _user_fk()
+    # 실제 후기는 user_id·order_item_id가 필수다. 생성 후기(is_sample)만 둘 다 비어 있다(CHECK가 강제).
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
     product_id: Mapped[int] = _product_fk()
-    order_item_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("order_items.id", ondelete="CASCADE"), nullable=False
+    order_item_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("order_items.id", ondelete="CASCADE"), nullable=True
     )
     rating: Mapped[int] = mapped_column(SmallInteger, nullable=False)  # 1~5
+    is_sample: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    author_nickname: Mapped[str | None] = mapped_column(Text)
+    author_skin_type: Mapped[str | None] = mapped_column(Text)
     body: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False

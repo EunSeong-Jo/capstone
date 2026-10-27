@@ -172,7 +172,7 @@ def _to_out(p: Product) -> ProductOut:
         price=p.price or 0,
         image_url=p.image_url,
         rating=float(p.rating) if p.rating is not None else None,
-        review_count=p.review_count,
+        review_count=p.registered_review_count,
         composition=p.composition,
         unit_price=float(p.unit_price) if p.unit_price is not None else None,
         unit_label=p.unit_label,
@@ -758,12 +758,12 @@ async def list_product_reviews(
     **캐시하지 않는다.** 제품 정보와 달리 후기는 사용자가 방금 쓴 것이
     바로 보여야 한다.
 
-    후기는 산 제품에만 쓸 수 있다(`reviews.order_item_id`). 그래서 목록이
-    비어 있는 것이 정상이고, 지금은 대부분의 제품이 그렇다 — 없는 후기를
-    지어내는 대신 빈 목록을 낸다.
+    실제 후기는 산 제품에만 쓸 수 있다(`reviews.order_item_id`). 시연용으로
+    제품마다 10개 안팎을 미리 채워 두었고(`reviews.is_sample`,
+    scripts/seed_sample_reviews.py) 작성자 표시는 그 행의 `author_*`를 쓴다.
 
-    `products.review_count`(크롤링으로 받아 온 올리브영 리뷰 수)와는 다른
-    값이다. 저쪽은 우리가 내용을 갖고 있지 않다.
+    `products.review_count`(크롤링으로 받아 온 올리브영 리뷰 수)는 인기순 정렬용이고,
+    화면의 리뷰 수는 `products.registered_review_count`(= 이 목록의 total)다.
     """
     exists = await db.scalar(select(Product.id).where(Product.id == product_id))
     if exists is None:
@@ -788,7 +788,7 @@ async def list_product_reviews(
     # 작성자 피부타입은 프로필(최신 진단의 캐시)에서 온다. 진단 전이면 NULL.
     stmt = (
         select(Review, User.nickname, Profile.skin_type)
-        .join(User, User.id == Review.user_id)
+        .outerjoin(User, User.id == Review.user_id)
         .outerjoin(Profile, Profile.user_id == Review.user_id)
         .where(Review.product_id.in_(pids))
     )
@@ -816,12 +816,12 @@ async def list_product_reviews(
             ProductReviewOut(
                 id=review.id,
                 # 닉네임만 낸다. 없으면 가린다 — 이메일을 대신 쓰면 그게 유출이다.
-                nickname=nickname or "익명",
+                nickname=review.author_nickname or nickname or "익명",
                 rating=review.rating,
                 body=review.body,
                 created_at=review.created_at,
                 photo_urls=photos.get(review.id, []),
-                skin_type=skin,
+                skin_type=review.author_skin_type or skin,
             )
             for review, nickname, skin in rows
         ],

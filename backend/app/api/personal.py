@@ -873,6 +873,12 @@ async def write_review(
     ]
     db.add_all(photo_rows)
     db.add(PointTransaction(user_id=user.id, amount=REVIEW_POINT, reason="review"))
+    # 화면의 리뷰 수(products.registered_review_count)를 같은 트랜잭션에서 맞춘다
+    await db.execute(
+        update(Product)
+        .where(Product.id == item.product_id)
+        .values(registered_review_count=Product.registered_review_count + 1)
+    )
     await db.commit()
     await db.refresh(review)
 

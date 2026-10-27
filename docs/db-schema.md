@@ -97,7 +97,8 @@ erDiagram
 | | `list_price` | int | NULL | 할인 전 정가 |
 | | `discount_rate` | smallint | NULL | |
 | | `rating` | numeric(2,1) | NULL | |
-| | `review_count` | int | NULL | |
+| | `review_count` | int | NULL | 올리브영 크롤링값. **인기순 정렬·점수의 입력** — 화면의 리뷰 수가 아니다 |
+| | `registered_review_count` | int | NOT NULL, 기본 0 | 화면에 보이는 리뷰 수 = 이 앱에 등록된 후기 개수(`reviews` 집계). 옵션 묶음은 그룹이 같은 값을 쓴다 (`f4a6b8c0d2e3`) |
 | | `image_url` | text | NULL | |
 | | `product_url` | text | NULL | |
 | | `volume` | text | NULL | 상품정보제공고시 원문 |
@@ -610,6 +611,7 @@ Neon에는 컨테이너 초기화 훅이 없어 `CREATE EXTENSION`을 첫 마이
 | `orders.closed_at` · `close_reason` | 취소·반품 시각과 사유. `status`는 `placed` / `cancelled` / `returned`. 배송 단계(결제완료~배송완료)는 **저장하지 않고** `placed_at`에서 계산합니다(`services/order_stage.py`) — 택배 연동이 없기 때문입니다 |
 | `point_transactions.reason` | `order_cancel` / `order_return`이 더해졌습니다. 취소·반품 시 그 주문의 적립을 음수로 회수합니다 |
 | `gifts.recipient_user_id` | 받는 사람 계정(닉네임으로 찾음, FK SET NULL). '받은 선물'이 여기서 나옵니다. 이전 행은 NULL — 이름만 적었던 선물입니다 |
+| `reviews` (생성 후기) | `is_sample=true` 행은 `user_id`·`order_item_id`가 NULL이고 작성자는 `author_nickname`·`author_skin_type`. `CHECK ck_review_real_or_sample`이 실제 후기의 필수 조건은 유지. 제품당 10개 안팎(`scripts/seed_sample_reviews.py`, 멱등) |
 | `review_photos` | 후기 사진. 파일 서버가 없어 **바이트를 DB에 둡니다**(장당 2MB, 후기당 3장, `reviews` CASCADE). `GET /api/v1/reviews/photos/{id}`로 공개 |
 
 PR #64로 들어왔다가 revert됐고(PR #67), dev 위에 다시 얹으며 `Revises`를 `a0fd1f8a5d3a`로 옮겼습니다.
