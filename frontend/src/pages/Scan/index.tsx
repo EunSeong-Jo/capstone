@@ -266,7 +266,7 @@ export default function ScanPage() {
               : '제품 앞면을 틀 안에 맞춰 주세요'}
         </p>
         <div
-          className="relative h-[300px] w-[220px] rounded-[22px]"
+          className="relative aspect-[3/4] w-[min(285px,80vw)] rounded-[22px]"
           style={{ boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)' }}
         >
           <span className="absolute left-0 top-0 h-11 w-11 rounded-tl-[22px] border-l-[3.5px] border-t-[3.5px] border-[#4CC38A]" />
