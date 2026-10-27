@@ -24,7 +24,7 @@ export function RankedProductCard({ rank, product, onToggleFavorite, onAddToCart
         {product.imageUrl && (
           <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover" />
         )}
-        <span className="absolute top-0 left-0 min-w-[13px] h-[13px] px-0.5 flex items-center justify-center rounded-sm bg-gray-100 text-white text-[9px] font-bold leading-none">
+        <span className="absolute top-0 left-0 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center rounded-sm bg-gray-100 text-white text-[11px] font-bold leading-none">
           {rank}
         </span>
       </div>

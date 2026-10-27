@@ -46,7 +46,7 @@ function ProductPair({ a, b }: { a: ProductAnalysis; b: ProductAnalysis }) {
         {p.imageUrl && <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />}
       </span>
       <span className="min-w-0">
-        <span className={`block text-[10px] font-bold ${tone}`}>{label}</span>
+        <span className={`block text-[11px] font-bold ${tone}`}>{label}</span>
         <span className="block truncate text-[11px] text-oy-sub">{p.brand}</span>
         <span className="line-clamp-2 block text-xs font-semibold leading-snug text-oy-text">{p.name}</span>
       </span>

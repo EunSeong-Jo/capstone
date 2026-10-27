@@ -52,7 +52,7 @@ export function SeedSwitcher({
         className="flex w-full items-center gap-2 text-left"
       >
         <span className="min-w-0 flex-1">{children}</span>
-        <span className="flex shrink-0 flex-col items-center gap-0.5 text-[10px] font-semibold text-primary">
+        <span className="flex shrink-0 flex-col items-center gap-0.5 text-[11px] font-semibold text-primary">
           <svg
             width="18"
             height="18"
@@ -90,8 +90,8 @@ export function SeedSwitcher({
                     {item.imageUrl && <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[10px] font-bold text-gray-50">{item.brand}</span>
-                    <span className="block truncate text-[13px] font-semibold text-gray-100">{item.name}</span>
+                    <span className="block text-[11px] font-bold text-gray-50">{item.brand}</span>
+                    <span className="line-clamp-2 text-[13px] font-semibold leading-snug text-gray-100">{item.name}</span>
                   </span>
                   {on && <span className="shrink-0 text-[11px] font-bold text-primary">선택됨</span>}
                 </button>

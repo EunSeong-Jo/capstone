@@ -212,7 +212,7 @@ export default function AlternativesPage() {
           </div>
           <div className="min-w-0">
             <p className="text-xs text-gray-70">{seed.brand}</p>
-            <p className="text-sm font-bold text-gray-100 truncate">{seed.name}</p>
+            <p className="text-sm font-bold leading-snug text-gray-100 line-clamp-2">{seed.name}</p>
             {seed.price > 0 && (
               <p className="text-sm font-bold text-gray-100 mt-0.5">
                 {seed.price.toLocaleString()}원

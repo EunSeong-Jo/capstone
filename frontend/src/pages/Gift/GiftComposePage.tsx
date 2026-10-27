@@ -79,7 +79,7 @@ export default function GiftComposePage() {
           )}
           <div className="min-w-0 flex-1">
             <p className="text-xs text-oy-sub">{product.brand}</p>
-            <p className="truncate text-sm font-semibold text-oy-text">{product.name}</p>
+            <p className="line-clamp-2 text-sm font-semibold leading-snug text-oy-text">{product.name}</p>
             <p className="mt-0.5 text-sm font-bold text-oy-text">
               {product.price.toLocaleString()}원
             </p>

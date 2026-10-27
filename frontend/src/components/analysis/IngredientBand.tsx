@@ -39,7 +39,7 @@ export function IngredientBand({ anatomy }: { anatomy: AnatomyItem[] }) {
 
   return (
     <div>
-      <div className="flex items-end justify-between text-[10px] text-oy-sub">
+      <div className="flex items-end justify-between text-[11px] text-oy-sub">
         <span>← 적게 들어 있음</span>
         <span>많이 들어 있음 →</span>
       </div>

@@ -97,7 +97,7 @@ function MembershipModal({
             <div key={b.label} className="grid grid-cols-[1fr_60px_60px] items-center border-t border-gray-10 px-3 py-2.5">
               <span className="min-w-0">
                 <span className="block text-[13px] font-semibold text-gray-100">{b.label}</span>
-                <span className="block text-[10px] text-gray-50">{b.note}</span>
+                <span className="block text-[11px] text-gray-50">{b.note}</span>
               </span>
               <span className="text-center text-[13px] font-semibold text-gray-70">{b.free}</span>
               <span className="text-center text-[14px] font-extrabold text-ob-green-deep">{b.paid}</span>

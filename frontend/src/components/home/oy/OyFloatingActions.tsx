@@ -31,7 +31,7 @@ export function OyFloatingActions({ onChatbot, onRecommendSet }: OyFloatingActio
           <path d="M3 12h18M12 8v12.5" />
           <path d="M12 8c-1-2.5-2.6-4-4-3s-.4 3 4 3zM12 8c1-2.5 2.6-4 4-3s.4 3-4 3z" />
         </svg>
-        <span className="text-[10px] font-bold text-white leading-none">추천세트</span>
+        <span className="text-[11px] font-bold text-white leading-none">추천세트</span>
       </button>
 
       {/* 챗봇 */}
@@ -41,7 +41,7 @@ export function OyFloatingActions({ onChatbot, onRecommendSet }: OyFloatingActio
         className="w-16 h-16 rounded-full shadow-lg border border-gray-20 bg-white flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
       >
         <CharacterAvatar skinType={skinType} decorationId={decorationId} className="h-9 w-9" />
-        <span className="text-[10px] font-bold text-gray-100 leading-none">챗봇</span>
+        <span className="text-[11px] font-bold text-gray-100 leading-none">챗봇</span>
       </button>
     </div>
   );

@@ -74,7 +74,7 @@ export default function ScanHistoryPage() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-[11px] text-gray-50">{item.brand}</span>
-                        <span className="block truncate text-sm font-bold text-gray-100">{item.name}</span>
+                        <span className="line-clamp-2 text-sm font-bold leading-snug text-gray-100">{item.name}</span>
                         <span className="mt-0.5 block text-[11px] text-gray-50">{formatWhen(item.scannedAt)} 스캔</span>
                       </span>
                     </button>

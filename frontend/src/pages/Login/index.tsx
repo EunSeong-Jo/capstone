@@ -121,11 +121,11 @@ export default function LoginPage() {
                 className="rounded-lg border border-[#DCE8E1] bg-white px-2 py-2 text-left active:scale-95 transition-transform"
               >
                 <span className="block text-[11px] font-semibold text-primary-dark">{p.nickname}</span>
-                <span className="block text-[9px] text-gray-50">{p.role}</span>
+                <span className="block text-[11px] text-gray-50">{p.role}</span>
               </button>
             ))}
           </div>
-          <p className="mt-2 text-center text-[10px] text-gray-50">
+          <p className="mt-2 text-center text-[11px] text-gray-50">
             비밀번호는 전부 swappy1234 (예: donggyun@swappy.app)
           </p>
         </div>

@@ -152,7 +152,7 @@ export function ProfileDashboard({
               />
             )}
             {/* 꾸미기 힌트 뱃지 */}
-            <span className="absolute -bottom-1 -right-1 inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
+            <span className="absolute -bottom-1 -right-1 inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-bold text-white shadow-sm">
               ✨꾸미기
             </span>
           </button>
@@ -198,7 +198,7 @@ export function ProfileDashboard({
                     style={{ width: `${expPct}%` }}
                   />
                 </div>
-                <span className="shrink-0 whitespace-nowrap text-[10px] text-gray-50">
+                <span className="shrink-0 whitespace-nowrap text-[11px] text-gray-50">
                   {character.exp}/{character.nextLevelExp}
                 </span>
               </div>

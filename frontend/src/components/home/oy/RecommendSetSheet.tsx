@@ -246,7 +246,7 @@ export function RecommendSetSheet({
                             )}
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[10px] font-bold text-oy-sub">{it.product.brand}</span>
+                            <span className="block truncate text-[11px] font-bold text-oy-sub">{it.product.brand}</span>
                             <span className="line-clamp-2 text-[12px] font-semibold leading-snug text-oy-text">
                               {it.product.name}
                             </span>

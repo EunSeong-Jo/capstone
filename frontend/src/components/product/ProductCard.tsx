@@ -83,7 +83,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           <div className="flex items-center gap-1 mb-1.5">
             <span className="text-star text-xs">★</span>
             <span className="text-xs text-gray-70">{product.rating.toFixed(1)}</span>
-            {product.reviewCount && (
+            {!!product.reviewCount && (
               <span className="text-xs text-gray-50">({product.reviewCount.toLocaleString()})</span>
             )}
           </div>
