@@ -120,7 +120,7 @@ export default function AnalysisGuideSheet({ analysis, onClose }: AnalysisGuideS
           </p>
         </section>
 
-        <p className="mt-4 text-[10px] leading-relaxed text-gray-50">
+        <p className="mt-4 text-[11px] leading-relaxed text-gray-50">
           사진 한 장으로 본 참고 값이에요. 조명·화장·각도에 따라 달라질 수 있고 의료적 진단이 아니에요.
         </p>
         <button

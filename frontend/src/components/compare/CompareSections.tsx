@@ -71,10 +71,10 @@ export function FunctionCompare({ rows }: { rows: FunctionRow[] }) {
           <div className="flex items-center gap-2">
             <span className="text-[13px] font-bold text-oy-text">{FUNC_INFO[r.code]?.name ?? r.name}</span>
             {r.verdict === 'weaker' && (
-              <span className="rounded-full bg-accent-light px-2 py-0.5 text-[10px] font-bold text-accent">대체품이 약해요</span>
+              <span className="rounded-full bg-accent-light px-2 py-0.5 text-[11px] font-bold text-accent">대체품이 약해요</span>
             )}
             {r.verdict === 'stronger' && (
-              <span className="rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-bold text-primary">대체품이 강해요</span>
+              <span className="rounded-full bg-primary-light px-2 py-0.5 text-[11px] font-bold text-primary">대체품이 강해요</span>
             )}
           </div>
           {([

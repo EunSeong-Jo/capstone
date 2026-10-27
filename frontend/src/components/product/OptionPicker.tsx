@@ -49,7 +49,7 @@ export function OptionPicker({
         className="flex w-full items-center justify-between gap-2 rounded-xl border border-oy-line bg-white px-3.5 py-2.5 text-left active:bg-oy-chip"
       >
         <span className="min-w-0">
-          <span className="block text-[10px] font-semibold text-oy-sub">옵션 {options.length}종</span>
+          <span className="block text-[11px] font-semibold text-oy-sub">옵션 {options.length}종</span>
           <span className="block truncate text-sm font-bold text-oy-text">{current?.label ?? '옵션 선택'}</span>
         </span>
         <svg

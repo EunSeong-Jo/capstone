@@ -105,7 +105,7 @@ export default function QuestionScreen({
             >
               <span className="flex-1">
                 <span className="block text-[12px] font-medium text-black">{opt.title}</span>
-                <span className="mt-1 block text-[10px]" style={{ color: '#9d9d9d' }}>{opt.desc}</span>
+                <span className="mt-1 block text-[11px]" style={{ color: '#9d9d9d' }}>{opt.desc}</span>
               </span>
               <span
                 className="grid h-5 w-5 shrink-0 place-items-center rounded-full border"

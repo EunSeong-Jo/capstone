@@ -23,7 +23,7 @@ export function CartButton() {
       <CartShape size={24} color="#17171C" />
       {count > 0 && (
         <span
-          className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white"
+          className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none text-white"
           style={{ backgroundColor: '#F8174A' }}
         >
           {count > 99 ? '99+' : count}

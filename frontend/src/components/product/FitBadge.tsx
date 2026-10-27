@@ -39,7 +39,7 @@ export function FitPill({ verdict, className = '' }: { verdict?: string; classNa
   const good = verdict === 'good';
   return (
     <span
-      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold leading-none ${
         good ? 'bg-primary text-white' : 'bg-warning text-white'
       } ${className}`}
     >

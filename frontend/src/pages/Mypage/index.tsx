@@ -233,7 +233,7 @@ export default function MypagePage() {
                   }}
                 />
               </div>
-              <span className="shrink-0 whitespace-nowrap text-[10px] text-gray-50">
+              <span className="shrink-0 whitespace-nowrap text-[11px] text-gray-50">
                 {stats.expInLevel}/{stats.levelSpan}
               </span>
             </div>
@@ -277,7 +277,7 @@ export default function MypagePage() {
                           </span>
                           <span className="shrink-0 text-right">
                             <span className="block text-[13px] font-extrabold text-primary-dark">+{r.exp} EXP</span>
-                            <span className="block text-[10px] text-gray-50">
+                            <span className="block text-[11px] text-gray-50">
                               {count}회 · {(count * r.exp).toLocaleString()} EXP 획득
                             </span>
                           </span>
@@ -331,7 +331,7 @@ export default function MypagePage() {
             <div key={label} className="relative flex flex-1 flex-col items-center py-[15px]">
               {i > 0 && <span className="absolute left-0 top-[13px] bottom-[13px] w-px bg-white/[0.14]" />}
               <span className="text-base font-black text-white">{value}</span>
-              <span className="mt-0.5 text-[10px] text-white/65">{label}</span>
+              <span className="mt-0.5 text-[11px] text-white/65">{label}</span>
             </div>
           ))}
         </div>

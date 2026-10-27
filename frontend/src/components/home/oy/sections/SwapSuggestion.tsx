@@ -260,10 +260,10 @@ function SwapProduct({
           <span className="flex h-full w-full items-center justify-center text-2xl opacity-40">🧴</span>
         )}
       </div>
-      <span className={`mt-2 inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold ${chip}`}>
+      <span className={`mt-2 inline-block rounded-md px-1.5 py-0.5 text-[11px] font-bold ${chip}`}>
         {chipLabel}
       </span>
-      <p className="mt-1 truncate text-[10px] font-bold text-oy-sub">{brand}</p>
+      <p className="mt-1 truncate text-[11px] font-bold text-oy-sub">{brand}</p>
       <p className="line-clamp-2 text-[12px] font-semibold leading-snug text-oy-text">{name}</p>
       {children}
     </button>
@@ -349,7 +349,7 @@ function SwapCard({
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-light text-[15px] font-bold text-primary">
             →
           </span>
-          <span className="text-[10px] font-bold text-primary">유사도 {alt.similarityScore}%</span>
+          <span className="text-[11px] font-bold text-primary">유사도 {alt.similarityScore}%</span>
         </div>
 
         <SwapProduct
