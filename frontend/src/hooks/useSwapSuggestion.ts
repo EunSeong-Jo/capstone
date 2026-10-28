@@ -92,6 +92,13 @@ interface UseSwapSuggestionResult {
  * 것일수록 지금 쓰는 제품일 가능성이 높아 앞에서부터 자른다.
  */
 const MAX_SEEDS = 5;
+
+/**
+ * 교체 제안에서 뺀다. 마스크팩·패드는 한 봉지의 매수가 제각각(1매 1,500원 vs 10매 15,000원)이라 값만 견주면
+ * 실제로는 아낀 게 거의 없는데 절약이 큰 것처럼 보인다. 쓰던 제품으로도, 대체품으로도 올리지 않는다.
+ * (화장대·검색·'내 마스크팩 제품과 비슷한 추천'에는 그대로 나온다)
+ */
+const PACK_CATEGORY = '마스크팩';
 /** 종류가 비어 더 물을 때를 포함해 한 번에 조회하는 화장대 제품의 상한 */
 const MAX_SEEDS_TOTAL = 40;
 
@@ -271,7 +278,9 @@ function buildSwap(
     const seed = current[i];
     // basedOn: 상세 페이지가 "내 화장대의 어느 제품과 비슷한지"를 알려 주는 데 쓴다(화장대가 기준이라 항상 참이다).
     const seedFit = result.value.seedSkinFitScore ?? null;
-    const mapped = result.value.items.map((item) => ({ ...toAlternative(item, seed, skinType), basedOn: seed.name }));
+    const mapped = result.value.items
+      .filter((item) => item.category !== PACK_CATEGORY)
+      .map((item) => ({ ...toAlternative(item, seed, skinType), basedOn: seed.name }));
     // 같은 제품의 다른 용량은 교체 제안이 아니다. 이걸 빼지 않으면
     // "유사도 100%" 1등이 대부분 자기 자신의 대용량 버전이 된다.
     // 다만 버리지는 않는다 — 진짜 대체품이 없을 때 "같은 제품 대용량이
@@ -341,7 +350,7 @@ export function useSwapSuggestion(
     () =>
       JSON.stringify(
         orderSeedsOfToday(
-          items.filter((c) => (c.price ?? 0) > 0),
+          items.filter((c) => (c.price ?? 0) > 0 && c.category !== PACK_CATEGORY),
           todayKey(),
         )
           .slice(0, MAX_SEEDS_TOTAL)
