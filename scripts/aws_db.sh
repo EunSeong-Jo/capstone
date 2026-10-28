@@ -179,7 +179,13 @@ cmd_demo() {
   PGDSN=$(keepalive "$PGDSN"); export PGDSN
   local demo; demo=$(latest 'swappy_demo_*.sql'); [ -n "$demo" ] || die "데모 덤프가 없습니다. 먼저 scripts/aws_db.sh dump"
   echo "적용: $(basename "$demo")"
-  psql_remote -q -f - < "$demo" >/dev/null
+  # 덤프 전체가 한 트랜잭션(BEGIN~COMMIT)이라 연결이 끊기면 아무것도 바뀌지 않는다 — 안전하게 다시 시도한다.
+  local try
+  for try in 1 2 3; do
+    if psql_remote -q -f - < "$demo" >/dev/null; then break; fi
+    [ "$try" = 3 ] && die "3번 모두 실패했습니다. 운영 DB는 바뀌지 않았습니다(트랜잭션 롤백). 네트워크를 확인하고 다시 실행하세요."
+    echo "연결이 끊겼어요. 롤백됐으니 다시 시도합니다($try/3)…"; sleep 3
+  done
   local me="(select id from users where email='$DEMO_EMAIL')" t
   for t in profiles diagnoses closet_items orders user_consents subscriptions skin_analyses skin_analysis_images; do
     printf "  %-22s AWS %s행\n" "$t" "$(q_remote -c "select count(*) from $t where user_id=$me")"
