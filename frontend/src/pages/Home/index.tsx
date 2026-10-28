@@ -194,7 +194,9 @@ export default function HomePage() {
             개인화인 척하지 않는다 — "옹달샘을 위한 상품"이 그 척이었다. */}
         <ProductCarousel
           title={
-            skinLabel !== null ? `${withObjParticle(skinLabel)} 위한 상품` : '요즘 인기 있는 상품'
+            <span className="whitespace-nowrap text-[16px]">
+              {skinLabel !== null ? `${withObjParticle(skinLabel)} 위한 상품` : '요즘 인기 있는 상품'}
+            </span>
           }
           products={forYou}
         />
