@@ -107,13 +107,24 @@ export default function SearchPage() {
   // 인기 TOP 5 (리뷰수 기준). 예전 REALTIME_BEST 목업을 대체한다.
   const { products: popular } = useProducts({ sort: 'popular', size: 5 });
 
-  const handleSearch = (q: string, tab: MainTab = mainTab) => {
+  // 입력창에 글자를 칠 때마다 부르는 것 — 검색어만 바꾸고 '최근 검색'에는 남기지 않는다.
+  // (예전에는 여기서 저장해 "ㅂ", "브", "브링"…이 전부 최근 검색어로 쌓였다)
+  const handleType = (q: string) => {
     setQuery(q);
-    const searching = q.trim().length > 0;
-    setIsSearching(searching);
-    if (searching) {
-      (tab === 'general' ? generalSearches : ingredientSearches).addSearch(q.trim());
-    }
+    setIsSearching(q.trim().length > 0);
+  };
+
+  /** 최근 검색에 남긴다 — 검색을 확정했을 때(엔터·입력창을 벗어남)와 칩을 눌렀을 때만. 한 글자는 검색이 아니라서 남기지 않는다. */
+  const remember = (q: string, tab: MainTab = mainTab) => {
+    const word = q.trim();
+    if (word.length < 2) return;
+    (tab === 'general' ? generalSearches : ingredientSearches).addSearch(word);
+  };
+
+  // 칩·인기 검색어·성분 사전의 '이 성분 제품 보기'처럼 완성된 검색어를 한 번에 넣을 때
+  const handleSearch = (q: string, tab: MainTab = mainTab) => {
+    handleType(q);
+    remember(q, tab);
   };
 
   // 성분 인기 검색어는 성분검색 탭으로 넘겨서 찾는다.
@@ -177,12 +188,21 @@ export default function SearchPage() {
           </svg>
           <input
             value={query}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => handleType(e.target.value)}
+            onKeyDown={(e) => {
+              // 한글 조합 중의 엔터는 글자를 확정하는 키라 검색으로 보지 않는다
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                remember(query);
+                e.currentTarget.blur();
+              }
+            }}
+            onBlur={() => remember(query)}
+            enterKeyHint="search"
             placeholder={mainTab === 'general' ? '제품명·브랜드·성분으로 검색' : '성분으로 검색해 보세요'}
             className="flex-1 min-w-0 bg-transparent text-sm text-gray-100 outline-none placeholder:text-gray-50"
           />
           {query && (
-            <button onClick={() => handleSearch('')} aria-label="검색어 지우기" className="text-gray-50 active:scale-90 transition-transform">✕</button>
+            <button onMouseDown={(e) => e.preventDefault()} onClick={() => handleType('')} aria-label="검색어 지우기" className="text-gray-50 active:scale-90 transition-transform">✕</button>
           )}
           {/* 검색표시 옆 카메라 → 화장품 스캔(3c) 이동 */}
           <button
@@ -209,7 +229,7 @@ export default function SearchPage() {
           ] as [MainTab, string][]).map(([tab, label]) => (
             <button
               key={tab}
-              onClick={() => { setMainTab(tab); handleSearch(''); }}
+              onClick={() => { setMainTab(tab); handleType(''); }}
               className={`mr-5 px-1 py-2.5 text-sm border-b-2 transition-colors ${
                 mainTab === tab ? 'font-extrabold text-primary-dark border-primary' : 'font-semibold text-gray-50 border-transparent'
               }`}
