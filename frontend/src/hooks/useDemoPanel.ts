@@ -11,7 +11,8 @@ import { readJSON, writeJSON } from '../context/storage';
  * 기본값(저장된 선택이 없을 때)은 **숨김**이다. 개발 중에 처음부터 보이게 하려면 빌드 변수
  * `VITE_DEMO_PANEL=on`을 준다. 배포·웹·앱 빌드는 아무 설정 없이도 숨겨진다.
  */
-const KEY = 'swappy:ui:demoPanel:v1';
+// v2: 예전에 비밀 명령으로 '켜짐'이 저장된 기기도 기본값(숨김)으로 돌아가게 키를 올렸다
+const KEY = 'swappy:ui:demoPanel:v2';
 export const SECRET_TAPS = 7;
 const TAP_GAP_MS = 1200;
 
