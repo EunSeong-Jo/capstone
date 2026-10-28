@@ -87,22 +87,20 @@ export function ProfileDashboard({
       <div className="rounded-[24px] bg-white border border-gray-10 shadow-soft p-5">
         {/* 상단 미니 날씨바 (조건·온도·습도 + 피부타입 칩). weather가 null이면
             아직 로딩 중이라는 뜻 — 더미 값 대신 펄스 플레이스홀더를 보여준다 */}
-        <div className="flex items-center justify-between gap-2">
+        {/* 피부타입 칩이 긴 계정(수부지(수부지)·게스트의 '로그인하고 진단하기')에서도 날씨 글자가 어절 중간에서 꺾이지 않게
+            글자는 줄바꿈하지 않고, 한 줄에 다 안 들어가면 칩이 다음 줄로 내려간다. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
           {weather ? (
-            <div className="flex items-center gap-1.5 text-sm font-bold text-gray-100 min-w-0">
+            <div className="flex items-center gap-1.5 whitespace-nowrap text-[12px] font-bold text-gray-100">
               <img
                 src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`}
                 alt={weather.conditionLabel}
-                className="h-6 w-6 -my-1 shrink-0"
+                className="h-5 w-5 -my-1 shrink-0"
               />
               <span>{weather.conditionLabel}</span>
-              <span className="text-gray-20">·</span>
               <span>{weather.temperature}°</span>
               {weather.humidity != null && (
-                <>
-                  <span className="text-gray-20">·</span>
-                  <span className="font-medium text-gray-50">습도 {weather.humidity}%</span>
-                </>
+                <span className="font-medium text-gray-50">습도 {weather.humidity}%</span>
               )}
             </div>
           ) : (
@@ -121,7 +119,7 @@ export function ProfileDashboard({
               onClick={() => navigate(isUser ? '/qna' : '/login')}
               className="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-full bg-primary text-[11px] font-bold text-white active:scale-95 transition-transform"
             >
-              {UNKNOWN_SKIN_META.emoji} {isUser ? '피부타입 진단하기' : '로그인하고 진단하기'}
+              {UNKNOWN_SKIN_META.emoji} {isUser ? '피부타입 진단하기' : '로그인하고 진단'}
             </button>
           ) : (
             <span className="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-full bg-primary-light text-[11px] font-bold text-primary">

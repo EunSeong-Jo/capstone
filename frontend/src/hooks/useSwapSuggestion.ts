@@ -433,3 +433,59 @@ export function useSwapSuggestion(
     reload,
   };
 }
+
+/**
+ * 화장대 **전체**로 아낄 수 있는 최대 금액 — 홈 상단 "최대 ○○원 절약 가능"이 쓴다.
+ *
+ * 오늘의 교체 제안은 날마다 다른 제품 5개만 물어서(`orderSeedsOfToday`) 그 합계로 띄우면 숫자가 날마다 바뀐다.
+ * 이 훅은 날짜와 무관하게 화장대의 모든 제품(마스크팩 제외)을 id 순으로 물어 같은 화장대면 항상 같은 값을 낸다.
+ * 합계 규칙은 홈 카드와 같다(유사도 하한 이상, 쓰던 제품마다 1등 후보 하나).
+ */
+export function useClosetMaxSaving(items: ClosetItem[], skinType?: SkinType): number | undefined {
+  const seedKey = useMemo(
+    () =>
+      JSON.stringify(
+        items
+          .filter((c) => (c.price ?? 0) > 0 && c.category !== PACK_CATEGORY)
+          .sort((a, b) => a.id - b.id)
+          .slice(0, MAX_SEEDS_TOTAL)
+          .map<SwapSeed>((c) => ({
+            id: c.id,
+            brand: c.brand,
+            name: c.name,
+            price: c.price ?? 0,
+            imageUrl: c.imageUrl,
+          })),
+      ),
+    [items],
+  );
+  const [loaded, setLoaded] = useState<{ key: string; value: number | undefined } | null>(null);
+  const key = `${seedKey}:${skinType}`;
+
+  useEffect(() => {
+    if (seedKey === '[]') return;
+    let alive = true;
+    load(
+      `maxsave:${key}`,
+      async () => {
+        const seeds = JSON.parse(seedKey) as SwapSeed[];
+        const results = await Promise.allSettled(
+          seeds.map((seed) => loadSimilarProducts(seed.id, { limit: PER_SEED_LIMIT, skinType, fitFor: skinType })),
+        );
+        const shown = buildSwap(seeds, results, skinType).candidates.filter(
+          (c) => c.alt.similarityScore >= HOME_SIMILARITY_MIN,
+        );
+        return { total: shown.length > 0 ? totalSavingOf(shown) : null };
+      },
+      SWAP_FRESH_MS,
+    )
+      .then((r) => alive && setLoaded({ key, value: r.total ?? undefined }))
+      .catch(() => alive && setLoaded({ key, value: undefined }));
+    return () => {
+      alive = false;
+    };
+  }, [key, seedKey, skinType]);
+
+  if (seedKey === '[]') return undefined;
+  return loaded?.key === key ? loaded.value : undefined;
+}

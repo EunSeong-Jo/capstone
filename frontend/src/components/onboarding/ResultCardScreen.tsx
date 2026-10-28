@@ -8,7 +8,6 @@ interface ResultCardScreenProps {
   resultType: SkinType;
   /** 1·2순위 후보(순서대로). 2개일 때만 고르는 화면이 된다. 그 밖에는 1순위 하나만 보여 준다 */
   choices?: SkinType[];
-  onClose: () => void | Promise<void>;
   /** 고른 타입 id로 확정한다. false면 저장하지 못한 것이라 화면에 머문다 */
   onConfirm: (skinTypeId: string) => Promise<boolean>;
 }
@@ -16,7 +15,7 @@ interface ResultCardScreenProps {
 // Figma "수부지" (node 433:403). 배경은 assets/bg/<id>.png.
 // 배지 · 태그라인 · 해시태그는 RESULT_DETAILS[id]에 있을 때만 노출.
 // 진단은 1순위와 2순위를 같이 내므로, 둘 중 하나를 골라 확정한다.
-export default function ResultCardScreen({ resultType, choices, onClose, onConfirm }: ResultCardScreenProps) {
+export default function ResultCardScreen({ resultType, choices, onConfirm }: ResultCardScreenProps) {
   const options = choices && choices.length === 2 ? choices : null;
   const [pickedId, setPickedId] = useState(resultType.id);
   const [saving, setSaving] = useState(false);
@@ -45,27 +44,12 @@ export default function ResultCardScreen({ resultType, choices, onClose, onConfi
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
     >
-      {/* 상단 닫기. 노치 인셋은 body의 --safe-top이 담당하고 pt-11은 디자인 여백이다 */}
-      <div className="flex justify-end px-5 pt-11">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="닫기"
-          className="grid h-9 w-9 place-items-center rounded-full"
-          style={{ background: t.deep }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M6 6l12 12M18 6L6 18" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
-          </svg>
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-6 pb-4 pt-10">
+      <div className="flex-1 overflow-y-auto px-6 pb-2 pt-8">
         <p className="text-center text-[21px] font-bold text-black">당신의 피부 타입은....</p>
 
         {/* 결과 카드 */}
         <div
-          className="relative mt-8 overflow-hidden rounded-[18px] border bg-cover bg-center px-5 pb-5 pt-4"
+          className="relative mt-5 overflow-hidden rounded-[18px] border bg-cover bg-center px-5 pb-5 pt-4"
           style={{ borderColor: t.border, backgroundImage: `url(${shown.bg})` }}
         >
           <div className="flex flex-col items-center gap-1.5">
@@ -85,7 +69,7 @@ export default function ResultCardScreen({ resultType, choices, onClose, onConfi
               src={shown.image}
               alt={shown.label}
               draggable={false}
-              className="my-1 w-[150px] select-none"
+              className="my-0.5 w-[128px] select-none"
             />
             {detail && (
               <div className="flex gap-2">
@@ -119,7 +103,7 @@ export default function ResultCardScreen({ resultType, choices, onClose, onConfi
         {/* 카드 아래: 1·2순위 중 고르기. 순위 안내는 카드 밖 글로 적는다 */}
         {options && (
           <>
-            <div role="radiogroup" aria-label="피부 타입 선택" className="mt-6 grid grid-cols-2 gap-2.5">
+            <div role="radiogroup" aria-label="피부 타입 선택" className="mt-4 grid grid-cols-2 gap-2.5">
               {options.map((o, i) => {
                 const on = o.id === pickedId;
                 return (
@@ -132,7 +116,7 @@ export default function ResultCardScreen({ resultType, choices, onClose, onConfi
                       className="flex w-full flex-col items-center gap-0.5 rounded-[14px] border-2 bg-white px-2 py-2.5 transition-colors"
                       style={{ borderColor: on ? o.theme.accent : '#E6E6E6' }}
                     >
-                      <img src={o.image} alt="" draggable={false} className="h-14 select-none" />
+                      <img src={o.image} alt="" draggable={false} className="h-12 select-none" />
                       <span className="text-[14px] font-bold" style={{ color: on ? o.theme.accent : '#333' }}>
                         {o.short} 피부
                       </span>
