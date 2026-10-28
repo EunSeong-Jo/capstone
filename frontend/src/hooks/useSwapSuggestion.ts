@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../api/client';
-import { loadSimilarProducts } from '../api/similar';
+import { loadSimilarProducts, type SimilarResponse } from '../api/similar';
 import { invalidate, load, peek } from '../api/queryCache';
 import { ClosetItem } from '../context/closet';
 import { Alternative, SkinType } from '../types';
@@ -92,21 +92,23 @@ interface UseSwapSuggestionResult {
  * 것일수록 지금 쓰는 제품일 가능성이 높아 앞에서부터 자른다.
  */
 const MAX_SEEDS = 5;
+/** 종류가 비어 더 물을 때를 포함해 한 번에 조회하는 화장대 제품의 상한 */
+const MAX_SEEDS_TOTAL = 40;
 
 /**
- * 오늘 쓸 화장대 제품을 고른다. 화장대가 MAX_SEEDS개 이하면 전부, 많으면 날짜로 섞어 MAX_SEEDS개.
+ * 오늘 쓸 화장대 제품의 순서를 정한다. 날짜로 섞어, 앞의 MAX_SEEDS개가 오늘의 제품이다(나머지는 종류가 비었을 때 뒤에서 채운다).
  *
  * 같은 날에는 항상 같은 제품이 뽑히고(새로고침해도 안 바뀐다) 날이 바뀌면 달라져서,
  * 며칠 안에 화장대의 모든 제품이 한 번씩 나온다.
  */
-function pickSeedsOfToday<T extends { id: number }>(items: T[], today: string): T[] {
+function orderSeedsOfToday<T extends { id: number }>(items: T[], today: string): T[] {
   if (items.length <= MAX_SEEDS) return items;
   const hash = (id: number) => {
     let h = 2166136261;
     for (const ch of `${today}:${id}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
     return h >>> 0;
   };
-  return [...items].sort((a, b) => hash(a.id) - hash(b.id)).slice(0, MAX_SEEDS);
+  return [...items].sort((a, b) => hash(a.id) - hash(b.id));
 }
 
 /** 로컬 날짜(YYYY-MM-DD). 하루의 경계는 사용자 기기 기준이다. */
@@ -199,10 +201,37 @@ const swapCacheKey = (seedKey: string, skinType?: SkinType) => `swap:${seedKey}:
  * 쓴다. 캐시 키가 같으므로 `load`가 한 번만 계산한다 — 예전에는 둘이
  * 따로 계산해 /similar가 화장대 제품 수의 두 배만큼 나갔다.
  */
-async function computeSwap(current: SwapSeed[], skinType?: SkinType): Promise<SwapResult> {
-  const results = await Promise.allSettled(
-    current.map((seed) => loadSimilarProducts(seed.id, { limit: PER_SEED_LIMIT, skinType, fitFor: skinType })),
-  );
+async function computeSwap(ordered: SwapSeed[], skinType?: SkinType): Promise<SwapResult> {
+  const ask = (seeds: SwapSeed[]) =>
+    Promise.allSettled(
+      seeds.map((seed) => loadSimilarProducts(seed.id, { limit: PER_SEED_LIMIT, skinType, fitFor: skinType })),
+    );
+
+  // 오늘의 제품 MAX_SEEDS개로 시작한다. 홈 카드가 세 종류(더 저렴한·더 좋은·리필) 모두 하나씩은 보여 주려면
+  // 종류가 비었을 때만 화장대의 다른 제품을 MAX_SEEDS개씩 더 물어 채운다(전부 합쳐 MAX_SEEDS_TOTAL개까지).
+  let used = Math.min(MAX_SEEDS, ordered.length);
+  let results = await ask(ordered.slice(0, used));
+  let built = buildSwap(ordered.slice(0, used), results, skinType);
+  while (needsMore(built) && used < Math.min(ordered.length, MAX_SEEDS_TOTAL)) {
+    const next = Math.min(used + MAX_SEEDS, ordered.length, MAX_SEEDS_TOTAL);
+    results = results.concat(await ask(ordered.slice(used, next)));
+    used = next;
+    built = buildSwap(ordered.slice(0, used), results, skinType);
+  }
+  return built;
+}
+
+/** 홈 카드에 올릴 만한(유사도 하한 이상) 후보가 없는 종류가 있는가 */
+function needsMore(r: SwapResult): boolean {
+  const ok = (list: SwapSuggestion[]) => list.some((c) => c.alt.similarityScore >= HOME_SIMILARITY_MIN);
+  return !ok(r.candidates) || !ok(r.betterCandidates) || !ok(r.refillCandidates);
+}
+
+function buildSwap(
+  current: SwapSeed[],
+  results: PromiseSettledResult<SimilarResponse>[],
+  skinType?: SkinType,
+): SwapResult {
 
   // 404는 고장이 아니다. 화장대에는 카탈로그에 없는 id가 섞인다 —
   // 챗봇으로 등록한 제품(960001+)이 그렇고, id 체계가 바뀌기 전에
@@ -256,8 +285,20 @@ async function computeSwap(current: SwapSeed[], skinType?: SkinType): Promise<Sw
         better.push({ seed, alt, fitGain: fit - seedFit });
       }
     });
+    // "리필·다른 용량"은 값이 싸다는 뜻이 아니라 **단가가 싸다**는 뜻이다. 10매짜리 대신 1매짜리(1,500원)를 고르면
+    // 가격은 90% 낮아 보여도 단가는 같다 — 그런 건 절약이 아니라서 단가를 견줄 수 있고 더 싼 것만 남긴다.
+    const seedUnit = result.value.seedUnitPrice;
+    const seedUnitLabel = result.value.seedUnitLabel;
     variants.forEach((alt) => {
       if ((alt.priceDelta ?? 0) >= 0) return;
+      if (
+        seedUnit == null ||
+        alt.unitPrice == null ||
+        alt.unitLabel !== seedUnitLabel ||
+        alt.unitPrice >= seedUnit * 0.98
+      ) {
+        return;
+      }
       variantCandidates.push({ seed, alt });
     });
   });
@@ -299,10 +340,11 @@ export function useSwapSuggestion(
   const seedKey = useMemo(
     () =>
       JSON.stringify(
-        pickSeedsOfToday(
+        orderSeedsOfToday(
           items.filter((c) => (c.price ?? 0) > 0),
           todayKey(),
         )
+          .slice(0, MAX_SEEDS_TOTAL)
           .map<SwapSeed>((c) => ({
             id: c.id,
             brand: c.brand,
