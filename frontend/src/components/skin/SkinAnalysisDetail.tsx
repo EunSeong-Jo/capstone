@@ -131,8 +131,8 @@ export default function SkinAnalysisDetail({
           </div>
           <div className="mt-1.5 flex items-baseline gap-2">
             {/* "양호 80" — 앞은 피부 분류 단계, 뒤는 항목 평균. 분류가 없으면 평균 점수로 단계를 정한다 */}
-            <span className={`text-[26px] font-extrabold ${CLASS_TEXT[headLevel]}`}>{CLASS_LEVELS[headLevel]}</span>
-            <span className={`text-[26px] font-extrabold ${tone(summary.average).text}`}>{summary.average}</span>
+            <span className={`shrink-0 whitespace-nowrap text-[26px] font-extrabold ${CLASS_TEXT[headLevel]}`}>{CLASS_LEVELS[headLevel]}</span>
+            <span className={`shrink-0 whitespace-nowrap text-[26px] font-extrabold ${tone(summary.average).text}`}>{summary.average}</span>
             <span className="text-[12px] font-bold text-gray-100">{summary.headline}</span>
           </div>
           <dl className="mt-2 flex flex-col gap-1.5 text-[12px] leading-relaxed">
