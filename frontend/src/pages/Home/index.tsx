@@ -213,7 +213,7 @@ export default function HomePage() {
         {closetSimilar.groups.map((g) => (
           <div key={g.category}>
             <AlternativeCarousel
-              title={<span className="whitespace-nowrap text-[15px]">내 {g.category} 제품과 비슷한 추천</span>}
+              title={<span className="whitespace-nowrap text-[16px]">내 {g.category} 제품과 비슷한 추천</span>}
               alternatives={g.alternatives}
               onMore={
                 g.seedId !== undefined
