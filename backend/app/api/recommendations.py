@@ -17,7 +17,7 @@ from __future__ import annotations
 from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -84,7 +84,7 @@ async def list_similar(
     (`scripts/compute_similarities.py`)와 제품 적재가 올린다.
     """
     version = await get_cache_version()
-    key = f"similar:v{version}:form2:{product_id}:{method.value}:{limit}:{skin_type or 'any'}:{fit_for or '-'}"
+    key = f"similar:v{version}:form4:{product_id}:{method.value}:{limit}:{skin_type or 'any'}:{fit_for or '-'}"
     cached = await cache_get(key)
     if cached is not None:
         response.headers["X-Cache"] = "HIT"
@@ -92,11 +92,10 @@ async def list_similar(
 
     # 제품이 실제로 없는 것과 유사도가 아직 없는 것을 구분한다.
     # 404는 캐시하지 않는다 — 없는 id로 키를 채울 이유가 없다.
-    seed_name = await db.scalar(
-        select(func.coalesce(Product.display_name, Product.name)).where(Product.id == product_id)
-    )
-    if seed_name is None:
+    seed = await db.scalar(select(Product).where(Product.id == product_id))
+    if seed is None:
         raise HTTPException(status_code=404, detail="제품을 찾을 수 없습니다")
+    seed_name = seed.display_name or seed.name
 
     rule = await load_rule(db, skin_type)
     used = method.value
@@ -161,7 +160,10 @@ async def list_similar(
     ]
 
     out = SimilarListOut(
-        seed_id=product_id, method=used, seed_skin_fit_score=seed_fit_score, items=items
+        seed_id=product_id, method=used, seed_skin_fit_score=seed_fit_score,
+        seed_unit_price=float(seed.unit_price) if seed.unit_price is not None else None,
+        seed_unit_label=seed.unit_label,
+        items=items,
     )
     await cache_set(key, out.model_dump_json(by_alias=True), CACHE_TTL)
     response.headers["X-Cache"] = "MISS"
