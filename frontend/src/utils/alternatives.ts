@@ -52,9 +52,13 @@ const SAME_PRODUCT_MIN = 99;
  */
 const VOLUME_SUFFIX = /[\s(]*\d+(?:\.\d+)?\s*(?:ml|mL|ML|g|G|매|ea|EA|개|정)\)?\s*$/;
 
+/** 제품명 말미의 리필 표기. '토너 200ml 리필팩' → '토너 200ml' */
+const REFILL_SUFFIX = /\s*리필\s*(?:팩|파우치)?\s*$/;
+
 /** 용량과 공백을 뗀 제품명. 같은 제품의 다른 용량을 맞춰 보는 데 쓴다. */
 function nameBody(name: string): string {
-  return name.replace(VOLUME_SUFFIX, '').replace(/\s+/g, '');
+  // '…토너 200ml 리필팩'은 같은 제품의 리필이다. 끝의 리필 표기를 먼저 떼야 용량 표기가 맨 뒤로 와서 본품과 같은 몸통이 된다.
+  return name.replace(REFILL_SUFFIX, '').replace(VOLUME_SUFFIX, '').replace(/\s+/g, '');
 }
 
 /**

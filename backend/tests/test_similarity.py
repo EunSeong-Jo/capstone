@@ -375,6 +375,11 @@ def test_refill_pouch_is_not_a_mask_pack() -> None:
     """'…토너 200ml 리필팩'의 '팩'은 마스크팩이 아니다 — 같은 제품의 리필이 제형 불일치로 걸러지면 안 된다."""
     from app.services.similarity import detect_form_tail, form_compatible
 
+    from app.services.similarity import detect_form, detect_form_raw
+
+    # 제형 점수(hybrid의 γ 몫)가 이 읽기에서 나온다 — 리필팩을 마스크팩으로 읽으면 성분이 같아도 83%로 깎인다
+    assert detect_form("라운드랩 1025 독도 토너 200ml 리필팩") == "토너"
+    assert detect_form_raw("라운드랩 1025 독도 토너 200ml 리필팩") == "워시오프팩"   # 옛 동작(이미 적재된 점수)
     assert detect_form_tail("라운드랩 1025 독도 토너 200ml 리필팩") == "토너"
     assert detect_form_tail("에스네이처 아쿠아 스쿠알란 세럼 50ml 리필팩") == "앰플세럼"
     assert form_compatible("라운드랩 1025 독도 토너 200ml", "라운드랩 1025 독도 토너 200ml 리필팩")

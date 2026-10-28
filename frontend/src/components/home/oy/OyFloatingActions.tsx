@@ -23,24 +23,24 @@ export function OyFloatingActions({ onChatbot, onRecommendSet }: OyFloatingActio
       <button
         onClick={onRecommendSet}
         aria-label="swappy 추천 상품 세트"
-        className="w-16 h-16 rounded-full shadow-lg border border-gray-20 bg-white flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
+        className="w-16 h-16 rounded-full border-2 border-primary shadow-[0_6px_16px_rgba(42,107,82,.35)] bg-primary-light flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
       >
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3D8F6F" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="8" width="18" height="12.5" rx="1.5" />
           <path d="M3 12h18M12 8v12.5" />
           <path d="M12 8c-1-2.5-2.6-4-4-3s-.4 3 4 3zM12 8c1-2.5 2.6-4 4-3s.4 3-4 3z" />
         </svg>
-        <span className="text-[11px] font-bold text-gray-100 leading-none">추천세트</span>
+        <span className="text-[11px] font-bold text-primary-dark leading-none">추천세트</span>
       </button>
 
       {/* 챗봇 */}
       <button
         onClick={onChatbot}
         aria-label="챗봇 상담"
-        className="w-16 h-16 rounded-full shadow-lg border border-gray-20 bg-white flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
+        className="w-16 h-16 rounded-full border-2 border-primary shadow-[0_6px_16px_rgba(42,107,82,.35)] bg-primary-light flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
       >
         <CharacterAvatar skinType={skinType} decorationId={decorationId} className="h-9 w-9" />
-        <span className="text-[11px] font-bold text-gray-100 leading-none">챗봇</span>
+        <span className="text-[11px] font-bold text-primary-dark leading-none">챗봇</span>
       </button>
     </div>
   );

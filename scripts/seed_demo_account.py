@@ -13,7 +13,7 @@ API를 거치므로 서버의 검증을 그대로 지난다 — 실제 사용자
 16항목 분석은 API로 만들 수 없다(사진이 필요하다) — 앱에서 구독 계정으로 한 번 촬영하면 저장된 표본으로 16항목이 나온다.
 
 채우는 것
-  화장대   4개 카테고리(스킨케어·선케어·마스크팩·클렌징)를 모두, 그리고 대체품·더 잘 맞는 제품·리필이 실제로 나오는 제품으로
+  화장대   무료 한도(20개) 안에서 10개 안팎, 4개 카테고리(스킨케어·선케어·마스크팩·클렌징) 모두, 대체품·더 잘 맞는 제품·액상 리필(토너·세럼)이 나오는 제품으로\n  예산     3~10만원
   찜       카테고리별로 몇 개
   장바구니 몇 개
   주문     취소된 주문 1건, 반품된 주문 1건 (나머지는 이미 배송완료)
@@ -31,25 +31,23 @@ import urllib.request
 
 # (제품 id, 담은 경로) — 고른 이유는 docs/demo-scenario.md '데모 화장대'
 CLOSET: list[tuple[int, str]] = [
-    # 마스크팩
-    (3103, "scan"),     # 라운드랩 소나무 진정 시카 마스크 10매
-    (3099, "search"),   # 로벡틴 닥터마스크 시카 5매
-    (3092, "search"),   # 라운드랩 1025 독도 수분 워터겔 마스크 10매
-    # 클렌징
-    (867, "search"),    # 라운드랩 1025 독도 클렌저
-    (1491, "scan"),     # 바닐라코 클린잇제로 클렌징밤
-    (827, "search"),    # 아누아 어성초 포어 컨트롤 클렌징오일 350ml
-    (844, "search"),    # 바이오더마 센시비오 H2O 클렌징워터
-    (881, "search"),    # 제로이드 포밍 클렌저 240ml 기획
-    # 스킨케어
-    (1439, "search"),   # 디오디너리 나이아신아마이드 10% + 징크 1%
-    (2765, "search"),   # 에스네이처 아쿠아 스쿠알란 수분크림
-    (738, "search"),    # 라운드랩 1025 독도 로션
+    # 스킨케어 5 — 토너·세럼은 리필팩이 있어 '리필·다른 용량'에 액상 리필이 나온다(팩 종류 리필은 일부러 뺐다)
+    (1722, "search"),   # 라운드랩 1025 독도 토너 200ml — 리필팩(34)이 단가로 더 싸다
     (199, "search"),    # 에스네이처 아쿠아 스쿠알란 세럼 50ml — 리필팩(578)이 단가로 더 싸다
-    # 선케어
+    (2305, "search"),   # 센텔리안24 마데카 데일리 리페어 에센스로션
+    (712, "search"),    # 에스트라 아토베리어365 크림
+    (2063, "search"),   # 닥터지 레드 블레미쉬 수딩크림
+    # 선케어 2
+    (1586, "search"),   # 메디힐 마데카소사이드 수분 선세럼
     (912, "search"),    # 스킨1004 센텔라 워터핏 선세럼
-    (1579, "scan"),     # AHC 마스터즈 아이시 젤리 선스틱
+    # 클렌징 2
+    (867, "scan"),      # 라운드랩 1025 독도 클렌저
+    (1491, "scan"),     # 바닐라코 클린잇제로 클렌징밤
+    # 마스크팩 1
+    (3103, "scan"),     # 라운드랩 소나무 진정 시카 마스크 10매
 ]
+FREE_CLOSET_LIMIT = 20          # 무료 화장대 한도 — 데모 화장대는 이 안에 둔다(절약 가능 금액이 비현실적으로 커 보이지 않게 10개 안팎)
+BUDGET = (30_000, 100_000)      # 예산 3~10만원
 LIKES = [790, 3042, 828, 953, 662, 3866]          # 마스크팩 2 · 클렌징 1 · 선케어 1 · 스킨케어 1 · 마스크팩 1
 CART = [(3866, 1), (790, 2)]
 CANCEL_PIDS = [3099, 844]       # 취소할 주문
@@ -104,12 +102,24 @@ def main() -> int:
     api.token = api.call("POST", "/api/v1/auth/login", {"email": a.email, "password": a.password})["accessToken"]
 
     closet = {i["product"]["id"]: i for i in api.call("GET", "/api/v1/me/closet")}
+    assert len(CLOSET) <= FREE_CLOSET_LIMIT, "데모 화장대가 무료 한도를 넘어요"
+    # 데모 화장대는 정해 둔 구성만 보유 중으로 둔다 — 그 밖의 제품은 '삭제된 제품'으로 옮긴다
+    keep = {pid for pid, _ in CLOSET}
+    for pid, item in list(closet.items()):
+        if item["status"] == "owned" and pid not in keep:
+            api.call("DELETE", f"/api/v1/me/closet/{pid}")
     added = 0
     for pid, via in CLOSET:
-        if pid not in closet:
+        if pid not in closet or closet[pid]["status"] != "owned":
             api.call("POST", "/api/v1/me/closet", {"productId": pid, "addedVia": via})
             added += 1
     print(f"화장대 +{added}")
+
+    # 예산 3~10만원
+    prof = api.call("GET", "/api/v1/me/profile")
+    if (prof.get("budgetMin"), prof.get("budgetMax")) != BUDGET:
+        api.call("PATCH", "/api/v1/me/profile", {"budgetMin": BUDGET[0], "budgetMax": BUDGET[1]})
+        print("예산 3~10만원")
 
     liked = {p["id"] for p in api.call("GET", "/api/v1/me/likes")}
     n = 0
