@@ -96,7 +96,7 @@ export function RecommendSetSheet({
         <div className="px-4 pt-3">
           <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-oy-line" />
           <div className="flex items-center gap-1.5">
-            <h2 className="text-[15px] font-extrabold text-oy-text">🎯 {nickname}님 맞춤 추천 세트</h2>
+            <h2 className="text-[15px] font-extrabold text-oy-text">{nickname}님 맞춤 추천 세트</h2>
             {/* ⓘ + 말풍선. 말풍선은 본문 위에 겹쳐 뜬다(레이아웃을 밀지 않는다). */}
             <div ref={infoRef} className="relative">
               <button
