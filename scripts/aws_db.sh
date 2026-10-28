@@ -69,7 +69,7 @@ cmd_dump() {
   chmod 600 "$cat"
   echo "✔ 기준 데이터: $cat ($(du -h "$cat" | cut -f1))"
 
-  # 데모 계정 한 명의 모든 데이터(로그인 세션 refresh_tokens만 뺀다). 적용할 때 먼저 그 계정을 지우므로 여러 번 돌려도 된다.
+  # 데모 계정 한 명의 모든 데이터(로그인 세션 refresh_tokens만 뺀다. 보낸 선물은 받는 사람 연결(recipient_user_id)을 비운다 — 운영에는 그 계정이 같은 id로 없다). 적용할 때 먼저 그 계정을 지우므로 여러 번 돌려도 된다.
   local demo="$DUMP_DIR/swappy_demo_${DEMO_EMAIL%%@*}_$stamp.sql" me="(select id from users where email='$DEMO_EMAIL')"
   [ -n "$(local_psql -c "select 1 from users where email='$DEMO_EMAIL'")" ] || die "로컬 DB에 $DEMO_EMAIL 계정이 없습니다."
   {
@@ -87,6 +87,10 @@ cmd_dump() {
                 "point_transactions|select * from point_transactions where user_id=$me order by id" \
                 "recently_viewed|select * from recently_viewed where user_id=$me" \
                 "scan_results|select * from scan_results where user_id=$me order by id" \
+                "likes|select * from likes where user_id=$me order by id" \
+                "reviews|select * from reviews where user_id=$me order by id" \
+                "review_photos|select * from review_photos where review_id in (select id from reviews where user_id=$me) order by id" \
+                "gifts|select id, sender_user_id, product_id, product_name, brand_name, unit_price, recipient_name, message, status, created_at, null::uuid as recipient_user_id from gifts where sender_user_id=$me order by created_at" \
                 "user_consents|select * from user_consents where user_id=$me" \
                 "subscriptions|select * from subscriptions where user_id=$me" \
                 "skin_analyses|select * from skin_analyses where user_id=$me order by created_at" \
@@ -94,6 +98,10 @@ cmd_dump() {
       echo "COPY ${spec%%|*} FROM stdin;"
       local_psql -c "COPY (${spec#*|}) TO STDOUT"
       echo '\.'
+    done
+    # 행을 id째 넣었으니 serial 번호표도 따라가게 한다. 안 그러면 운영에서 새 행을 만들 때 id가 겹쳐 실패한다.
+    for t in diagnoses closet_items cart_items likes order_items point_transactions scan_results reviews review_photos; do
+      echo "SELECT setval(pg_get_serial_sequence('$t','id'), GREATEST((SELECT COALESCE(MAX(id),1) FROM $t), (SELECT last_value FROM $(local_psql -c "select split_part(pg_get_serial_sequence('$t','id'),'.',2)" | tr -d '"')))) ;"
     done
     echo "COMMIT;"
   } > "$demo"
