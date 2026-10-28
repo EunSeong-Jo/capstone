@@ -194,7 +194,7 @@ export default function HomePage() {
             개인화인 척하지 않는다 — "옹달샘을 위한 상품"이 그 척이었다. */}
         <ProductCarousel
           title={
-            <span className="whitespace-nowrap text-[16px]">
+            <span className="whitespace-nowrap text-[18px]">
               {skinLabel !== null ? `${withObjParticle(skinLabel)} 위한 상품` : '요즘 인기 있는 상품'}
             </span>
           }
@@ -215,7 +215,7 @@ export default function HomePage() {
         {closetSimilar.groups.map((g) => (
           <div key={g.category}>
             <AlternativeCarousel
-              title={<span className="whitespace-nowrap text-[16px]">내 {g.category} 제품과 비슷한 추천</span>}
+              title={<span className="whitespace-nowrap text-[18px]">내 {g.category} 제품과 비슷한 추천</span>}
               alternatives={g.alternatives}
               onMore={
                 g.seedId !== undefined
