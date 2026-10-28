@@ -419,6 +419,7 @@ def detect_form(name: str) -> str | None:
 
 # 마스크팩 계열은 '팩'이 이름 끝에 와도 시트 마스크일 수 있어 맨 뒤 기준을 쓰지 않는다.
 _TAIL_KEEP = frozenset({"시트", "워시오프팩"})
+_REFILL_POUCH = re.compile(r"리필\s*(?:팩|파우치|파우춰)")
 
 
 def detect_form_tail(name: str) -> str | None:
@@ -428,6 +429,8 @@ def detect_form_tail(name: str) -> str | None:
     `detect_form`은 규칙 순서가 우선이라 이런 이름을 앞쪽 규칙(앰플세럼·폼·오일)으로 잘못 읽는다.
     그 함수는 유사도 점수 계산에도 쓰여 바꾸면 점수를 다시 계산해야 하므로, 필터에만 쓰는 함수를 따로 둔다.
     """
+    # "…토너 200ml 리필팩"의 '팩'은 마스크팩이 아니라 리필 파우치다. 이걸 두면 같은 제품의 리필이 제형 불일치로 통째로 걸러진다.
+    name = _REFILL_POUCH.sub(" ", name)
     first = detect_form(name)
     if first in _TAIL_KEEP:
         return first

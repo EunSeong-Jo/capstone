@@ -57,6 +57,9 @@ function VanityLoginGate() {
 }
 
 /** 계정별 '마지막으로 화장대를 본 시각'. 기기(localStorage)에 둔다 */
+/** 카테고리 칩의 표시 순서 */
+const CATEGORY_ORDER = ['스킨케어', '선케어', '마스크팩', '클렌징'];
+
 const seenKey = (scope: string) => `swappy:closet-seen:v1:${scope}`;
 
 /**
@@ -77,7 +80,13 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
     writeJSON(HINT_KEY, true);
   };
 
-  const shown = filter === 'owned' ? items : removedItems;
+  // 카테고리별로 걸러 보기 — 화장대가 커지면(데모 계정은 25개) 한 줄 목록으로는 찾기 어렵다. 2개 이상 카테고리가 있을 때만 보인다.
+  const [category, setCategory] = useState<string>('all');
+  const categories = CATEGORY_ORDER.concat(items.map((i) => i.category).filter((c) => c && !CATEGORY_ORDER.includes(c)))
+    .filter((c, idx, all) => all.indexOf(c) === idx && items.some((i) => i.category === c));
+  const activeCategory = categories.includes(category) ? category : 'all';
+  const shown =
+    filter === 'owned' ? (activeCategory === 'all' ? items : items.filter((i) => i.category === activeCategory)) : removedItems;
   const filters: [VanityFilter, string, number][] = [
     ['owned', '보유 중', items.length],
     ['removed', '삭제된 제품', removedItems.length],
@@ -156,6 +165,28 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
               );
             })}
           </div>
+
+          {filter === 'owned' && categories.length > 1 && (
+            <div className="-mx-4 mb-2 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="tablist" aria-label="카테고리">
+              {['all', ...categories].map((c) => {
+                const on = activeCategory === c;
+                const n = c === 'all' ? items.length : items.filter((i) => i.category === c).length;
+                return (
+                  <button
+                    key={c}
+                    role="tab"
+                    aria-selected={on}
+                    onClick={() => setCategory(c)}
+                    className={`shrink-0 inline-flex h-7 items-center rounded-full px-3 text-[11px] transition-colors ${
+                      on ? 'bg-primary-dark font-bold text-white' : 'border border-[#E1E4DD] bg-white font-semibold text-gray-70'
+                    }`}
+                  >
+                    {c === 'all' ? '전체' : c} {n}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {filter === 'owned' && !hintClosed && items.length > 0 && (
             <div className="mb-2 flex items-start gap-2 rounded-2xl bg-primary-light/60 px-3.5 py-3">

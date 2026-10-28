@@ -43,4 +43,7 @@ class SimilarListOut(_CamelModel):
     method: str
     # fitFor를 줬을 때 기준 제품의 궁합 점수. 대체품이 "더 잘 맞는가"를 견주려면 같은 척도의 기준값이 필요하다
     seed_skin_fit_score: int | None = None
+    # 기준 제품의 단가. 같은 제품의 다른 용량·리필이 **단가로** 더 싼지 견주는 데 쓴다(1매 1,500원 vs 10매 15,000원은 절약이 아니다)
+    seed_unit_price: float | None = None
+    seed_unit_label: str | None = None
     items: list[SimilarProductOut]

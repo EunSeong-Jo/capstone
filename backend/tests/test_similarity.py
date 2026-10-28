@@ -369,3 +369,14 @@ def test_form_compatible_uses_last_form_in_name():
 
 def test_form_compatible_keeps_mask_forms():
     assert form_compatible("듀이셀 마스크팩 1매", "메디힐 시트 마스크 10매")
+
+
+def test_refill_pouch_is_not_a_mask_pack() -> None:
+    """'…토너 200ml 리필팩'의 '팩'은 마스크팩이 아니다 — 같은 제품의 리필이 제형 불일치로 걸러지면 안 된다."""
+    from app.services.similarity import detect_form_tail, form_compatible
+
+    assert detect_form_tail("라운드랩 1025 독도 토너 200ml 리필팩") == "토너"
+    assert detect_form_tail("에스네이처 아쿠아 스쿠알란 세럼 50ml 리필팩") == "앰플세럼"
+    assert form_compatible("라운드랩 1025 독도 토너 200ml", "라운드랩 1025 독도 토너 200ml 리필팩")
+    # 진짜 마스크팩은 그대로 팩이다
+    assert detect_form_tail("라운드랩 소나무 진정 시카 클레이 팩") == "워시오프팩"

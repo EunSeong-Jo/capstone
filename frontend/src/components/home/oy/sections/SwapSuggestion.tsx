@@ -130,7 +130,11 @@ export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
 
   // 오늘의 제안이라 종류마다 1등 하나씩만 카드로 두고 옆으로 넘겨 본다. 종류가 비어도 카드는 남기고 "후보가 없어요"라고 말한다.
   // 카드(1순위)는 성분 유사도가 HOME_SIMILARITY_MIN 이상인 제품만 올린다. 전체 보기 목록에는 하한이 없다.
-  const forHome = (list: SwapItem[]) => list.filter((c) => c.alt.similarityScore >= HOME_SIMILARITY_MIN);
+  // 하한을 넘는 후보가 없으면 있는 것 중 가장 나은 것을 쓴다 — 카드를 비워 두는 것보다 낫다.
+  const forHome = (list: SwapItem[]) => {
+    const good = list.filter((c) => c.alt.similarityScore >= HOME_SIMILARITY_MIN);
+    return good.length > 0 ? good : list;
+  };
   // 세 카드가 같은 제품·같은 대체품으로 겹치지 않게, 앞 카드가 쓴 제품(쓰던 제품, 대체품)을 피해 1등을 고른다.
   // 피할 후보가 없으면 원래 1등을 그대로 쓴다.
   const usedSeeds = new Set<number>();
@@ -151,11 +155,24 @@ export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
   const refillHome = pick(forHome(refillCandidates));
 
   // 카드 하나가 한 종류의 1등이다. '전체 보기' 여부는 하한과 무관하게 목록에 더 볼 것이 있는지로 정한다.
+  // 후보가 하나도 없는 종류는 빈 카드로 두지 않고 뺀다. 한 종류에 후보가 하나뿐이면 그 하나를 매일 보여 준다.
   const slots: { kind: SwapKind; list: SwapItem[]; all: SwapItem[] }[] = [
-    { kind: 'cheaper', list: cheaperHome, all: candidates },
-    { kind: 'better', list: betterHome, all: betterCandidates },
-    { kind: 'refill', list: refillHome, all: refillCandidates },
-  ];
+    { kind: 'cheaper' as const, list: cheaperHome, all: candidates },
+    { kind: 'better' as const, list: betterHome, all: betterCandidates },
+    { kind: 'refill' as const, list: refillHome, all: refillCandidates },
+  ].filter((slot) => slot.list.length > 0);
+
+  if (slots.length === 0) {
+    return (
+      <SectionFrame>
+        <p className="text-[13px] leading-relaxed text-oy-sub">
+          지금 화장대에는 바꿔 쓸 만한 대체품이 아직 없어요.
+          <br />
+          제품을 더 등록하면 제안해 드려요.
+        </p>
+      </SectionFrame>
+    );
+  }
 
   return <SwapSlider slots={slots} />;
 }
