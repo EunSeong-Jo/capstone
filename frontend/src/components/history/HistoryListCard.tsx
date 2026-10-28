@@ -59,7 +59,7 @@ export function HistoryListCard({ product, liked, onToggleLike, extraBadge }: Hi
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold text-primary mb-0.5 truncate">{product.brand}</p>
         <p className="text-sm font-medium text-gray-100 leading-snug line-clamp-1 mb-1">{product.name}</p>
-        {product.rating !== undefined && (
+        {product.rating != null && (
           <div className="flex items-center gap-1 mb-1">
             <span className="text-star text-xs">★</span>
             <span className="text-xs text-gray-70">{product.rating.toFixed(1)}</span>

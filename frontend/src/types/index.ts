@@ -47,7 +47,7 @@ export interface Product {
   price: number;
   originalPrice?: number;
   discountRate?: number;
-  rating?: number;
+  rating?: number | null;
   reviewCount?: number;
   isNew?: boolean;
   isBest?: boolean;

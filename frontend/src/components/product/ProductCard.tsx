@@ -79,7 +79,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         <p className="text-sm font-medium text-gray-100 leading-tight line-clamp-2 mb-1.5">{product.name}</p>
 
         {/* 별점 */}
-        {product.rating !== undefined && (
+        {product.rating != null && (
           <div className="flex items-center gap-1 mb-1.5">
             <span className="text-star text-xs">★</span>
             <span className="text-xs text-gray-70">{product.rating.toFixed(1)}</span>
