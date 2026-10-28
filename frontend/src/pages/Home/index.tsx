@@ -19,7 +19,7 @@ import {
 import { useRecommendations } from '../../hooks/useRecommendations';
 import { useStats } from '../../hooks/useStats';
 import { useSkinType } from '../../hooks/useSkinType';
-import { HOME_SIMILARITY_MIN, totalSavingOf, useSwapSuggestion } from '../../hooks/useSwapSuggestion';
+import { useClosetMaxSaving } from '../../hooks/useSwapSuggestion';
 import { useClosetSimilar } from '../../hooks/useClosetSimilar';
 import { useWeather } from '../../hooks/useWeather';
 import { useCareTip } from '../../hooks/useCareTip';
@@ -109,20 +109,10 @@ export default function HomePage() {
   // 화장대 **전체**를 기준으로 한 비슷한 추천(후보마다 가장 비슷한 화장대 제품 기준).
   const closetSimilar = useClosetSimilar(closetItems, closetLoading, skinType ?? undefined);
 
-  // 홈의 "더 저렴한 대체품"과 대시보드 절약액이 쓰는 실제 후보.
-  // 예전에는 이 자리에 mocks/alternatives.ts의 고정 목업이 있었는데, 가짜
-  // 제품에 붙은 id(102~109)가 실재 카탈로그 id와 겹쳐 카드를 탭하면 전혀
-  // 다른 제품 상세가 열렸다.
-  const swap = useSwapSuggestion(closetItems, skinType ?? undefined);
-
-  // 화장대 제품들을 실제로 바꿨을 때 아낄 수 있는 금액. 후보가 없으면
-  // undefined이고 대시보드가 문구를 바꾼다 — 고정값을 그리지 않는다.
-  const totalSavings = useMemo(() => {
-    // 홈 카드와 같은 하한을 적용해 카드에 보이는 제품의 합계가 되게 한다.
-    const shown = swap.candidates.filter((c) => c.alt.similarityScore >= HOME_SIMILARITY_MIN);
-    if (shown.length === 0) return undefined;
-    return totalSavingOf(shown);
-  }, [swap.candidates]);
+  // 화장대 제품들을 실제로 바꿨을 때 아낄 수 있는 최대 금액. 오늘의 교체 제안(날마다 다른 제품 5개)과 달리
+  // 화장대 전체를 기준으로 해 같은 화장대면 날짜와 상관없이 같은 값이다. 후보가 없으면 undefined —
+  // 대시보드가 문구를 바꾼다(고정값을 그리지 않는다).
+  const totalSavings = useClosetMaxSaving(closetItems, skinType ?? undefined);
 
   // 로그인 시 페르소나/진단/화장대에서 대시보드 값 구성, 게스트는 목업 유지
   const dashUser: ProfileUser = isUser && persona
