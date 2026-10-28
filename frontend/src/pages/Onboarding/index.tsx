@@ -56,7 +56,6 @@ const STEPS: readonly string[] = [
 ];
 const isStep = (v: string | null): v is Step => v !== null && STEPS.includes(v);
 
-const HOME = '/home';
 const RECOMMEND = '/home'; // 추천 제품 페이지 (앱에서 Home이 피부타입 맞춤 추천을 보여줌)
 
 // null·'abc'·'99' 전부 0으로. 범위 밖 인덱스는 타자 효과·문항 조회를 죽인다.
@@ -78,7 +77,7 @@ export default function OnboardingPage() {
   const location = useLocation();
   const [params, setParams] = useSearchParams();
   const { profile } = useUserProfile();
-  const { saveDiagnosis, diagnoseWithPhoto, chooseSkinType, discardLatest, result: diagResult, hasDiagnosis, loading: diagLoading } = useDiagnosis();
+  const { saveDiagnosis, diagnoseWithPhoto, chooseSkinType, result: diagResult, hasDiagnosis, loading: diagLoading } = useDiagnosis();
   const { scope } = useAuth();
 
   const rawStep = params.get('step');
@@ -380,15 +379,6 @@ export default function OnboardingPage() {
             key="result-card"
             resultType={cardType}
             choices={choicesOf(diagResult, cardType)}
-            onClose={async () => {
-              // 1·2순위를 고르게 한 진단을 고르지 않고 닫으면 취소하고 기존 내 타입을 유지한다.
-              // 취소에 실패해도 닫는다 — 새 1순위가 남을 뿐 잘못된 상태는 아니다.
-              if (unconfirmedRef.current && choicesOf(diagResult, cardType)) {
-                await discardLatest().catch(() => undefined);
-              }
-              unconfirmedRef.current = false;
-              navigate(HOME);
-            }}
             onConfirm={async (id) => {
               // 1순위 그대로면 이미 저장돼 있다. 2순위를 골랐을 때만 서버에 확정한다.
               if (id !== cardType.id) {
