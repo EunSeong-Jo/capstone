@@ -409,17 +409,26 @@ _FORM_RX = [(f, re.compile(rx, re.I)) for f, rx in _FORM_RULES]
 FORMS = [f for f, _ in _FORM_RULES]
 
 
-def detect_form(name: str) -> str | None:
-    """제품명에서 제형. 앞 규칙이 우선한다. 못 찾으면 None(중립)."""
+# "…토너 200ml 리필팩"의 '팩'은 마스크팩이 아니라 리필 파우치다. 이걸 두면 같은 제품의 리필이 제형 불일치로 읽혀
+# 성분이 똑같아도 hybrid 점수가 제형 몫(γ/(α+β+γ)=1/6)만큼 깎인다(100% → 83%).
+_REFILL_POUCH = re.compile(r"리필\s*(?:팩|파우치|파우춰)")
+
+
+def detect_form_raw(name: str) -> str | None:
+    """리필 표기를 지우지 않고 읽은 제형 — 점수를 이미 적재한 쪽의 옛 동작을 재현할 때만 쓴다."""
     for form, rx in _FORM_RX:
         if rx.search(name):
             return form
     return None
 
 
+def detect_form(name: str) -> str | None:
+    """제품명에서 제형. 앞 규칙이 우선한다. 못 찾으면 None(중립)."""
+    return detect_form_raw(_REFILL_POUCH.sub(" ", name))
+
+
 # 마스크팩 계열은 '팩'이 이름 끝에 와도 시트 마스크일 수 있어 맨 뒤 기준을 쓰지 않는다.
 _TAIL_KEEP = frozenset({"시트", "워시오프팩"})
-_REFILL_POUCH = re.compile(r"리필\s*(?:팩|파우치|파우춰)")
 
 
 def detect_form_tail(name: str) -> str | None:
@@ -429,7 +438,6 @@ def detect_form_tail(name: str) -> str | None:
     `detect_form`은 규칙 순서가 우선이라 이런 이름을 앞쪽 규칙(앰플세럼·폼·오일)으로 잘못 읽는다.
     그 함수는 유사도 점수 계산에도 쓰여 바꾸면 점수를 다시 계산해야 하므로, 필터에만 쓰는 함수를 따로 둔다.
     """
-    # "…토너 200ml 리필팩"의 '팩'은 마스크팩이 아니라 리필 파우치다. 이걸 두면 같은 제품의 리필이 제형 불일치로 통째로 걸러진다.
     name = _REFILL_POUCH.sub(" ", name)
     first = detect_form(name)
     if first in _TAIL_KEEP:

@@ -5,6 +5,7 @@
 #   scripts/aws_db.sh verify             AWS DB의 행 수를 로컬 DB와 견준다(읽기 전용)
 #   scripts/aws_db.sh restore --yes      덤프를 **빈** AWS DB에 복원한다
 #   scripts/aws_db.sh migrate --yes      AWS DB에 alembic upgrade head (백엔드 컨테이너로 실행)
+#   scripts/aws_db.sh sql 파일.sql --yes  AWS DB에 SQL 파일을 실행한다(작은 보정용. 예: scripts/fix_refill_similarity.py가 만든 SQL)
 #   scripts/aws_db.sh demo --yes         조은성 데모 계정을 지우고 최신 데모 덤프로 다시 올린다(다른 계정은 건드리지 않음)
 #
 # AWS 접속 정보는 저장소 루트의 `.env.aws`(커밋 금지, .gitignore에 있음)에서만 읽는다:
@@ -192,7 +193,16 @@ cmd_demo() {
   done
 }
 
+cmd_sql() {
+  local file="${1:-}"; [ -f "$file" ] || die "SQL 파일을 주세요. 예) scripts/aws_db.sh sql fix.sql --yes"
+  [ "${2:-}" = "--yes" ] || die "운영 DB에 $file 을 실행합니다. 내용을 확인한 뒤 --yes를 붙여 다시 실행하세요."
+  load_target
+  PGDSN=$(keepalive "$PGDSN"); export PGDSN
+  psql_remote -q -v ON_ERROR_STOP=1 -f - < "$file" >/dev/null && echo "✔ 적용했습니다: $file"
+}
+
 case "${1:-help}" in
+  sql)     shift; cmd_sql "$@" ;;
   dump)    cmd_dump ;;
   restore) shift; cmd_restore "${1:-}" ;;
   verify)  cmd_verify ;;
