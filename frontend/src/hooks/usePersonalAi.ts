@@ -1,5 +1,5 @@
-import { fetchAiMemoryState, fetchMemories, fetchPreferences } from '../api/personalAi';
-import type { AiMemoryState, MemoryItem, PreferenceDto } from '../api/personalAi';
+import { fetchAiMemoryState, fetchBriefing, fetchMemories, fetchPreferences, fetchSkinReport } from '../api/personalAi';
+import type { AiMemoryState, BriefingDto, MemoryItem, PreferenceDto, SkinReportDto } from '../api/personalAi';
 import { invalidate, meKey } from '../api/queryCache';
 import { useServerValue } from './useSkinPhoto';
 
@@ -25,4 +25,16 @@ export function usePreferences() {
 export function invalidateAiMemory(scope: string) {
   invalidate(meKey(scope, 'ai-memory-state'));
   invalidate(meKey(scope, 'ai-memories'));
+}
+
+/** 피부 변화 리포트 (`GET /me/skin-report`). 비회원은 null */
+export function useSkinReport() {
+  const { value, loading, failed, reload } = useServerValue<SkinReportDto>('skin-report', fetchSkinReport);
+  return { report: value, loading, failed, reload };
+}
+
+/** 오늘의 개인 브리핑 (`GET /me/briefing`). 비회원은 null. 날씨가 바뀔 수 있어 서버가 1시간 캐시한다 */
+export function useBriefing() {
+  const { value, loading, failed, reload } = useServerValue<BriefingDto>('briefing', fetchBriefing);
+  return { briefing: value, loading, failed, reload };
 }

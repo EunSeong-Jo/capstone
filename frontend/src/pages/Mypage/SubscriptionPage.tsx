@@ -5,6 +5,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import MembershipManager from '../../components/membership/MembershipManager';
 import FacePhotoScreen from '../../components/onboarding/FacePhotoScreen';
 import SkinAnalysisDetail from '../../components/skin/SkinAnalysisDetail';
+import { SkinReportCard } from '../../components/skin/SkinReportCard';
 import { AnalysisDto } from '../../api/skinPhoto';
 import { ApiError } from '../../api/client';
 import { QUESTION_COUNT } from '../../data/onboarding';
@@ -199,6 +200,8 @@ export default function SubscriptionPage() {
             </>
           )}
         </section>
+
+        <SkinReportCard />
 
         {/* 분석 기록 — 연도·월일 드롭다운으로 지난 분석을 고른다(1회만 분석했어도 보여 준다) */}
         <section className="rounded-2xl bg-white px-5 py-4">

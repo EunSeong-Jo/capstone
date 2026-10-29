@@ -4,6 +4,7 @@ import { OyAppBar } from '../../components/home/oy/OyAppBar';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { OyFloatingActions } from '../../components/home/oy/OyFloatingActions';
 import { RecommendSetSheet } from '../../components/home/oy/RecommendSetSheet';
+import { BriefingCard } from '../../components/home/oy/sections/BriefingCard';
 import { ProfileDashboard } from '../../components/home/oy/sections/ProfileDashboard';
 import { ProductCarousel } from '../../components/home/oy/sections/ProductCarousel';
 import { AlternativeCarousel } from '../../components/home/oy/sections/AlternativeCarousel';
@@ -171,6 +172,9 @@ export default function HomePage() {
           user={dashUser}
           registry={dashRegistry}
         />
+
+        {/* 오늘의 브리핑 — 로그인한 사용자만(날씨 × 내 약한 항목 × 내 화장대) */}
+        {isUser && <BriefingCard />}
         <Divider />
 
         {/* 오늘의 교체 제안 — 화장대 기반, 홈의 첫 카드 */}
