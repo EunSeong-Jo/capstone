@@ -16,6 +16,7 @@ from sqlalchemy.orm import joinedload
 
 from app.services.option_scope import listable
 from app.models.product import Brand, Ingredient, Product, ProductIngredient
+from app.models.recommendation import ProductSkinFit
 from app.services.skin_type import SkinRule, apply_exclusions, load_rule
 
 # 키는 캐릭터 ID(docs/dev_guidelines.md §2.4)이고 skin_type_rules.skin_type과
@@ -80,17 +81,41 @@ def _escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+# 궁합 정렬용 후보 풀 배수(평점 순 상위 top_k × 이 값)
+_FIT_POOL = 6
+
+
+async def _by_fit(db: AsyncSession, products: list[Product], rule: SkinRule, top_k: int) -> list[Product]:
+    """평점 순으로 받은 후보를 궁합 점수 높은 순으로 다시 줄 세운다. 점수가 없는 제품(판단 불가)은 뒤로, 같으면 원래(평점) 순."""
+    scores = dict(
+        (
+            await db.execute(
+                select(ProductSkinFit.product_id, ProductSkinFit.score).where(
+                    ProductSkinFit.product_id.in_([p.id for p in products]),
+                    ProductSkinFit.skin_type == rule.skin_type,
+                )
+            )
+        ).all()
+    )
+    order = {p.id: i for i, p in enumerate(products)}
+    ranked = sorted(products, key=lambda p: (-(scores.get(p.id) if scores.get(p.id) is not None else -1), order[p.id]))
+    return ranked[:top_k]
+
+
 async def search_products(
     db: AsyncSession,
     query: str,
     skin_type_id: str | None = None,
     top_k: int = 5,
+    prefer_fit: bool = False,
 ) -> list[dict]:
     """
     query: 사용자 자연어 질문
     skin_type_id: 진단된 피부 타입 ID. 규칙이 있으면 기피 성분이 든 제품을
                   뺀다. 모르는 타입이면 필터 없이 검색한다
     top_k: 반환할 최대 제품 수
+    prefer_fit: True면 내 피부타입 궁합 점수가 높은 제품을 먼저 낸다(로그인한 사용자의 챗봇).
+                기본은 평점·리뷰 수 순이다
 
     제품명 · 브랜드명 · 성분명 중 하나라도 검색어와 겹치는 제품을 찾는다.
     아무것도 안 걸리면 평점 상위 제품으로 대체하는데, 그 폴백에도 같은
@@ -120,9 +145,12 @@ async def search_products(
         )
         .options(joinedload(Product.brand), joinedload(Product.category))
         .order_by(Product.rating.desc().nullslast(), Product.review_count.desc().nullslast())
-        .limit(top_k)
+        # 궁합 순으로 다시 줄 세우려면 후보를 넉넉히 받아야 한다(평점 상위 top_k개만 보면 궁합이 높은 제품이 잘린다).
+        .limit(top_k * _FIT_POOL if prefer_fit and rule else top_k)
     )
     products = (await db.execute(apply_exclusions(stmt, rule))).scalars().all()
+    if prefer_fit and rule and products:
+        products = await _by_fit(db, products, rule, top_k)
 
     if not products:
         products = await _fallback_top_rated(db, top_k, rule)
