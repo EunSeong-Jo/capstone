@@ -344,3 +344,36 @@ class ReviewPhoto(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
+
+
+class UserMemory(Base):
+    """AI가 대화에서 기억해 둔 사용자 정보 한 줄 (퍼스널 AI 3단계).
+
+    "향료는 싫어요"·"여드름이 자주 나요"처럼 사용자가 챗봇에게 직접 말한 것만 담는다. 추측해서 만든 정보는 두지 않는다.
+    **사용자가 보고 고치고 지울 수 있어야 한다**(마이페이지 설정) — 그래서 한 줄 문장이고, 동의한 사용자(`user_consents`
+    'ai-memory')에게만 쌓는다. 챗봇 프롬프트에는 켜져 있는(`enabled`) 최근 몇 개만 요약으로 들어간다.
+    """
+
+    __tablename__ = "user_memories"
+    __table_args__ = (
+        Index("idx_user_memories_user", "user_id", "updated_at"),
+        UniqueConstraint("user_id", "norm_text", name="uq_user_memory_text"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[uuid.UUID] = _user_fk()
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    # 공백·마침표를 걷고 소문자로 만든 중복 판정용 사본
+    norm_text: Mapped[str] = mapped_column(Text, nullable=False)
+    # preference(좋아함) / avoid(피함) / concern(고민) / fact(그 밖의 사실)
+    kind: Mapped[str] = mapped_column(Text, nullable=False, server_default="fact")
+    # explicit(사용자가 "기억해"라고 함) / auto(대화에서 뽑음) / user(사용자가 직접 씀)
+    source: Mapped[str] = mapped_column(Text, nullable=False, server_default="auto")
+    # 끄면 프롬프트에는 안 들어가지만 목록에는 남는다
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { fetchMainRecommendations } from '../api/recommendations';
 import type { Product, SkinType } from '../types';
 import { load, peek } from '../api/queryCache';
+import { useAuth } from '../context/auth';
 
 /**
  * 피부타입 맞춤 추천 (`/api/v1/recommendations/main`).
@@ -53,8 +54,11 @@ interface Loaded {
  * 진단을 한 적이 없는 계정(`skinType === null`, `skinPending === false`)은
  * 요청한다 — 서버가 skinType 없이도 인기순으로 응답하므로 빈 화면보다 낫다.
  */
-/** 추천은 카탈로그·피부타입이 바뀔 때만 달라진다 */
-const RECO_FRESH_MS = 30 * 60 * 1000;
+/**
+ * 추천은 카탈로그·피부타입·(로그인하면) 내 취향이 바뀔 때 달라진다. 취향(후기·찜)은 금방 바뀌므로 짧게 둔다.
+ * 개인 추천이 다른 계정에 보이지 않도록 캐시 키에 계정(scope)을 넣는다.
+ */
+const RECO_FRESH_MS = 5 * 60 * 1000;
 
 async function fetchForYou(skinType: SkinType | null): Promise<Product[]> {
   const main = await fetchMainRecommendations(skinType ?? undefined, 12);
@@ -66,11 +70,12 @@ export function useRecommendations(
   skinPending: boolean,
   owned: OwnedRef[],
 ): UseRecommendationsResult {
+  const { scope } = useAuth();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [nonce, setNonce] = useState(0);
 
-  const key = `${skinType ?? 'none'}:${skinPending}#${nonce}`;
-  const cacheKey = `reco:main:${skinType ?? 'none'}`;
+  const key = `${scope}:${skinType ?? 'none'}:${skinPending}#${nonce}`;
+  const cacheKey = `reco:main:${scope}:${skinType ?? 'none'}`;
 
   useEffect(() => {
     // 타입을 아직 모르는 동안은 묻지 않는다. 지금 물으면 곧 다시 물어야 한다.

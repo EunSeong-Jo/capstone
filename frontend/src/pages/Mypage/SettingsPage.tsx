@@ -110,6 +110,11 @@ export default function SettingsPage() {
               sub: quota ? (quota.consentGranted ? '동의함 · 철회할 수 있어요' : '동의하지 않음') : undefined,
               onClick: () => navigate('/mypage/settings/face-consent'),
             },
+            {
+              label: 'AI 기억',
+              sub: '챗봇이 기억하는 내 정보 보기·지우기',
+              onClick: () => navigate('/mypage/settings/ai-memory'),
+            },
           ]}
         />
       )}

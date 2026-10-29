@@ -31,6 +31,7 @@ from sqlalchemy.orm import joinedload
 
 from app.api.products import _to_out
 from app.core.cache import cache_get, cache_set, get_cache_version
+from app.config import settings
 from app.core.deps import get_optional_user
 from app.db.session import get_db
 from app.models.product import Product
@@ -39,6 +40,7 @@ from app.schemas.budget_guide import BudgetGuideIn, BudgetGuideOut
 from app.schemas.product import ProductListOut, ProductOut
 from app.services.analysis_scope import analyzed
 from app.services.option_scope import listable
+from app.services import preference
 from app.services.budget_guide import build_guide
 from app.services.product_score import W_BRAND, product_score
 from app.services.skin_type import apply_exclusions, load_rule
@@ -79,12 +81,13 @@ def _diversify(rows: list[tuple[Product, float]], limit: int) -> list[Product]:
     return [p for p, _ in adjusted[:limit]]
 
 
-async def _pick(
+async def _pool(
     db: AsyncSession,
     skin_type: str | None,
     limit: int,
     category: str | None = None,
-) -> list[Product]:
+) -> list[tuple[Product, float]]:
+    """기본 점수(피부타입 궁합·별점·리뷰) 순 후보 `limit × 4`개. 다양성 후처리·취향 반영 전."""
     rule = await load_rule(db, skin_type)
     score = product_score(rule).label("score")
 
@@ -102,9 +105,59 @@ async def _pick(
         # 같은 테이블이 두 번 붙는다.
         stmt = stmt.where(Product.category.has(code=category))
     stmt = apply_exclusions(stmt, rule)
+    return [(p, float(s)) for p, s in (await db.execute(stmt)).all()]
 
-    rows = [(p, float(s)) for p, s in (await db.execute(stmt)).all()]
-    return _diversify(rows, limit)
+
+async def _pick(
+    db: AsyncSession,
+    skin_type: str | None,
+    limit: int,
+    category: str | None = None,
+) -> list[Product]:
+    return _diversify(await _pool(db, skin_type, limit, category), limit)
+
+
+# 취향 반영은 후보 풀을 넓혀(기본 점수 상위 limit × 이 값) 그 안의 순서를 바꾼다. 풀 밖 제품을 끌어올리지는 않는다.
+PERSONAL_POOL_FACTOR = 10
+PERSONAL_CACHE_TTL = 60 * 5
+
+
+def _reason_text(names: list[str]) -> str | None:
+    return f"내가 좋아한 {'·'.join(names)} 성분이 들어 있어요" if names else None
+
+
+async def personalized_pick(
+    db: AsyncSession,
+    user_id,
+    skin_type: str | None,
+    limit: int,
+    category: str | None = None,
+) -> list[tuple[Product, str | None]] | None:
+    """내 취향(`services/preference.py`)을 반영한 추천 [(제품, 이유)]. 취향이 아직 켜지지 않았으면 None(기존 추천을 쓴다).
+
+    기본 점수와 취향 점수를 `BLEND` 비율로 섞은 뒤 브랜드 다양성 후처리를 한다. 피부타입에 맞지 않아 걸러진 제품은
+    후보 풀(`_pool`)에 애초에 없으므로 취향이 끌어올릴 수 없다.
+    """
+    from app.api.recommendations import load_labeled_docs
+
+    profile, names, labels, idf = await preference.load_profile(db, user_id)
+    if not profile.active:
+        return None
+    pool = await _pool(db, skin_type, limit * PERSONAL_POOL_FACTOR // 4 or limit, category)
+    if not pool:
+        return None
+    docs, labels2, names2, _pos = await load_labeled_docs(db, [p.id for p, _ in pool])
+    labels = {**labels, **labels2}
+    names = {**names, **names2}
+    raw = {p.id: preference.score(profile, docs.get(p.id, []), labels, idf) for p, _ in pool}
+    personal = preference.normalize_pool(raw)
+    blended = [(p, (1 - preference.BLEND) * s + preference.BLEND * personal[p.id]) for p, s in pool]
+    picked = _diversify(blended, limit)
+    out: list[tuple[Product, str | None]] = []
+    for p in picked:
+        likes, _dis = preference.explain(profile, docs.get(p.id, []), labels, idf)
+        out.append((p, _reason_text([names[i] for i in likes if i in names][:2])))
+    return out
 
 
 @router.get("/main", response_model=ProductListOut, summary="홈 큐레이션")
@@ -123,6 +176,23 @@ async def main_recommendations(
     effective = skin_type
     if effective is None and user is not None and user.profile:
         effective = user.profile.skin_type
+
+    # 취향이 켜진 로그인 사용자는 개인 추천(5분 캐시, 키에 취향 신호 해시를 넣어 후기·찜이 바뀌면 바로 갱신).
+    if user is not None and settings.PERSONAL_AI_ENABLED:
+        signals = preference.combine_signals(await preference.load_signals(db, user.id))
+        sig_hash = hashlib.md5(",".join(f"{k}:{v.weight:.2f}" for k, v in sorted(signals.items())).encode()).hexdigest()[:10]
+        pkey = f"reco:main:u:{user.id}:{effective or 'any'}:{size}:{sig_hash}"
+        pcached = await cache_get(pkey)
+        if pcached:
+            response.headers["X-Cache"] = "HIT-PERSONAL"
+            return ProductListOut.model_validate_json(pcached)
+        mine = await personalized_pick(db, user.id, effective, size)
+        if mine is not None:
+            items = [_to_out(p).model_copy(update={"personal_reason": why}) for p, why in mine]
+            out = ProductListOut(items=items, total=len(items), page=1, size=size)
+            await cache_set(pkey, out.model_dump_json(by_alias=True), PERSONAL_CACHE_TTL)
+            response.headers["X-Cache"] = "MISS-PERSONAL"
+            return out
 
     # 캐시 키에 계정을 넣지 않는다. 같은 피부타입이면 결과가 같기 때문이고,
     # 계정별로 캐시하면 적중률이 사실상 0이 된다.

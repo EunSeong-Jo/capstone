@@ -5,6 +5,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import MembershipManager from '../../components/membership/MembershipManager';
 import FacePhotoScreen from '../../components/onboarding/FacePhotoScreen';
 import SkinAnalysisDetail from '../../components/skin/SkinAnalysisDetail';
+import { SkinReportCard } from '../../components/skin/SkinReportCard';
 import { AnalysisDto } from '../../api/skinPhoto';
 import { ApiError } from '../../api/client';
 import { QUESTION_COUNT } from '../../data/onboarding';
@@ -281,6 +282,9 @@ export default function SubscriptionPage() {
             </>
           )}
         </section>
+
+        {/* 피부 변화 리포트 — 최근 분석 아래. 기본은 최근과 바로 이전 비교 */}
+        <SkinReportCard history={history} />
       </div>
 
       {membershipOpen && <MembershipManager onClose={() => setMembershipOpen(false)} onChanged={refresh} />}

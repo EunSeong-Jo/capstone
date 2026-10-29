@@ -27,6 +27,8 @@ from app.models.personal import ClosetItem
 from app.models.product import Product
 from app.models.skin_photo import SkinAnalysis
 from app.models.user import Profile
+from app.services import memory as memory_service
+from app.services import preference as preference_service
 from app.services.product_analysis import (
     CONCERN_FOCUS_BELOW,
     CONCERN_SPEC,
@@ -58,6 +60,8 @@ class ClosetEntry:
     category: str
     price: int | None
     functions: tuple[str, ...] = ()
+    # 기능 코드별 강도(0~100). 0보다 큰 것만. 오늘의 브리핑이 "지금 필요한 기능이 가장 강한 제품"을 고르는 데 쓴다
+    strengths: tuple[tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -71,6 +75,11 @@ class PersonalSnapshot:
     closet_total: int = 0
     my_ingredients: tuple[str, ...] = ()
     avoid: tuple[str, ...] = field(default=())
+    # 사용자가 동의했을 때 챗봇이 대화에서 기억해 둔 문장(사용자가 직접 한 말). 동의하지 않았으면 비어 있다.
+    memories: tuple[str, ...] = ()
+    # 후기·재구매·찜·화장대에서 배운 성분 취향(신호가 충분할 때만). 이름 순서는 세기 순.
+    liked_ingredients: tuple[str, ...] = ()
+    disliked_ingredients: tuple[str, ...] = ()
 
     @property
     def skin_label(self) -> str | None:
@@ -78,7 +87,7 @@ class PersonalSnapshot:
 
     @property
     def is_empty(self) -> bool:
-        return not (self.skin_type or self.closet or self.weak_concerns or self.my_ingredients or self.budget)
+        return not (self.skin_type or self.closet or self.weak_concerns or self.my_ingredients or self.budget or self.memories or self.liked_ingredients)
 
 
 # ── 순수 함수 (DB를 모른다) ───────────────────────────────────────────────
@@ -135,7 +144,7 @@ def _won(n: int) -> str:
 def _closet_line(e: ClosetEntry) -> str:
     price = f", {e.price:,}원" if e.price else ""
     funcs = f" — {'·'.join(e.functions)}" if e.functions else ""
-    return f"  · {e.name} ({e.category}{price}){funcs}"
+    return f"  · #{e.id} {e.name} ({e.category}{price}){funcs}"
 
 
 def render(s: PersonalSnapshot) -> str:
@@ -155,6 +164,13 @@ def render(s: PersonalSnapshot) -> str:
         head.append(f"- 피해야 할 성분: {', '.join(s.avoid)}")
     if s.my_ingredients:
         head.append(f"- 내가 관심 있는 성분(마이 성분): {', '.join(s.my_ingredients)}")
+
+    if s.liked_ingredients:
+        head.append(f"- 후기·찜·구매에서 배운 내 성분 취향 — 좋아함: {', '.join(s.liked_ingredients)}")
+    if s.disliked_ingredients:
+        head.append(f"- 별로였던 제품에 많던 성분: {', '.join(s.disliked_ingredients)}")
+    if s.memories:
+        head.append(f"- 사용자가 대화에서 직접 말해 AI가 기억해 둔 것: {' / '.join(s.memories)}")
 
     lines = list(head)
     closet = list(s.closet)
@@ -230,7 +246,8 @@ async def build_snapshot(
     if products:
         docs, labels, _names, positions = await load_labeled_docs(db, [p.id for p in products])
         for p in products:
-            funcs = top_function_names(function_strengths(docs.get(p.id, []), labels, positions.get(p.id)))
+            strength = function_strengths(docs.get(p.id, []), labels, positions.get(p.id))
+            funcs = top_function_names(strength)
             entries.append(
                 ClosetEntry(
                     id=p.id,
@@ -239,9 +256,11 @@ async def build_snapshot(
                     category=(p.category.label or p.category.code) if p.category else "",
                     price=p.price,
                     functions=funcs,
+                    strengths=tuple((f, int(v["value"])) for f, v in strength.items() if v["value"] > 0),
                 )
             )
 
+    liked, disliked = await _taste(db, user_id)
     return PersonalSnapshot(
         skin_type=skin_type,
         budget=budget,
@@ -251,4 +270,21 @@ async def build_snapshot(
         closet_total=int(total),
         my_ingredients=clean_ingredients(my_ingredients),
         avoid=avoid_labels(skin_type),
+        memories=await memory_service.prompt_texts(db, user_id),
+        liked_ingredients=liked,
+        disliked_ingredients=disliked,
     )
+
+
+async def _taste(db: AsyncSession, user_id: uuid.UUID) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """취향이 켜져 있으면 (좋아하는 성분 상위 4, 피하는 성분 상위 3). 실패해도 요약은 만든다."""
+    try:
+        profile, names, _labels, _idf = await preference_service.load_profile(db, user_id)
+        if not profile.active:
+            return (), ()
+        like = tuple(names[i] for i, _ in preference_service.top_ingredients(profile.pos, 4) if i in names)
+        dislike = tuple(names[i] for i, _ in preference_service.top_ingredients(profile.neg, 3) if i in names)
+        return like, dislike
+    except Exception:  # noqa: BLE001
+        await db.rollback()
+        return (), ()

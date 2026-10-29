@@ -4,6 +4,7 @@ import { OyAppBar } from '../../components/home/oy/OyAppBar';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { OyFloatingActions } from '../../components/home/oy/OyFloatingActions';
 import { RecommendSetSheet } from '../../components/home/oy/RecommendSetSheet';
+import { BriefingSheet } from '../../components/home/oy/sections/BriefingCard';
 import { ProfileDashboard } from '../../components/home/oy/sections/ProfileDashboard';
 import { ProductCarousel } from '../../components/home/oy/sections/ProductCarousel';
 import { AlternativeCarousel } from '../../components/home/oy/sections/AlternativeCarousel';
@@ -104,6 +105,7 @@ export default function HomePage() {
   // 사용자가 직접 고친 프로필(닉네임 등)은 UserProfileContext가 들고 있다.
   // 로그인 페르소나가 없을 때의 표시값으로 쓴다.
   const { profile } = useUserProfile();
+  const [briefingOpen, setBriefingOpen] = useState(false);
   const { tip: careTip } = useCareTip(skinType, skinPending, weather?.condition ?? 'sunny');
 
   // 화장대 **전체**를 기준으로 한 비슷한 추천(후보마다 가장 비슷한 화장대 제품 기준).
@@ -165,12 +167,16 @@ export default function HomePage() {
         <ProfileDashboard
           weather={weather}
           careTip={careTip}
+          onCareTipClick={isUser ? () => setBriefingOpen(true) : undefined}
           character={dashCharacter}
           levelPending={statsLoading}
           skinPending={skinPending}
           user={dashUser}
           registry={dashRegistry}
         />
+
+        {/* 오늘의 브리핑 — 케어 문구를 누르면 열린다(로그인한 사용자만) */}
+        {isUser && briefingOpen && <BriefingSheet onClose={() => setBriefingOpen(false)} />}
         <Divider />
 
         {/* 오늘의 교체 제안 — 화장대 기반, 홈의 첫 카드 */}

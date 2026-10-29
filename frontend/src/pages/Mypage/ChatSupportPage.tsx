@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { searchProducts } from '../../api/products';
-import { sendChatMessage } from '../../api/chat';
+import { sendChatMessage, type ChatAction, type ChatProductCard } from '../../api/chat';
 import { ApiError } from '../../api/client';
+import { useCart } from '../../context/cart';
 import { useCloset } from '../../context/closet';
+import { useToast } from '../../context/toast';
 import { useCharacter } from '../../context/character';
 import { CharacterAvatar } from '../../components/character/CharacterAvatar';
 import { useMyIngredients } from '../../hooks/useMyIngredients';
@@ -30,6 +32,10 @@ interface Message {
   isButtons?: boolean;
   /** 화장품 등록 완료 메시지. 이 메시지가 마지막일 때만 '내 화장대 보기'를 붙인다. */
   closetLink?: boolean;
+  /** AI가 도구로 찾아 말한 제품 카드 */
+  cards?: ChatProductCard[];
+  /** "담을까요?" 제안(누르기 전에는 아무것도 담기지 않는다) */
+  actions?: ChatAction[];
 }
 
 /**
@@ -117,7 +123,9 @@ const GUEST_CHAT_KEY = 'swappy:chat-guest:v1';
 
 export default function ChatSupportPage() {
   const navigate = useNavigate();
-  const { addItem } = useCloset();
+  const { addItem, hasItem } = useCloset();
+  const { addToCart, inCart } = useCart();
+  const { showToast } = useToast();
   const { isUser, requireLogin, goLogin } = useLoginPrompt();
   const [guestUsed, setGuestUsed] = useState(() => readJSON<number>(GUEST_CHAT_KEY, 0));
   const guestLimitReached = !isUser && guestUsed >= GUEST_CHAT_LIMIT;
@@ -264,13 +272,13 @@ export default function ChatSupportPage() {
       .map((m) => ({ role: m.role === 'bot' ? ('assistant' as const) : ('user' as const), content: m.text! }));
 
     try {
-      const { reply } = await sendChatMessage({
+      const { reply, cards, actions } = await sendChatMessage({
         message: userText,
         skin_type: skinType ?? undefined,
         history,
         my_ingredients: myIngredients.map((i) => i.name).slice(0, 20),
       });
-      const botReply: Message = { id: nextId.current++, role: 'bot', text: reply };
+      const botReply: Message = { id: nextId.current++, role: 'bot', text: reply, cards, actions };
       setMessages((prev) => [...prev, botReply]);
     } catch (err) {
       // 비회원 한도는 서버도 센다(IP 기준). 기기 카운터를 지웠어도 서버가 막으면
@@ -287,6 +295,21 @@ export default function ChatSupportPage() {
       setMessages((prev) => [...prev, botReply]);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  /** AI가 제안한 담기를 사용자가 눌렀을 때만 실행한다. 카드에 제품 정보가 있으니 서버를 다시 부르지 않는다. */
+  const runAction = (action: ChatAction, card?: ChatProductCard) => {
+    if (!card) return;
+    if (action.type === 'add_to_cart') {
+      addToCart({ id: card.id, name: card.name, brand: card.brand, price: card.price, imageUrl: card.imageUrl ?? undefined });
+      showToast('장바구니에 담았어요');
+    } else {
+      addItem({
+        id: card.id, brand: card.brand, name: card.name, category: card.category, price: card.price,
+        imageUrl: card.imageUrl ?? undefined, addedVia: 'chatbot', status: 'owned',
+      });
+      showToast('화장대에 담았어요');
     }
   };
 
@@ -383,6 +406,46 @@ export default function ChatSupportPage() {
                   {msg.text && (
                     <div className="bg-white rounded-tl-[4px] rounded-tr-2xl rounded-b-2xl px-3.5 py-3 shadow-sm text-[13px] text-gray-100 leading-relaxed whitespace-pre-line">
                       {renderWithBold(msg.text)}
+                    </div>
+                  )}
+
+                  {msg.cards && msg.cards.length > 0 && (
+                    <div className="mt-2 flex flex-col gap-2">
+                      {msg.cards.map((c) => {
+                        const action = msg.actions?.find((a) => a.productId === c.id);
+                        const done = action ? (action.type === 'add_to_cart' ? inCart(c.id) : hasItem(c.id)) : false;
+                        return (
+                          <div key={c.id} className="flex items-center gap-2.5 rounded-xl bg-white p-2.5 shadow-sm">
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/detail/${c.id}`)}
+                              className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                            >
+                              <span className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-5">
+                                {c.imageUrl && <img src={c.imageUrl} alt="" className="h-full w-full object-cover" />}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-[11px] text-gray-50">{c.brand}</span>
+                                <span className="line-clamp-2 text-[12px] font-semibold leading-snug text-gray-100">{c.name}</span>
+                                <span className="mt-0.5 block text-[12px] font-bold text-gray-100">
+                                  {c.price.toLocaleString()}원
+                                  {c.fitScore != null && <span className="ml-1.5 font-semibold text-primary">궁합 {c.fitScore}점</span>}
+                                </span>
+                              </span>
+                            </button>
+                            {action && (
+                              <button
+                                type="button"
+                                disabled={done}
+                                onClick={() => runAction(action, c)}
+                                className="shrink-0 rounded-full bg-primary px-3 py-2 text-[11px] font-bold text-white active:scale-95 disabled:bg-gray-20 disabled:text-gray-50"
+                              >
+                                {done ? '담았어요' : '담기'}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
