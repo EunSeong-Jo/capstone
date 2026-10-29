@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 from datetime import datetime
 
 import structlog
@@ -39,15 +40,22 @@ def report_out(r: skin_report.SkinReport) -> SkinReportOut:
         changes=[{"key": c.key, "name": c.name, "before": c.before, "after": c.after, "delta": c.delta, "trend": c.trend} for c in r.changes],
         added=[{"id": a.id, "name": a.name, "added_at": a.added_at} for a in r.added],
         notes=r.notes,
+        links=[{"concern": l.concern, "trend": l.trend, "product_id": l.product_id, "product_name": l.product_name,
+                "added_at": l.added_at, "function": l.function} for l in r.links],
         timeline=[{"at": at, "average": avg} for at, avg in r.timeline],
-        first_at=r.first_at, first_overall=r.first_overall, first_notes=r.first_notes,
-        first_changes=[{"key": c.key, "name": c.name, "before": c.before, "after": c.after, "delta": c.delta, "trend": c.trend} for c in r.first_changes],
     )
 
 
 @router.get("/skin-report", response_model=SkinReportOut, summary="피부 변화 리포트")
-async def read_skin_report(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> SkinReportOut:
-    return report_out(await skin_report.build_report(db, user.id))
+async def read_skin_report(
+    from_id: uuid.UUID | None = Query(None, description="비교할 분석 하나(`to_id`와 함께 줘야 한다)"),
+    to_id: uuid.UUID | None = Query(None, description="비교할 다른 분석. 둘 다 없으면 최근과 바로 이전 분석을 견준다"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SkinReportOut:
+    if (from_id is None) != (to_id is None):
+        from_id = to_id = None
+    return report_out(await skin_report.build_report(db, user.id, from_id, to_id))
 
 
 async def _weather() -> dict:

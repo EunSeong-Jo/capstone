@@ -55,6 +55,17 @@ class AddedProduct:
     strengths: dict[str, int] = field(default_factory=dict)       # 기능 코드 → 0~100
 
 
+@dataclass(frozen=True)
+class Link:
+    """변화가 있던 항목과, 그 기간에 화장대에 더한 제품 중 그 항목을 돕는 기능이 강한 제품(사실만 나란히 — 원인 단정 아님)."""
+    concern: str
+    trend: str
+    product_id: int
+    product_name: str
+    added_at: datetime
+    function: str
+
+
 @dataclass
 class SkinReport:
     enough: bool                                   # 비교할 분석이 2건 이상인가
@@ -66,12 +77,8 @@ class SkinReport:
     overall: float | None = None                   # 비교 항목 평균 변화(점)
     added: list[AddedProduct] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    links: list[Link] = field(default_factory=list)
     timeline: list[tuple[datetime, int]] = field(default_factory=list)   # (분석 시각, 비교 항목 평균 점수)
-    # '처음 대비' — 분석이 3건 이상이고 처음 분석이 최근 분석과 하루 이상 떨어져 있을 때만
-    first_at: datetime | None = None
-    first_changes: list[Change] = field(default_factory=list)
-    first_overall: float | None = None
-    first_notes: list[str] = field(default_factory=list)
 
 
 # ── 순수 계산 ─────────────────────────────────────────────────────────────
@@ -115,6 +122,19 @@ def _date(d: datetime) -> str:
     return f"{d.month}월 {d.day}일"
 
 
+def link_products(changes: list[Change], added: list[AddedProduct]) -> list[Link]:
+    """변화가 있던 항목마다, 그 사이에 더한 제품 중 그 항목을 돕는 성분이 강한 것 하나(최대 `MAX_LINKED`개)."""
+    out: list[Link] = []
+    for c in [c for c in changes if c.trend == "up"] + [c for c in changes if c.trend == "down"]:
+        if len(out) >= MAX_LINKED:
+            break
+        hit = [(p, f) for p in added if (f := helps(c, p))]
+        if hit:
+            p, f = hit[0]
+            out.append(Link(c.name, c.trend, p.id, p.name, p.added_at, f))
+    return out
+
+
 def narrative(changes: list[Change], added: list[AddedProduct], before_at: datetime, after_at: datetime) -> list[str]:
     """변화를 사실 문장으로. 원인을 단정하지 않는다."""
     days = max((after_at.date() - before_at.date()).days, 0)
@@ -129,21 +149,12 @@ def narrative(changes: list[Change], added: list[AddedProduct], before_at: datet
     if not ups and not downs:
         notes.append("눈에 띄는 변화는 없어요. 비슷하게 유지되고 있어요.")
 
-    # 변화가 있던 항목마다, 그 사이에 더한 제품 중 그 항목을 돕는 성분이 강한 것을 사실로 나란히 둔다
-    linked = 0
-    for c in ups + downs:
-        if linked >= MAX_LINKED:
-            break
-        hit = [(p, f) for p in added if (f := helps(c, p))]
-        if not hit:
-            continue
-        p, f = hit[0]
-        verb = "좋아진" if c.trend == "up" else "떨어진"
+    for ln in link_products(changes, added):
+        verb = "좋아진" if ln.trend == "up" else "떨어진"
         notes.append(
-            f"{josa(c.name, '이가')} {verb} 기간에 {f} 성분이 강한 '{p.name}'{josa(p.name, '을를')[len(p.name):]} "
-            f"{_date(p.added_at)}에 화장대에 더했어요. 영향이 있었을 수 있어요(날씨·수면·촬영 조건 같은 다른 요인도 있어요)."
+            f"{josa(ln.concern, '이가')} {verb} 기간에 {ln.function} 성분이 강한 '{ln.product_name}'{josa(ln.product_name, '을를')[len(ln.product_name):]} "
+            f"{_date(ln.added_at)}에 화장대에 더했어요. 영향이 있었을 수 있어요(날씨·수면·촬영 조건 같은 다른 요인도 있어요)."
         )
-        linked += 1
     return notes
 
 
@@ -159,7 +170,12 @@ def _concerns_of(metrics: dict | None) -> dict[str, int]:
     return out
 
 
-async def build_report(db: AsyncSession, user_id: uuid.UUID) -> SkinReport:
+async def build_report(
+    db: AsyncSession, user_id: uuid.UUID, from_id: uuid.UUID | None = None, to_id: uuid.UUID | None = None
+) -> SkinReport:
+    """기본은 최근 분석과 **바로 이전** 분석의 비교. `from_id`·`to_id`를 주면 그 두 분석(본인 것)만 견준다."""
+    if from_id is not None and to_id is not None:
+        return await _build_between(db, user_id, from_id, to_id)
     rows = list(
         (
             await db.scalars(
@@ -175,19 +191,14 @@ async def build_report(db: AsyncSession, user_id: uuid.UUID) -> SkinReport:
         )
 
     latest = rows[0]
-    # 직전 분석: 같은 날 다시 찍은 것은 건너뛰고 **하루 이상 앞선** 가장 가까운 분석과 견준다(같은 날 두 장은 변화를 가린다).
-    # 모두 같은 날이면 바로 앞의 것.
-    prev = next((r for r in rows[1:] if r.created_at.date() < latest.created_at.date()), rows[1])
+    # 직전 분석: 바로 이전에 찍은 분석
+    prev = rows[1]
     changes = compare(_concerns_of(prev.metrics), _concerns_of(latest.metrics))
     if not changes:
         return SkinReport(enough=False, message="두 분석에 함께 있는 항목이 없어 비교할 수 없어요.")
 
     added = await _added_between(db, user_id, prev.created_at, latest.created_at)
-    timeline = []
-    for r in reversed(rows):
-        avg = average(_concerns_of(r.metrics))
-        if avg is not None:
-            timeline.append((r.created_at, avg))
+    timeline = _timeline_of(rows)
 
     report = SkinReport(
         enough=True,
@@ -199,20 +210,55 @@ async def build_report(db: AsyncSession, user_id: uuid.UUID) -> SkinReport:
         overall=round(sum(c.delta for c in changes) / len(changes), 1),
         added=added,
         notes=narrative(changes, added, prev.created_at, latest.created_at),
+        links=link_products(changes, added),
         timeline=timeline,
     )
-
-    first = rows[-1]
-    if first.id != prev.id and (latest.created_at.date() - first.created_at.date()).days >= 1:
-        fch = compare(_concerns_of(first.metrics), _concerns_of(latest.metrics))
-        if fch:
-            report.first_at = first.created_at
-            report.first_changes = fch
-            report.first_overall = round(sum(c.delta for c in fch) / len(fch), 1)
-            report.first_notes = narrative(
-                fch, await _added_between(db, user_id, first.created_at, latest.created_at), first.created_at, latest.created_at
-            )
     return report
+
+
+def _timeline_of(rows: list[SkinAnalysis]) -> list[tuple[datetime, int]]:
+    """(분석 시각, 바뀔 수 있는 항목의 평균 점수) 오래된 것부터."""
+    out: list[tuple[datetime, int]] = []
+    for r in reversed(rows):
+        avg = average(_concerns_of(r.metrics))
+        if avg is not None:
+            out.append((r.created_at, avg))
+    return out
+
+
+async def _timeline(db: AsyncSession, user_id: uuid.UUID) -> list[tuple[datetime, int]]:
+    rows = (
+        await db.scalars(select(SkinAnalysis).where(SkinAnalysis.user_id == user_id).order_by(SkinAnalysis.created_at.desc()).limit(12))
+    ).all()
+    return _timeline_of(list(rows))
+
+
+async def _build_between(db: AsyncSession, user_id: uuid.UUID, a_id: uuid.UUID, b_id: uuid.UUID) -> SkinReport:
+    if a_id == b_id:
+        return SkinReport(enough=False, message="서로 다른 두 분석을 골라 주세요.")
+    rows = list(
+        (await db.scalars(select(SkinAnalysis).where(SkinAnalysis.user_id == user_id, SkinAnalysis.id.in_([a_id, b_id])))).all()
+    )
+    if len(rows) != 2:
+        return SkinReport(enough=False, message="고른 분석을 찾을 수 없어요.")
+    before, after = sorted(rows, key=lambda r: r.created_at)
+    changes = compare(_concerns_of(before.metrics), _concerns_of(after.metrics))
+    if not changes:
+        return SkinReport(enough=False, message="두 분석에 함께 있는 항목이 없어 비교할 수 없어요.")
+    added = await _added_between(db, user_id, before.created_at, after.created_at)
+    return SkinReport(
+        enough=True,
+        message="고른 두 분석을 견줘 봤어요.",
+        before_at=before.created_at,
+        after_at=after.created_at,
+        days=max((after.created_at.date() - before.created_at.date()).days, 0),
+        changes=changes,
+        overall=round(sum(c.delta for c in changes) / len(changes), 1),
+        added=added,
+        notes=narrative(changes, added, before.created_at, after.created_at),
+        links=link_products(changes, added),
+        timeline=await _timeline(db, user_id),
+    )
 
 
 async def _added_between(db: AsyncSession, user_id: uuid.UUID, start: datetime, end: datetime) -> list[AddedProduct]:
