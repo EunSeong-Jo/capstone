@@ -195,6 +195,9 @@ class Settings(BaseSettings):
     # 비회원 챗봇 하루 답변 수(IP 기준). 화면도 같은 수만큼 열어 둔다.
     GUEST_CHAT_DAILY_LIMIT: int = 3
 
+    # 퍼스널 AI(챗봇이 내 화장대·피부 상태를 아는 기능). 문제가 생기면 false로 두면 예전 챗봇으로 돌아간다.
+    PERSONAL_AI_ENABLED: bool = True
+
     # env_file은 실행 위치가 아니라 파일 위치 기준으로 찾는다.
     # backend/ 에서 uvicorn을 띄우든 리포 루트에서 스크립트를 돌리든
     # 같은 .env를 읽어야 하기 때문. (Docker는 환경변수를 직접 주입하므로 무관)

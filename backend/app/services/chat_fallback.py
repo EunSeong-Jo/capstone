@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.cache import cache_get, cache_set, get_cache_version
 from app.models.product import Brand, Ingredient, IngredientDescription, IngredientFunction, Product
 from app.models.recommendation import ProductSkinFit, Similarity
-from app.services import rag
+from app.services import personal_context, rag
 from app.services.similarity import FUNC_NAMES
 from app.services.skin_type import apply_exclusions, load_rule
 
@@ -33,6 +33,10 @@ _FLAG_TEXT = {"I": "자극 소지", "F": "향료", "L": "건조 알코올"}
 
 _RECOMMEND = ("추천", "골라", "뭐가 좋", "뭐 쓰", "괜찮은")
 _ALTERNATIVE = ("대체", "싼", "저렴", "비슷", "가성비", "갈아타")
+# "내 ○○"처럼 사용자 본인의 데이터를 묻는 말. 개인 요약이 있을 때만 쓴다.
+_MINE = ("내 화장대", "화장대에", "화장대 ", "내가 쓰는", "쓰는 제품", "내 제품", "내 피부", "내 상태", "나한테", "내 정보", "내 예산")
+# 화장대 제품을 가리키는 종류 단어(질문에 있으면 화장대에서 그 종류의 제품을 찾는다)
+_KIND_WORDS = ("토너", "세럼", "에센스", "앰플", "크림", "로션", "선크림", "선스틱", "마스크", "클렌징", "클렌저", "폼", "오일", "밤", "패드", "미스트")
 
 GUIDE = (
     "지금은 제품과 성분 질문에 답할 수 있어요.\n"
@@ -44,21 +48,48 @@ GUIDE = (
 )
 
 
-async def fallback_reply(db: AsyncSession, message: str, skin_type: str | None) -> str:
-    """질문에 맞는 DB 기반 답변. 항상 문자열을 돌려준다(예외는 호출부가 503으로 처리)."""
+async def fallback_reply(
+    db: AsyncSession,
+    message: str,
+    skin_type: str | None,
+    snapshot: personal_context.PersonalSnapshot | None = None,
+) -> str:
+    """질문에 맞는 DB 기반 답변. 항상 문자열을 돌려준다(예외는 호출부가 503으로 처리).
+
+    `snapshot`(로그인한 사용자의 개인 요약)이 있고 질문이 "내 화장대·내 피부"를 묻는 말이면 그 사람 데이터로 답한다.
+    이 답은 사람마다 다르므로 **질문 문장 단위 캐시를 쓰지 않는다**(다른 사람에게 새어 나가면 안 된다).
+    """
     text = message.strip()
+    personal = snapshot is not None and not snapshot.is_empty and _has(text, _MINE)
     version = await get_cache_version()
     msg_key = f"chatfb:v{version}:msg:{hashlib.sha1(text.encode()).hexdigest()[:20]}:{skin_type or '-'}"
-    hit = await cache_get(msg_key)
-    if hit is not None:
-        return hit
+    if not personal:
+        hit = await cache_get(msg_key)
+        if hit is not None:
+            return hit
 
-    reply = await _compose(db, text, skin_type, version)
-    await cache_set(msg_key, reply, MSG_CACHE_TTL)
+    reply = await _compose(db, text, skin_type, version, snapshot if personal else None)
+    if not personal:
+        await cache_set(msg_key, reply, MSG_CACHE_TTL)
     return reply
 
 
-async def _compose(db: AsyncSession, text: str, skin_type: str | None, version: int) -> str:
+async def _compose(
+    db: AsyncSession,
+    text: str,
+    skin_type: str | None,
+    version: int,
+    snapshot: personal_context.PersonalSnapshot | None = None,
+) -> str:
+    if snapshot is not None:
+        # "내 화장대 크림보다 싼 거"처럼 화장대 제품을 가리키며 대체품을 묻는 말은 그 제품의 대체품으로 답한다.
+        entry = _closet_match(text, snapshot) if _has(text, _ALTERNATIVE) else None
+        if entry is not None:
+            seed = {"id": entry.id, "name": entry.name, "price": entry.price or 0}
+            if seed["price"]:
+                return f"{NOTICE}\n\n{await _alternative_body(db, seed)}"
+        return f"{NOTICE}\n\n{mine_body(snapshot)}"
+
     ing = await _match_ingredients(db, text)
     brand = await _match_brand(db, text) if _wants_products(text, ing) else None
     if brand is not None:
@@ -97,6 +128,48 @@ async def _compose(db: AsyncSession, text: str, skin_type: str | None, version: 
     reply = f"{NOTICE}\n\n{body}"
     await cache_set(key, reply, CACHE_TTL)
     return reply
+
+
+def _closet_match(text: str, snapshot: personal_context.PersonalSnapshot):
+    """질문이 가리키는 화장대 제품.
+
+    1) 제품명(브랜드·상품명 단어)이 질문에 들어 있으면 그 제품, 2) 아니면 질문의 종류 단어(크림·토너…)가 제품명에 있는 첫 제품.
+    종류 단어는 흔해서 제품명 매칭에서는 뺀다(안 그러면 "토너" 한 단어로 아무 토너나 잡힌다).
+    """
+    for e in snapshot.closet:
+        if any(len(t) >= 3 and t not in _KIND_WORDS and t in text for t in e.name.split()):
+            return e
+    kinds = [k for k in _KIND_WORDS if k in text]
+    for e in snapshot.closet:
+        if any(k in e.name for k in kinds):
+            return e
+    return None
+
+
+def mine_body(s: personal_context.PersonalSnapshot) -> str:
+    """"내 화장대·내 피부" 질문에 모델 없이 내 요약을 그대로 보여 준다. 없는 정보는 없다고 말한다."""
+    lines: list[str] = []
+    if s.skin_label:
+        lines.append(f"**피부타입**: {s.skin_label}")
+    if s.weak_concerns:
+        items = ", ".join(f"{n} {sc}점" for n, sc in s.weak_concerns)
+        lines.append(f"**신경 쓸 부분**(최근 AI 사진 분석): {items}")
+    if s.avoid:
+        lines.append(f"**피해야 할 성분**: {', '.join(s.avoid)}")
+    if s.budget:
+        lines.append(f"**예산**: {personal_context._won(s.budget[0])} ~ {personal_context._won(s.budget[1])}")
+    if s.my_ingredients:
+        lines.append(f"**마이 성분**: {', '.join(s.my_ingredients)}")
+    if s.closet:
+        lines.append(f"\n**내 화장대** ({s.closet_total}개)")
+        for i, e in enumerate(s.closet[: len(_NUM)]):
+            price = f" | {e.price:,}원" if e.price else ""
+            funcs = f"\n주요 기능: {'·'.join(e.functions)}" if e.functions else ""
+            lines.append(f"\n{_NUM[i]} **{e.name}**\n{e.brand} | {e.category}{price}{funcs}")
+        lines.append('\n💡 "(제품명)보다 싼 대체품 있어?"라고 물어보면 비슷한 성분의 더 싼 제품을 찾아 드려요.')
+    else:
+        lines.append("\n화장대에 등록한 제품이 아직 없어요. 쓰는 제품을 등록하면 대체품을 찾아 드려요.")
+    return "\n".join(lines)
 
 
 def _has(text: str, words: tuple[str, ...]) -> bool:

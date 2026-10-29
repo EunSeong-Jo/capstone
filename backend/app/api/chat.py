@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.weather import CACHE_KEY as WEATHER_CACHE_KEY
@@ -14,7 +14,7 @@ from app.core.rate_limit import allow_daily, client_ip
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.weather import WeatherOut
-from app.services import chat_fallback, llm, rag
+from app.services import chat_fallback, llm, personal_context, rag
 from app.services.llm import LLMUnavailable
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
@@ -26,6 +26,9 @@ _SYSTEM_TEMPLATE = """\
 [사용자 정보]
 피부 타입: {skin_type_label}
 오늘 날씨: {weather_context}
+
+[내 정보 요약 — 이 사용자 본인의 데이터]
+{personal_context}
 
 [참고 제품 데이터]
 {products_context}
@@ -44,6 +47,9 @@ _SYSTEM_TEMPLATE = """\
 5. 제품에 대한 사실(이름/가격/함유 성분/평점 등)은 위 제품 데이터에 있는 것만 말한다
 6. 제품 관련 정보는 데이터에 없으면 절대 추측하거나 지어내지 않는다
    (성분 자체에 대한 일반 지식 설명은 예외 — [성분 설명 규칙] 참고)
+7. [내 정보 요약]이 있으면 사용자 본인의 화장대·피부 상태·예산이므로 답에 자연스럽게 반영한다
+   (예: 이미 쓰는 제품은 새로 추천하지 않고 보완·대체 관점으로, 신경 쓸 부분을 돕는 성분을 우선 언급).
+   화장대 목록에 없는 제품을 사용자가 쓴다고 말하지 않는다. 요약이 "없음"이면 개인 정보 없이 답한다
 
 [성분 설명 규칙]
 사용자가 특정 성분 자체를 궁금해하면("나이아신아마이드가 뭐야", "비타민 성분이
@@ -93,6 +99,8 @@ class ChatRequest(BaseModel):
     message: str
     skin_type: str | None = None
     history: list[Message] = []
+    # 마이 성분은 기기에만 있어 클라이언트가 실어 보낸다(로그인한 사용자의 개인 요약에만 쓰인다).
+    my_ingredients: list[str] = Field(default_factory=list, max_length=personal_context.MAX_MY_INGREDIENTS)
 
 
 class ChatResponse(BaseModel):
@@ -130,6 +138,19 @@ async def _get_weather_context() -> str:
         return "가져오지 못함"
 
 
+async def _snapshot_of(
+    user: User | None, db: AsyncSession, req: ChatRequest
+) -> personal_context.PersonalSnapshot | None:
+    if user is None or not settings.PERSONAL_AI_ENABLED:
+        return None
+    try:
+        return await personal_context.build_snapshot(db, user.id, req.my_ingredients)
+    except Exception as exc:  # noqa: BLE001 — 개인 요약을 못 만들어도 일반 챗봇으로 답한다
+        log.warning("chat_personal_context_failed", error=str(exc)[:200])
+        await db.rollback()  # 실패한 쿼리가 트랜잭션을 망가뜨린 채로 뒤 쿼리가 이어지지 않게
+        return None
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
     req: ChatRequest,
@@ -144,9 +165,15 @@ async def chat(
     ):
         raise HTTPException(status_code=401, detail="로그인하면 챗봇과 계속 대화할 수 있어요.")
 
-    products = await rag.search_products(db, req.message, req.skin_type)
-    skin_label = rag.skin_type_label(req.skin_type) if req.skin_type else "미확인"
+    # 로그인한 사용자만 개인 요약을 만든다. 실패해도 챗봇 자체는 막지 않는다(개인화는 덤이다).
+    snapshot = await _snapshot_of(user, db, req)
+    # 피부타입은 요청값이 우선이고(진단 직후 아직 저장 전일 수 있다), 없으면 서버에 저장된 값을 쓴다.
+    skin_type = req.skin_type or (snapshot.skin_type if snapshot else None)
+
+    products = await rag.search_products(db, req.message, skin_type, prefer_fit=snapshot is not None)
+    skin_label = rag.skin_type_label(skin_type) if skin_type else "미확인"
     weather_context = await _get_weather_context()
+    personal = personal_context.render(snapshot) if snapshot else ""
 
     if products:
         products_context = "\n".join(
@@ -162,6 +189,7 @@ async def chat(
     system = _SYSTEM_TEMPLATE.format(
         skin_type_label=skin_label,
         weather_context=weather_context,
+        personal_context=personal or "없음 (비회원이거나 아직 저장된 정보가 없음)",
         products_context=products_context,
     )
 
@@ -176,7 +204,7 @@ async def chat(
         log.warning("chat_llm_fallback", error=str(exc)[:300])
         try:
             return ChatResponse(
-                reply=await chat_fallback.fallback_reply(db, req.message, req.skin_type),
+                reply=await chat_fallback.fallback_reply(db, req.message, skin_type, snapshot),
                 mode="fallback",
             )
         except Exception as fb_exc:
