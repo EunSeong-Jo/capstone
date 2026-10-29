@@ -19,8 +19,30 @@ export interface ChatRequest {
   my_ingredients?: string[];
 }
 
+/** 답변 아래에 보여 주는 제품 카드(AI가 도구로 찾아 말한 제품). */
+export interface ChatProductCard {
+  id: number;
+  name: string;
+  brand: string;
+  category: string;
+  price: number;
+  imageUrl?: string | null;
+  rating?: number | null;
+  /** 내 피부 궁합 점수(0~100). 피부타입이 있고 계산된 제품만 */
+  fitScore?: number | null;
+}
+
+/** "담을까요?" 제안. 서버는 담지 않는다 — 사용자가 버튼을 눌러야 담긴다. */
+export interface ChatAction {
+  type: 'add_to_cart' | 'add_to_closet';
+  productId: number;
+  label: string;
+}
+
 export interface ChatResponse {
   reply: string;
+  cards?: ChatProductCard[];
+  actions?: ChatAction[];
   /** 'fallback'이면 AI 키·장애로 서버가 저장된 정보(DB)로 답한 것 — 답변 첫 줄에 안내가 이미 들어 있다. */
   mode?: 'ai' | 'fallback';
 }

@@ -159,6 +159,7 @@ async def test_chat_prompt_contains_personal_summary_for_logged_in_user(
 
     monkeypatch.setattr("app.api.chat.llm.chat_completion", fake_llm)
     monkeypatch.setattr("app.api.chat._get_weather_context", weather)
+    monkeypatch.setattr(settings, "CHAT_TOOLS_ENABLED", False)     # 이 파일은 도구 없는 챗봇의 개인 요약을 본다(도구는 test_chat_tools.py)
     headers = await _login(client)
     res = await client.post("/api/v1/chat", json={"message": "내 화장대 알려줘", "my_ingredients": ["판테놀"]}, headers=headers)
     assert res.status_code == 200 and res.json()["mode"] == "ai"
@@ -218,6 +219,7 @@ async def test_fallback_answers_my_closet_for_logged_in_user_and_is_not_cached_a
         return "정보 없음"
 
     monkeypatch.setattr("app.api.chat.llm.chat_completion", down)
+    monkeypatch.setattr("app.api.chat.llm.chat_with_tools", down)
     monkeypatch.setattr("app.api.chat._get_weather_context", weather)
     monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", True)
     headers = await _login(client)
