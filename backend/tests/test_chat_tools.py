@@ -368,3 +368,24 @@ async def test_fallback_builds_routine_without_model(
     body = res.json()
     assert res.status_code == 200 and body["mode"] == "fallback"
     assert "7" in body["reply"] and "알뜰안" in body["reply"] and body["cards"]
+
+
+async def test_recommend_for_me_is_personalized_for_demo_account_and_falls_back_for_new_user() -> None:
+    from sqlalchemy import select
+
+    from app.models.user import User
+
+    async with AsyncSessionLocal() as db:
+        uid = await db.scalar(select(User.id).where(User.email == DEMO_EMAIL))
+        if uid is None:
+            pytest.skip("시연 계정이 없는 DB")
+        ctx = _ctx(db)
+        ctx.user_id = uid
+        out = await chat_tools.make_runner(ctx)("recommend_for_me", {"category": "스킨케어"})
+        assert out["personalized"] is True and out["products"] and ctx.cards
+        assert any(p["reason"] for p in out["products"])                    # 취향 근거(좋아한 성분)가 붙는다
+        # 취향이 없는 사용자(없는 id)는 피부타입 기준으로 대신하고 그렇다고 알린다
+        cold = _ctx(db)
+        cold.user_id = uuid.uuid4()
+        out2 = await chat_tools.make_runner(cold)("recommend_for_me", {"category": "없는 종류"})
+    assert out2["personalized"] is False and "피부타입 기준" in out2["note"] and out2["products"]

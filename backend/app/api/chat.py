@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.weather import WeatherOut
 from app.services import chat_fallback, chat_tools, llm, personal_context, rag
+from app.services import memory as memory_service
 from app.services.llm import LLMUnavailable
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
@@ -183,6 +184,29 @@ def _mentioned_cards(cards: list[dict], reply: str) -> list[dict]:
     return hit or cards[:4]
 
 
+async def _remember_explicit(user: User | None, db: AsyncSession, message: str) -> tuple[bool, list[str]]:
+    """(기억 사용 중인가, 이번 말에서 저장한 문장). 어떤 실패도 챗봇을 막지 않는다."""
+    if user is None or not settings.PERSONAL_AI_ENABLED:
+        return False, []
+    try:
+        if not await memory_service.is_enabled(db, user.id):
+            return False, []
+        text = memory_service.explicit_memory(message)
+        saved = await memory_service.add_memories(db, user.id, [("fact", text)], source="explicit") if text else []
+        return True, saved
+    except Exception as exc:  # noqa: BLE001
+        log.warning("chat_memory_failed", error=str(exc)[:200])
+        await db.rollback()
+        return False, []
+
+
+def _with_remembered(reply: str, remembered: list[str]) -> str:
+    """저장했으면 사용자가 알 수 있게 답변 끝에 알린다(보이지 않게 쌓지 않는다)."""
+    if not remembered:
+        return reply
+    return f"{reply}\n\n📌 기억해 둘게요: {' / '.join(remembered)}\n(마이페이지 > 설정 > AI 기억에서 지울 수 있어요)"
+
+
 async def _snapshot_of(
     user: User | None, db: AsyncSession, req: ChatRequest
 ) -> personal_context.PersonalSnapshot | None:
@@ -200,6 +224,7 @@ async def _snapshot_of(
 async def chat(
     req: ChatRequest,
     request: Request,
+    background: BackgroundTasks,
     user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ) -> ChatResponse:
@@ -209,6 +234,9 @@ async def chat(
         "chat-guest", client_ip(request), settings.GUEST_CHAT_DAILY_LIMIT
     ):
         raise HTTPException(status_code=401, detail="로그인하면 챗봇과 계속 대화할 수 있어요.")
+
+    # AI 기억: 동의한 사용자가 "○○ 기억해"라고 하면 규칙으로 바로 저장한다(LLM이 막혀도 동작). 자동 추출은 응답 뒤에 한다.
+    memory_on, remembered = await _remember_explicit(user, db, req.message)
 
     # 로그인한 사용자만 개인 요약을 만든다. 실패해도 챗봇 자체는 막지 않는다(개인화는 덤이다).
     snapshot = await _snapshot_of(user, db, req)
@@ -242,7 +270,7 @@ async def chat(
     messages = [{"role": m.role, "content": m.content} for m in req.history[-_MAX_HISTORY:]]
     messages.append({"role": "user", "content": req.message})
 
-    ctx = chat_tools.ToolContext(db=db, skin_type=skin_type, snapshot=snapshot)
+    ctx = chat_tools.ToolContext(db=db, skin_type=skin_type, snapshot=snapshot, user_id=user.id if user else None)
     use_tools = user is not None and settings.PERSONAL_AI_ENABLED and settings.CHAT_TOOLS_ENABLED
     try:
         if use_tools:
@@ -257,9 +285,9 @@ async def chat(
                 # 모델 없이도 예산 루틴은 같은 엔진으로 짠다
                 result = await chat_tools.build_routine(ctx, {"budget_max": chat_tools.parse_budget(req.message)})
                 reply = f"{chat_fallback.NOTICE}\n\n{chat_tools.routine_reply(result, chat_tools.wants_cart(req.message))}"
-                return ChatResponse(reply=reply, cards=_mentioned_cards(ctx.cards, reply), mode="fallback")
+                return ChatResponse(reply=_with_remembered(reply, remembered), cards=_mentioned_cards(ctx.cards, reply), mode="fallback")
             return ChatResponse(
-                reply=await chat_fallback.fallback_reply(db, req.message, skin_type, snapshot),
+                reply=_with_remembered(await chat_fallback.fallback_reply(db, req.message, skin_type, snapshot), remembered),
                 mode="fallback",
             )
         except Exception as fb_exc:
@@ -288,4 +316,9 @@ async def chat(
     cards = [c for c in ctx.cards if c["id"] in proposed] + [
         c for c in _mentioned_cards(ctx.cards, reply) if c["id"] not in proposed
     ]
-    return ChatResponse(reply=reply, cards=cards, actions=ctx.actions)
+    # 자동 기억 추출은 응답이 나간 뒤에 한다(실패해도 응답에 영향 없음). 명시 저장이 이미 된 말은 건너뛴다.
+    if user is not None and memory_on and not remembered:
+        user_turns = sum(1 for m in req.history if m.role == "user") + 1
+        if memory_service.should_extract(req.message, user_turns):
+            background.add_task(memory_service.extract_and_store, user.id, req.message, reply, [m.model_dump() for m in req.history])
+    return ChatResponse(reply=_with_remembered(reply, remembered), cards=cards, actions=ctx.actions)
