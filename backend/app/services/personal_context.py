@@ -135,7 +135,7 @@ def _won(n: int) -> str:
 def _closet_line(e: ClosetEntry) -> str:
     price = f", {e.price:,}원" if e.price else ""
     funcs = f" — {'·'.join(e.functions)}" if e.functions else ""
-    return f"  · {e.name} ({e.category}{price}){funcs}"
+    return f"  · #{e.id} {e.name} ({e.category}{price}){funcs}"
 
 
 def render(s: PersonalSnapshot) -> str:
