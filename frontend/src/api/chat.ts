@@ -15,6 +15,8 @@ export interface ChatRequest {
   message: string;
   skin_type?: string;
   history?: ChatMessage[];
+  /** 마이 성분 이름(기기에만 있어 실어 보낸다). 로그인한 사용자의 개인 요약에만 쓰이고 비회원 요청에서는 무시된다. */
+  my_ingredients?: string[];
 }
 
 export interface ChatResponse {

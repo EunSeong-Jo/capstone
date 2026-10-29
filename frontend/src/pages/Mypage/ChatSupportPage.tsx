@@ -8,6 +8,7 @@ import { ApiError } from '../../api/client';
 import { useCloset } from '../../context/closet';
 import { useCharacter } from '../../context/character';
 import { CharacterAvatar } from '../../components/character/CharacterAvatar';
+import { useMyIngredients } from '../../hooks/useMyIngredients';
 import { useSkinType } from '../../hooks/useSkinType';
 import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 import { readJSON, writeJSON } from '../../context/storage';
@@ -125,6 +126,7 @@ export default function ChatSupportPage() {
    * 사용자의 챗봇 아바타가 옹달샘으로** 나왔고, 서버에도 그 타입으로 물었다.
    */
   const { skinType } = useSkinType();
+  const { items: myIngredients } = useMyIngredients();
   const { decorationId } = useCharacter();
   // 예전엔 "2026년 6월 25일"이 하드코딩돼 있어서 날짜가 바뀌어도 그대로였다.
   const todayLabel = useMemo(
@@ -262,7 +264,12 @@ export default function ChatSupportPage() {
       .map((m) => ({ role: m.role === 'bot' ? ('assistant' as const) : ('user' as const), content: m.text! }));
 
     try {
-      const { reply } = await sendChatMessage({ message: userText, skin_type: skinType ?? undefined, history });
+      const { reply } = await sendChatMessage({
+        message: userText,
+        skin_type: skinType ?? undefined,
+        history,
+        my_ingredients: myIngredients.map((i) => i.name).slice(0, 20),
+      });
       const botReply: Message = { id: nextId.current++, role: 'bot', text: reply };
       setMessages((prev) => [...prev, botReply]);
     } catch (err) {
