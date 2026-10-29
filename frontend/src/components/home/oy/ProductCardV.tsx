@@ -72,6 +72,9 @@ export function ProductCardV({ product, width = 'w-[150px]', rank }: ProductCard
       <div className="pt-2">
         <p className="text-[13px] font-bold text-oy-text truncate">{product.brand}</p>
         <p className="text-[13px] text-oy-text leading-tight line-clamp-2 mt-0.5">{product.name}</p>
+        {product.personalReason && (
+          <p className="mt-1 text-[11px] font-semibold leading-snug text-primary-dark line-clamp-2">{product.personalReason}</p>
+        )}
 
         <div className="flex items-baseline gap-1 mt-1.5">
           {product.discountRate ? (

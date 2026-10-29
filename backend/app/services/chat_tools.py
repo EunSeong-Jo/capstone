@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 from dataclasses import dataclass, field
 
 import structlog
@@ -38,6 +39,7 @@ class ToolContext:
     db: AsyncSession
     skin_type: str | None
     snapshot: personal_context.PersonalSnapshot | None
+    user_id: uuid.UUID | None = None
     # 응답에 실어 보낼 제품 카드(중복 제거)와 "담을까요?" 제안
     cards: list[dict] = field(default_factory=list)
     actions: list[dict] = field(default_factory=list)
@@ -84,6 +86,11 @@ TOOLS: list[dict] = [
             },
             "required": ["budget_max"],
         },
+    },
+    {
+        "name": "recommend_for_me",
+        "description": "내 성분 취향(후기·찜·재구매·화장대에서 배운 것)과 피부타입을 함께 반영해 제품을 추천한다. '나한테 맞는 거 추천해줘'에 쓴다. 취향이 아직 없으면 피부타입 기준으로 고른다.",
+        "parameters": {"type": "object", "properties": {"category": {"type": "string", "enum": ["스킨케어", "선케어", "마스크팩", "클렌징"], "description": "원하는 종류. 비우면 전체"}}},
     },
     {
         "name": "propose_add_to_cart",
@@ -278,6 +285,29 @@ async def build_routine(ctx: ToolContext, args: dict) -> dict:
     }
 
 
+async def recommend_for_me(ctx: ToolContext, args: dict) -> dict:
+    from app.api import recommendations_main as rm
+
+    category = args.get("category") if args.get("category") in rm.SET_CATEGORIES else None
+    skin = ctx.skin_type if ctx.skin_type in PREFER else None
+    mine = await rm.personalized_pick(ctx.db, ctx.user_id, skin, 4, category) if ctx.user_id else None
+    personalized = mine is not None
+    if mine is None:
+        mine = [(p, None) for p in await rm._pick(ctx.db, skin, 4, category)]
+    fits = await _fit_scores(ctx, [p.id for p, _ in mine])
+    for p, _why in mine:
+        ctx.add_card(_card(p, fits.get(p.id)))
+    return {
+        "personalized": personalized,
+        "note": None if personalized else "내 취향이 아직 쌓이지 않아(후기·찜이 적어요) 피부타입 기준으로 골랐어요",
+        "products": [
+            {"id": p.id, "name": p.display_name or p.name, "brand": p.brand.name if p.brand else "", "price": int(p.price or 0),
+             "reason": why, "skin_fit_score": fits.get(p.id)}
+            for p, why in mine
+        ],
+    }
+
+
 async def _propose(ctx: ToolContext, args: dict, kind: str, verb: str) -> dict:
     p = await _product(ctx, args.get("product_id"))
     if p is None:
@@ -300,6 +330,7 @@ _HANDLERS = {
     "find_alternatives": find_alternatives,
     "check_skin_fit": check_skin_fit,
     "build_routine": build_routine,
+    "recommend_for_me": recommend_for_me,
     "propose_add_to_cart": propose_add_to_cart,
     "propose_add_to_closet": propose_add_to_closet,
 }

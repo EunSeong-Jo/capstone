@@ -54,6 +54,8 @@ CANCEL_PIDS = [3099, 844]       # 취소할 주문
 RETURN_PIDS = [867, 1491]       # 반품할 주문
 GIFTS = [(3103, "테스터1", "생일 축하해요! 피부에 순한 팩이에요"), (481, "테스터2", "수고 많았어요, 고마워요")]
 SCANS = [(867, "scan"), (1491, "scan")]
+# AI 기억(퍼스널 AI): 동의를 켜고 챗봇이 기억하는 문장을 몇 개 둔다. 사용자가 직접 쓴 것으로 넣는다(대화 추출은 LLM이 필요하다).
+AI_MEMORIES = ["향료가 들어간 제품은 싫어함", "요즘 모공이 가장 신경 쓰임"]
 # 후기: (주문 제품 id, 별점, 내용)
 REVIEWS = [
     (481, 5, "수분감이 오래가요. 흡수도 빠르고 끈적임이 없어서 아침저녁으로 잘 쓰고 있어요."),
@@ -184,6 +186,16 @@ def main() -> int:
             except RuntimeError as e:
                 print(f"  선물 건너뜀({nick}): {str(e)[:60]}")
         print(f"선물 +{sent}")
+
+    # AI 기억 — 켜 두고(동의) 문장이 없으면 몇 개 넣는다. 이미 있으면 건드리지 않는다
+    api.call("PUT", "/api/v1/me/ai-memory", {"enabled": True})
+    have = {m["text"] for m in api.call("GET", "/api/v1/me/memories")}
+    added = 0
+    for text in AI_MEMORIES:
+        if text not in have:
+            api.call("POST", "/api/v1/me/memories", {"text": text})
+            added += 1
+    print(f"AI 기억 +{added}")
 
     # 후기 — 배송완료된 주문의 제품에. 이미 쓴 제품은 건너뛴다
     orders = api.call("GET", "/api/v1/me/orders")

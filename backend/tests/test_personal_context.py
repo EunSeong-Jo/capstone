@@ -240,3 +240,13 @@ async def test_rag_prefer_fit_returns_at_most_top_k_and_respects_exclusion() -> 
         plain = await rag.search_products(db, "토너 추천해줘", "hwasan", top_k=5)
         fit = await rag.search_products(db, "토너 추천해줘", "hwasan", top_k=5, prefer_fit=True)
     assert 0 < len(fit) <= 5 and len(plain) <= 5
+
+
+async def test_fallback_product_question_is_not_hijacked_by_my_summary() -> None:
+    """"○○ 크림 내 피부에 맞아?"는 제품 질문이다. 내 요약(화장대 목록)만 쏟아내면 엉뚱한 답이다."""
+    snap = pc.PersonalSnapshot(skin_type="hwasan", closet=(_entry(1),), closet_total=1)
+    async with AsyncSessionLocal() as db:
+        product = await chat_fallback.fallback_reply(db, "에스트라 아토베리어365 크림 내 피부에 맞아?", "hwasan", snap)
+        mine = await chat_fallback.fallback_reply(db, "내 피부 상태 알려줘", "hwasan", snap)
+    assert "**내 화장대**" not in product
+    assert "**내 화장대**" in mine and "울긋불긋 화산" in mine

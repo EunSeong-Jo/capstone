@@ -49,6 +49,8 @@ class ProductOut(_CamelModel):
     # single / bonus / goods / bundle. 기본 조회는 single만 내보내므로 늘
     # "single"이지만, ?composition= 로 분류를 검증할 때 값이 보여야 한다.
     composition: str = "single"
+    # 로그인한 사용자의 취향(후기·재구매·찜·화장대)과 겹치는 성분이 있을 때만: "내가 좋아한 나이아신아마이드·병풀추출물 성분". 개인 추천에서만 채운다.
+    personal_reason: str | None = None
 
     # 단가. 마스크팩에 '20매' 같은 대용량이 섞여 있어 총액만으로는 비교가
     # 어긋난다 — 80,000원/20매가 3,000원/1매보다 27배 비싼 것처럼 정렬된다.
