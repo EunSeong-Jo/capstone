@@ -69,10 +69,16 @@ async def chat_completion(
     for name in provider_chain():
         try:
             if name == "openai":
-                return await _openai_chat(messages, system_prompt, max_tokens)
-            if name == "claude":
-                return await _claude_chat(messages, system_prompt, max_tokens)
-            return await _ollama_chat(messages, system_prompt, max_tokens)
+                text = await _openai_chat(messages, system_prompt, max_tokens)
+            elif name == "claude":
+                text = await _claude_chat(messages, system_prompt, max_tokens)
+            else:
+                text = await _ollama_chat(messages, system_prompt, max_tokens)
+            # 빈 응답(거절·길이 초과 등)은 답이 아니다. 그대로 돌려주면 호출처가 None/빈 문자열을 화면에 낸다 → 다음 공급자로.
+            if text and text.strip():
+                return text
+            errors.append(f"{name}: 빈 응답")
+            log.warning("llm_provider_empty", provider=name)
         except Exception as exc:  # noqa: BLE001 — 어떤 실패든 다음 공급자로 넘어간다
             errors.append(f"{name}: {type(exc).__name__}")
             log.warning("llm_provider_failed", provider=name, error=str(exc)[:200])
@@ -114,10 +120,23 @@ async def _claude_chat(messages: list[dict], system_prompt: str, max_tokens: int
 
     api_key = _validate_api_key(settings.ANTHROPIC_API_KEY, "ANTHROPIC_API_KEY")
     client = anthropic.AsyncAnthropic(api_key=api_key, timeout=settings.LLM_TIMEOUT, max_retries=0)
-    response = await client.messages.create(
-        model=settings.CLAUDE_MODEL,
-        max_tokens=max_tokens,
-        system=system_prompt,
-        messages=messages,
-    )
-    return response.content[0].text  # type: ignore[union-attr]
+    request = dict(model=settings.CLAUDE_MODEL, max_tokens=max_tokens, system=system_prompt, messages=messages)
+    # 사고(thinking) 블록을 쓰는 모델은 생각에 토큰을 다 써서 max_tokens에 닿으면 본문 없이 끝난다("빈 응답").
+    # 챗봇·케어 문구는 생각이 필요 없는 짧은 생성이라 끈다. SDK가 옛 버전이라 extra_body로 보낸다.
+    try:
+        response = await client.messages.create(**request, extra_body={"thinking": {"type": "disabled"}})
+    except anthropic.BadRequestError:
+        # 이 옵션을 모르는 모델이면 기본값으로 한 번 더 시도한다.
+        response = await client.messages.create(**request)
+    # 응답은 블록 여러 개일 수 있다 — 모델에 따라 첫 블록의 text가 비어(None) 있고 실제 답이 뒤 블록에 온다.
+    # content[0].text만 읽으면 None이 되어 챗봇이 빈 답을 내거나 500이 났다.
+    text = "".join(getattr(b, "text", None) or "" for b in response.content if getattr(b, "type", "text") == "text")
+    if not text.strip():
+        # 빈 답이 오면 이유를 남긴다(길이 초과·거절·블록 구성). 호출 계층이 다음 공급자로 넘어간다.
+        log.warning(
+            "claude_empty_response",
+            stop_reason=response.stop_reason,
+            blocks=[getattr(b, "type", type(b).__name__) for b in response.content],
+            output_tokens=getattr(response.usage, "output_tokens", None),
+        )
+    return text

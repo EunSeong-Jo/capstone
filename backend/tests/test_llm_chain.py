@@ -55,3 +55,70 @@ async def test_empty_keys_skip_without_network(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
     with pytest.raises(llm.LLMUnavailable):
         await llm.chat_completion([], "sys")
+
+
+async def test_empty_reply_counts_as_failure_and_falls_through(monkeypatch: pytest.MonkeyPatch) -> None:
+    """빈 문자열은 답이 아니다. 그대로 돌려주면 호출처(챗봇)가 빈 답을 화면에 낸다."""
+
+    async def empty(*_a, **_k):
+        return "   "
+
+    async def ok(*_a, **_k):
+        return "claude 답변"
+
+    monkeypatch.setattr(llm, "_openai_chat", empty)
+    monkeypatch.setattr(llm, "_claude_chat", ok)
+    assert await llm.chat_completion([], "sys") == "claude 답변"
+
+
+async def test_all_empty_raises_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def empty(*_a, **_k):
+        return ""
+
+    monkeypatch.setattr(llm, "_openai_chat", empty)
+    monkeypatch.setattr(llm, "_claude_chat", empty)
+    with pytest.raises(llm.LLMUnavailable):
+        await llm.chat_completion([], "sys")
+
+
+class _Block:
+    def __init__(self, type_: str, text: str | None) -> None:
+        self.type, self.text = type_, text
+
+
+class _Resp:
+    def __init__(self, blocks: list[_Block]) -> None:
+        self.content, self.stop_reason = blocks, "end_turn"
+        self.usage = type("U", (), {"output_tokens": 1})()
+
+
+def _fake_anthropic(monkeypatch: pytest.MonkeyPatch, blocks: list[_Block], seen: dict) -> None:
+    import anthropic
+
+    class _Messages:
+        async def create(self, **kw):
+            seen.update(kw)
+            return _Resp(blocks)
+
+    class _Client:
+        def __init__(self, **_kw) -> None:
+            self.messages = _Messages()
+
+    monkeypatch.setattr(anthropic, "AsyncAnthropic", _Client)
+    monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "sk-ant-test")
+
+
+async def test_claude_joins_text_blocks_and_skips_empty_or_thinking_blocks(monkeypatch: pytest.MonkeyPatch) -> None:
+    """응답이 블록 여러 개일 때 첫 블록의 text가 None이어도 뒤 블록의 본문을 읽는다(예전엔 content[0].text라 None → 500)."""
+    seen: dict = {}
+    blocks = [_Block("thinking", None), _Block("text", None), _Block("text", "안녕하세요"), _Block("text", " 반가워요")]
+    _fake_anthropic(monkeypatch, blocks, seen)
+    assert await llm._claude_chat([{"role": "user", "content": "hi"}], "sys", 100) == "안녕하세요 반가워요"
+    # 짧은 생성에서 생각이 토큰을 다 쓰지 않게 끈다
+    assert seen["extra_body"] == {"thinking": {"type": "disabled"}}
+
+
+async def test_claude_only_thinking_block_is_empty_so_chain_moves_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict = {}
+    _fake_anthropic(monkeypatch, [_Block("thinking", None)], seen)
+    assert await llm._claude_chat([], "sys", 100) == ""
