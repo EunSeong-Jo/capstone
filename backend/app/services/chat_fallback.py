@@ -35,6 +35,9 @@ _RECOMMEND = ("추천", "골라", "뭐가 좋", "뭐 쓰", "괜찮은")
 _ALTERNATIVE = ("대체", "싼", "저렴", "비슷", "가성비", "갈아타")
 # "내 ○○"처럼 사용자 본인의 데이터를 묻는 말. 개인 요약이 있을 때만 쓴다.
 _MINE = ("내 화장대", "화장대에", "화장대 ", "내가 쓰는", "쓰는 제품", "내 제품", "내 피부", "내 상태", "나한테", "내 정보", "내 예산")
+# "내 ○○" 질문 중에서도 내 요약을 보여 달라는 말(내 화장대에 뭐 있어·내 피부 상태·부족한 게 뭐야 …). 이런 말이 없으면 제품 질문
+# ("닥터지 크림 내 피부에 맞아?")이라 일반 폴백이 그 제품으로 답한다 — 제품명을 말했는데 내 요약만 쏟아내면 엉뚱한 답이다.
+_MINE_ASK = ("뭐 있", "뭐가 있", "알려", "보여", "상태", "구성", "정보", "예산", "부족", "요약", "정리")
 # 화장대 제품을 가리키는 종류 단어(질문에 있으면 화장대에서 그 종류의 제품을 찾는다)
 _KIND_WORDS = ("토너", "세럼", "에센스", "앰플", "크림", "로션", "선크림", "선스틱", "마스크", "클렌징", "클렌저", "폼", "오일", "밤", "패드", "미스트")
 
@@ -60,7 +63,7 @@ async def fallback_reply(
     이 답은 사람마다 다르므로 **질문 문장 단위 캐시를 쓰지 않는다**(다른 사람에게 새어 나가면 안 된다).
     """
     text = message.strip()
-    personal = snapshot is not None and not snapshot.is_empty and _has(text, _MINE)
+    personal = snapshot is not None and not snapshot.is_empty and _has(text, _MINE) and _has(text, _MINE_ASK)
     version = await get_cache_version()
     msg_key = f"chatfb:v{version}:msg:{hashlib.sha1(text.encode()).hexdigest()[:20]}:{skin_type or '-'}"
     if not personal:

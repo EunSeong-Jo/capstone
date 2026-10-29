@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +14,8 @@ from app.core.rate_limit import allow_daily, client_ip
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.weather import WeatherOut
-from app.services import chat_fallback, llm, personal_context, rag
+from app.services import chat_fallback, chat_tools, llm, personal_context, rag
+from app.services import memory as memory_service
 from app.services.llm import LLMUnavailable
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
@@ -69,6 +70,18 @@ _SYSTEM_TEMPLATE = """\
 - 데이터에 없는 제품을 있다고 단정하지 않는다
 - 제품에 대해 확실하지 않으면 "현재 데이터에 없는 정보예요"라고 솔직하게 답한다
 
+[도구 사용 규칙]
+- 도구가 있으면 제품·가격·점수·대체품·루틴 같은 **사실은 도구로 확인한 값만** 말한다. 기억이나 추측으로 제품을 지어내지 않는다
+- 내 화장대 제품은 [내 정보 요약]의 #번호가 제품 id다. 대체품·궁합은 그 id로 도구를 부른다
+- 사용자가 예산으로 루틴을 원하면 build_routine, 비슷하지만 더 싼 제품이면 find_alternatives(cheaper_only)를 쓴다
+- 피부가 어떻게 변했는지 물으면 get_skin_report, 오늘 뭘 바르면 좋은지 물으면 get_today_briefing을 쓴다(변화의 원인은 단정하지 않는다)
+- 장바구니·화장대에 담아 달라고 하면 propose_* 도구로 *제안*만 하고, "담았어요"라고 말하지 말고 "아래 버튼으로 담을 수 있어요"라고 안내한다
+- 도구가 오류를 주면 그대로 알리고 다른 방법을 제안한다
+- 항상 한국어로 답한다. 제품 id(#번호)는 도구에 넘길 때만 쓰고 사용자에게 보이는 글에는 쓰지 않는다
+- 사용자가 담아 달라고 했고 어떤 제품인지 분명하면 되묻지 말고 그 제품마다 propose_* 도구를 바로 부른다(루틴이면 선택한 조합의 제품들, 최대 4개).
+  화면에 사용자가 직접 누르는 [담기] 버튼이 따로 나오므로 글로 "담아 드릴까요?"라고 되묻는 것은 필요 없다.
+  어떤 제품인지 정할 수 없을 때만 어느 쪽으로 할지 한 번 묻는다
+
 [형식 규칙 — 반드시 준수]
 - 굵게 강조할 때만 **텍스트** 형식을 쓴다 (앱 화면이 이것만 굵게 렌더링한다)
 - 그 외 마크다운 기호(#, -, `, > 등)는 절대 사용하지 않는다 — 화면에서 그대로
@@ -103,8 +116,31 @@ class ChatRequest(BaseModel):
     my_ingredients: list[str] = Field(default_factory=list, max_length=personal_context.MAX_MY_INGREDIENTS)
 
 
+class ProductCard(BaseModel):
+    """답변 아래에 보여 줄 제품 카드(도구가 찾은 제품). 필드는 프론트 카드가 그대로 읽는다(camelCase)."""
+
+    id: int
+    name: str
+    brand: str = ""
+    category: str = ""
+    price: int = 0
+    imageUrl: str | None = None  # noqa: N815 — 이 라우터는 camelCase 변환 없이 필드를 그대로 선언한다
+    rating: float | None = None
+    fitScore: int | None = None  # noqa: N815
+
+
+class ChatAction(BaseModel):
+    """"담을까요?" 제안. 서버는 담지 않는다 — 사용자가 버튼을 눌러 기존 API를 부른다."""
+
+    type: str  # add_to_cart | add_to_closet
+    productId: int  # noqa: N815
+    label: str
+
+
 class ChatResponse(BaseModel):
     reply: str
+    cards: list[ProductCard] = []
+    actions: list[ChatAction] = []
     # "fallback"이면 LLM 키·장애로 DB 기반 답변(services/chat_fallback.py)을 준 것.
     mode: str = "ai"
 
@@ -138,6 +174,40 @@ async def _get_weather_context() -> str:
         return "가져오지 못함"
 
 
+def _mentioned_cards(cards: list[dict], reply: str) -> list[dict]:
+    """도구가 본 제품 중 답변에서 실제로 언급한 것만 카드로 낸다(루틴 3안을 다 조회해도 말하지 않은 제품 카드가 붙으면 어수선하다).
+    하나도 못 찾으면(모델이 제품명을 줄여 쓴 경우) 앞쪽 몇 개만 남긴다."""
+    def key(name: str) -> str:
+        return "".join(name.split())[:10]
+
+    flat = "".join(reply.split())
+    hit = [c for c in cards if key(c["name"]) and key(c["name"]) in flat]
+    return hit or cards[:4]
+
+
+async def _remember_explicit(user: User | None, db: AsyncSession, message: str) -> tuple[bool, list[str]]:
+    """(기억 사용 중인가, 이번 말에서 저장한 문장). 어떤 실패도 챗봇을 막지 않는다."""
+    if user is None or not settings.PERSONAL_AI_ENABLED:
+        return False, []
+    try:
+        if not await memory_service.is_enabled(db, user.id):
+            return False, []
+        text = memory_service.explicit_memory(message)
+        saved = await memory_service.add_memories(db, user.id, [("fact", text)], source="explicit") if text else []
+        return True, saved
+    except Exception as exc:  # noqa: BLE001
+        log.warning("chat_memory_failed", error=str(exc)[:200])
+        await db.rollback()
+        return False, []
+
+
+def _with_remembered(reply: str, remembered: list[str]) -> str:
+    """저장했으면 사용자가 알 수 있게 답변 끝에 알린다(보이지 않게 쌓지 않는다)."""
+    if not remembered:
+        return reply
+    return f"{reply}\n\n📌 기억해 둘게요: {' / '.join(remembered)}\n(마이페이지 > 설정 > AI 기억에서 지울 수 있어요)"
+
+
 async def _snapshot_of(
     user: User | None, db: AsyncSession, req: ChatRequest
 ) -> personal_context.PersonalSnapshot | None:
@@ -155,6 +225,7 @@ async def _snapshot_of(
 async def chat(
     req: ChatRequest,
     request: Request,
+    background: BackgroundTasks,
     user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ) -> ChatResponse:
@@ -164,6 +235,9 @@ async def chat(
         "chat-guest", client_ip(request), settings.GUEST_CHAT_DAILY_LIMIT
     ):
         raise HTTPException(status_code=401, detail="로그인하면 챗봇과 계속 대화할 수 있어요.")
+
+    # AI 기억: 동의한 사용자가 "○○ 기억해"라고 하면 규칙으로 바로 저장한다(LLM이 막혀도 동작). 자동 추출은 응답 뒤에 한다.
+    memory_on, remembered = await _remember_explicit(user, db, req.message)
 
     # 로그인한 사용자만 개인 요약을 만든다. 실패해도 챗봇 자체는 막지 않는다(개인화는 덤이다).
     snapshot = await _snapshot_of(user, db, req)
@@ -197,14 +271,29 @@ async def chat(
     messages = [{"role": m.role, "content": m.content} for m in req.history[-_MAX_HISTORY:]]
     messages.append({"role": "user", "content": req.message})
 
+    ctx = chat_tools.ToolContext(db=db, skin_type=skin_type, snapshot=snapshot, user_id=user.id if user else None)
+    use_tools = user is not None and settings.PERSONAL_AI_ENABLED and settings.CHAT_TOOLS_ENABLED
     try:
-        reply = await llm.chat_completion(messages, system)
+        if use_tools:
+            reply = await llm.chat_with_tools(messages, system, chat_tools.TOOLS, chat_tools.make_runner(ctx))
+        else:
+            reply = await llm.chat_completion(messages, system)
     except LLMUnavailable as exc:
         # 키 만료·한도·장애 — 모델 없이 DB로 답한다. 로그는 키 교체 신호로 남긴다.
         log.warning("chat_llm_fallback", error=str(exc)[:300])
         try:
+            if use_tools and chat_tools.wants_routine(req.message):
+                # 모델 없이도 예산 루틴은 같은 엔진으로 짠다
+                result = await chat_tools.build_routine(ctx, {"budget_max": chat_tools.parse_budget(req.message)})
+                reply = f"{chat_fallback.NOTICE}\n\n{chat_tools.routine_reply(result, chat_tools.wants_cart(req.message))}"
+                cards = _mentioned_cards(ctx.cards, reply)
+                # 담아 달라고 했으면 카드마다 [담기]를 붙인다(모델이 없어 어느 조합인지 못 고르므로 사용자가 고른다)
+                if chat_tools.wants_cart(req.message):
+                    for c in cards:
+                        ctx.add_action({"type": "add_to_cart", "productId": c["id"], "label": f"{c['name']}을(를) 장바구니에 담을까요?"})
+                return ChatResponse(reply=_with_remembered(reply, remembered), cards=cards, actions=ctx.actions, mode="fallback")
             return ChatResponse(
-                reply=await chat_fallback.fallback_reply(db, req.message, skin_type, snapshot),
+                reply=_with_remembered(await chat_fallback.fallback_reply(db, req.message, skin_type, snapshot), remembered),
                 mode="fallback",
             )
         except Exception as fb_exc:
@@ -223,4 +312,19 @@ async def chat(
             detail="지금 답변을 가져오지 못했어요. 잠시 후 다시 시도해주세요.",
         ) from exc
 
-    return ChatResponse(reply=reply)
+    # 사용자가 "장바구니에 담아 줘"라고 했는데 모델이 제안 도구를 부르지 않았으면, 답변에서 말한 제품으로 제안을 만든다.
+    # 어차피 사용자가 [담기]를 눌러야 담기므로 안전하다(제안만 하고 실행하지 않는다).
+    if use_tools and chat_tools.wants_cart(req.message) and not ctx.actions:
+        for c in _mentioned_cards(ctx.cards, reply)[:4]:
+            ctx.add_action({"type": "add_to_cart", "productId": c["id"], "label": f"{c['name']}을(를) 장바구니에 담을까요?"})
+    # 제안(actions)의 제품은 말했든 안 했든 카드로 함께 보인다(버튼이 어느 제품 것인지 알아야 한다)
+    proposed = {a["productId"] for a in ctx.actions}
+    cards = [c for c in ctx.cards if c["id"] in proposed] + [
+        c for c in _mentioned_cards(ctx.cards, reply) if c["id"] not in proposed
+    ]
+    # 자동 기억 추출은 응답이 나간 뒤에 한다(실패해도 응답에 영향 없음). 명시 저장이 이미 된 말은 건너뛴다.
+    if user is not None and memory_on and not remembered:
+        user_turns = sum(1 for m in req.history if m.role == "user") + 1
+        if memory_service.should_extract(req.message, user_turns):
+            background.add_task(memory_service.extract_and_store, user.id, req.message, reply, [m.model_dump() for m in req.history])
+    return ChatResponse(reply=_with_remembered(reply, remembered), cards=cards, actions=ctx.actions)
