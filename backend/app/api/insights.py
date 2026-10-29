@@ -49,7 +49,7 @@ def report_out(r: skin_report.SkinReport) -> SkinReportOut:
 @router.get("/skin-report", response_model=SkinReportOut, summary="피부 변화 리포트")
 async def read_skin_report(
     from_id: uuid.UUID | None = Query(None, description="비교할 분석 하나(`to_id`와 함께 줘야 한다)"),
-    to_id: uuid.UUID | None = Query(None, description="비교할 다른 분석. 둘 다 없으면 최근과 바로 이전 분석을 견준다"),
+    to_id: uuid.UUID | None = Query(None, description="비교할 다른 분석. 둘 다 없으면 최근 분석과 직전 날의 분석을 견준다"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> SkinReportOut:

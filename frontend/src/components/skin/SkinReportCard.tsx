@@ -113,7 +113,7 @@ function Trend({ timeline, beforeAt, afterAt }: { timeline: SkinReportDto['timel
 }
 
 /**
- * AI 피부관리 > 피부 변화 리포트 — 기본은 최근 분석과 바로 이전 분석의 비교. 두 날짜를 고르고 "리포트 보기"를 누르면 그 비교가 나온다.
+ * AI 피부관리 > 피부 변화 리포트 — 기본은 최근 분석과, 같은 날 재촬영을 건너뛴 이전 분석의 비교. 두 날짜를 고르고 "리포트 보기"를 누르면 그 비교가 나온다.
  * 사실(점수 변화·그 기간에 화장대에 더한 제품)을 나란히 보여 줄 뿐 원인은 단정하지 않는다.
  */
 export function SkinReportCard({ history }: { history: AnalysisDto[] | null }) {
@@ -127,7 +127,10 @@ export function SkinReportCard({ history }: { history: AnalysisDto[] | null }) {
 
   const list = history ?? [];
   const canPick = list.length >= 2;
-  const from = fromId && list.some((a) => a.analysisId === fromId) ? fromId : (list[1]?.analysisId ?? '');
+  // 기본 비교 상대: 서버와 같은 규칙 — 같은 날 재촬영은 건너뛰고 하루 이상 앞선 분석, 없으면 바로 이전
+  const dayOf = (iso: string) => new Date(iso).toDateString();
+  const defaultFrom = list.slice(1).find((a) => dayOf(a.createdAt) !== dayOf(list[0].createdAt)) ?? list[1];
+  const from = fromId && list.some((a) => a.analysisId === fromId) ? fromId : (defaultFrom?.analysisId ?? '');
   const to = toId && list.some((a) => a.analysisId === toId) ? toId : (list[0]?.analysisId ?? '');
   const report = custom ?? defaultReport;
 

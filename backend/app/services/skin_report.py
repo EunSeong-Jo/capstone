@@ -173,7 +173,7 @@ def _concerns_of(metrics: dict | None) -> dict[str, int]:
 async def build_report(
     db: AsyncSession, user_id: uuid.UUID, from_id: uuid.UUID | None = None, to_id: uuid.UUID | None = None
 ) -> SkinReport:
-    """기본은 최근 분석과 **바로 이전** 분석의 비교. `from_id`·`to_id`를 주면 그 두 분석(본인 것)만 견준다."""
+    """기본은 최근 분석과, 같은 날 재촬영을 건너뛴 **직전 날의** 분석의 비교. `from_id`·`to_id`를 주면 그 두 분석(본인 것)만 견준다."""
     if from_id is not None and to_id is not None:
         return await _build_between(db, user_id, from_id, to_id)
     rows = list(
@@ -191,8 +191,9 @@ async def build_report(
         )
 
     latest = rows[0]
-    # 직전 분석: 바로 이전에 찍은 분석
-    prev = rows[1]
+    # 직전 분석: 같은 날 다시 찍은 것은 건너뛰고 **하루 이상 앞선** 가장 가까운 분석과 견준다(같은 날 두 장은 변화를 가린다).
+    # 모두 같은 날이면 바로 앞의 것.
+    prev = next((r for r in rows[1:] if r.created_at.date() < latest.created_at.date()), rows[1])
     changes = compare(_concerns_of(prev.metrics), _concerns_of(latest.metrics))
     if not changes:
         return SkinReport(enough=False, message="두 분석에 함께 있는 항목이 없어 비교할 수 없어요.")
