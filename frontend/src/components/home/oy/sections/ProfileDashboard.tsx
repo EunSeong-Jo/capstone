@@ -17,6 +17,8 @@ interface ProfileDashboardProps {
   /** 오늘의 케어 문구. AI 생성 결과(또는 실패 시 정적 폴백) — useCareTip이 넘겨준다.
    *  null이면 로딩 중 — 스켈레톤을 보여준다. */
   careTip: string | null;
+  /** 주면 케어 문구가 눌린다(오늘의 브리핑 열기). 비회원은 넘기지 않는다. */
+  onCareTipClick?: () => void;
   character: CharacterState;
   /**
    * 레벨을 아직 받아오는 중이다(로그인 사용자).
@@ -46,6 +48,7 @@ interface ProfileDashboardProps {
 export function ProfileDashboard({
   weather,
   careTip,
+  onCareTipClick,
   character,
   user,
   registry,
@@ -163,11 +166,23 @@ export function ProfileDashboard({
               컬럼 맨 아래에 붙는다. 문구 길이가 달라져도 이 정렬은 안 깨진다. */}
           <div className="min-w-0 flex-1 h-[88px] flex flex-col justify-between gap-2">
             <div
-              className="min-w-0 flex-1 flex items-center rounded-2xl bg-gray-5 px-3 py-2"
+              className={`min-w-0 flex-1 flex items-center rounded-2xl bg-gray-5 px-3 py-2${
+                onCareTipClick && careTip !== null ? ' cursor-pointer active:bg-gray-10' : ''
+              }`}
               aria-label="오늘의 케어"
+              {...(onCareTipClick && careTip !== null
+                ? { role: 'button', tabIndex: 0, onClick: onCareTipClick, onKeyDown: (e: React.KeyboardEvent) => e.key === 'Enter' && onCareTipClick() }
+                : {})}
             >
               {careTip !== null ? (
-                <p className="text-[13px] leading-relaxed text-gray-70">{careTip}</p>
+                <>
+                  <p className="min-w-0 flex-1 text-[13px] leading-relaxed text-gray-70">{careTip}</p>
+                  {onCareTipClick && (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="ml-1 shrink-0" aria-hidden>
+                      <path d="M9 6l6 6-6 6" stroke="#8A8F98" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </>
               ) : (
                 <div className="w-full space-y-1.5">
                   <div className="h-2.5 w-4/5 animate-pulse rounded-full bg-gray-10" />
