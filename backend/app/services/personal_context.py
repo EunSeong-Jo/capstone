@@ -60,6 +60,8 @@ class ClosetEntry:
     category: str
     price: int | None
     functions: tuple[str, ...] = ()
+    # 기능 코드별 강도(0~100). 0보다 큰 것만. 오늘의 브리핑이 "지금 필요한 기능이 가장 강한 제품"을 고르는 데 쓴다
+    strengths: tuple[tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -244,7 +246,8 @@ async def build_snapshot(
     if products:
         docs, labels, _names, positions = await load_labeled_docs(db, [p.id for p in products])
         for p in products:
-            funcs = top_function_names(function_strengths(docs.get(p.id, []), labels, positions.get(p.id)))
+            strength = function_strengths(docs.get(p.id, []), labels, positions.get(p.id))
+            funcs = top_function_names(strength)
             entries.append(
                 ClosetEntry(
                     id=p.id,
@@ -253,6 +256,7 @@ async def build_snapshot(
                     category=(p.category.label or p.category.code) if p.category else "",
                     price=p.price,
                     functions=funcs,
+                    strengths=tuple((f, int(v["value"])) for f, v in strength.items() if v["value"] > 0),
                 )
             )
 

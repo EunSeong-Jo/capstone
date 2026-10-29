@@ -26,6 +26,7 @@ from app.api.chat import router as chat_router
 from app.api.diagnosis import router as diagnosis_router
 from app.api.ingredients import router as ingredients_router
 from app.api.me import router as me_router
+from app.api.insights import router as insights_router
 from app.api.memory import router as memory_router
 from app.api.preferences import router as preferences_router
 from app.api.personal import (
@@ -91,6 +92,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(me_router)
 app.include_router(memory_router)
+app.include_router(insights_router)
 app.include_router(preferences_router)
 app.include_router(diagnosis_router)
 app.include_router(skin_photo_router)

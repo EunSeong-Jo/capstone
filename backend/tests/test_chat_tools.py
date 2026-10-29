@@ -395,3 +395,30 @@ async def test_recommend_for_me_is_personalized_for_demo_account_and_falls_back_
         cold.user_id = uuid.uuid4()
         out2 = await chat_tools.make_runner(cold)("recommend_for_me", {"category": "없는 종류"})
     assert out2["personalized"] is False and "피부타입 기준" in out2["note"] and out2["products"]
+
+
+async def test_report_and_briefing_tools_for_demo_account(monkeypatch: pytest.MonkeyPatch) -> None:
+    from sqlalchemy import select
+
+    from app.models.user import User
+
+    async def dry() -> dict:
+        return {"has": True, "temp": 8, "humidity": 30, "label": "맑음", "condition": "sunny", "season": "autumn", "events": ["건조(습도 30%)"]}
+
+    monkeypatch.setattr("app.api.insights._weather", dry)
+    async with AsyncSessionLocal() as db:
+        uid = await db.scalar(select(User.id).where(User.email == DEMO_EMAIL))
+        if uid is None:
+            pytest.skip("시연 계정이 없는 DB")
+        from app.services import personal_context
+
+        snap = await personal_context.build_snapshot(db, uid)
+        ctx = chat_tools.ToolContext(db=db, skin_type=snap.skin_type, snapshot=snap, user_id=uid)
+        run = chat_tools.make_runner(ctx)
+        report = await run("get_skin_report", {})
+        brief = await run("get_today_briefing", {})
+        guest = await chat_tools.make_runner(chat_tools.ToolContext(db=db, skin_type=None, snapshot=None))("get_skin_report", {})
+    assert "error" in guest                                              # 비로그인은 쓸 수 없다
+    assert report["enough"] in (True, False) and (not report["enough"] or "원인을 단정" not in " ".join(report["notes"]))
+    assert report.get("caution") is None or "단정하지" in report["caution"]
+    assert brief["headline"] and brief["pick"] and ctx.cards and ctx.cards[0]["id"] == brief["pick"]["id"]

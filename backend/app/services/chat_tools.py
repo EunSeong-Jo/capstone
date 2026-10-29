@@ -93,6 +93,16 @@ TOOLS: list[dict] = [
         "parameters": {"type": "object", "properties": {"category": {"type": "string", "enum": ["스킨케어", "선케어", "마스크팩", "클렌징"], "description": "원하는 종류. 비우면 전체"}}},
     },
     {
+        "name": "get_skin_report",
+        "description": "내 최근 사진 분석의 변화(좋아진 항목·신경 쓸 항목)와 그 사이 화장대에 더한 제품을 본다. '피부가 좋아졌어?', '지난번이랑 비교해 줘'에 쓴다. 변화의 원인을 단정하지 말고 '영향이 있었을 수 있어요' 정도로 말한다.",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_today_briefing",
+        "description": "오늘 날씨와 내 약한 피부 항목, 내 화장대를 보고 오늘 먼저 쓸 제품을 알려 주는 개인 브리핑. '오늘 뭐 바르면 좋아?', '오늘 피부 관리 어떻게 해?'에 쓴다.",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
         "name": "propose_add_to_cart",
         "description": "제품을 장바구니에 담자고 *제안*한다. 실제로 담기지 않고, 사용자가 화면에서 [담기]를 눌러야 담긴다. 사용자가 담아 달라고 했을 때만 쓴다.",
         "parameters": {"type": "object", "properties": {"product_id": _PID}, "required": ["product_id"]},
@@ -308,6 +318,38 @@ async def recommend_for_me(ctx: ToolContext, args: dict) -> dict:
     }
 
 
+async def get_skin_report(ctx: ToolContext, args: dict) -> dict:
+    from app.services import skin_report
+
+    if ctx.user_id is None:
+        return {"error": "로그인이 필요해요"}
+    r = await skin_report.build_report(ctx.db, ctx.user_id)
+    if not r.enough:
+        return {"enough": False, "message": r.message}
+    return {
+        "enough": True,
+        "compared": [r.before_at.date().isoformat(), r.after_at.date().isoformat()],
+        "changes": [{"item": c.name, "before": c.before, "after": c.after, "delta": c.delta, "trend": c.trend} for c in r.changes],
+        "notes": r.notes,
+        "since_first": r.first_notes,
+        "caution": "점수는 높을수록 좋아요. 화장품이 원인이라고 단정하지 마세요.",
+    }
+
+
+async def get_today_briefing(ctx: ToolContext, args: dict) -> dict:
+    from app.api.insights import build_briefing_out
+
+    if ctx.user_id is None:
+        return {"error": "로그인이 필요해요"}
+    b = await build_briefing_out(ctx.db, ctx.user_id, list(ctx.snapshot.my_ingredients) if ctx.snapshot else [])
+    if b.pick:
+        row = next((e for e in (ctx.snapshot.closet if ctx.snapshot else ()) if e.id == b.pick.id), None)
+        if row is not None:
+            ctx.add_card({"id": row.id, "name": row.name, "brand": row.brand, "category": row.category, "price": row.price or 0,
+                          "imageUrl": None, "rating": None, "fitScore": None})
+    return b.model_dump(by_alias=False)
+
+
 async def _propose(ctx: ToolContext, args: dict, kind: str, verb: str) -> dict:
     p = await _product(ctx, args.get("product_id"))
     if p is None:
@@ -331,6 +373,8 @@ _HANDLERS = {
     "check_skin_fit": check_skin_fit,
     "build_routine": build_routine,
     "recommend_for_me": recommend_for_me,
+    "get_skin_report": get_skin_report,
+    "get_today_briefing": get_today_briefing,
     "propose_add_to_cart": propose_add_to_cart,
     "propose_add_to_closet": propose_add_to_closet,
 }

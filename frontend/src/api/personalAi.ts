@@ -55,3 +55,45 @@ export interface PreferenceDto {
 }
 
 export const fetchPreferences = () => request<PreferenceDto>(`${ME}/preferences`);
+
+// ── 피부 변화 리포트·오늘의 브리핑 (퍼스널 AI 4단계) ──────────────────────────
+
+export interface SkinChange {
+  key: string;
+  name: string;
+  before: number;
+  after: number;
+  delta: number;
+  trend: 'up' | 'down' | 'flat';
+}
+
+export interface SkinReportDto {
+  enough: boolean;
+  message: string;
+  beforeAt: string | null;
+  afterAt: string | null;
+  days: number;
+  overall: number | null;
+  changes: SkinChange[];
+  added: { id: number; name: string; addedAt: string }[];
+  notes: string[];
+  timeline: { at: string; average: number }[];
+  /** 처음 대비(분석이 3건 이상이고 처음이 하루 이상 앞설 때만) */
+  firstAt: string | null;
+  firstChanges: SkinChange[];
+  firstOverall: number | null;
+  firstNotes: string[];
+}
+
+export interface BriefingDto {
+  date: string;
+  headline: string;
+  reasons: string[];
+  tips: string[];
+  pick: { id: number; name: string; brand: string; function: string; why: string } | null;
+  missing: string | null;
+  weather: { label: string | null; temperature: number | null; humidity: number | null } | null;
+}
+
+export const fetchSkinReport = () => request<SkinReportDto>(`${ME}/skin-report`);
+export const fetchBriefing = () => request<BriefingDto>(`${ME}/briefing`);
