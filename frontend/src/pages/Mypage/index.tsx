@@ -2,6 +2,7 @@ import { ReactNode, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
+import { TasteCard } from '../../components/mypage/TasteCard';
 import { SKIN_TYPE_META, UNKNOWN_SKIN_META } from '../../types';
 import { useUserProfile } from '../../context/userProfile';
 import { useCloset } from '../../context/closet';
@@ -103,7 +104,7 @@ export default function MypagePage() {
   const { likedProducts } = useLikedProducts();
   const { decorationId } = useCharacter();
   const [expGuideOpen, setExpGuideOpen] = useState(false);
-  const { logout } = useAuth();
+  const { logout, isUser } = useAuth();
 
   /**
    * 예전에는 `navigate('/')`만 했다 — **세션이 그대로 남아** 토큰도 계정
@@ -316,6 +317,8 @@ export default function MypagePage() {
             <path d="M9 6l6 6-6 6" stroke="#C7CBD1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
+
+        {isUser && <TasteCard />}
 
         {/* 통계 바. 전부 GET /me/stats가 실제 행에서 센 값이다. 비회원은
             stats가 null이라 로컬 개수로 대신한다. */}

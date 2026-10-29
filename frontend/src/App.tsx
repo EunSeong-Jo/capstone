@@ -48,6 +48,7 @@ const CustomerServicePage = lazy(() => import('./pages/Mypage/CustomerServicePag
 const ChatSupportPage = lazy(() => import('./pages/Mypage/ChatSupportPage'));
 const InquiryPage     = lazy(() => import('./pages/Mypage/InquiryPage'));
 const SettingsPage    = lazy(() => import('./pages/Mypage/SettingsPage'));
+const AiMemoryPage    = lazy(() => import('./pages/Mypage/AiMemoryPage'));
 const ProfileEditPage = lazy(() => import('./pages/Mypage/ProfileEditPage'));
 const EmailChangePage = lazy(() => import('./pages/Mypage/EmailChangePage'));
 const PasswordChangePage = lazy(() => import('./pages/Mypage/PasswordChangePage'));
@@ -123,6 +124,7 @@ export default function App() {
           <Route path="/mypage/settings/password" element={mine(<PasswordChangePage />)} />
           <Route path="/mypage/settings/withdraw" element={mine(<WithdrawPage />)} />
           <Route path="/mypage/settings/face-consent" element={mine(<FaceConsentPage />)} />
+          <Route path="/mypage/settings/ai-memory"    element={mine(<AiMemoryPage />)} />
           <Route path="/mypage/settings/notices"  element={<NoticesPage />} />
           <Route path="/mypage/settings/terms"    element={<LegalPage doc="terms" />} />
           <Route path="/mypage/settings/privacy"  element={<LegalPage doc="privacy" />} />
