@@ -77,12 +77,9 @@ export interface SkinReportDto {
   changes: SkinChange[];
   added: { id: number; name: string; addedAt: string }[];
   notes: string[];
+  /** 변화가 있던 항목과, 그 기간에 화장대에 더한 제품 중 그 항목을 돕는 기능이 강한 제품(원인 단정 아님) */
+  links: { concern: string; trend: 'up' | 'down'; productId: number; productName: string; addedAt: string; function: string }[];
   timeline: { at: string; average: number }[];
-  /** 처음 대비(분석이 3건 이상이고 처음이 하루 이상 앞설 때만) */
-  firstAt: string | null;
-  firstChanges: SkinChange[];
-  firstOverall: number | null;
-  firstNotes: string[];
 }
 
 export interface BriefingDto {
@@ -95,5 +92,7 @@ export interface BriefingDto {
   weather: { label: string | null; temperature: number | null; humidity: number | null } | null;
 }
 
-export const fetchSkinReport = () => request<SkinReportDto>(`${ME}/skin-report`);
+/** 인자가 없으면 최근과 바로 이전 분석의 비교. 두 분석 id를 주면 그 둘을 견준다 */
+export const fetchSkinReport = (fromId?: string, toId?: string) =>
+  request<SkinReportDto>(`${ME}/skin-report`, fromId && toId ? { from_id: fromId, to_id: toId } : undefined);
 export const fetchBriefing = () => request<BriefingDto>(`${ME}/briefing`);

@@ -21,6 +21,15 @@ class AddedProductOut(_CamelModel):
     added_at: datetime
 
 
+class LinkOut(_CamelModel):
+    concern: str
+    trend: str
+    product_id: int
+    product_name: str
+    added_at: datetime
+    function: str
+
+
 class TimelinePoint(_CamelModel):
     at: datetime
     average: int
@@ -36,12 +45,8 @@ class SkinReportOut(_CamelModel):
     changes: list[ChangeOut] = []
     added: list[AddedProductOut] = []
     notes: list[str] = []
+    links: list[LinkOut] = []
     timeline: list[TimelinePoint] = []
-    # 처음 대비(분석 3건 이상·처음이 하루 이상 앞설 때만)
-    first_at: datetime | None = None
-    first_changes: list[ChangeOut] = []
-    first_overall: float | None = None
-    first_notes: list[str] = []
 
 
 class BriefingPick(_CamelModel):

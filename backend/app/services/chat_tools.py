@@ -331,7 +331,6 @@ async def get_skin_report(ctx: ToolContext, args: dict) -> dict:
         "compared": [r.before_at.date().isoformat(), r.after_at.date().isoformat()],
         "changes": [{"item": c.name, "before": c.before, "after": c.after, "delta": c.delta, "trend": c.trend} for c in r.changes],
         "notes": r.notes,
-        "since_first": r.first_notes,
         "caution": "점수는 높을수록 좋아요. 화장품이 원인이라고 단정하지 마세요.",
     }
 

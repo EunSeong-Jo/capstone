@@ -201,8 +201,6 @@ export default function SubscriptionPage() {
           )}
         </section>
 
-        <SkinReportCard />
-
         {/* 분석 기록 — 연도·월일 드롭다운으로 지난 분석을 고른다(1회만 분석했어도 보여 준다) */}
         <section className="rounded-2xl bg-white px-5 py-4">
           {historyLoading ? (
@@ -284,6 +282,9 @@ export default function SubscriptionPage() {
             </>
           )}
         </section>
+
+        {/* 피부 변화 리포트 — 최근 분석 아래. 기본은 최근과 바로 이전 비교 */}
+        <SkinReportCard history={history} />
       </div>
 
       {membershipOpen && <MembershipManager onClose={() => setMembershipOpen(false)} onChanged={refresh} />}

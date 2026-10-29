@@ -122,7 +122,7 @@ async def test_demo_account_report_compares_and_never_claims_cause(client: Async
     assert body["changes"] and all({"key", "name", "before", "after", "delta", "trend"} <= set(c) for c in body["changes"])
     assert all(c["delta"] == c["after"] - c["before"] for c in body["changes"])
     assert all(c["trend"] in ("up", "down", "flat") for c in body["changes"])
-    text = "\n".join(body["notes"] + body["firstNotes"])
+    text = "\n".join(body["notes"])
     assert "영향이 있었을 수 있어요" in text or "눈에 띄는 변화" in text or "좋아진 항목" in text or "신경 쓸 항목" in text
     for banned in ("덕분", "확실히", "원인은"):
         assert banned not in text
