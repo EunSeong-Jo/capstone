@@ -283,7 +283,7 @@ export default function SubscriptionPage() {
           )}
         </section>
 
-        {/* 피부 변화 리포트 — 최근 분석 아래. 기본은 최근과 바로 이전 비교 */}
+        {/* 피부 변화 리포트 — 최근 분석 아래. 기본은 최근과 직전 날의 분석 비교 */}
         <SkinReportCard history={history} />
       </div>
 
