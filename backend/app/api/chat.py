@@ -285,7 +285,12 @@ async def chat(
                 # 모델 없이도 예산 루틴은 같은 엔진으로 짠다
                 result = await chat_tools.build_routine(ctx, {"budget_max": chat_tools.parse_budget(req.message)})
                 reply = f"{chat_fallback.NOTICE}\n\n{chat_tools.routine_reply(result, chat_tools.wants_cart(req.message))}"
-                return ChatResponse(reply=_with_remembered(reply, remembered), cards=_mentioned_cards(ctx.cards, reply), mode="fallback")
+                cards = _mentioned_cards(ctx.cards, reply)
+                # 담아 달라고 했으면 카드마다 [담기]를 붙인다(모델이 없어 어느 조합인지 못 고르므로 사용자가 고른다)
+                if chat_tools.wants_cart(req.message):
+                    for c in cards:
+                        ctx.add_action({"type": "add_to_cart", "productId": c["id"], "label": f"{c['name']}을(를) 장바구니에 담을까요?"})
+                return ChatResponse(reply=_with_remembered(reply, remembered), cards=cards, actions=ctx.actions, mode="fallback")
             return ChatResponse(
                 reply=_with_remembered(await chat_fallback.fallback_reply(db, req.message, skin_type, snapshot), remembered),
                 mode="fallback",

@@ -368,6 +368,12 @@ async def test_fallback_builds_routine_without_model(
     body = res.json()
     assert res.status_code == 200 and body["mode"] == "fallback"
     assert "7" in body["reply"] and "알뜰안" in body["reply"] and body["cards"]
+    assert body["actions"] == []                                            # 담아 달라는 말이 없으면 제안도 없다
+
+    wanted = await client.post("/api/v1/chat", json={"message": "7만원으로 루틴 짜서 장바구니에 담아줘"}, headers=headers)
+    w = wanted.json()
+    assert w["mode"] == "fallback" and w["actions"]
+    assert {a["productId"] for a in w["actions"]} == {c["id"] for c in w["cards"]}   # 카드마다 [담기]
 
 
 async def test_recommend_for_me_is_personalized_for_demo_account_and_falls_back_for_new_user() -> None:
