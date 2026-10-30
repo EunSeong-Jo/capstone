@@ -178,7 +178,7 @@ export function ProfileDashboard({
             >
               {careTip !== null ? (
                 <>
-                  <p className="min-w-0 flex-1 line-clamp-2 text-[13px] leading-snug text-gray-70">{careTip}</p>
+                  <p className="min-w-0 flex-1 line-clamp-2 text-[13px] leading-relaxed text-gray-70">{careTip}</p>
                   {onCareTipClick && (
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="ml-1 shrink-0" aria-hidden>
                       <path d="M9 6l6 6-6 6" stroke="#8A8F98" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
