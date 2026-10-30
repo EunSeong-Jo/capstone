@@ -87,11 +87,6 @@ export default function CategoryMainPage() {
         {CATEGORIES.map((c) => (
           <CategoryRow key={c.slug} category={c} />
         ))}
-
-        <p className="mt-3 px-1 text-[11px] leading-relaxed text-gray-50">
-          지금은 얼굴용 4종만 다뤄요. 피부타입 진단이 얼굴 기준이라
-          바디·헤어 제품은 추천 근거를 만들 수 없어 수집하지 않았어요.
-        </p>
       </div>
 
       <OyBottomNav />
