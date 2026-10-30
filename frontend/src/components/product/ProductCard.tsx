@@ -18,9 +18,11 @@ const CARD_BG = [
 interface ProductCardProps {
   product: Product;
   index?: number;
+  /** 있으면 카드를 눌러도 상세로 가지 않고 이 함수를 부른다(비교할 제품 고르기 등) */
+  onSelect?: (product: Product) => void;
 }
 
-export function ProductCard({ product, index = 0 }: ProductCardProps) {
+export function ProductCard({ product, index = 0, onSelect }: ProductCardProps) {
   const unitPrice = formatUnitPrice(product.unitPrice, product.unitLabel);
   const navigate = useNavigate();
   const { isLiked, toggleLike } = useLikedProducts();
@@ -39,7 +41,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   return (
     <div
       className="bg-white rounded-xl shadow-sm overflow-hidden active:scale-[.98] transition-transform cursor-pointer"
-      onClick={() => navigate(`/detail/${product.id}`)}
+      onClick={() => (onSelect ? onSelect(product) : navigate(`/detail/${product.id}`))}
     >
       {/* 이미지 영역 */}
       <div className={`relative aspect-square bg-gradient-to-br ${bg} flex items-center justify-center`}>
