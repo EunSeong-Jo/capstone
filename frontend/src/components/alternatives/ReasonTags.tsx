@@ -2,15 +2,15 @@ import { AltReasonTag, AltReasonType } from '../../types';
 
 /** 추천 이유 4축별 칩 스타일 (유사도 제외 3축) */
 const STYLE: Record<AltReasonType, string> = {
-  skinMatch: 'bg-primary-light text-primary',
+  skinMatch: 'bg-good-soft text-good',
   priceSave: 'bg-accent-light text-accent',
-  situation: 'bg-orange-50 text-warning',
-  similarity: 'bg-primary text-white',
+  situation: 'bg-caution-soft text-caution',
+  similarity: 'bg-good-soft text-good',
 };
 const ICON: Record<AltReasonType, string> = {
-  skinMatch: '💚',
-  priceSave: '💰',
-  situation: '⚠️',
+  skinMatch: '',
+  priceSave: '',
+  situation: '',
   similarity: '',
 };
 

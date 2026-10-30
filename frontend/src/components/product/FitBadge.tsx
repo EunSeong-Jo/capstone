@@ -39,11 +39,11 @@ export function FitPill({ verdict, className = '' }: { verdict?: string; classNa
   const good = verdict === 'good';
   return (
     <span
-      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold leading-none ${
-        good ? 'bg-primary text-white' : 'bg-warning text-white'
+      className={`inline-flex items-center justify-center gap-0.5 whitespace-nowrap rounded-full px-1.5 py-1 text-center text-[11px] font-bold leading-none ${
+        good ? 'bg-primary text-white' : 'bg-caution-strong text-white'
       } ${className}`}
     >
-      {good ? '💚 궁합 좋음' : '⚠️ 피부 주의'}
+      {good ? '궁합 좋음' : '피부 주의'}
     </span>
   );
 }

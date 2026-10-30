@@ -5,27 +5,23 @@ import { useSkinFit } from '../../hooks/useSkinFit';
 import { skinTypes } from '../../data/skinTypes';
 import { useSkinType } from '../../hooks/useSkinType';
 
-const VERDICT: Record<FitVerdict, { emoji: string; title: string; box: string; badge: string }> = {
+const VERDICT: Record<FitVerdict, { title: string; box: string; badge: string }> = {
   good: {
-    emoji: '💚',
     title: '내 피부에 잘 맞아요',
-    box: 'border-primary/30 bg-primary-light',
-    badge: 'bg-primary text-white',
+    box: 'border-good-line bg-good-soft',
+    badge: 'bg-good-soft text-good',
   },
   ok: {
-    emoji: '🙂',
     title: '무난해요',
     box: 'border-oy-line bg-white',
     badge: 'bg-oy-chip text-oy-sub',
   },
   caution: {
-    emoji: '⚠️',
     title: '내 피부엔 주의가 필요해요',
-    box: 'border-orange-200 bg-orange-50',
-    badge: 'bg-warning text-white',
+    box: 'border-caution-line bg-caution-soft',
+    badge: 'bg-caution-soft text-caution',
   },
   unknown: {
-    emoji: '🔍',
     title: '판단할 근거가 부족해요',
     box: 'border-dashed border-oy-line bg-white',
     badge: 'bg-oy-chip text-oy-sub',
@@ -85,7 +81,6 @@ export function SkinFitCard({
         <div className={`rounded-xl border px-4 py-4 ${VERDICT[fit.verdict].box}`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-base font-bold text-oy-text">
-              <span className="mr-1">{VERDICT[fit.verdict].emoji}</span>
               {VERDICT[fit.verdict].title}
             </p>
             {fit.score !== null && (
