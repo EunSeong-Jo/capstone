@@ -1,6 +1,7 @@
 import { CameraVideo } from '../common/CameraVideo';
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import LoadingScreen from './LoadingScreen';
 import { AnalysisDto, analyzeFace, checkPhoto, fetchQuota, setConsent } from '../../api/skinPhoto';
 import { ApiError } from '../../api/client';
 import { useAuth } from '../../context/auth';
@@ -325,8 +326,17 @@ export default function FacePhotoScreen({
   );
 
   // ── 촬영 / 미리보기 / 분석 중 (어두운 카메라 화면) ─────────────────
-  if (view === 'capture' || view === 'preview' || view === 'analyzing') {
-    const analyzing = view === 'analyzing';
+  // 분석 중: 사진을 크게 깔지 않는다. 사진만 찍는 AI 피부관리는 작은 원형 사진, 문답 중이면 마스코트.
+  if (view === 'analyzing') {
+    return (
+      <LoadingScreen
+        hasPhoto
+        photo={standalone && shot ? { src: shot.image, mirror: shot.from === 'camera' } : undefined}
+      />
+    );
+  }
+
+  if (view === 'capture' || view === 'preview') {
     const showShot = view !== 'capture' && shot;
     const issue = shot?.check && !shot.check.ok ? shot.check : null;
     const guideOk = live?.ok === true;
@@ -371,9 +381,8 @@ export default function FacePhotoScreen({
             <button
               type="button"
               onClick={() => (view === 'capture' ? setView('intro') : setView('capture'))}
-              disabled={analyzing}
               aria-label="뒤로"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.12] text-white active:scale-90 disabled:opacity-40"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.12] text-white active:scale-90"
             >
               {backIcon}
             </button>
@@ -417,20 +426,6 @@ export default function FacePhotoScreen({
                 : ''}
           </p>
         </div>
-
-        {/* 분석 중에는 사진 위를 덮어 기다려야 한다는 걸 분명히 한다 */}
-        {analyzing && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/60">
-            <div className="h-10 w-10 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            <p className="text-center text-[13px] font-bold leading-relaxed text-white">
-              AI가 사진을 먼저 검증하고
-              <br />
-              피부를 분석하는 중이에요
-              <br />
-              <span className="text-[11px] font-normal opacity-80">최대 1분 정도 걸릴 수 있어요</span>
-            </p>
-          </div>
-        )}
 
         {/* 사전 검증 결과 — 촬영한 사진을 AI가 항목별로 확인한 체크리스트. 통과하지 못한 항목을 보여 준다. */}
         {view === 'preview' && !notice && verdict && verdict.status !== 'unknown' && (

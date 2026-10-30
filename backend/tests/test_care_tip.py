@@ -136,3 +136,15 @@ async def test_outlook_without_events_and_with_late_night_fallback() -> None:
     out = summarize_day(late, date(2026, 10, 23))
     assert out is not None and any(e.startswith("비") for e in out.events)
     assert summarize_day([], date(2026, 10, 23)) is None
+
+
+def test_clamp_tip_keeps_two_lines_of_the_home_bubble() -> None:
+    """홈 말풍선은 2줄(약 30자)이다 — 긴 문구는 28자 안쪽에서 잘라 레벨 줄을 밀어내지 않게 한다."""
+    from app.api.care_tip import _MAX_CHARS, _clamp_tip
+
+    assert _MAX_CHARS <= 28
+    short = "오늘은 산뜻한 기본 보습으로 충분해요"
+    assert _clamp_tip(short) == short
+    long = "수분 밸런스가 좋아요 가벼운 자외선 차단만 챙기면 완벽해요 그리고 저녁에는 진정 케어도 하세요 ☀️"
+    out = _clamp_tip(long)
+    assert len(out) <= _MAX_CHARS + 1 and out.endswith("…")
