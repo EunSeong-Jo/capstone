@@ -63,7 +63,7 @@ const CATEGORY_ORDER = ['스킨케어', '선케어', '마스크팩', '클렌징'
 const seenKey = (scope: string) => `swappy:closet-seen:v1:${scope}`;
 
 /**
- * 4c — 내 화장대(보유 제품 · 삭제된 제품 · 예산).
+ * 4c — 내 화장대(보유 제품 · 미사용 제품 · 예산).
  *
  * `lastSeen`: 지난 방문 시각. 그 뒤에 담긴 제품에만 담긴 경로('주문으로 추가' 등)를
  * 보여 준다 — 새로 들어왔다는 걸 한 번 알리면 충분하고, 매번 붙어 있으면 목록이 시끄럽다.
@@ -89,12 +89,12 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
     filter === 'owned' ? (activeCategory === 'all' ? items : items.filter((i) => i.category === activeCategory)) : removedItems;
   const filters: [VanityFilter, string, number][] = [
     ['owned', '보유 중', items.length],
-    ['removed', '삭제된 제품', removedItems.length],
+    ['removed', '미사용 제품', removedItems.length],
   ];
 
   const remove = (item: ClosetItem) => {
     removeItem(item.id);
-    showToast('삭제된 제품으로 옮겼어요', { label: '되돌리기', onClick: () => restoreItem(item.id) });
+    showToast('미사용 제품으로 옮겼어요', { label: '되돌리기', onClick: () => restoreItem(item.id) });
   };
 
   const restore = (item: ClosetItem) => {
@@ -148,7 +148,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
         </div>
       ) : (
         <>
-          {/* 보유 중 / 삭제된 제품 */}
+          {/* 보유 중 / 미사용 제품 */}
           <div className="flex items-center gap-2 -mx-4 px-4 py-3">
             {filters.map(([key, label, count]) => {
               const active = filter === key;
@@ -210,7 +210,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
           <div className="rounded-[20px] bg-white border border-[#ECEEE8] px-4">
             {shown.length === 0 && (
               <p className="py-8 text-center text-xs text-gray-50">
-                {filter === 'owned' ? '화장대에 담긴 제품이 없어요' : '삭제된 제품이 없어요'}
+                {filter === 'owned' ? '화장대에 담긴 제품이 없어요' : '미사용 제품이 없어요'}
               </p>
             )}
             {shown.map((item, i) => {
@@ -243,7 +243,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
                         <span className="mt-0.5 flex items-center gap-1">
                           <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${removed ? 'bg-gray-50' : 'bg-primary'}`} />
                           <span className={`text-[11px] font-semibold ${removed ? 'text-gray-50' : 'text-primary-dark'}`}>
-                            {removed ? '삭제됨' : '보유 중'}
+                            {removed ? '미사용' : '보유 중'}
                             {via ? ` · ${via}` : ''}
                           </span>
                         </span>
@@ -271,7 +271,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
                     ) : (
                       <button
                         onClick={() => remove(item)}
-                        aria-label="화장대에서 빼기"
+                        aria-label="미사용 제품으로 옮기기"
                         className="shrink-0 self-start rounded-full p-1.5 text-gray-50 active:scale-90 transition-transform"
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
