@@ -364,7 +364,7 @@ export default function OnboardingPage() {
             }}
           />
         )}
-        {step === 'loading' && <LoadingScreen key="loading" onComplete={handleLoadingComplete} />}
+        {step === 'loading' && <LoadingScreen key="loading" hasPhoto={hasShot} onComplete={handleLoadingComplete} />}
         {step === 'result-msg' && cardType && (
           <ResultMessageScreen
             key="result-msg"
