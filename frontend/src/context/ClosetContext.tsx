@@ -94,8 +94,14 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     removeKey(GUEST_KEY);
   }, []);
 
-  // 삭제된 제품까지 전부. 화면에는 둘로 나눠 내보낸다.
+  // 미사용 제품까지 전부. 화면에는 둘로 나눠 내보낸다.
   const all = store.items;
+  // 토스트의 '되돌리기'처럼 나중에 불리는 함수가 오래된 목록을 보지 않게, 항상 최신 목록을 가리키는 ref.
+  // (예전에는 restoreItem이 '빼기' 시점의 목록을 붙들어 상태를 아직 owned로 보고 아무것도 안 했다)
+  const allRef = useRef(all);
+  useEffect(() => {
+    allRef.current = all;
+  }, [all]);
   const items = useMemo(() => all.filter((i) => i.status !== 'removed'), [all]);
   const removedItems = useMemo(() => all.filter((i) => i.status === 'removed'), [all]);
   const setItems = useCallback(
@@ -148,7 +154,7 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
       }
 
       // 데모 계정의 보유 화장품 시드. 서버 화장대가 비었을 때만 한 번.
-      // 삭제된 제품도 행이 남으므로, 다 지운 계정에 다시 채우지 않는다.
+      // 미사용 제품도 행이 남으므로, 다 지운 계정에 다시 채우지 않는다.
       const current = await fetchCloset();
       if (current.length === 0 && account?.persona) {
         await Promise.allSettled(
@@ -230,14 +236,14 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
 
   const restoreItem = useCallback(
     (id: number) => {
-      const target = all.find((i) => i.id === id);
+      const target = allRef.current.find((i) => i.id === id);
       if (!target || target.status !== 'removed') return;
       patchStatus(id, 'owned');
       if (!isUser) return;
-      // 서버는 삭제된 제품을 다시 담으면(POST) 복원한다.
+      // 서버는 미사용 제품을 다시 담으면(POST) 복원한다.
       addClosetItem(id, target.addedVia).catch(() => patchStatus(id, 'removed'));
     },
-    [all, isUser, patchStatus],
+    [isUser, patchStatus],
   );
 
   const addItem = useCallback(
@@ -269,18 +275,18 @@ export function ClosetProvider({ children }: { children: ReactNode }) {
     [all, isUser, persistGuest, setItems, restoreItem],
   );
 
-  /** 화장대에서 빼기 — 지우지 않고 '삭제된 제품'으로 옮긴다 */
+  /** 화장대에서 빼기 — 지우지 않고 '미사용 제품'으로 옮긴다 */
   const removeItem = useCallback(
     (id: number) => {
-      const before = all.find((i) => i.id === id)?.status;
+      const before = allRef.current.find((i) => i.id === id)?.status;
       if (before === undefined || before === 'removed') return;
       patchStatus(id, 'removed');
       if (isUser) removeClosetItem(id).catch(() => patchStatus(id, before));
     },
-    [all, isUser, patchStatus],
+    [isUser, patchStatus],
   );
 
-  /** 영구 삭제. 되돌릴 수 없다 */
+  /** 영구 삭제(미사용 제품에서도 지운다). 되돌릴 수 없다 */
   const purgeItem = useCallback(
     (id: number) => {
       const snapshot = all;

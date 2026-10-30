@@ -142,10 +142,10 @@ export function totalSavingOf(candidates: SwapSuggestion[]): number {
 }
 
 /**
- * 홈의 교체 제안 카드(1순위)에 올릴 최소 성분 유사도(%). 절약액·궁합 점수로 1등을 뽑으므로,
+ * 홈의 교체 제안 카드(1순위)에 올릴 성분 유사도(%)의 경계. 이 값을 넘는 제품만 올린다(초록 기준과 같다). 절약액·궁합 점수로 1등을 뽑으므로,
  * 이 하한이 없으면 성분이 많이 다른 제품이 1등이 될 수 있다. 목록 화면에는 적용하지 않는다.
  */
-export const HOME_SIMILARITY_MIN = 50;
+export const HOME_SIMILARITY_MIN = 55;
 
 /** '더 좋은 대체품'(가격 무관)이 되려면 쓰던 제품보다 궁합 점수가 이만큼 이상 높아야 한다 */
 export const FIT_GAIN_MIN = 5;
@@ -230,7 +230,7 @@ async function computeSwap(ordered: SwapSeed[], skinType?: SkinType): Promise<Sw
 
 /** 홈 카드에 올릴 만한(유사도 하한 이상) 후보가 없는 종류가 있는가 */
 function needsMore(r: SwapResult): boolean {
-  const ok = (list: SwapSuggestion[]) => list.some((c) => c.alt.similarityScore >= HOME_SIMILARITY_MIN);
+  const ok = (list: SwapSuggestion[]) => list.some((c) => c.alt.similarityScore > HOME_SIMILARITY_MIN);
   return !ok(r.candidates) || !ok(r.betterCandidates) || !ok(r.refillCandidates);
 }
 
@@ -473,7 +473,7 @@ export function useClosetMaxSaving(items: ClosetItem[], skinType?: SkinType): nu
           seeds.map((seed) => loadSimilarProducts(seed.id, { limit: PER_SEED_LIMIT, skinType, fitFor: skinType })),
         );
         const shown = buildSwap(seeds, results, skinType).candidates.filter(
-          (c) => c.alt.similarityScore >= HOME_SIMILARITY_MIN,
+          (c) => c.alt.similarityScore > HOME_SIMILARITY_MIN,
         );
         return { total: shown.length > 0 ? totalSavingOf(shown) : null };
       },

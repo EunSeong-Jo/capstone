@@ -46,16 +46,42 @@ export interface IngredientSplit {
   both: string[];
   onlyA: string[];
   onlyB: string[];
+  /** 성분 이름(소문자·공백 정리) → 그 성분의 기능 이름들 */
+  functionsOf: Record<string, string[]>;
+  /** 기능별로 빠지는 성분 수(minus)와 새로 생기는 성분 수(plus). 변화가 없는 기능은 없다 */
+  delta: { name: string; plus: number; minus: number }[];
 }
+
+/** 성분 이름으로 그 성분의 기능을 찾는 키 */
+export const ingredientKey = norm;
 
 /** 핵심 성분을 "둘 다 / 기준에만 / 대체품에만"으로 나눈다. 순서는 각 제품의 함량 순서를 따른다 */
 export function compareKeyIngredients(a: ProductAnalysis, b: ProductAnalysis): IngredientSplit {
   const inB = new Set(b.keyIngredients.map((k) => norm(k.name)));
   const inA = new Set(a.keyIngredients.map((k) => norm(k.name)));
+  const onlyAList = a.keyIngredients.filter((k) => !inB.has(norm(k.name)));
+  const onlyBList = b.keyIngredients.filter((k) => !inA.has(norm(k.name)));
+
+  const functionsOf: Record<string, string[]> = {};
+  [...a.keyIngredients, ...b.keyIngredients].forEach((k) => {
+    functionsOf[norm(k.name)] = k.functions;
+  });
+
+  const tally = new Map<string, { name: string; plus: number; minus: number }>();
+  const bump = (fn: string, side: 'plus' | 'minus') => {
+    const row = tally.get(fn) ?? { name: fn, plus: 0, minus: 0 };
+    row[side] += 1;
+    tally.set(fn, row);
+  };
+  onlyBList.forEach((k) => k.functions.forEach((f) => bump(f, 'plus')));
+  onlyAList.forEach((k) => k.functions.forEach((f) => bump(f, 'minus')));
+
   return {
     both: a.keyIngredients.filter((k) => inB.has(norm(k.name))).map((k) => k.name),
-    onlyA: a.keyIngredients.filter((k) => !inB.has(norm(k.name))).map((k) => k.name),
-    onlyB: b.keyIngredients.filter((k) => !inA.has(norm(k.name))).map((k) => k.name),
+    onlyA: onlyAList.map((k) => k.name),
+    onlyB: onlyBList.map((k) => k.name),
+    functionsOf,
+    delta: [...tally.values()].sort((x, y) => y.plus + y.minus - (x.plus + x.minus)),
   };
 }
 

@@ -333,6 +333,18 @@ export default function ProductDetailPage() {
                 <span className="shrink-0 text-xs font-bold text-primary">비교 ›</span>
               </button>
             )}
+
+            {/* 직접 고른 다른 제품과 성분 비교(상대는 검색 화면 선택 모드에서 고른다). 교체 제안에서 온 경우엔 위 배너가 비교 대상을 이미 정해 두었다. */}
+            {!similarTo && (
+              <button
+                type="button"
+                onClick={() => navigate(`/search?pick=${product.id}`)}
+                className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl border border-oy-line bg-white px-3.5 py-2.5 text-left active:scale-[.99]"
+              >
+                <span className="min-w-0 text-sm font-bold text-oy-text">⇄ 다른 제품과 성분 비교하기</span>
+                <span className="shrink-0 text-xs font-bold text-primary">›</span>
+              </button>
+            )}
           </Section>
 
           <Divider />

@@ -11,11 +11,11 @@ import { createContext, useContext } from 'react';
  */
 
 /**
- * removed는 화장대에서 뺀 제품('삭제된 제품')이다. 다시 담으면 owned로 돌아온다.
+ * removed는 화장대에서 뺀 제품('미사용 제품')이다. 다시 담으면 owned로 돌아온다.
  * scanned·analyzing은 예전 값이라 owned와 같게 다룬다.
  */
 export type ClosetStatus = 'owned' | 'removed' | 'analyzing' | 'scanned';
-/** order는 주문하면 서버가 자동으로 담은 것이다(취소·반품하면 삭제된 제품이 된다) */
+/** order는 주문하면 서버가 자동으로 담은 것이다(취소·반품하면 미사용 제품이 된다) */
 export type ClosetSource = 'seed' | 'scan' | 'chatbot' | 'search' | 'order';
 
 export interface ClosetItem {
@@ -36,21 +36,21 @@ export type ClosetDraft = Omit<ClosetItem, 'addedAt' | 'status'> & {
 };
 
 export interface ClosetContextValue {
-  /** 화장대에 있는 제품. 삭제된 제품은 빠진다 — 대체품·추천의 기준은 이것이다 */
+  /** 화장대에 있는 제품. 미사용 제품은 빠진다 — 대체품·추천의 기준은 이것이다 */
   items: ClosetItem[];
   count: number;
-  /** '삭제된 제품'. 복원하거나 영구 삭제할 수 있다 */
+  /** '미사용 제품'. 복원하거나 영구 삭제할 수 있다 */
   removedItems: ClosetItem[];
   /** 서버에서 불러오는 중. 화면은 스켈레톤을 보여주면 된다. */
   loading: boolean;
-  /** 화장대에 있는지. 삭제된 제품은 false다 */
+  /** 화장대에 있는지. 미사용 제품은 false다 */
   hasItem: (id: number) => boolean;
-  /** 담기. 삭제된 제품이면 복원된다 */
+  /** 담기. 미사용 제품이면 복원된다 */
   addItem: (draft: ClosetDraft) => void;
-  /** '삭제된 제품'으로 옮긴다 */
+  /** '미사용 제품'으로 옮긴다 */
   removeItem: (id: number) => void;
   restoreItem: (id: number) => void;
-  /** 삭제된 제품에서도 지운다. 되돌릴 수 없다 */
+  /** 미사용 제품에서도 지운다. 되돌릴 수 없다 */
   purgeItem: (id: number) => void;
   clearCloset: () => void;
   /** 서버 화장대를 다시 받는다. 주문·취소·반품처럼 서버가 화장대를 바꾼 뒤 부른다 */

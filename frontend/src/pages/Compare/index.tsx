@@ -6,13 +6,13 @@ import type { ProductIngredient } from '../../api/products';
 import { skinTypes } from '../../data/skinTypes';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import {
-  CautionCompareView,
   Divider,
   FunctionCompare,
-  KeyIngredientCompare,
+  IngredientChanges,
   Section,
   SkinStateCompare,
 } from '../../components/compare/CompareSections';
+import { CompareModeContext, useCompareLabels } from '../../components/compare/compareMode';
 import { loadAnalysis, type ProductAnalysis } from '../../api/analysis';
 import { useCart } from '../../context/cart';
 import { useToast } from '../../context/toast';
@@ -40,6 +40,7 @@ function Skeleton() {
 
 /** 위에 붙는 두 제품 머리. 스크롤해도 어느 쪽이 어느 제품인지 보이게 고정한다 */
 function ProductPair({ a, b }: { a: ProductAnalysis; b: ProductAnalysis }) {
+  const labels = useCompareLabels();
   const cell = (p: ProductAnalysis, label: string, tone: string) => (
     <div className="flex min-w-0 flex-1 items-center gap-2">
       <span className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-oy-chip">
@@ -54,9 +55,9 @@ function ProductPair({ a, b }: { a: ProductAnalysis; b: ProductAnalysis }) {
   );
   return (
     <div className="sticky top-14 z-[9] flex gap-3 border-b border-oy-line bg-white px-4 py-3">
-      {cell(a, '내 제품', 'text-oy-sub')}
+      {cell(a, labels.a, 'text-oy-sub')}
       <span className="self-center text-xs text-oy-sub">→</span>
-      {cell(b, '대체품', 'text-primary')}
+      {cell(b, labels.b, 'text-primary')}
     </div>
   );
 }
@@ -74,6 +75,8 @@ export default function ComparePage() {
   const { showToast } = useToast();
   const aId = Number(params.get('a'));
   const bId = Number(params.get('b'));
+  // 사용자가 두 제품을 직접 고른 비교(교체 제안이 아님): 문구를 '기준 제품 · 비교 제품'으로
+  const direct = params.get('direct') === '1';
   const valid = Number.isInteger(aId) && aId > 0 && Number.isInteger(bId) && bId > 0 && aId !== bId;
   // 라우터 state로 온 유사도·절약액(있으면 요약에 쓴다)
   const similarTo = readSimilarTo(useLocation().state, bId);
@@ -158,6 +161,7 @@ export default function ComparePage() {
 
   return (
     <PageWrapper>
+      <CompareModeContext.Provider value={direct ? 'direct' : 'swap'}>
       <Header showBack title="성분 비교" />
       {!current && <Skeleton />}
       {current?.failed && (
@@ -168,7 +172,7 @@ export default function ComparePage() {
           <ProductPair a={a} b={b} />
           <div className="flex-1">
             {/* 1. 한 줄 요약 — "바꿔도 되나"를 먼저 */}
-            <Section title="바꿔도 될까요?">
+            <Section title={direct ? '한눈에 비교' : '바꿔도 될까요?'}>
               <ul className="space-y-2 rounded-xl bg-white px-4 py-3 text-[13px] shadow-sm">
                 {similarTo && (
                   <li className="flex justify-between">
@@ -192,12 +196,6 @@ export default function ComparePage() {
                       : [view.weaker > 0 && `${view.weaker}개 약해요`, view.stronger > 0 && `${view.stronger}개 강해요`].filter(Boolean).join(' · ')}
                   </b>
                 </li>
-                {view.cautions.newInB.length > 0 && (
-                  <li className="flex justify-between">
-                    <span className="text-oy-sub">새 주의 성분</span>
-                    <b className="text-accent">{view.cautions.newInB.length}종</b>
-                  </li>
-                )}
                 {skinType && a.fit && b.fit && (
                   <li className="flex justify-between">
                     <span className="text-oy-sub">내 피부 궁합</span>
@@ -227,15 +225,9 @@ export default function ComparePage() {
             </Section>
             <Divider />
 
-            {/* 3. 핵심 성분 */}
-            <Section title="핵심 성분" hint="바꿨을 때 이어지는 성분과 달라지는 성분이에요">
-              <KeyIngredientCompare split={view.keys} onSelect={setPickedName} />
-            </Section>
-            <Divider />
-
-            {/* 4. 주의 성분 */}
-            <Section title="주의 성분" hint="대체품에서 새로 생기는 주의 성분을 먼저 보여 드려요">
-              <CautionCompareView cmp={view.cautions} />
+            {/* 3. 성분 변화 — 기능별 증감 칩 + 주의 성분 칩, 눌러서 추가·제거되는 성분 확인 */}
+            <Section title="성분 변화" hint={direct ? '두 제품의 핵심 성분이 기능별로 어떻게 다른지 보여 드려요' : '바꾸면 핵심 성분이 기능별로 어떻게 달라지는지 보여 드려요'}>
+              <IngredientChanges split={view.keys} cmp={view.cautions} onSelect={setPickedName} />
             </Section>
             <Divider />
 
@@ -268,7 +260,7 @@ export default function ComparePage() {
               onClick={() => navigate(`/detail/${bId}`, { state: similarTo ? { similarTo } : undefined })}
               className="flex-1 rounded-xl border border-oy-line bg-white py-3 text-[13px] font-bold text-oy-text active:scale-[.98]"
             >
-              대체품 상세 보기
+              {direct ? '비교 제품 상세 보기' : '대체품 상세 보기'}
             </button>
             <button
               type="button"
@@ -282,6 +274,7 @@ export default function ComparePage() {
         </>
       )}
       <IngredientSheet ingredient={picked} onClose={() => setPickedName(null)} skinTypeLabel={skinTypeLabel} />
+      </CompareModeContext.Provider>
     </PageWrapper>
   );
 }

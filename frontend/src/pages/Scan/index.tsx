@@ -1,5 +1,5 @@
 import { ChangeEvent, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCamera } from '../../hooks/useCamera';
 import { useSearchProducts } from '../../hooks/useSearchProducts';
 import type { Product } from '../../types';
@@ -11,6 +11,8 @@ import { ProductMatch, scanProductImage } from '../../api/products';
 import { CameraVideo } from '../../components/common/CameraVideo';
 import { ApiError } from '../../api/client';
 import { captureVideoFrame, fileToScanImage } from '../../utils/scanImage';
+import { useProduct } from '../../hooks/useProduct';
+import { pickCompareTarget, type PickableProduct } from '../../utils/comparePick';
 
 
 /**
@@ -35,6 +37,12 @@ import { captureVideoFrame, fileToScanImage } from '../../utils/scanImage';
  */
 export default function ScanPage() {
   const navigate = useNavigate();
+  // 선택 모드: /scan?pick=<기준 제품 id> — 찾은 제품을 화장대·스캔 기록에 담지 않고 그 제품과의 성분 비교로 보낸다
+  const [params] = useSearchParams();
+  const pickRaw = Number(params.get('pick'));
+  const pickId = Number.isInteger(pickRaw) && pickRaw > 0 ? pickRaw : undefined;
+  const picking = pickId !== undefined;
+  const { product: seed } = useProduct(pickId);
   const { addItem, hasItem } = useCloset();
   const { prompt } = useLoginPrompt();
 
@@ -151,9 +159,20 @@ export default function ScanPage() {
 
   /** 제품을 고르면 스캔한 것이다 — 스캔 기록에 남긴다 */
   const pick = (product: Product) => {
+    if (picking) {
+      choose(product);
+      return;
+    }
     setResult(product);
     setPhase('result');
     record(product);
+  };
+
+  /** 선택 모드에서 제품을 골랐을 때 — 같은 제품·다른 종류는 토스트로 막는다 */
+  const choose = (picked: PickableProduct) => {
+    const r = pickCompareTarget(seed, picked);
+    if (r.ok) navigate(r.to);
+    else showToast(r.reason);
   };
 
   const saveToCloset = (product: Product) => {
@@ -242,7 +261,7 @@ export default function ScanPage() {
               <path d="M6 6l12 12M18 6L6 18" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
-          <span className="text-[15px] font-extrabold text-white">화장품 스캔</span>
+          <span className="text-[15px] font-extrabold text-white">{picking ? '비교할 제품 찾기' : '화장품 스캔'}</span>
           <button
             aria-label="플래시"
             className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.12] active:scale-90 transition-transform"
@@ -425,16 +444,18 @@ export default function ScanPage() {
                           </span>
                         </span>
                       </button>
-                      <button
-                        onClick={() => quickAdd(p)}
-                        aria-label={inCloset ? `${p.name} 화장대에 있음` : `${p.name} 화장대에 추가`}
-                        aria-pressed={inCloset}
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-base font-bold active:scale-90 transition-transform ${
-                          inCloset ? 'border-[#00916D] bg-[#00916D] text-white' : 'border-gray-20 text-gray-70'
-                        }`}
-                      >
-                        {inCloset ? '✓' : '+'}
-                      </button>
+                      {!picking && (
+                        <button
+                          onClick={() => quickAdd(p)}
+                          aria-label={inCloset ? `${p.name} 화장대에 있음` : `${p.name} 화장대에 추가`}
+                          aria-pressed={inCloset}
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-base font-bold active:scale-90 transition-transform ${
+                            inCloset ? 'border-[#00916D] bg-[#00916D] text-white' : 'border-gray-20 text-gray-70'
+                          }`}
+                        >
+                          {inCloset ? '✓' : '+'}
+                        </button>
+                      )}
                     </div>
                   );
                 })
@@ -459,7 +480,7 @@ export default function ScanPage() {
           recentScans.map((item, i) => (
             <button
               key={item.key}
-              onClick={() => navigate(`/alternatives?seed=${item.id}&from=scan`)}
+              onClick={() => (picking ? choose(item) : navigate(`/alternatives?seed=${item.id}&from=scan`))}
               className={`flex w-full items-center gap-3 py-2.5 text-left active:opacity-70 transition-opacity ${
                 i < recentScans.length - 1 ? 'border-b border-gray-5' : ''
               }`}
@@ -493,7 +514,7 @@ export default function ScanPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-gray-20" />
-            <h3 className="text-[15px] font-extrabold text-gray-100">이 제품인가요?</h3>
+            <h3 className="text-[15px] font-extrabold text-gray-100">{picking ? '비교할 제품이 맞나요?' : '이 제품인가요?'}</h3>
             <p className="mt-0.5 text-[11px] text-gray-50">사진에서 읽은 글자로 찾은 제품이에요. 맞는 제품을 골라 주세요</p>
             <ul className="mt-3 divide-y divide-gray-5">
               {candidates.map(({ product: rep, variants }) => {

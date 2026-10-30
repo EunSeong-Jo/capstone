@@ -6,7 +6,7 @@ import { useCloset } from '../../../../context/closet';
 import { useToast } from '../../../../context/toast';
 import { HOME_SIMILARITY_MIN, type SwapSuggestion as SwapItem, useSwapSuggestion } from '../../../../hooks/useSwapSuggestion';
 import { SkinType } from '../../../../types';
-import { similarToState } from '../../../../utils/alternatives';
+import { similarToState, similarityBadgeType } from '../../../../utils/alternatives';
 
 /**
  * 오늘의 교체 제안 — 홈 최상단 카드.
@@ -129,10 +129,10 @@ export function SwapSuggestion({ skinType }: { skinType?: SkinType }) {
   }
 
   // 오늘의 제안이라 종류마다 1등 하나씩만 카드로 두고 옆으로 넘겨 본다. 종류가 비어도 카드는 남기고 "후보가 없어요"라고 말한다.
-  // 카드(1순위)는 성분 유사도가 HOME_SIMILARITY_MIN 이상인 제품만 올린다. 전체 보기 목록에는 하한이 없다.
+  // 카드(1순위)는 성분 유사도가 HOME_SIMILARITY_MIN 초과인 제품만 올린다. 전체 보기 목록에는 하한이 없다.
   // 하한을 넘는 후보가 없으면 있는 것 중 가장 나은 것을 쓴다 — 카드를 비워 두는 것보다 낫다.
   const forHome = (list: SwapItem[]) => {
-    const good = list.filter((c) => c.alt.similarityScore >= HOME_SIMILARITY_MIN);
+    const good = list.filter((c) => c.alt.similarityScore > HOME_SIMILARITY_MIN);
     return good.length > 0 ? good : list;
   };
   // 세 카드가 같은 제품·같은 대체품으로 겹치지 않게, 앞 카드가 쓴 제품(쓰던 제품, 대체품)을 피해 1등을 고른다.
@@ -330,17 +330,15 @@ function SwapCard({
     });
   };
 
-  const shared = alt.sharedKeyIngredients?.slice(0, 3) ?? [];
-
   return (
-    <div className="flex w-full shrink-0 snap-center flex-col rounded-2xl border border-oy-line bg-white p-4">
-      <div className="mb-3 flex items-baseline justify-between">
+    <div className="flex w-full shrink-0 snap-center flex-col rounded-2xl border border-oy-line bg-white px-4 py-3">
+      <div className="mb-3.5 flex items-center justify-between">
         <span className="text-[13px] font-extrabold text-oy-text">{meta.label}</span>
         {total > 1 && (
           <button
             type="button"
             onClick={() => navigate(`/home/cheaper-alternatives?seed=${seed.id}`)}
-            className="text-[12px] font-bold text-primary active:opacity-60"
+            className="text-[12px] font-bold text-oy-sub active:opacity-60"
           >
             전체 보기 ›
           </button>
@@ -366,7 +364,15 @@ function SwapCard({
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-light text-[15px] font-bold text-primary">
             →
           </span>
-          <span className="text-[11px] font-bold text-primary">유사도 {alt.similarityScore}%</span>
+          <span
+            className={`text-center text-[11px] font-bold leading-tight ${
+              similarityBadgeType(alt.similarityScore) === 'sim-high' ? 'text-good' : 'text-caution'
+            }`}
+          >
+            유사도
+            <br />
+            {alt.similarityScore}%
+          </span>
         </div>
 
         <SwapProduct
@@ -391,26 +397,12 @@ function SwapCard({
         </SwapProduct>
       </div>
 
-      {kind !== 'refill' && shared.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 border-t border-oy-line pt-3">
-          <span className="text-[11px] text-oy-sub">공통 핵심 성분</span>
-          {shared.map((ing) => (
-            <span
-              key={ing}
-              className="rounded-full bg-oy-chip px-2 py-0.5 text-[11px] font-semibold text-oy-text"
-            >
-              {ing}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-auto flex gap-2 pt-3">
+      <div className="mt-auto flex gap-2 pt-[18px]">
         {kind === 'refill' ? (
           <button
             type="button"
             onClick={() => navigate(`/detail/${alt.id}`, { state: similarToState(alt) })}
-            className="flex-1 rounded-xl border border-oy-line bg-white py-3 text-[13px] font-bold text-oy-text transition-transform active:scale-[.98]"
+            className="flex-1 rounded-xl border border-oy-line bg-white py-2.5 text-[13px] font-bold text-oy-text transition-transform active:scale-[.98]"
           >
             상세 보기
           </button>
@@ -418,7 +410,7 @@ function SwapCard({
           <button
             type="button"
             onClick={() => navigate(`/compare?a=${seed.id}&b=${alt.id}`, { state: similarToState(alt) })}
-            className="flex-1 rounded-xl border border-oy-line bg-white py-3 text-[13px] font-bold text-oy-text transition-transform active:scale-[.98]"
+            className="flex-1 rounded-xl border border-oy-line bg-white py-2.5 text-[13px] font-bold text-oy-text transition-transform active:scale-[.98]"
           >
             성분 비교
           </button>
@@ -426,7 +418,7 @@ function SwapCard({
         <button
           type="button"
           onClick={addAltToCart}
-          className="flex-[1.6] rounded-xl bg-primary py-3 text-[13px] font-bold text-white transition-transform active:scale-[.98]"
+          className="flex-[1.6] rounded-xl bg-primary py-2.5 text-[13px] font-bold text-white transition-transform active:scale-[.98]"
         >
           장바구니에 담기
         </button>

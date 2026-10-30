@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
@@ -16,6 +16,9 @@ import { MyIngredientsPanel } from '../../components/ingredient/MyIngredientsPan
 import { useSearchProducts } from '../../hooks/useSearchProducts';
 import { useProducts } from '../../hooks/useProducts';
 import { useCloset } from '../../context/closet';
+import { useProduct } from '../../hooks/useProduct';
+import { useToast } from '../../context/toast';
+import { isSameKind, pickCompareTarget, type PickableProduct } from '../../utils/comparePick';
 
 type MainTab = 'general' | 'ingredient';
 type IngredientSubTab = 'dict' | 'my';
@@ -81,6 +84,13 @@ function RecentSearchChips({
 export default function SearchPage() {
   const navigate = useNavigate();
   const { requireLogin } = useLoginPrompt();
+  const { showToast } = useToast();
+  // 선택 모드: /search?pick=<기준 제품 id> — 결과를 누르면 상세가 아니라 그 제품과의 성분 비교로 간다
+  const [params] = useSearchParams();
+  const pickRaw = Number(params.get('pick'));
+  const pickId = Number.isInteger(pickRaw) && pickRaw > 0 ? pickRaw : undefined;
+  const picking = pickId !== undefined;
+  const { product: seed } = useProduct(pickId);
   const [mainTab, setMainTab] = useState<MainTab>('general');
   const [ingredientSubTab, setIngredientSubTab] = useState<IngredientSubTab>('dict');
   const [popularFilter, setPopularFilter] = useState<PopularSearchFilter>(POPULAR_SEARCH_FILTERS[0]);
@@ -104,8 +114,17 @@ export default function SearchPage() {
   // 예전에는 mocks/alternatives의 SEED_PRODUCTS를 썼는데, 그 id는 실제
   // 카탈로그와 무관해서 '대체품 찾기'가 엉뚱한 제품으로 갔다.
   const { items: myShelf } = useCloset();
+  // 선택 모드면 기준 제품과 같은 종류의 내 제품만(기준 제품은 뺀다)
+  const shelf = picking ? myShelf.filter((p) => isSameKind(seed, p)) : myShelf;
   // 인기 TOP 5 (리뷰수 기준). 예전 REALTIME_BEST 목업을 대체한다.
   const { products: popular } = useProducts({ sort: 'popular', size: 5 });
+
+  /** 선택 모드에서 제품을 눌렀을 때. 같은 제품·다른 종류는 토스트로 막는다. */
+  const choose = (picked: PickableProduct) => {
+    const r = pickCompareTarget(seed, picked);
+    if (r.ok) navigate(r.to);
+    else showToast(r.reason);
+  };
 
   // 입력창에 글자를 칠 때마다 부르는 것 — 검색어만 바꾸고 '최근 검색'에는 남기지 않는다.
   // (예전에는 여기서 저장해 "ㅂ", "브", "브링"…이 전부 최근 검색어로 쌓였다)
@@ -171,7 +190,7 @@ export default function SearchPage() {
         </p>
         <div className="grid grid-cols-2 gap-3">
           {searchResults.map((p, i) => (
-            <ProductCard key={p.id} product={p} index={i} />
+            <ProductCard key={p.id} product={p} index={i} onSelect={picking ? choose : undefined} />
           ))}
         </div>
       </>
@@ -208,7 +227,7 @@ export default function SearchPage() {
           <button
             onClick={() => {
               if (requireLogin('화장품 스캔은 로그인하면 쓸 수 있어요')) return;
-              navigate('/scan');
+              navigate(picking ? `/scan?pick=${pickId}` : '/scan');
             }}
             aria-label="화장품 스캔"
             title="화장품 스캔"
@@ -221,8 +240,21 @@ export default function SearchPage() {
           </button>
         </div>
 
-        {/* 통합검색 / 성분검색 탭 */}
-        <div className="flex mt-1.5">
+        {/* 선택 모드 안내 — 어떤 제품과 비교할 건지 */}
+        {picking && (
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-primary-light px-3.5 py-2.5">
+            <p className="min-w-0 text-xs text-primary-dark">
+              <b className="block text-[13px]">비교할 제품을 골라 주세요</b>
+              <span className="block truncate">기준: {seed?.name ?? '불러오는 중…'}</span>
+            </p>
+            <button type="button" onClick={() => navigate(-1)} className="shrink-0 text-xs font-bold text-primary active:opacity-60">
+              취소
+            </button>
+          </div>
+        )}
+
+        {/* 통합검색 / 성분검색 탭 (선택 모드는 제품만 고를 수 있어 통합검색만) */}
+        <div className={`mt-1.5 flex ${picking ? 'hidden' : ''}`}>
           {([
             ['general', '통합검색'],
             ['ingredient', '성분검색'],
@@ -247,15 +279,15 @@ export default function SearchPage() {
             searchResultsView
           ) : (
             <>
-              {/* 내 화장대에서 대체품 찾기 (핵심 차별화) */}
-              {myShelf.length > 0 && (
+              {/* 내 화장대에서 대체품 찾기 (핵심 차별화). 선택 모드에서는 같은 종류의 내 제품으로 바로 비교한다 */}
+              {shelf.length > 0 && (
                 <div className="mb-[22px] rounded-2xl bg-primary-light p-3.5">
                   <div className="flex items-center justify-between mb-2.5">
-                    <span className="text-sm font-extrabold text-primary-dark">내 화장대에서 대체품 찾기</span>
-                    <span className="text-xs font-semibold text-primary">전체 {myShelf.length}개</span>
+                    <span className="text-sm font-extrabold text-primary-dark">{picking ? '내 화장대에서 고르기' : '내 화장대에서 대체품 찾기'}</span>
+                    <span className="text-xs font-semibold text-primary">전체 {shelf.length}개</span>
                   </div>
                   <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-3.5 px-3.5">
-                    {myShelf.map((p) => (
+                    {shelf.map((p) => (
                       <div
                         key={p.id}
                         className="shrink-0 w-32 rounded-xl bg-white p-2.5 shadow-[0_1px_4px_rgba(43,107,82,.08)]"
@@ -270,10 +302,10 @@ export default function SearchPage() {
                         <span className="block text-[11px] font-semibold text-gray-50">{p.brand}</span>
                         <span className="mb-2 line-clamp-2 min-h-[2.5em] text-xs font-bold leading-snug text-gray-100">{p.name}</span>
                         <button
-                          onClick={() => navigate(`/alternatives?seed=${p.id}&from=search`)}
+                          onClick={() => (picking ? choose(p) : navigate(`/alternatives?seed=${p.id}&from=search`))}
                           className="flex items-center justify-center w-full h-7 rounded-lg bg-primary text-[11px] font-extrabold text-white active:scale-95 transition-transform"
                         >
-                          대체품 찾기
+                          {picking ? '이 제품과 비교' : '대체품 찾기'}
                         </button>
                       </div>
                     ))}
@@ -326,7 +358,7 @@ export default function SearchPage() {
               <button
                 onClick={() => {
                   if (requireLogin('화장품 스캔은 로그인하면 쓸 수 있어요')) return;
-                  navigate('/scan');
+                  navigate(picking ? `/scan?pick=${pickId}` : '/scan');
                 }}
                 className="flex w-full items-center gap-3.5 rounded-2xl bg-oy-black p-4 mb-[22px] text-left active:scale-[.99] transition-transform"
               >
@@ -337,7 +369,9 @@ export default function SearchPage() {
                   {/* 예전 문구는 "AI가 전성분을 읽는다"였지만 /scan은 앞면 사진으로 제품을
                       찾는 기능이다(뒷면 인식은 실사진 평가에서 0건). 전성분은 찾은 제품의
                       상세 화면에서 보인다(QA 12). */}
-                  <span className="block text-sm font-extrabold text-white">제품명이 헷갈리면, 찍어보세요</span>
+                  <span className="block text-sm font-extrabold text-white">
+                    {picking ? '비교할 제품, 찍어서 찾아보세요' : '제품명이 헷갈리면, 찍어보세요'}
+                  </span>
                   <span className="block text-xs text-white/55 mt-0.5">
                     앞면을 찍으면 화장품을 찾아 드려요. 제품을 누르면 전성분을 볼 수 있어요
                   </span>
@@ -357,7 +391,7 @@ export default function SearchPage() {
                     {popular.map((p, i) => (
                       <button
                         key={p.id}
-                        onClick={() => navigate(`/detail/${p.id}`)}
+                        onClick={() => (picking ? choose(p) : navigate(`/detail/${p.id}`))}
                         className="w-full flex items-center gap-3 p-3 rounded-[14px] border border-gray-10 bg-white active:scale-[.98] transition-transform"
                       >
                         <span className={`w-4 text-[17px] font-black italic shrink-0 ${i < 3 ? 'text-primary' : 'text-gray-50'}`}>{i + 1}</span>
