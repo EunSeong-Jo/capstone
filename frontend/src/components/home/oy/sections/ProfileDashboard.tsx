@@ -163,10 +163,12 @@ export function ProfileDashboard({
               튀어나와 있고, 레벨 줄 텍스트는 박스 안에서 line-height 때문에 실제
               글자가 박스 하단보다 위쪽에 떠 보인다 — 두 효과를 합쳐서 늘렸다.
               justify-between: 말풍선(flex-1)이 남는 공간을 채우고, 레벨 줄은 항상
-              컬럼 맨 아래에 붙는다. 문구 길이가 달라져도 이 정렬은 안 깨진다. */}
+              컬럼 맨 아래에 붙는다. 문구 길이가 달라져도 이 정렬은 안 깨진다 —
+            말풍선은 2줄(line-clamp-2)·min-h-0으로 막아, 문구가 길어도 레벨 줄이
+            카드 밖으로 밀리지 않는다(전문은 눌러서 여는 브리핑 시트에 있다). */}
           <div className="min-w-0 flex-1 h-[88px] flex flex-col justify-between gap-2">
             <div
-              className={`min-w-0 flex-1 flex items-center rounded-2xl bg-gray-5 px-3 py-2${
+              className={`min-h-0 min-w-0 flex-1 flex items-center overflow-hidden rounded-2xl bg-gray-5 px-3 py-2${
                 onCareTipClick && careTip !== null ? ' cursor-pointer active:bg-gray-10' : ''
               }`}
               aria-label="오늘의 케어"
@@ -176,7 +178,7 @@ export function ProfileDashboard({
             >
               {careTip !== null ? (
                 <>
-                  <p className="min-w-0 flex-1 text-[13px] leading-relaxed text-gray-70">{careTip}</p>
+                  <p className="min-w-0 flex-1 line-clamp-2 text-[13px] leading-snug text-gray-70">{careTip}</p>
                   {onCareTipClick && (
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="ml-1 shrink-0" aria-hidden>
                       <path d="M9 6l6 6-6 6" stroke="#8A8F98" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
