@@ -28,16 +28,12 @@ export function AlternativeCardV({ alt, width = 'w-[160px]', fitGain }: Alternat
           <div className="w-full h-full flex items-center justify-center text-3xl opacity-30">🧴</div>
         )}
         {/* 궁합 뱃지 + 바로 아래 유사도 */}
-        <div className="absolute top-1.5 right-1.5 flex flex-col items-end gap-1">
+        <div className="absolute top-1.5 right-1.5 flex flex-col items-stretch gap-1">
           <FitPill verdict={alt.skinMatch?.verdict} className="shadow-sm" />
           <span
-            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-bold text-white"
-            style={{
-              backgroundColor:
-                similarityBadgeType(alt.similarityScore) === 'sim-high'
-                  ? 'var(--primary)'
-                  : 'var(--warning)',
-            }}
+            className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-1.5 py-1 text-center text-[11px] font-bold leading-none shadow-sm ${
+              similarityBadgeType(alt.similarityScore) === 'sim-high' ? 'bg-primary text-white' : 'bg-caution-strong text-white'
+            }`}
           >
             유사도 {alt.similarityScore}%
           </span>
