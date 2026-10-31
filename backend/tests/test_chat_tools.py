@@ -84,6 +84,12 @@ def test_mentioned_cards_keeps_only_cards_named_in_reply() -> None:
     assert [c["id"] for c in _mentioned_cards(cards, "전혀 다른 말")] == [1, 2, 3]
 
 
+def test_mentioned_cards_matches_when_model_drops_the_brand() -> None:
+    cards = [{"id": 1, "brand": "라운드랩", "name": "라운드랩 포 맨 소나무 진정 시카 토너 200ml"}, {"id": 2, "brand": "코스노리", "name": "코스노리 판테놀 베리어 토너 205ml"}]
+    got = _mentioned_cards(cards, "1️⃣ **포 맨 소나무 진정 시카 토너 200ml**\n2️⃣ **판테놀 베리어 토너 205ml**")
+    assert [c["id"] for c in got] == [1, 2]
+
+
 def test_routine_reply_formats_without_model() -> None:
     result = {
         "budget": [0, 70_000],
@@ -243,6 +249,17 @@ async def test_check_skin_fit_needs_skin_type() -> None:
         assert "error" in out
         ok = await chat_tools.make_runner(_ctx(db))("check_skin_fit", {"product_id": 712})
     assert ok["score"] is not None and ok["verdict"] and ok["product"]["id"] == 712
+
+
+async def test_analyze_product_returns_ingredients_functions_and_cautions() -> None:
+    async with AsyncSessionLocal() as db:
+        ctx = _ctx(db)
+        out = await chat_tools.make_runner(ctx)("analyze_product", {"product_id": 712})
+        assert "error" in await chat_tools.make_runner(ctx)("analyze_product", {"product_id": 99_999_999})
+    assert out["total_count"] > 0 and out["labeled_count"] > 0     # 성분표가 비어 있다고 말하게 되면 안 된다
+    assert out["key_ingredients"] and {"name", "functions", "order"} <= set(out["key_ingredients"][0])
+    assert out["function_strength"] and isinstance(out["cautions"], list)
+    assert ctx.cards and ctx.cards[0]["id"] == 712
 
 
 async def test_build_routine_stays_in_budget_and_excludes_closet() -> None:
@@ -422,3 +439,24 @@ async def test_report_and_briefing_tools_for_demo_account(monkeypatch: pytest.Mo
     assert report["enough"] in (True, False) and (not report["enough"] or "원인을 단정" not in " ".join(report["notes"]))
     assert report.get("caution") is None or "단정하지" in report["caution"]
     assert brief["headline"] and brief["pick"] and ctx.cards and ctx.cards[0]["id"] == brief["pick"]["id"]
+
+
+def test_tidy_reply_drops_honorifics_and_extra_blank_lines() -> None:
+    from app.api.chat import _tidy_reply
+
+    assert _tidy_reply("사용자님 취향 성분이 들어 있어요.") == "취향 성분이 들어 있어요."
+    assert _tidy_reply("회원님의 피부는 건조해요.\n\n\n\n좋아요") == "피부는 건조해요.\n\n좋아요"
+    assert _tidy_reply("고객님께서 고르신") == "고르신"
+    assert _tidy_reply("그냥 문장") == "그냥 문장"
+
+
+def test_tidy_reply_removes_product_numbers() -> None:
+    from app.api.chat import _tidy_reply
+
+    assert _tidy_reply("라운드랩 독도 클렌저(#867)와 비슷해요") == "라운드랩 독도 클렌저와 비슷해요"
+    assert _tidy_reply("제품 #12345 입니다") == "제품 입니다"
+
+
+def test_mentioned_cards_without_fallback_returns_empty_when_nothing_named() -> None:
+    cards = [{"id": 1, "brand": "라운드랩", "name": "라운드랩 독도 토너"}]
+    assert _mentioned_cards(cards, "전혀 다른 말", fallback=False) == []

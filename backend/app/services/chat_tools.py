@@ -69,6 +69,11 @@ TOOLS: list[dict] = [
         "parameters": {"type": "object", "properties": {"product_id": _PID, "cheaper_only": {"type": "boolean", "description": "true면 쓰던 제품보다 싼 것만"}}, "required": ["product_id"]},
     },
     {
+        "name": "analyze_product",
+        "description": "한 제품의 성분 분석(핵심 성분과 기능, 기능 강도, 주의 성분, 내 피부 궁합)을 본다. '○○ 성분 분석해줘', '이 제품 성분이 어때?'에 쓴다. 전성분 목록 전체는 주지 않으니 없다고 단정하지 말고 이 결과를 말한다.",
+        "parameters": {"type": "object", "properties": {"product_id": _PID}, "required": ["product_id"]},
+    },
+    {
         "name": "check_skin_fit",
         "description": "한 제품이 내 피부타입에 맞는지(궁합 점수와 이유)를 본다.",
         "parameters": {"type": "object", "properties": {"product_id": _PID}, "required": ["product_id"]},
@@ -366,9 +371,41 @@ async def propose_add_to_closet(ctx: ToolContext, args: dict) -> dict:
     return await _propose(ctx, args, "add_to_closet", "화장대에 담을까요?")
 
 
+async def analyze_product(ctx: ToolContext, args: dict) -> dict:
+    """제품 상세의 '성분 분석'과 같은 계산(api/analysis.read_analysis)을 요약해 돌려준다."""
+    from app.api import analysis as an
+
+    p = await _product(ctx, args.get("product_id"))
+    if p is None:
+        return {"error": "그 제품을 찾을 수 없어요"}
+    try:
+        a = await an.read_analysis(
+            product_id=p.id,
+            skin_type=ctx.skin_type if ctx.skin_type in PREFER else None,
+            closet_ids=None,
+            moisture=None, oil=None, sensitivity=None, pigmentation=None, trouble=None,
+            concerns=None,
+            db=ctx.db,
+        )
+    except HTTPException:
+        return {"error": "그 제품을 찾을 수 없어요"}
+    ctx.add_card(_card(p, a.fit.score if a.fit else None))
+    return {
+        "product": {"id": p.id, "name": p.display_name or p.name},
+        # 전성분 중 기능이 분류된 성분 수 / 전체 성분 수. 0이면 성분표 자체가 비어 있다.
+        "labeled_count": a.labeled_count,
+        "total_count": a.total_count,
+        "key_ingredients": [{"name": k.name, "functions": k.functions, "order": k.position} for k in a.key_ingredients],
+        "function_strength": [{"function": f.name, "strength": f.value, "ingredient_count": f.count} for f in a.functions if f.count],
+        "cautions": [{"kind": g.label, "ingredients": [i.name for i in g.ingredients]} for g in a.cautions],
+        "fit": {"verdict": a.fit.verdict, "score": a.fit.score, "reasons": [r.text for r in a.fit.reasons[:3]]} if a.fit else None,
+    }
+
+
 _HANDLERS = {
     "find_products": find_products,
     "find_alternatives": find_alternatives,
+    "analyze_product": analyze_product,
     "check_skin_fit": check_skin_fit,
     "build_routine": build_routine,
     "recommend_for_me": recommend_for_me,
