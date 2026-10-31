@@ -1020,6 +1020,8 @@ async def read_stats(
         spent,
         points,
         cart_qty,
+        received_gifts,
+        closed_orders,
     ) = (
         await db.execute(
             select(
@@ -1032,9 +1034,29 @@ async def read_stats(
                 sum_of(Order.total, Order.user_id),
                 sum_of(PointTransaction.amount, PointTransaction.user_id),
                 sum_of(CartItem.qty, CartItem.user_id),
+                select(func.count()).select_from(Gift).where(Gift.recipient_user_id == user.id).scalar_subquery(),
+                select(func.count())
+                .select_from(Order)
+                .where(Order.user_id == user.id, Order.status.in_(CLOSED_STATUSES))
+                .scalar_subquery(),
             )
         )
     ).one()
+
+    # 후기를 쓸 수 있는 제품: 취소·반품이 아닌 주문 중 배송이 끝났고 아직 후기가 없는 줄.
+    # 배송 단계는 주문 시각으로 계산하는 값이라(order_stage) 행을 받아 파이썬에서 센다.
+    item_rows = (
+        await db.execute(
+            select(OrderItem.product_id, Order.status, Order.placed_at)
+            .join(Order, Order.id == OrderItem.order_id)
+            .where(
+                Order.user_id == user.id,
+                Order.status.not_in(CLOSED_STATUSES),
+                ~select(Review.id).where(Review.order_item_id == OrderItem.id).exists(),
+            )
+        )
+    ).all()
+    reviewable = sum(1 for pid, status, placed in item_rows if pid is not None and order_stage(status, placed) == "delivered")
 
     exp = total_exp(scans=scans, reviews=reviews, orders=orders, gifts=gifts)
     level, exp_in_level, level_span = level_of(exp)
@@ -1047,6 +1069,9 @@ async def read_stats(
         scan_count=scans,
         review_count=reviews,
         gift_count=gifts,
+        received_gift_count=received_gifts,
+        cancel_return_count=closed_orders,
+        reviewable_count=reviewable,
         total_spent=spent,
         point_balance=points,
         exp=exp,
