@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OySectionHeader } from '../home/oy/OySectionHeader';
 import type { FitVerdict } from '../../api/skinFit';
@@ -38,8 +39,11 @@ const VERDICT: Record<FitVerdict, { title: string; box: string; badge: string }>
 export function SkinFitCard({
   productId,
   onReasonClick,
+  headerAside,
 }: {
   productId: number;
+  /** 제목 줄 오른쪽에 붙는 버튼(상세 화면의 '화장대 추가') */
+  headerAside?: ReactNode;
   /** 이유를 눌렀을 때 — 그 이유를 만든 성분의 전성분 표기 순서들을 넘긴다 */
   onReasonClick?: (positions: number[]) => void;
 }) {
@@ -50,7 +54,7 @@ export function SkinFitCard({
 
   return (
     <section className="px-4 py-5">
-      <OySectionHeader title="내 피부와의 궁합" />
+      <OySectionHeader title="내 피부와의 궁합" aside={headerAside} centerAside bottomClass="mb-4" />
 
       {needsDiagnosis && (
         <div className="rounded-xl border border-dashed border-oy-line bg-white px-4 py-5 text-center">

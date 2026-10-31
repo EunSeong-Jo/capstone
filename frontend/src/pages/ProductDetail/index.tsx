@@ -4,6 +4,8 @@ import { Icon } from '../../components/category/Icon';
 import { OySectionHeader } from '../../components/home/oy/OySectionHeader';
 import { useLikedProducts } from '../../context/liked';
 import { useCart } from '../../context/cart';
+import { useCloset } from '../../context/closet';
+import { useToast } from '../../context/toast';
 import { HeaderActions } from '../../components/layout/HeaderActions';
 import { useProduct } from '../../hooks/useProduct';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
@@ -163,6 +165,30 @@ export default function ProductDetailPage() {
   const { addRecentlyViewed } = useRecentlyViewed();
   const { isLiked, toggleLike } = useLikedProducts();
   const { addToCart, inCart } = useCart();
+  const { hasItem, addItem, removeItem, restoreItem } = useCloset();
+  const { showToast } = useToast();
+  const inCloset = productId !== undefined && hasItem(productId);
+  /** 이 제품을 내 화장대에 담는다. 담은 뒤에는 성분 분석으로 바로 갈 수 있게 토스트에 링크를 둔다. */
+  const addToClosetHere = () => {
+    if (!product) return;
+    if (requireLogin('화장대는 로그인하면 쓸 수 있어요')) return;
+    addItem({
+      id: product.id,
+      brand: product.brand,
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      imageUrl: product.imageUrl,
+      addedVia: 'search',
+    });
+    showToast('화장대에 담았어요', { label: '성분 분석 보기', onClick: () => navigate(`/analysis/${product.id}`) });
+  };
+  /** 담겨 있는 제품을 다시 누르면 화장대에서 뺀다(지우지 않고 '미사용 제품'으로 옮기므로 되돌릴 수 있다). */
+  const removeFromClosetHere = () => {
+    if (!product) return;
+    removeItem(product.id);
+    showToast('미사용 제품으로 옮겼어요', { label: '되돌리기', onClick: () => restoreItem(product.id) });
+  };
   const [showAll, setShowAll] = useState(false);
   // 궁합 카드의 이유를 눌렀을 때 강조할 성분(전성분 표기 순서). 칩 key의 id는 겹칠 수 있어 position으로 센다.
   const [highlight, setHighlight] = useState<ReadonlySet<number>>(new Set());
@@ -278,7 +304,11 @@ export default function ProductDetailPage() {
 
           {/* ── 브랜드 · 이름 · 가격 ─────────────────── */}
           <Section>
-            <p className="text-sm text-oy-sub">{product.brand}</p>
+            <p className="text-sm text-oy-sub">
+              {product.brand}
+              {product.category && <span aria-hidden> · </span>}
+              {product.category}
+            </p>
             <h1 className="mt-1.5 text-xl font-bold leading-snug">
               {product.name}
             </h1>
@@ -307,10 +337,6 @@ export default function ProductDetailPage() {
                 )}
               </p>
             )}
-
-            <span className="mt-3 inline-block rounded-full bg-oy-chip px-2.5 py-1 text-xs text-oy-sub">
-              {product.category}
-            </span>
 
             {similarTo && (
               <button
@@ -350,7 +376,32 @@ export default function ProductDetailPage() {
           <Divider />
 
           {/* ── 내 피부와의 궁합 — 전성분보다 먼저 ───────── */}
-          <SkinFitCard productId={product.id} onReasonClick={onReasonClick} />
+          <SkinFitCard
+            productId={product.id}
+            onReasonClick={onReasonClick}
+            // 내 화장대에 담기. 담겨 있으면 다시 눌러 뺀다(미사용 제품으로 옮기고 되돌릴 수 있다)
+            headerAside={
+              inCloset ? (
+                <button
+                  type="button"
+                  onClick={removeFromClosetHere}
+                  aria-pressed
+                  aria-label="화장대에서 빼기"
+                  className="py-1 text-[13px] font-bold text-good active:opacity-60"
+                >
+                  화장대에 있어요
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={addToClosetHere}
+                  className="py-1 text-[13px] font-bold text-primary active:opacity-60"
+                >
+                  + 화장대에 추가
+                </button>
+              )
+            }
+          />
           {/* 성분 분석 — 기능 강도·핵심/주의 성분·전성분 해부도·내 피부 상태와 견주기·내 화장대와 견주기 */}
           <div className="-mt-2 px-4 pb-5">
             {/* 스와피 로고의 연한 물결 색(#9DCDB8) + 진한 물결 색(#2B6B52) 글자 */}
