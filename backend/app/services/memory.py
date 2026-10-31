@@ -74,6 +74,9 @@ def explicit_memory(message: str) -> str | None:
     m = _EXPLICIT.search(message)
     if not m:
         return None
+    # "내가 싫어하는 것과 좋아하는 것을 기억해?"는 저장 요청이 아니라 질문이다. 앞 문장을 저장하지 않는다.
+    if re.search(r"[?？]\s*$", message.strip()) or re.match(r"\s*(?:요|니|냐|나요)\b", message[m.end():]):
+        return None
     head = message[: m.start()].strip()
     # "그럼 크림이 좋다는 내용을 기억해줘" → "크림이 좋다". 말머리와 "~다는 내용을" 같은 군더더기를 걷어 사실만 남긴다.
     head = re.sub(r"^(?:그럼|그러면|그리고|그래서|아|음|참고로)[\s,]+", "", head)
@@ -217,6 +220,38 @@ async def _trim(db: AsyncSession, user_id: uuid.UUID) -> None:
     ).all()
     if rows:
         await db.execute(delete(UserMemory).where(UserMemory.id.in_([r.id for r in rows])))
+
+
+EXPLICIT_SYSTEM = f"""\
+당신은 화장품 앱의 '기억 저장기'입니다. 사용자가 방금 "기억해 달라"고 했습니다. 무엇을 기억할지 **대화 흐름을 보고** 정합니다.
+
+규칙
+- 기억할 것은 사용자가 **직접 말한** 피부·화장품 관련 사실이다. 이번 말에 있으면 그것을, "아까 말한 거"처럼 가리키기만 하면 앞선 사용자 발화에서 찾는다.
+- "기억해줘", "그럼", "~다는 내용을" 같은 요청 말투는 버리고 사실만 {MAX_LEN}자 이내 한 문장으로 쓴다(예: "향료가 들어간 제품은 싫어함").
+- 질문("나 뭘 좋아하는지 기억해?")이거나 기억할 사실이 말에 없으면 빈 배열이다. 챗봇의 말, 추측, 일반 상식은 쓰지 않는다.
+- 연락처·주소·계정·결제 같은 개인 정보는 쓰지 않는다.
+- kind는 preference · avoid · concern · fact 중 하나.
+
+JSON 배열만 출력한다. 예: [{{"kind":"avoid","text":"향료가 들어간 제품은 싫어함"}}]"""
+
+
+async def explicit_items(message: str, history: list[dict]) -> list[tuple[str, str]]:
+    """"기억해줘"라고 했을 때 저장할 [(kind, text)]. 대화 흐름을 AI가 보고 정하고, AI를 못 쓰면 앞 문장 규칙으로 대신한다."""
+    m = _EXPLICIT.search(message)
+    if not m:
+        return []
+    # 질문("…기억해?")은 저장 요청이 아니다.
+    if re.search(r"[?？]\s*$", message.strip()) or re.match(r"\s*(?:요|니|냐|나요)\b", message[m.end():]):
+        return []
+    try:
+        recent = [h for h in history[-6:] if h["role"] == "user"]
+        convo = "\n".join(f"사용자: {h['content'][:300]}" for h in recent) + f"\n사용자: {message[:500]}"
+        raw = await llm.chat_completion([{"role": "user", "content": convo}], EXPLICIT_SYSTEM, max_tokens=300)
+        return parse_extraction(raw)
+    except Exception as exc:  # noqa: BLE001 — AI가 막혀도 "기억해"는 동작해야 한다
+        log.info("memory_explicit_fallback", error=str(exc)[:120])
+        text = explicit_memory(message)
+        return [("fact", text)] if text else []
 
 
 # ── 응답 뒤 자동 추출 (백그라운드) ────────────────────────────────────────

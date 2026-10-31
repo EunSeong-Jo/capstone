@@ -242,15 +242,17 @@ def _mentioned_cards(cards: list[dict], reply: str, *, fallback: bool = True) ->
     return hit or (cards[:4] if fallback else [])
 
 
-async def _remember_explicit(user: User | None, db: AsyncSession, message: str) -> tuple[bool, list[str]]:
+async def _remember_explicit(
+    user: User | None, db: AsyncSession, message: str, history: list[dict]
+) -> tuple[bool, list[str]]:
     """(기억 사용 중인가, 이번 말에서 저장한 문장). 어떤 실패도 챗봇을 막지 않는다."""
     if user is None or not settings.PERSONAL_AI_ENABLED:
         return False, []
     try:
         if not await memory_service.is_enabled(db, user.id):
             return False, []
-        text = memory_service.explicit_memory(message)
-        saved = await memory_service.add_memories(db, user.id, [("fact", text)], source="explicit") if text else []
+        items = await memory_service.explicit_items(message, history)
+        saved = await memory_service.add_memories(db, user.id, items, source="explicit") if items else []
         return True, saved
     except Exception as exc:  # noqa: BLE001
         log.warning("chat_memory_failed", error=str(exc)[:200])
@@ -293,8 +295,8 @@ async def chat(
     ):
         raise HTTPException(status_code=401, detail="로그인하면 챗봇과 계속 대화할 수 있어요.")
 
-    # AI 기억: 동의한 사용자가 "○○ 기억해"라고 하면 규칙으로 바로 저장한다(LLM이 막혀도 동작). 자동 추출은 응답 뒤에 한다.
-    memory_on, remembered = await _remember_explicit(user, db, req.message)
+    # AI 기억: 동의한 사용자가 "○○ 기억해"라고 하면 바로 저장한다(AI가 문맥으로 정하고, 막히면 규칙으로 대신한다). 자동 추출은 응답 뒤에 한다.
+    memory_on, remembered = await _remember_explicit(user, db, req.message, [m.model_dump() for m in req.history])
 
     # 로그인한 사용자만 개인 요약을 만든다. 실패해도 챗봇 자체는 막지 않는다(개인화는 덤이다).
     snapshot = await _snapshot_of(user, db, req)
