@@ -41,9 +41,14 @@ _SYSTEM_TEMPLATE = """\
    대체품 탐색 등). 특정 제품이 아니라 성분 자체("OO가 뭐야", "OO 효과 궁금해")를
    묻는 질문이면 2~3번은 건너뛰고 [성분 설명 규칙]을 따른다
 2. 위 제품 데이터에서 관련 항목을 찾는다
-3. 제품의 주요성분을 보고 {skin_type_label} 피부 타입에 어울리는지 일반 지식으로 판단한다
-   (데이터베이스에 피부타입별 적합도 정보 자체는 아직 없다 — 성분 기반으로만 판단하고,
-    확정적으로 "이 피부타입 전용"이라고 단정하지 않는다)
+3. {skin_type_label} 피부 타입에 어울리는지는 제품 데이터의 "내 피부 궁합"을 근거로 말한다
+   ("내 피부 궁합"은 우리 앱이 성분 분석으로 미리 계산한 값이라 제품 상세 화면의 궁합 카드와 같다:
+    잘 맞음·무난·주의·판단 근거 부족과 점수, 향료·건조 알코올 포함 여부).
+   - 판정과 점수는 제공된 값 그대로만 말하고 바꾸거나 새로 만들지 않는다
+   - "내 피부 궁합"이 없으면(피부 타입 미확인이거나 계산 전) 주요성분을 보고 일반 지식으로 판단하되,
+     그 사실을 알리고 확정적으로 "이 피부타입 전용"이라고 단정하지 않는다
+   - "판단 근거 부족"은 어울리지 않는다는 뜻이 아니라 알 수 없다는 뜻이다. 무난하다고 바꿔 말하지 않는다
+   - 의학적 진단이 아니라 성분 구성 기준의 참고 정보다
 4. 사용자가 날씨·계절과 관련된 질문을 하거나, 추천 이유를 보강할 때 위 날씨 정보를
    참고한다 (예: 건조하거나 습도가 낮은 날엔 보습 성분을, 무더운 날엔 산뜻한 제형을
    우선 언급). 날씨 정보를 가져오지 못했다면 그 사실을 말하고 날씨 없이 답한다
@@ -308,16 +313,7 @@ async def chat(
     weather_context = await _get_weather_context()
     personal = personal_context.render(snapshot) if snapshot else ""
 
-    if products:
-        products_context = "\n".join(
-            f"- {p['name']} ({p['brand']}, {p['price']:,}원) | "
-            f"카테고리: {p['category']} | "
-            f"주요성분: {', '.join(p['ingredients']) or '정보 없음'} | "
-            f"평점: {p['rating'] if p['rating'] is not None else '정보 없음'}"
-            for p in products
-        )
-    else:
-        products_context = "현재 등록된 제품 데이터 없음"
+    products_context = rag.render_products_context(products)
 
     system = _SYSTEM_TEMPLATE.format(
         skin_type_label=skin_label,

@@ -21,7 +21,7 @@ LOCAL_DB_CONTAINER="${LOCAL_DB_CONTAINER:-swappy_postgres}"
 DEMO_EMAIL="${DEMO_EMAIL:-eunseong@swappy.app}"
 
 # 사용자 데이터 테이블 — 기준 데이터 덤프에서는 **구조만** 넣고 행은 뺀다(테스트 계정·세션이 운영에 섞이지 않게).
-USER_TABLES="users profiles refresh_tokens diagnoses diagnosis_ranks closet_items cart_items likes orders order_items point_transactions recently_viewed reviews review_photos scan_results skin_analyses skin_analysis_images subscriptions user_consents gifts"
+USER_TABLES="users profiles refresh_tokens diagnoses diagnosis_ranks closet_items cart_items likes orders order_items point_transactions recently_viewed reviews review_photos scan_results skin_analyses skin_analysis_images subscriptions user_consents gifts user_memories"
 # 복원 뒤 행 수를 견주는 기준 데이터 테이블
 CHECK_TABLES="products product_ingredients similarities product_skin_fit ingredient_functions ingredients brands categories quiz_questions quiz_options quiz_versions"
 
