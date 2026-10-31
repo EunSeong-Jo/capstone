@@ -122,6 +122,9 @@ async function toResult<T>(res: Response): Promise<T> {
     throw new ApiError(res.status, detail);
   }
 
+  // 204 No Content(삭제 등)는 본문이 없다. res.json()을 부르면 SyntaxError가 나서, 서버에서는 성공했는데도 호출 쪽이 실패로 읽는다.
+  if (res.status === 204) return undefined as T;
+
   return (await res.json()) as T;
 }
 
