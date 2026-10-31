@@ -561,7 +561,7 @@ export default function ScanPage() {
                 onClick={() => goSearch('제품명으로 찾아 주세요')}
                 className="h-[44px] flex-[2] rounded-xl bg-gray-100 text-[13px] font-bold text-white active:scale-[.98] transition-transform"
               >
-                찾는 제품이 없어요 · 이름으로 찾기
+                이름으로 찾기
               </button>
             </div>
           </div>
