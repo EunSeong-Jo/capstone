@@ -38,6 +38,14 @@ EXTENDED_CONCERNS: tuple[str, ...] = BASIC_CONCERNS + (
 SUBSCRIPTION_PERIOD_DAYS = 30
 
 
+def basic_items_only(email: str | None) -> bool:
+    """구독 중이어도 기본 항목(8개)만 분석하는 계정인가(`SKIN_BASIC_ITEMS_EMAILS`). 대소문자·공백은 무시한다."""
+    if not email:
+        return False
+    allowed = {e.strip().lower() for e in settings.SKIN_BASIC_ITEMS_EMAILS.split(",") if e.strip()}
+    return email.strip().lower() in allowed
+
+
 @dataclass(frozen=True)
 class Quota:
     plan: str                 # free / subscriber
@@ -45,6 +53,8 @@ class Quota:
     used: int
     resets_at: datetime
     consent_granted: bool
+    # True면 구독자여도 확장 항목을 분석하지 않는다. 횟수(allowance)와 구독 상태(plan)는 그대로다.
+    basic_only: bool = False
 
     @property
     def remaining(self) -> int:
@@ -52,7 +62,7 @@ class Quota:
 
     @property
     def extended(self) -> bool:
-        return self.plan == "subscriber"
+        return self.plan == "subscriber" and not self.basic_only
 
     @property
     def quota_kind(self) -> str:
@@ -112,7 +122,7 @@ async def active_subscription(
 
 
 async def get_quota(
-    db: AsyncSession, user_id: uuid.UUID, now: datetime | None = None
+    db: AsyncSession, user_id: uuid.UUID, now: datetime | None = None, *, basic_only: bool = False
 ) -> Quota:
     now = now or datetime.now(SEOUL_TZ)
     start, end = month_window(now)
@@ -143,4 +153,5 @@ async def get_quota(
         used=used or 0,
         resets_at=end,
         consent_granted=consent,
+        basic_only=basic_only,
     )

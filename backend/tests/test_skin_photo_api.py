@@ -222,6 +222,24 @@ async def test_quota_by_tier(client: AsyncClient, user) -> None:
     assert sub["resetsAt"]
 
 
+async def test_basic_items_exception_keeps_subscription_but_analyzes_eight_items(
+    client: AsyncClient, user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """SKIN_BASIC_ITEMS_EMAILS의 계정은 구독 중이어도 기본 8항목만 분석한다. 구독 상태와 월 횟수는 그대로다."""
+    h = user["headers"]
+    await client.put(f"{ME}/consents/face-photo", json={"agreed": True}, headers=h)
+    await client.post(f"{ME}/subscription", headers=h)
+    monkeypatch.setattr(settings, "SKIN_BASIC_ITEMS_EMAILS", f" {user['email'].upper()} , other@example.com")
+    q = await _quota(client, user)
+    assert q["plan"] == "subscriber" and q["allowance"] == settings.SKIN_SUBSCRIBER_MONTHLY
+    assert (q["concernCount"], q["extended"]) == (8, False)
+    assert (await client.get(f"{ME}/subscription", headers=h)).json()["active"] is True
+    # 목록에 없는 계정이면 평소처럼 16항목이다
+    monkeypatch.setattr(settings, "SKIN_BASIC_ITEMS_EMAILS", "other@example.com")
+    again = await _quota(client, user)
+    assert (again["concernCount"], again["extended"]) == (16, True)
+
+
 async def test_last_months_analyses_do_not_count(client: AsyncClient, consented) -> None:
     async with AsyncSessionLocal() as db:
         db.add(SkinAnalysis(

@@ -60,6 +60,7 @@ from app.services.skin_sample import (
 from app.services.skin_quota import (
     SUBSCRIPTION_PERIOD_DAYS,
     active_subscription,
+    basic_items_only,
     get_quota,
     has_face_consent,
     lock_user,
@@ -195,7 +196,7 @@ async def cancel_subscription(
 async def read_quota(
     user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> QuotaOut:
-    q = await get_quota(db, user.id)
+    q = await get_quota(db, user.id, basic_only=basic_items_only(user.email))
     return QuotaOut(
         plan=q.plan,
         allowance=q.allowance,
@@ -255,7 +256,7 @@ async def precheck_photo(
     Perfect Corp을 부르지 않고 한도도 쓰지 않으며, 사진은 저장하지 않는다. 부적합하면 이유를 한 문장으로
     돌려주고(`ok=false`), 화면이 분석 전에 다시 찍게 안내한다. 얼굴 사진 수집에 동의한 사람만 쓸 수 있다.
     """
-    quota = await get_quota(db, user.id)
+    quota = await get_quota(db, user.id, basic_only=basic_items_only(user.email))
     if not quota.consent_granted:
         raise HTTPException(
             status_code=403, detail="얼굴 사진 수집·이용에 동의해야 사진 분석을 쓸 수 있어요"
@@ -292,7 +293,7 @@ async def analyze(
 ) -> AnalysisOut:
     # 같은 사용자의 동시 요청이 한도를 함께 넘지 않게, 이 트랜잭션이 끝날 때까지 잠근다.
     await lock_user(db, user.id)
-    quota = await get_quota(db, user.id)
+    quota = await get_quota(db, user.id, basic_only=basic_items_only(user.email))
 
     if not quota.consent_granted:
         raise HTTPException(
