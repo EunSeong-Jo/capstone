@@ -217,3 +217,12 @@ async def test_guest_has_no_memory(client: AsyncClient, monkeypatch: pytest.Monk
         "/api/v1/chat", json={"message": "향료 싫어, 기억해"}, headers={"X-Forwarded-For": f"pytest-{uuid.uuid4().hex[:12]}"}
     )
     assert res.status_code == 200 and "📌" not in res.json()["reply"]
+
+
+def test_explicit_memory_strips_filler():
+    """"그럼 ~다는 내용을 기억해줘"에서 말머리와 군더더기를 걷어 사실만 저장한다."""
+    from app.services.memory import explicit_memory
+
+    assert explicit_memory("그럼 크림이 좋다는 내용을 기억해줘") == "크림이 좋다"
+    assert explicit_memory("로션이 싫다고 기억해줘") == "로션이 싫다"
+    assert explicit_memory("가벼운 로션보다 촉촉한 크림이 좋아, 기억해줘") == "가벼운 로션보다 촉촉한 크림이 좋아"
