@@ -2,8 +2,9 @@
 
 FastAPI + SQLAlchemy 2.0 + Alembic. DB는 **Neon PostgreSQL 16**(팀 공용)을 씁니다.
 
-> **현재 API는 2개뿐입니다** — `POST /api/v1/chat`, `GET /health`.
-> 모델 18개와 적재 파이프라인은 준비됐지만 이를 쓰는 CRUD·라우터가 아직 없습니다(Task 6).
+> **엔드포인트 83개**(`/health` 포함, 라우터 데코레이터 기준) — 제품·검색·사진으로 찾기, 대체품·추천·예산 가이드, 인증, 진단,
+> 개인 데이터(화장대·장바구니·주문·후기 등), 챗봇, 얼굴 사진 분석, 퍼스널 AI(AI 기억·취향·피부 변화 리포트·브리핑).
+> 전체 목록은 실행 후 Swagger(`/api/docs`)에서 봅니다. 모델은 38개 테이블입니다.
 
 ---
 
@@ -19,18 +20,19 @@ pip install -r backend/requirements.txt
 cp .env.example .env
 #    DATABASE_DSN 에 Neon 콘솔의 연결 문자열을 넣는다
 
-# 2. 스키마 생성 (테이블 27개 + pg_trgm 확장)
+# 2. 스키마 생성 (테이블 38개 + pg_trgm 확장)
 cd backend && alembic upgrade head
 
-# 3. 성분 사전 → DB (21,910 + 별칭 3,967)
+# 3. 성분 사전 → DB (협회 표준명 21,910 + 별칭)
 python scripts/seed_ingredients.py
 
-# 4. 제품 적재 (올리브영 CSV 5,000행 → 4,150 제품)
+# 4. 제품 적재 (올리브영 v5 정제본 → 얼굴용 4종 약 4,013 제품)
 python scripts/load_products.py
 ```
 
-**두 스크립트 모두 멱등합니다.** 몇 번을 돌려도 행수가 변하지 않으니 안심하고 재실행하세요.
+**적재 스크립트는 모두 멱등합니다.** 몇 번을 돌려도 행수가 변하지 않으니 안심하고 재실행하세요.
 DB에는 이미 적재돼 있어서 3·4번을 건너뛰어도 바로 쓸 수 있습니다.
+그 밖의 시드(진단 문항·성분 기능 라벨·궁합·유사도 배치)와 실행 순서는 [docs/db-schema.md](../docs/db-schema.md)의 "적재 파이프라인"을 보세요.
 
 > ⚠️ **2026-09-20 이후 처음 받는다면 컨테이너를 다시 빌드하세요.**
 > ```bash
@@ -50,31 +52,43 @@ DSN은 커밋하지 않습니다. Neon 조직 `dmu` 초대를 수락하면 각�
 backend/
 ├── alembic/
 │   ├── env.py                  # 동기(psycopg2) 마이그레이션 러너
-│   └── versions/               # 마이그레이션 5개
+│   └── versions/               # 마이그레이션 26개
 ├── app/
-│   ├── main.py                 # 앱 진입점 · Sentry · CORS · 라우터 등록
+│   ├── main.py                 # 앱 진입점 · Sentry · CORS · 라우터 등록 · /health
 │   ├── config.py               # 환경변수 (pydantic-settings)
 │   ├── logging_config.py       # structlog
-│   ├── db/
-│   │   ├── base.py             # DeclarativeBase + TimestampMixin
-│   │   └── session.py          # 비동기 엔진 · get_db() 의존성
-│   ├── models/                 # 스키마 원본 (18개)
-│   │   ├── product.py          #   제품·성분 8
-│   │   ├── user.py             #   사용자·인증 3
+│   ├── db/                     # DeclarativeBase · 비동기 세션(get_db)
+│   ├── core/                   # security(bcrypt·JWT) · deps(인증 의존성) · cache(Redis) · rate_limit
+│   ├── models/                 # 스키마 원본 (38개 테이블)
+│   │   ├── product.py          #   제품·성분 11
+│   │   ├── recommendation.py   #   추천 3 (similarities · product_skin_fit · skin_type_rules)
 │   │   ├── diagnosis.py        #   진단 5
-│   │   └── recommendation.py   #   추천 2
-│   ├── api/
-│   │   └── chat.py             # 유일한 라우터
-│   ├── services/
-│   │   ├── llm.py              # LLM 공급자 체인(OpenAI → Anthropic, 선택 Ollama). 전부 실패하면 LLMUnavailable
-│   │   ├── rag.py              # 키워드 스코어링 검색 (벡터 아님)
-│   │   ├── chat_fallback.py    # LLM 키·장애 시 DB 기반 챗봇 답변(성분·제품·추천·대체품)
-│   │   └── rag_seed.py         # ⚠️ 옛 SQLite 시드(현재 rag.py는 PostgreSQL을 읽는다)
-│   ├── data_collection/        # 식약처 API · 올리브영 크롤러
-│   └── utils/
-│       └── ingredients.py      # 전성분 파싱·정규화
+│   │   ├── user.py             #   사용자·인증 3
+│   │   ├── personal.py         #   개인 데이터 11 + AI 기억 1
+│   │   └── skin_photo.py       #   얼굴 사진 분석 4
+│   ├── schemas/                # Pydantic 입출력
+│   ├── api/                    # 라우터: products · recommendations(_main) · skin_fit · analysis · auth · me · diagnosis
+│   │                           #   personal(화장대·주문·후기 등) · skin_photo · chat · care_tip · weather
+│   │                           #   ingredients · memory · preferences · insights
+│   ├── services/               # 계산·외부 연동 (아래 표)
+│   ├── data_collection/        # 식약처 API · 초기 크롤러(운영 크롤러는 /crawling의 Playwright)
+│   └── utils/                  # ingredients(전성분 파싱) · composition · product_options
+├── tests/                      # pytest (test_*.py 36개)
 └── requirements.txt
 ```
+
+| 서비스 | 하는 일 |
+|---|---|
+| `similarity.py` | 성분 유사도(tfidf/hybrid) — 순수 계산, DB를 모른다 |
+| `skin_fit.py` · `product_analysis.py` · `skin_type.py` | 피부 궁합 · 내 제품 성분 분석 · 피부타입 규칙 |
+| `diagnosis.py` | QnA 5축 점수 · 8타입 순위 · 사진 혼합 |
+| `product_score.py` · `budget_guide.py` · `routine_steps.py` | 홈 추천 점수 · 예산 구매 가이드 |
+| `llm.py` · `rag.py` · `chat_tools.py` · `chat_fallback.py` · `personal_context.py` | 챗봇(공급자 체인 · 검색 · 도구 호출 · 규칙 폴백 · 개인 요약) |
+| `memory.py` · `preference.py` · `skin_report.py` · `briefing.py` | 퍼스널 AI(AI 기억 · 성분 취향 · 피부 변화 리포트 · 오늘의 브리핑) |
+| `skin_photo.py` · `face_gate.py` · `occlusion.py` · `skin_quota.py` · `skin_images.py` · `skin_sample.py` | 얼굴 사진 분석(Perfect Corp · 사전 검증 · 한도 · 이미지 보관) |
+| `ocr.py` · `ocr_quota.py` | 사진으로 제품 찾기(CLOVA OCR · 일일 한도) |
+| `notifications.py` · `experience.py` · `order_stage.py` · `review_photos.py` | 알림 · 경험치 · 배송 단계 계산 · 후기 사진 |
+| `rag_seed.py` | ⚠️ 옛 SQLite 시드(현재 `rag.py`는 PostgreSQL을 읽는다) |
 
 스키마 전체는 **[docs/db-schema.md](../docs/db-schema.md)** 를 보세요.
 
@@ -186,7 +200,13 @@ d07012ddaaa9  Phase 2 개인 데이터 테이블 9개
 952adbaa9665  ingredient_descriptions
 a0fd1f8a5d3a  product_names_en                영문 제품명 (OCR 대조)
 a9c1e2f3d4b5  order cancel/return · gift recipient · review photos
-c3d9a1e7b2f4  skin_photo_tables               얼굴 사진 분석 (동의·구독·분석)  ← head
+c3d9a1e7b2f4  skin_photo_tables               얼굴 사진 분석 (동의·구독·분석)
+a1f7c3d9e2b4  ingredient_functions             성분 기능 분류
+b7c2d9e1f3a5  product_skin_fit                 제품 × 피부타입 궁합
+d2e4f6a8b0c1  product option columns           옵션형 묶음
+e3f5a7b9c1d2  skin_analysis_images             분석 이미지 보관
+f4a6b8c0d2e3  reviews 생성 후기 + registered_review_count
+a3f5c7d9e1b2  user_memories                    AI 기억  ← head
 ```
 
 `alembic history`로 언제든 실제 체인을 볼 수 있습니다. 이 표는 설명용이라 어긋나면 그때 고칩니다.
@@ -272,9 +292,11 @@ cd backend && uvicorn app.main:app --reload
 
 **챗봇 폴백.** `LLM_CHAIN`의 공급자가 모두 실패하면(키 만료·한도·타임아웃) `POST /chat`은 503 대신 200과 `mode:"fallback"`으로, `services/chat_fallback.py`가 DB(성분 설명·기능 라벨·제품 RAG·유사도·피부 궁합)로 만든 답을 준다. 모델을 쓰지 않아 서버 부담이 작고, 서버 로그에 `chat_llm_fallback`이 남으면 키를 점검한다. 챗봇 RAG(`rag.py`)는 이미 PostgreSQL을 읽는다.
 
-**Redis는 컨테이너만 떠 있고 코드에서 쓰지 않습니다.** `config.py`에 `REDIS_URL` 프로퍼티만 정의돼 있습니다. Task 14의 추천 캐싱에서 처음 쓰이게 됩니다.
+**Redis는 캐시와 일일 한도에 씁니다.** `core/cache.py`(제품 상세·홈 추천·케어 문구·날씨 등 캐시)와 `core/rate_limit.py`(비회원 챗봇·OCR 일일 한도)가 쓰고, 죽어 있어도 API는 500 대신 DB 경로로 폴백합니다(돈이 걸린 사진 분석 월 한도만은 Redis가 아니라 DB 행 수로 셉니다).
 
-**테스트 코드가 없습니다.** pytest가 `requirements.txt`에 없고 `tests/` 디렉터리도 없습니다. 지금까지의 검증은 전부 스크립트 수동 실행입니다.
+**테스트는 `backend/tests/`에 있습니다**(pytest, `requirements.txt`에 포함). 일부는 제품 데이터가 든 DB가 필요해 Neon이나 복원한 로컬 DB에서만 돕니다. 실행법은 아래 "테스트" 절을 보세요.
+
+**퍼스널 AI.** 챗봇은 계산 엔진을 도구로 불러 쓰고(`chat_tools.py`), 동의한 사용자에게는 대화에서 알게 된 선호를 한 줄씩 기억합니다(`memory.py`). 원칙과 알고리즘은 [루트 README](../README.md)의 "퍼스널 AI"를 보세요.
 
 **`data_collection/db_storage.py`의 `init_tables()`는 무력화돼 있습니다.** 스키마 정의를 Alembic으로 일원화하면서 경고만 출력하는 스텁으로 남겼습니다(`run_collection.py`가 아직 import합니다).
 
@@ -357,10 +379,9 @@ YOLO(ultralytics)를 쓰지 않는 이유는 AGPL-3.0 라이선스와 PyTorch �
 
 **의존성**: `Pillow`, `opencv-python-headless`(4.x 고정 — 5.0은 새 메이저라 검증하지 않았습니다).
 
-**마이그레이션 `c3d9a1e7b2f4`를 공용 Neon DB에 올리기 전에 팀에 알리세요.** 새 테이블 3개와 NULL 허용
-컬럼 1개뿐이라 기존 데이터엔 영향이 없지만, 올리고 나면 이 리비전 파일이 없는 브랜치(`dev`)에서는
-`alembic current`·`upgrade`가 멈춥니다 — **이 브랜치가 머지된 뒤에 올리는 것이 안전합니다.**
-머지 전 검증은 로컬 Postgres로 했습니다:
+**마이그레이션을 공용 Neon DB에 올리기 전에는 팀에 알리세요.** 올리고 나면 그 리비전 파일이 없는 브랜치에서는
+`alembic current`·`upgrade`가 멈추므로, **PR이 머지된 뒤에 올리는 것이 안전합니다**(사진 분석 마이그레이션 `c3d9a1e7b2f4`는 이미 머지됐습니다).
+공용 DB에 올리기 전 검증은 로컬 Postgres로 합니다:
 
 ```bash
 docker run -d --rm --name pg_test -e POSTGRES_PASSWORD=testpw -e POSTGRES_DB=swappy_test -p 55432:5432 postgres:16-alpine

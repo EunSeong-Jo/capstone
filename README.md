@@ -220,8 +220,8 @@ IDF(성분)   = log(N / df)                       # 모든 제품에 있으면 0
 
 `api/chat.py`, `services/rag.py`, `services/chat_tools.py`, `services/chat_fallback.py`
 
-- **RAG**: 질문 토큰으로 제품명·브랜드·성분명을 부분 일치 검색하고 피부타입 하드 제외를 적용해 모델에 DB 사실로 넘김. 제품 사실(이름·가격·성분·평점)은 **제공된 데이터만** 말하게 하는 시스템 프롬프트
-- **도구 호출**(최대 4라운드): 모델이 우리 계산 엔진을 불러 씀 — `find_products` · `find_alternatives` · `analyze_product` · `check_skin_fit` · `build_routine` · `recommend_for_me` · `get_skin_report` · `get_today_briefing` · `propose_add_to_cart` · `propose_add_to_closet`
+- **RAG**: 질문 토큰으로 제품명·브랜드·성분명을 부분 일치 검색하고 피부타입 하드 제외를 적용해 모델에 DB 사실로 넘김. 피부타입을 알면 제품마다 **내 피부 궁합**(점수·판정)을 함께 실어 상세 화면 카드와 같은 값을 말하게 함. 제품 사실(이름·가격·성분·평점)은 **제공된 데이터만** 말하게 하는 시스템 프롬프트
+- **도구 호출**(로그인한 사용자, 최대 4라운드): 모델이 우리 계산 엔진을 불러 씀 — `find_products` · `find_alternatives` · `analyze_product` · `check_skin_fit` · `build_routine` · `recommend_for_me` · `get_skin_report` · `get_today_briefing` · `propose_add_to_cart` · `propose_add_to_closet`
   - **사실은 도구 결과에서만** 나옴(제품·가격·점수·유사도는 기존 서비스가 계산하고 모델은 문장으로 옮김)
   - **읽기만 실행**. 담기는 `propose_*`가 *제안*만 하고, 실제 담기는 사용자가 [담기] 버튼을 눌러야 일어남
   - 도구 인자는 모델이 만든 값이라 믿지 않음(범위 자르기, 제품 id 존재 확인)

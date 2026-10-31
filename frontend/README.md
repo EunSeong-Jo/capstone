@@ -18,10 +18,12 @@
 | 빌드 | vite | `6.x` |
 | 언어 | typescript | `5.6.x` |
 | 스타일 | tailwindcss | `3.4.x` |
-| 모바일 셸 | @capacitor/core · cli | `8.3.4` |
+| 모바일 셸 | @capacitor/core · cli · android | `^8.5.3` (app `^8.1.2`) |
+| 모션 | framer-motion | `^11.18.2` |
+| 얼굴 확인 | @mediapipe/tasks-vision | `1.1.1` (촬영 전 얼굴 검출, `postinstall`이 wasm을 복사) |
 | 린트 | eslint (+ typescript-eslint) | `9.x` |
 
-UI/아이콘/상태관리 **외부 라이브러리는 없습니다.** (Ionic·MUI·lucide·zustand 등 미사용 — 컴포넌트·아이콘은 자체 제작/인라인 SVG)
+UI/아이콘/상태관리 **외부 라이브러리는 없습니다.** (Ionic·MUI·lucide·zustand 등 미사용 — 컴포넌트·아이콘은 자체 제작/인라인 SVG. 위 표의 framer-motion·MediaPipe가 예외입니다)
 
 ---
 
@@ -135,9 +137,11 @@ frontend/
 │  │  ├─ ui/          # 원자 단위: Button, Chip, Badge
 │  │  ├─ layout/      # PageWrapper, Header, BottomNav
 │  │  └─ {feature}/   # 기능별 묶음 (product/, skin/ 등)
-│  ├─ api/            # HTTP 클라이언트. client.ts가 토큰 주입·401 재시도를 전담
+│  ├─ api/            # HTTP 클라이언트. client.ts가 토큰 주입·401 재시도를 전담, 도메인별 모듈(products·personal·chat·skinPhoto …)
 │  ├─ context/        # 전역 상태. 로그인 시 서버, 비회원은 localStorage
 │  ├─ hooks/          # 조회 훅 (useProducts, useSimilarProducts, useSwapSuggestion …)
+│  ├─ data/           # 정적 데이터 (진단 문항·점수표·피부타입·카테고리) — 비회원 오프라인 진단용
+│  ├─ utils/          # 순수 함수 (alternatives·compare·unitPrice·faceCheck …)
 │  ├─ types/index.ts  # 공용 타입 (SkinType, Product, Alternative …)
 │  ├─ mocks/          # 제품 id를 담지 않는 정적 문구 + 오프라인 폴백만 (7-2절)
 │  ├─ App.tsx         # 라우트 정의
@@ -335,7 +339,7 @@ APK는 `android/app/build/outputs/apk/debug/app-debug.apk`에 생깁니다(저�
    `Header` / `BottomNav` / `components/product/ProductCard` / `types`의 `Product`를 사용해 만들고
    `frontend/`를 대상으로 PR을 올려주세요.
 2. **콘텐츠(상품명·가격 등)를 JSX에 하드코딩하지 마세요.** `frontend/src/mocks/*.ts`에 `Product`
-   타입으로 분리해 (기존 `mocks/home.ts`, `mocks/alternatives.ts` 패턴 참고).
+   타입으로 분리하되, **제품 id를 담은 목업은 만들지 않습니다**(7-2절). 정적 문구는 `mocks/home.ts`·`mocks/search.ts` 패턴을 참고하세요.
 3. **absolute-pixel 레이아웃을 만들지 마세요.** Figma/Anima export는 `top-[890px]` 같은 고정 좌표를
    쓰는데, 이러면 `max-w-[430px]` 모바일 프레임 안에서 반응형으로 동작하지 않습니다. Tailwind
    flex/grid + 기존 spacing/radius 토큰(`--sp*`, `--r-*`)을 사용하세요.
@@ -361,13 +365,9 @@ APK는 `android/app/build/outputs/apk/debug/app-debug.apk`에 생깁니다(저�
      `category/` 밖에서도 널리 쓰이고 있어 `components/common/Icon.tsx`로 옮기는 게 맞습니다.
    - `ProductDetail`의 "비슷한 상품"/"함께 본 상품" 찜 상태는 `LikedProductsContext`와 별개의
      로컬 상태(`CategoryProduct.isFavorite`)라 전역 찜 목록에 반영되지 않습니다.
-   - `frontend/src/pages/Category/index.tsx`는 어디에도 라우팅되지 않는 죽은 파일입니다(실사용은
-     `CategoryMainPage.tsx`/`CategoryPage.tsx`).
    - 카테고리 사이드바 탭(`건강식품`/`헬스`)과 "COMING SOON" 배너는 디자인엔 있지만 구현하지
      않기로 확정했습니다 (`ANALYSIS.md` 5절 참고).
-8. **`/mypage/chat-support`(`ChatSupportPage.tsx`)는 임시 챗봇 UI입니다.** 팀원 `동균`의
-   `dg-mypage-design-main` 원본을 그대로 이식한 캔드(정형) 응답 챗봇으로, 실제 AI 연동이 아닙니다.
-   루트 `CLAUDE.md` Task 7(Claude API 연동 실제 AI 챗봇)이 완료되면 이 화면을 교체해야 합니다.
+8. **`/mypage/chat-support`(`ChatSupportPage.tsx`)는 실제 챗봇(`POST /api/v1/chat`, `api/chat.ts`)에 연결돼 있습니다.** 처음에는 정형 응답을 돌려주는 임시 UI였지만, 지금은 LLM 체인과 도구 호출, 규칙 폴백을 거칩니다(백엔드 동작은 루트 README의 "챗봇").
 9. **2026-07 UI 통일 작업 — 팀원별 화면을 하나의 디자인 시스템으로 정리했습니다.** 회의에서 확정한
    개선안(`앱 5개 화면 개선사항` 디자인)을 기준으로 6개 탭 화면을 재구성·통일했습니다. 새 화면을
    만들 땐 위 **7-1 화면 규격 표준**을 따라주세요. 이번에 정리된 주요 내용:
