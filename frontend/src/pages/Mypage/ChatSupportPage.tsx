@@ -32,6 +32,8 @@ interface Message {
   isButtons?: boolean;
   /** 화장품 등록 완료 메시지. 이 메시지가 마지막일 때만 '내 화장대 보기'를 붙인다. */
   closetLink?: boolean;
+  /** 등록 안내 메시지. 마지막 메시지일 때만 '제품 앞면 찍어서 등록' 버튼을 붙인다. */
+  scanLink?: boolean;
   /** AI가 도구로 찾아 말한 제품 카드 */
   cards?: ChatProductCard[];
   /** "담을까요?" 제안(누르기 전에는 아무것도 담기지 않는다) */
@@ -145,7 +147,7 @@ export default function ChatSupportPage() {
   const [isSending, setIsSending] = useState(false);
   const [registerMode, setRegisterMode] = useState(false);
   /**
-   * "+" 버튼 — 예전엔 "내 화장품 등록하기" FAQ 버튼과 똑같은 동작을 호출해서
+   * "+" 버튼 — 빠른 버튼(등록·진단·사용법·성분)을 언제든 다시 여는 메뉴. 예전엔 "내 화장품 등록하기" FAQ 버튼과 똑같은 동작을 호출해서
    * 사용자가 어느 쪽을 눌러도 같은 안내만 반복됐다("현재 내 화장품 등록하기" 말이
    * 반복되는 중). 카톡처럼 첨부 메뉴를 열어 "사진으로 등록"과 "직접 입력"을
    * 구분한다 — 이 앱엔 이미 앞면 사진으로 제품을 찾는 기능(/scan)이 있으니 활용한다.
@@ -158,7 +160,7 @@ export default function ChatSupportPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(3);
 
-  const pushBot = (text: string, extra?: Pick<Message, 'closetLink'>) =>
+  const pushBot = (text: string, extra?: Pick<Message, 'closetLink' | 'scanLink' | 'cards'>) =>
     setMessages((prev) => [...prev, { id: nextId.current++, role: 'bot', text, ...extra }]);
 
   /**
@@ -174,7 +176,7 @@ export default function ChatSupportPage() {
   const registerCosmetic = async (line: string) => {
     const keyword = line.trim();
     if (keyword.length < 2) {
-      pushBot('제품명을 두 글자 이상 알려주세요.');
+      pushBot('제품명을 두 글자 이상 입력해 주세요.', { scanLink: true });
       setRegisterMode(true);
       return;
     }
@@ -184,7 +186,8 @@ export default function ChatSupportPage() {
 
     if (!product) {
       pushBot(
-        `'${keyword}'을(를) 찾지 못했어요.\n브랜드와 제품명을 함께 적어 주시면 더 잘 찾아요.\nex) 라운드랩 1025 독도 토너`,
+        `'${keyword}'은(는) 찾지 못했어요.\n브랜드와 제품명을 함께 적거나, 제품 앞면을 찍어서 등록해 보세요.\n예) 라운드랩 1025 독도 토너`,
+        { scanLink: true },
       );
       setRegisterMode(true);
       return;
@@ -200,10 +203,21 @@ export default function ChatSupportPage() {
       addedVia: 'chatbot',
       status: 'owned',
     });
-    pushBot(
-      `'${product.brand} ${product.name}'을(를) 화장대에 추가했어요! 🧴\n내 화장대에서 대체품 추천을 확인해 보세요.`,
-      { closetLink: true },
-    );
+    // 어떤 제품이 담겼는지 카드로 보여 준다(AI 답변의 제품 카드와 같은 모양)
+    pushBot('화장대에 추가했어요.\n내 화장대에서 대체품 추천도 받아 보세요.', {
+      closetLink: true,
+      cards: [
+        {
+          id: product.id,
+          name: product.name,
+          brand: product.brand,
+          category: product.category,
+          price: product.price,
+          imageUrl: product.imageUrl ?? null,
+          rating: product.rating ?? null,
+        },
+      ],
+    });
   };
 
   const startRegister = () => {
@@ -214,7 +228,8 @@ export default function ChatSupportPage() {
       {
         id: nextId.current++,
         role: 'bot',
-        text: '등록할 화장품의 브랜드와 제품명을 한 줄로 알려주세요.\nex) 이니스프리 그린티 씨드 세럼 80ml',
+        text: '어떤 화장품을 등록할까요?\n브랜드와 제품명을 입력하거나, 제품 앞면을 찍어서 등록할 수 있어요.\n예) 라운드랩 1025 독도 토너',
+        scanLink: true,
       },
     ]);
     setRegisterMode(true);
@@ -254,7 +269,10 @@ export default function ChatSupportPage() {
         requireLogin('화장품 등록은 로그인하면 쓸 수 있어요');
         return;
       }
-      pushBot('등록할 화장품의 브랜드와 제품명을 한 줄로 알려주세요.\nex) 이니스프리 그린티 씨드 세럼 80ml');
+      pushBot(
+        '어떤 화장품을 등록할까요?\n브랜드와 제품명을 입력하거나, 제품 앞면을 찍어서 등록할 수 있어요.\n예) 라운드랩 1025 독도 토너',
+        { scanLink: true },
+      );
       setRegisterMode(true);
       return;
     }
@@ -318,22 +336,34 @@ export default function ChatSupportPage() {
 
     if (btn.key === 'diagnosis') {
       pushBot('피부타입 진단 화면으로 이동할게요! 몇 가지 질문에 답하면 내 피부타입을 알 수 있어요.');
-      navigate('/onboarding');
+      // /onboarding은 진단을 마친 사용자를 홈으로 돌려보내서(skipGreeting) 재진단은 /qna로 보낸다
+      navigate('/qna');
       return;
     }
 
     if (btn.key === 'guide') {
       pushBot(
-        'Swappy 사용법을 간단히 알려드릴게요 📱\n\n' +
-          '1. 피부타입 진단 — 간단한 질문에 답하면 내 피부타입을 알 수 있어요\n' +
-          '2. 내 화장대 — 쓰는 제품을 등록하면 더 저렴하거나 잘 맞는 대체품을 추천해 드려요\n' +
-          '3. 챗봇 — 성분이나 제품이 궁금하면 언제든 편하게 물어보세요\n' +
-          '4. 사진으로 찾기 — 제품 앞면을 촬영하면 같은 화장품을 찾아 드려요. 찾은 제품을 누르면 전성분을 볼 수 있어요',
+        'Swappy는 이렇게 쓰시면 돼요.\n\n' +
+          '**1. 피부타입 진단**\n' +
+          '질문에 답하거나 얼굴 사진을 찍으면 내 피부타입을 알 수 있어요. 마이페이지의 피부타입 재진단과 AI 피부관리에서 할 수 있어요.\n\n' +
+          '**2. 내 화장대 등록**\n' +
+          '쓰는 제품을 등록하면 그 제품과 성분이 비슷한 대체품을 찾아 드려요. 제품명을 입력하거나 제품 앞면을 찍으면 돼요.\n\n' +
+          '**3. 오늘의 교체 제안**\n' +
+          '홈에서 더 저렴하거나 내 피부에 더 잘 맞는 대체품을 확인하고, 담기 전에 성분 비교로 차이를 살펴볼 수 있어요.\n\n' +
+          '**4. 성분 비교**\n' +
+          '제품 상세의 "다른 제품과 성분 비교하기"로 두 제품의 성분 차이를 직접 견줘 볼 수 있어요.\n\n' +
+          '**5. 챗봇**\n' +
+          '제품 추천, 성분 질문, 예산에 맞는 루틴 짜기를 도와 드려요.\n\n' +
+          '입력창 옆 + 버튼에서 이 메뉴를 언제든 다시 열 수 있어요.',
       );
       return;
     }
 
-    pushBot('궁금한 성분 이름을 편하게 적어주세요! 예) "나이아신아마이드가 뭐예요?"');
+    pushBot(
+      '성분 이름을 몰라도 괜찮아요. 효과나 고민으로 물어보셔도 돼요.\n\n' +
+        '예) 나이아신아마이드가 뭐예요?\n' +
+        '예) 진정 성분이 뭐야?',
+    );
   };
 
   return (
@@ -366,17 +396,22 @@ export default function ChatSupportPage() {
                         <br />
                         ⭐ <strong>대화 TIP</strong>
                         <br />
-                        ✔ 문장보다 키워드를 더 잘 이해해요.
+                        ✔ 문장으로 편하게 물어보세요.
                         <br />
-                        ex) 배송 지연, 단종상품, 교환, 반품 등
-                        <br />
-                        <br />
-                        ✔ 상품명을 잘 이해할 수 없어요. 상품명을 빼고 질문해 주세요.
-                        <br />
-                        ex) 토너 주문했는데 언제와? → 배송 일정
+                        예) 내 피부에 맞는 토너 추천해줘
                         <br />
                         <br />
-                        ⭐ 현재 문의량이 많아 상담이 일부 지연될 수 있어요 🙏
+                        ✔ 제품명을 넣어 물어보셔도 돼요.
+                        <br />
+                        예) 라운드랩 독도 토너랑 비슷한데 더 싼 거 있어?
+                        <br />
+                        <br />
+                        ✔ 내 화장대·피부 상태·예산을 알고 답해요.
+                        <br />
+                        예) 7만원으로 루틴 짜줘, 오늘 뭐 발라야 해?
+                        <br />
+                        <br />
+                        ✔ 주문·배송은 직접 처리하지 못해서 주문내역과 고객센터로 안내해요.
                       </div>
                     </>
                   )}
@@ -452,6 +487,16 @@ export default function ChatSupportPage() {
                   {/* 예전에는 입력창 위에 고정된 버튼이라 다른 대화로 넘어가도 계속
                       남아 있었다(QA 9). 등록 완료 메시지에 붙이고, 다음 메시지가
                       오면 사라진다. */}
+                  {/* 등록 안내 메시지가 마지막일 때만. 사진으로 찾는 스캔 화면(/scan)으로 보낸다. */}
+                  {msg.scanLink && msg.id === messages[messages.length - 1]?.id && (
+                    <button
+                      onClick={openScanRegister}
+                      className="mt-2 flex w-full items-center justify-center rounded-lg border border-gray-20 bg-white py-2.5 text-xs font-bold text-gray-100 active:scale-[.98] transition-transform"
+                    >
+                      제품 앞면 찍어서 등록
+                    </button>
+                  )}
+
                   {msg.closetLink && msg.id === messages[messages.length - 1]?.id && (
                     <button
                       onClick={() => navigate('/closet')}
@@ -500,19 +545,26 @@ export default function ChatSupportPage() {
             <>
               {/* 바깥을 탭하면 메뉴 닫힘 */}
               <div className="fixed inset-0 z-10" onClick={() => setShowAttachMenu(false)} />
-              <div className="absolute bottom-[42px] left-0 w-48 rounded-xl border border-gray-20 bg-white shadow-lg overflow-hidden z-20">
-                <button
-                  onClick={openScanRegister}
-                  className="flex w-full items-center gap-2 px-3 py-3 text-xs text-gray-100 active:bg-gray-5"
-                >
-                  📷 제품 앞면 찍어서 등록
-                </button>
+              <div className="absolute bottom-[42px] left-0 w-52 rounded-xl border border-gray-20 bg-white shadow-lg overflow-hidden z-20">
                 <button
                   onClick={openManualRegister}
-                  className="flex w-full items-center gap-2 px-3 py-3 text-xs text-gray-100 active:bg-gray-5 border-t border-gray-20"
+                  className="flex w-full items-center gap-2 px-3 py-3 text-xs text-gray-100 active:bg-gray-5"
                 >
-                  ✍️ 직접 입력해서 등록
+                  🧴 내 화장품 등록하기
                 </button>
+                {/* 처음 화면의 빠른 버튼과 같은 메뉴 — 대화가 길어져 위로 올라가도 여기서 다시 누를 수 있다 */}
+                {quickButtons.map((btn) => (
+                  <button
+                    key={btn.key}
+                    onClick={() => {
+                      setShowAttachMenu(false);
+                      handleQuickBtn(btn);
+                    }}
+                    className="flex w-full items-center gap-2 border-t border-gray-20 px-3 py-3 text-xs text-gray-100 active:bg-gray-5"
+                  >
+                    {btn.label}
+                  </button>
+                ))}
               </div>
             </>
           )}
