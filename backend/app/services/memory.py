@@ -74,7 +74,12 @@ def explicit_memory(message: str) -> str | None:
     m = _EXPLICIT.search(message)
     if not m:
         return None
-    head = message[: m.start()]
+    head = message[: m.start()].strip()
+    # "그럼 크림이 좋다는 내용을 기억해줘" → "크림이 좋다". 말머리와 "~다는 내용을" 같은 군더더기를 걷어 사실만 남긴다.
+    head = re.sub(r"^(?:그럼|그러면|그리고|그래서|아|음|참고로)[\s,]+", "", head)
+    head = re.sub(r"(?<=다)(?:는|고)\s*(?:(?:내용|말|얘기|이야기|사실|것|거|걸)\s*)?(?:을|를|도)?$", "", head)
+    head = re.sub(r"\s*(?:이?라는)\s*(?:내용|말|얘기|이야기|사실)\s*(?:을|를|도)?$", "", head)
+    head = re.sub(r"\s*(?:내용|얘기|이야기)\s*(?:을|를)$", "", head)
     head = re.sub(r"(?:이?라고|라는\s*거|라는\s*걸|것도|것을|걸|좀|꼭|제발|이거|그거|앞으로)\s*$", "", head.strip()).strip(" ,.!~")
     head = re.sub(r"(?:이?라고|좀|꼭)\s*$", "", head).strip(" ,.!~")
     return clean(head)
@@ -220,9 +225,11 @@ async def _trim(db: AsyncSession, user_id: uuid.UUID) -> None:
 async def extract_and_store(user_id: uuid.UUID, message: str, reply: str, history: list[dict]) -> None:
     """대화에서 사실을 뽑아 저장한다. **어떤 실패도 밖으로 던지지 않는다** — 챗봇 응답은 이미 나갔다."""
     try:
-        recent = history[-6:]
-        convo = "\n".join(f"{'사용자' if m['role'] == 'user' else '챗봇'}: {m['content'][:300]}" for m in recent)
-        convo += f"\n사용자: {message[:500]}\n챗봇: {reply[:300]}"
+        # 사용자가 한 말만 넘긴다. 챗봇 답변에는 저장돼 있던 피부타입·분석 결과가 섞여 있어, 그걸 "사용자가 말한 사실"로
+        # 잘못 뽑는 일이 있었다("피부가 울긋불긋해지는 편"). 이 함수는 근거를 사용자 발화로만 제한한다.
+        recent = [m for m in history[-6:] if m["role"] == "user"]
+        convo = "\n".join(f"사용자: {m['content'][:300]}" for m in recent)
+        convo += f"\n사용자: {message[:500]}"
         raw = await llm.chat_completion([{"role": "user", "content": convo}], EXTRACT_SYSTEM, max_tokens=300)
         items = parse_extraction(raw)
         if not items:
