@@ -116,18 +116,19 @@ export default function MypagePage() {
   };
 
   // 배송지·재입고는 뺐다. 실제 배송이 없어 화면에 채울 근거가 없다.
+  // 주문내역 목록은 취소·반품한 주문도 함께 보여 주므로 개수도 둘을 더한다(orderCount는 취소·반품을 뺀 값).
   // 취소·반품은 orders.status 기록이 생겨 돌아왔다(배송 단계는 서버가 계산).
   // '보낸/받은 선물'은 gifts 테이블에서 온다.
   const shopping: MenuItem[] = [
-    { icon: <LineIcon><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" /><path d="M4 8l8 4 8-4M12 12v8" /></LineIcon>, label: '주문내역', right: stats ? `${stats.orderCount}건` : undefined, onClick: () => navigate('/mypage/order-history') },
-    { icon: <LineIcon><path d="M9 14l-4-4 4-4" /><path d="M5 10h10a4 4 0 010 8h-2" /></LineIcon>, label: '취소/반품/환불 내역', onClick: () => navigate('/mypage/cancel-return') },
+    { icon: <LineIcon><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" /><path d="M4 8l8 4 8-4M12 12v8" /></LineIcon>, label: '주문내역', right: stats ? `${stats.orderCount + stats.cancelReturnCount}건` : undefined, onClick: () => navigate('/mypage/order-history') },
+    { icon: <LineIcon><path d="M9 14l-4-4 4-4" /><path d="M5 10h10a4 4 0 010 8h-2" /></LineIcon>, label: '취소/반품/환불 내역', right: stats ? `${stats.cancelReturnCount}건` : undefined, onClick: () => navigate('/mypage/cancel-return') },
     { icon: <LineIcon><rect x="3" y="8" width="18" height="12.5" rx="1.5" /><path d="M3 12h18M12 8v12.5" /></LineIcon>, label: '장바구니', right: stats ? `${stats.cartCount}개` : undefined, onClick: () => navigate('/cart') },
-    { icon: <LineIcon><path d="M12 21s-7-5.5-7-11a7 7 0 1114 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></LineIcon>, label: '내 화장대', right: `${stats?.closetCount ?? closetCount}개`, onClick: () => navigate('/closet') },
-    { icon: <LineIcon><rect x="4" y="9" width="16" height="11" rx="1.5" /><path d="M3 6h18v3H3zM12 6v14" /></LineIcon>, label: '보낸/받은 선물', onClick: () => navigate('/mypage/gifts') },
+    { icon: <LineIcon><path d="M9.5 3h5v3h-5z" /><path d="M8 6h8v13.5a1.5 1.5 0 01-1.5 1.5h-5A1.5 1.5 0 018 19.5V6z" /><path d="M8 11h8" /></LineIcon>, label: '내 화장대', right: `${stats?.closetCount ?? closetCount}개`, onClick: () => navigate('/closet') },
+    { icon: <LineIcon><rect x="4" y="9" width="16" height="11" rx="1.5" /><path d="M3 6h18v3H3zM12 6v14" /></LineIcon>, label: '보낸/받은 선물', right: stats ? `보낸 ${stats.giftCount} · 받은 ${stats.receivedGiftCount}` : undefined, onClick: () => navigate('/mypage/gifts') },
   ];
 
   const benefits: MenuItem[] = [
-    { icon: <LineIcon><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" /></LineIcon>, label: '후기', onClick: () => navigate('/mypage/reviews') },
+    { icon: <LineIcon><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" /></LineIcon>, label: '후기', right: stats ? `작성 가능 ${stats.reviewableCount}개` : undefined, onClick: () => navigate('/mypage/reviews') },
     { icon: <LineIcon><path d="M3 8l4 4 5-7 5 7 4-4-2 10H5L3 8z" /></LineIcon>, label: '구독 관리', right: subscription ? (subscription.active ? (subscription.status === 'cancelled' ? '해지 예정' : '구독 중') : '미구독') : undefined, onClick: () => setMembershipOpen(true) },
     { icon: <LineIcon><circle cx="12" cy="12" r="8" /><path d="M9.5 10.5h5M9.5 13.5h5" /></LineIcon>, label: '포인트', right: stats ? `${stats.pointBalance.toLocaleString()}P` : undefined, onClick: () => navigate('/mypage/points') },
     { icon: <LineIcon><path d="M5 13a7 7 0 0114 0" /><rect x="4" y="13" width="3.5" height="6" rx="1.5" /><rect x="16.5" y="13" width="3.5" height="6" rx="1.5" /></LineIcon>, label: '고객센터', onClick: () => navigate('/mypage/customer-service') },

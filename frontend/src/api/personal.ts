@@ -126,7 +126,13 @@ export interface StatsDto {
   orderCount: number;
   scanCount: number;
   reviewCount: number;
+  /** 보낸 선물 */
   giftCount: number;
+  receivedGiftCount: number;
+  /** 취소·반품·환불한 주문 */
+  cancelReturnCount: number;
+  /** 지금 후기를 쓸 수 있는 제품(배송 완료, 아직 후기 없음) */
+  reviewableCount: number;
   totalSpent: number;
   pointBalance: number;
   /**

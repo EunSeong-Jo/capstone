@@ -168,7 +168,10 @@ class StatsOut(_CamelModel):
     order_count: int
     scan_count: int
     review_count: int
-    gift_count: int
+    gift_count: int                  # 보낸 선물
+    received_gift_count: int         # 받은 선물
+    cancel_return_count: int         # 취소·반품·환불한 주문
+    reviewable_count: int            # 지금 후기를 쓸 수 있는 주문 제품(배송 완료, 아직 후기 없음)
     # 실제로 결제한 총액. 주문 기록의 합이다.
     total_spent: int
     point_balance: int

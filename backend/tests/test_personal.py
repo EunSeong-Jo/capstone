@@ -413,6 +413,25 @@ async def test_stats_counts_real_rows(client: AsyncClient, account, product_ids)
     assert stats["cartCount"] == 0, "주문하면 장바구니가 비워진다"
     assert stats["orderCount"] == 1
     assert stats["totalSpent"] == order["total"]
+    # 새 주문은 배송 전이라 후기를 쓸 수 없다. 취소하면 주문 수에서 빠지고 취소·반품 수로 간다.
+    assert stats["reviewableCount"] == 0
+    assert stats["cancelReturnCount"] == 0
+    await client.post(f"{ME}/orders/{order['id']}/cancel", json={}, **account)
+    after = (await client.get(f"{ME}/stats", **account)).json()
+    assert after["orderCount"] == 0 and after["cancelReturnCount"] == 1
+
+
+async def test_stats_counts_sent_and_received_gifts(client: AsyncClient, account, recipient, product_ids: list[int]) -> None:
+    before = (await client.get(f"{ME}/stats", **account)).json()
+    assert before["giftCount"] == 0 and before["receivedGiftCount"] == 0
+    res = await client.post(
+        GIFTS, headers=account["headers"], json={"productId": product_ids[0], "recipientNickname": recipient["nickname"]}
+    )
+    assert res.status_code == 201
+    mine = (await client.get(f"{ME}/stats", **account)).json()
+    assert mine["giftCount"] == 1 and mine["receivedGiftCount"] == 0
+    theirs = (await client.get(f"{ME}/stats", headers=recipient["headers"])).json()
+    assert theirs["receivedGiftCount"] == 1 and theirs["giftCount"] == 0
 
 
 # ── 선물하기 ──────────────────────────────────────────────────
@@ -536,6 +555,7 @@ async def test_stats_starts_at_level_one(client: AsyncClient, account) -> None:
     assert body["level"] == 1
     assert body["expInLevel"] == 0
     assert body["levelSpan"] == 100
+    assert body["receivedGiftCount"] == 0 and body["cancelReturnCount"] == 0 and body["reviewableCount"] == 0
 
 
 async def test_stats_counts_exp_from_records(

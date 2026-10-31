@@ -95,8 +95,14 @@ export function useSearchProducts(
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  if (tooShort) {
+  // 입력이 두 글자 미만이면 조회하지 않으니 비어 있는 게 맞다.
+  if (trimmed.length < MIN_QUERY_LENGTH) {
     return { products: [], total: 0, loading: false, error: null, reload };
+  }
+  // 새 검색어를 막 넣어서 디바운스 대기 중이면 "결과 없음"이 아니라 "불러오는 중"이다.
+  // (인기 검색어를 누르면 q는 바로 바뀌지만 debouncedQ는 300ms 뒤에 따라와서, 그동안 빈 결과가 먼저 보였다)
+  if (tooShort || debouncedQ !== trimmed) {
+    return { products: [], total: 0, loading: true, error: null, reload };
   }
 
   const current = loaded?.key === key ? loaded : null;

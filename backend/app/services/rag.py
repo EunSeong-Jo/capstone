@@ -10,7 +10,7 @@ RAG 서비스 — Neon(PostgreSQL) 제품 DB에서 검색해 LLM 컨텍스트를
 """
 from __future__ import annotations
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -50,6 +50,24 @@ _INGREDIENT_SYNONYMS: dict[str, list[str]] = {
 }
 
 
+# 검색어에서 제품을 가리키지 않는 말. 이게 토큰으로 남으면 상품명에 우연히 든 "좋은"·"있어" 같은 말까지 걸린다.
+_STOP_TOKENS = frozenset({
+    "추천", "추천해줘", "추천해", "추천해줄래", "있어", "있어?", "있나요", "있나요?", "좋은", "좋은거", "알려줘", "알려", "찾아줘", "찾아봐",
+    "해줘", "뭐야", "뭐가", "뭐", "어떤", "제품", "것", "거", "좀", "나한테", "내",
+})
+
+# 제품 종류 단어. 질문에 있으면 그 종류의 제품을 먼저 낸다("건조한데 좋은 크림"에 토너·세럼이 나오지 않게).
+_KIND_WORDS = ("토너", "스킨", "세럼", "에센스", "앰플", "크림", "로션", "선크림", "선스틱", "선쿠션", "마스크", "클렌징", "클렌저", "오일", "밤", "패드", "미스트")
+
+
+def kind_words(query: str) -> list[str]:
+    """질문에 든 제품 종류 단어. "선크림"이 있으면 그 안의 "크림"은 뺀다."""
+    kinds = [k for k in _KIND_WORDS if k in query]
+    if "선크림" in kinds:
+        kinds = [k for k in kinds if k != "크림"]
+    return kinds
+
+
 def _tokenize(query: str) -> list[str]:
     """검색어를 공백 기준으로 쪼갠 키워드 후보.
 
@@ -57,10 +75,11 @@ def _tokenize(query: str) -> list[str]:
     문구가 붙은 문장을 통째로 부분일치 시키면 그 문장 전체를 포함하는 상품명은
     사실상 없어서 절대 안 걸린다 — 예전 버그가 정확히 이거였다("토너 추천해줘"가
     "토너"만 있는 상품명과 매칭 안 됨). 공백으로 쪼개면 "토너" 토큰만으로 매칭된다.
-    2글자 미만 토큰은 노이즈라 버리고, 다 걸러지면 원문 그대로 하나만 남긴다.
+    2글자 미만 토큰과 요청 말투("추천", "있어")는 노이즈라 버리고, 다 걸러지면 원문 그대로 하나만 남긴다.
     """
     tokens = [t for t in query.split() if len(t) >= 2]
-    return tokens or [query]
+    kept = [t for t in tokens if t not in _STOP_TOKENS]
+    return kept or tokens or [query]
 
 
 def _expand_ingredient_patterns(query: str) -> list[str]:
@@ -123,6 +142,7 @@ async def search_products(
     사용자가 피해야 할 것이면 안 되기 때문이다.
     """
     rule = await load_rule(db, skin_type_id)
+    kinds = kind_words(query)
     name_patterns = [f"%{_escape_like(t)}%" for t in _tokenize(query)]
     ingredient_patterns = [f"%{_escape_like(p)}%" for p in _expand_ingredient_patterns(query)]
 
@@ -136,6 +156,8 @@ async def search_products(
         # 기획세트·굿즈 동봉·증량판은 앱 다른 화면(products.py, recommendations_main.py)과
         # 동일하게 제외한다 — 여기 빠져있어서 챗봇만 세트/굿즈 상품을 추천하던 버그가 있었다.
         .where(Product.composition == "single", listable())
+        # 종류를 말했으면 그 종류의 제품만 후보로 한다(평점순 상위 몇 개 안에 그 종류가 없어서 못 찾는 일을 막는다)
+        .where(or_(*[Product.name.ilike(f"%{k}%") for k in kinds]) if kinds else true())
         .where(
             or_(
                 *[Product.name.ilike(p, escape="\\") for p in name_patterns],
@@ -146,11 +168,17 @@ async def search_products(
         .options(joinedload(Product.brand), joinedload(Product.category))
         .order_by(Product.rating.desc().nullslast(), Product.review_count.desc().nullslast())
         # 궁합 순으로 다시 줄 세우려면 후보를 넉넉히 받아야 한다(평점 상위 top_k개만 보면 궁합이 높은 제품이 잘린다).
-        .limit(top_k * _FIT_POOL if prefer_fit and rule else top_k)
+        .limit(top_k * _FIT_POOL if (prefer_fit and rule) or kinds else top_k)
     )
     products = (await db.execute(apply_exclusions(stmt, rule))).scalars().all()
+    if kinds:
+        # 종류를 말했으면 그 종류의 제품만(없으면 후보 그대로). 평점순을 유지한다.
+        of_kind = [p for p in products if any(k in (p.name or "") for k in kinds)]
+        products = of_kind or products
     if prefer_fit and rule and products:
         products = await _by_fit(db, products, rule, top_k)
+    else:
+        products = products[:top_k]
 
     if not products:
         products = await _fallback_top_rated(db, top_k, rule)
@@ -203,5 +231,6 @@ async def _to_dict(
         "category": product.category.label if product.category else "",
         "price": product.price or 0,
         "rating": float(product.rating) if product.rating is not None else None,
+        "image_url": product.image_url,
         "ingredients": [r[0] for r in rows.all()],
     }

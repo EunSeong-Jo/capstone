@@ -43,6 +43,10 @@ export function BudgetCard() {
     }
   };
 
+  // 두 손잡이가 같은 자리에 겹치면 움직일 수 있는 쪽을 위로 올린다: 오른쪽 끝에서는 최소(왼쪽으로만 갈 수 있다),
+  // 그 밖(0원 포함)에서는 최대(오른쪽으로만 갈 수 있다). 0~0에서 최소 손잡이가 위에 있으면 어느 쪽도 못 움직였다.
+  const minOnTop = value.min === value.max && value.min >= BUDGET_LIMIT / 2;
+
   const left = (value.min / BUDGET_LIMIT) * 100;
   const right = (value.max / BUDGET_LIMIT) * 100;
 
@@ -85,8 +89,7 @@ export function BudgetCard() {
           onChange={(e) => setMin(Number(e.target.value))}
           aria-label="최소 예산"
           aria-valuetext={shown ? won(shown.min) : '미설정'}
-          // 두 손잡이가 겹치면 오른쪽 끝에서 최소값 손잡이를 잡을 수 있게 위로 올린다.
-          style={{ zIndex: value.min > BUDGET_LIMIT - BUDGET_STEP * 2 ? 2 : 1 }}
+          style={{ zIndex: minOnTop ? 3 : 1 }}
         />
         <input
           type="range"
@@ -99,6 +102,7 @@ export function BudgetCard() {
           onChange={(e) => setMax(Number(e.target.value))}
           aria-label="최대 예산"
           aria-valuetext={shown ? won(shown.max) : '미설정'}
+          style={{ zIndex: minOnTop ? 1 : 2 }}
         />
       </div>
       <div className="mt-1.5 flex justify-between text-[11px] text-gray-50">

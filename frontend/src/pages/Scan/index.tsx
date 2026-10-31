@@ -262,14 +262,8 @@ export default function ScanPage() {
             </svg>
           </button>
           <span className="text-[15px] font-extrabold text-white">{picking ? '비교할 제품 찾기' : '화장품 스캔'}</span>
-          <button
-            aria-label="플래시"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.12] active:scale-90 transition-transform"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M13 2L4.5 13h6L11 22l8.5-11h-6L13 2z" />
-            </svg>
-          </button>
+          {/* 닫기 버튼과 같은 폭의 빈 자리 — 제목을 가운데에 둔다 */}
+          <span className="h-9 w-9" aria-hidden />
         </div>
       </div>
 

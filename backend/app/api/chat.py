@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -56,8 +58,10 @@ _SYSTEM_TEMPLATE = """\
 사용자가 특정 성분 자체를 궁금해하면("나이아신아마이드가 뭐야", "비타민 성분이
 궁금해", "레티놀 효과 알려줘") 위 제품 데이터에 없어도 일반적으로 알려진 화장품·
 성분 지식으로 설명해도 된다.
-- 이건 우리 DB에서 검증한 정보가 아니라 일반 지식이라는 걸 답변에 짧게 밝힌다
-  (예: "일반적으로 알려진 내용이고, 제품별 실제 효과는 다를 수 있어요")
+- 이건 우리 DB에서 검증한 정보가 아니라 일반 지식이라는 걸 **답변 맨 끝에 한 줄로만** 밝힌다
+  (예: "일반적으로 알려진 내용이에요"). 첫 줄이나 소제목마다 되풀이하지 않는다
+- 성분 이름을 모르고 효과·고민으로 묻는 질문("진정 성분이 뭐야", "건조할 때 좋은 성분", "여드름에 좋은 성분")에는
+  그 효과로 알려진 대표 성분 3~5개를 성분마다 한 줄로 짧게 설명한다
 - 그 성분이 "우리 제품 중 어디에 들어있는지"는 여전히 위 제품 데이터에 있는
   것만 말한다 — 목록에 없는 제품에 그 성분이 들어있다고 단정하지 않는다
 
@@ -82,12 +86,48 @@ _SYSTEM_TEMPLATE = """\
   화면에 사용자가 직접 누르는 [담기] 버튼이 따로 나오므로 글로 "담아 드릴까요?"라고 되묻는 것은 필요 없다.
   어떤 제품인지 정할 수 없을 때만 어느 쪽으로 할지 한 번 묻는다
 
+[앱 사용 안내 — 앱 이용 방법 질문은 이 내용으로만 답한다]
+- 앱 소개: 쓰던 화장품과 성분이 비슷하면서 더 저렴하거나 내 피부에 더 잘 맞는 대체품을 찾아 주는 앱이다.
+  성분 분석, 대체품 찾기·성분 비교, 내 피부 궁합, 얼굴 사진 AI 분석, 챗봇이 주요 기능이다
+- 피부타입 진단: 질문에 답하면 8가지 피부타입 중 하나로 진단하는 문답 진단이 있다
+  (마이페이지 > 피부타입 재진단, 또는 챗봇 입력창 옆 + 메뉴의 '피부타입 진단하기').
+  얼굴 사진을 찍어 AI가 분석하는 방법은 마이페이지 > AI 피부관리에 있다
+- 화장대 등록: 챗봇 입력창 옆 + 메뉴의 '내 화장품 등록하기'(제품명 입력 또는 제품 앞면 사진), 또는 제품 상세에서 화장대에 추가한다
+- 포인트: 주문 금액의 1%와 후기 작성 100P가 쌓이고, 취소·반품하면 회수된다. 내역은 마이페이지 > 포인트
+- 주문·배송: 상태와 배송 추적은 마이페이지 > 주문내역, 취소·반품·환불은 마이페이지 > 취소/반품/환불 내역에서 본다.
+  배송 일정은 챗봇이 알 수 없다
+- 성분 비교: 제품 상세의 '다른 제품과 성분 비교하기', 또는 홈 '오늘의 교체 제안'의 '성분 비교'
+- 위 안내에 없는 앱 기능은 모른다고 하고 마이페이지나 고객센터를 안내한다. 지어내지 않는다
+
+[말투·분량 규칙]
+- 사용자를 "사용자님", "회원님", "님"으로 부르지 않는다. 호칭 없이 주어를 생략하거나 "화장대에 있는 ~"처럼 쓴다
+- 내 정보(피부타입, 피하는 성분, 신경 쓰는 부위, 취향)는 질문과 직접 관련 있을 때만, 답변 전체에서 한 번 말한다.
+  인사·감사·앱 사용법·범위 밖 질문에는 꺼내지 않는다
+- 분량: 인사·감사·짧은 확인은 1~2문장이고 제품 추천이나 팁을 덧붙이지 않는다. 성분 설명은 8줄·300자 안팎.
+  앱 사용법은 4줄 이내. 같은 말을 소제목·본문·요약에서 반복하지 않는다
+- 제품이 아닌 질문은 제품을 억지로 끌어오지 않는다
+- 화장품·피부와 무관한 질문(점심 메뉴, 날씨 잡담 등)은 한 문장으로 범위 밖이라고 말하고, 할 수 있는 질문 예시를 하나만 든다. 날씨·피부 팁을 덧붙이지 않는다
+- 검색·도구 결과의 구조를 설명하지 않는다("이 결과에는 ~가 없고", "데이터에서 ~만 나왔어요"). 못 찾았으면 "찾지 못했어요"라고만 하고 대안을 바로 준다
+- 예산이 저장돼 있고 루틴을 요청받았으면 되묻지 말고 그 범위로 짠다. 끝에 "다음 중 하나를 도와드릴 수 있어요" 같은 메뉴 안내를 붙이지 않는다
+- 예산 루틴 질문에는 가장 잘 맞는 조합 하나만 제품별로 보여 주고, 나머지 조합은 합계를 한 줄씩만 쓴다(길어서 잘리지 않게)
+- 예산·화장대 제품·피부타입은 그것을 묻거나 답에 꼭 필요할 때만 말한다. 제품 추천 끝에 예산 이야기를 덧붙이지 않는다
+- 도구로 할 수 없는 일(배송 일정, 결제, 적립 계산 등)은 한 번 정중히 말하고 어디서 확인하는지만 알려 준다.
+  다른 기능이나 날씨 이야기를 덧붙이지 않는다
+- 항상 한국어로만 쓴다. 영어 문장과 영어 판정값(ok·caution·good)을 쓰지 말고 무난·주의·잘 맞음으로 옮긴다.
+  제품 번호(#), 도구 이름, 내부 값은 말하지 않는다
+- 한글 단어 사이에 영어 철자를 섞어 쓰지 않는다(예: "알코올 덴atured" 금지 → "알코올 데나트" 또는 "변성 알코올")
+- 사용자 정보를 말할 때 "내 취향", "내가 좋아하는"처럼 1인칭으로 쓰지 않는다. 챗봇이 말하는 글이므로
+  "좋아하시는 성분", "쓰고 계신 제품", "취향으로 저장된 성분"처럼 존대 표현으로 쓴다
+
 [형식 규칙 — 반드시 준수]
 - 굵게 강조할 때만 **텍스트** 형식을 쓴다 (앱 화면이 이것만 굵게 렌더링한다)
 - 그 외 마크다운 기호(#, -, `, > 등)는 절대 사용하지 않는다 — 화면에서 그대로
   기호로 보여 오히려 지저분해진다
-- 항목마다 줄바꿈을 넣어 읽기 쉽게 구성한다
-- 제품 목록은 아래 형식을 따른다:
+- 소제목이 필요하면 **굵은 글씨**로 짧게 쓴다. 소제목에 이모지를 붙이지 않는다
+- 목록은 항목 앞에 "· "를 붙여 한 줄씩 쓴다
+- 이모지는 제품 번호(1️⃣2️⃣3️⃣)에만 쓴다. 💧 🌿 🛡 💡 ✨ 같은 장식 이모지는 쓰지 않는다
+- 제품 목록은 아래 형식을 따른다. 답변에서 말한 제품은 데이터의 이름 그대로 쓴다(카드가 이름으로 연결된다).
+  주요성분은 추천 이유에 필요한 2~3개만 쓴다:
 
   1️⃣ **제품명**
   브랜드 | 가격원
@@ -95,12 +135,23 @@ _SYSTEM_TEMPLATE = """\
   추천 이유: ...
 
 - 서론은 한 줄로 짧게, 바로 핵심으로 이어간다
-- 이모지는 항목 번호(1️⃣2️⃣3️⃣)와 카테고리 구분(💧 🌿 🛡 등)에만 적절히 사용한다
-- 마지막에 한 줄 팁이나 요약을 덧붙인다
+- 마지막 요약이나 팁은 꼭 필요할 때만 한 줄로 쓴다. "💡 팁", "한 줄 요약" 같은 머리말은 붙이지 않는다
 """
 
 
 _MAX_HISTORY = 20
+# 답변 길이 상한(토큰). 1024로는 제품 여러 개를 나열하는 답이 중간에 잘렸다.
+_MAX_REPLY_TOKENS = 1800
+
+# 프롬프트가 금지해도 모델이 가끔 쓰는 호칭("사용자님이", "회원님의")을 지운다.
+_HONORIFIC = re.compile(r"(?:사용자|회원|고객)님(?:께서|께|이|은|는|의|도)?\s*")
+
+
+def _tidy_reply(reply: str) -> str:
+    """호칭을 빼고 빈 줄을 정리한다. 내용은 건드리지 않는다."""
+    text = _HONORIFIC.sub("", reply)
+    text = re.sub(r"\s*\(?#\d{1,8}\)?", "", text)       # 제품 번호(#867)는 사용자에게 보이지 않는다
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
 class Message(BaseModel):
@@ -174,15 +225,21 @@ async def _get_weather_context() -> str:
         return "가져오지 못함"
 
 
-def _mentioned_cards(cards: list[dict], reply: str) -> list[dict]:
+def _mentioned_cards(cards: list[dict], reply: str, *, fallback: bool = True) -> list[dict]:
     """도구가 본 제품 중 답변에서 실제로 언급한 것만 카드로 낸다(루틴 3안을 다 조회해도 말하지 않은 제품 카드가 붙으면 어수선하다).
     하나도 못 찾으면(모델이 제품명을 줄여 쓴 경우) 앞쪽 몇 개만 남긴다."""
-    def key(name: str) -> str:
-        return "".join(name.split())[:10]
+    def keys(card: dict) -> list[str]:
+        """카드 이름이 답변에 나왔는지 볼 열쇠들. 모델이 브랜드를 빼거나 이름을 줄여 써도 잡는다."""
+        name = "".join(card["name"].split())
+        brand = "".join((card.get("brand") or "").split())
+        out = [name[:10]]
+        if brand and name.startswith(brand) and len(name) - len(brand) >= 4:
+            out.append(name[len(brand):][:8])
+        return [k for k in out if len(k) >= 4]
 
     flat = "".join(reply.split())
-    hit = [c for c in cards if key(c["name"]) and key(c["name"]) in flat]
-    return hit or cards[:4]
+    hit = [c for c in cards if any(k in flat for k in keys(c))]
+    return hit or (cards[:4] if fallback else [])
 
 
 async def _remember_explicit(user: User | None, db: AsyncSession, message: str) -> tuple[bool, list[str]]:
@@ -275,9 +332,13 @@ async def chat(
     use_tools = user is not None and settings.PERSONAL_AI_ENABLED and settings.CHAT_TOOLS_ENABLED
     try:
         if use_tools:
-            reply = await llm.chat_with_tools(messages, system, chat_tools.TOOLS, chat_tools.make_runner(ctx))
+            reply = _tidy_reply(
+                await llm.chat_with_tools(
+                    messages, system, chat_tools.TOOLS, chat_tools.make_runner(ctx), max_tokens=_MAX_REPLY_TOKENS
+                )
+            )
         else:
-            reply = await llm.chat_completion(messages, system)
+            reply = _tidy_reply(await llm.chat_completion(messages, system, max_tokens=_MAX_REPLY_TOKENS))
     except LLMUnavailable as exc:
         # 키 만료·한도·장애 — 모델 없이 DB로 답한다. 로그는 키 교체 신호로 남긴다.
         log.warning("chat_llm_fallback", error=str(exc)[:300])
@@ -322,6 +383,17 @@ async def chat(
     cards = [c for c in ctx.cards if c["id"] in proposed] + [
         c for c in _mentioned_cards(ctx.cards, reply) if c["id"] not in proposed
     ]
+    if not cards and products:
+        # 모델이 도구를 부르지 않고 참고 제품 데이터만으로 추천한 경우: 답변에 이름이 나온 제품만 카드로 낸다
+        cards = _mentioned_cards(
+            [
+                {"id": p["id"], "name": p["name"], "brand": p["brand"], "category": p["category"], "price": p["price"],
+                 "imageUrl": p.get("image_url"), "rating": p["rating"]}
+                for p in products
+            ],
+            reply,
+            fallback=False,
+        )
     # 자동 기억 추출은 응답이 나간 뒤에 한다(실패해도 응답에 영향 없음). 명시 저장이 이미 된 말은 건너뛴다.
     if user is not None and memory_on and not remembered:
         user_turns = sum(1 for m in req.history if m.role == "user") + 1
