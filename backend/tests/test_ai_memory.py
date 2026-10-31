@@ -156,6 +156,11 @@ def _quiet_chat(monkeypatch: pytest.MonkeyPatch) -> dict:
     monkeypatch.setattr("app.api.chat._get_weather_context", weather)
     monkeypatch.setattr("app.api.chat.llm.chat_with_tools", fake_tools)
     monkeypatch.setattr("app.api.chat.memory_service.extract_and_store", fake_extract)
+
+    async def no_llm(*a, **k):
+        raise mem.llm.LLMUnavailable("test")
+
+    monkeypatch.setattr("app.services.memory.llm.chat_completion", no_llm)   # 명시 저장은 AI가 막히면 규칙으로 대신한다
     return seen
 
 
@@ -226,3 +231,35 @@ def test_explicit_memory_strips_filler():
     assert explicit_memory("그럼 크림이 좋다는 내용을 기억해줘") == "크림이 좋다"
     assert explicit_memory("로션이 싫다고 기억해줘") == "로션이 싫다"
     assert explicit_memory("가벼운 로션보다 촉촉한 크림이 좋아, 기억해줘") == "가벼운 로션보다 촉촉한 크림이 좋아"
+
+
+def test_explicit_memory_ignores_questions():
+    """"기억해?"는 질문이다 — 앞 문장을 저장하지 않는다(문맥 기반 자동 추출이 맡는다)."""
+    from app.services.memory import explicit_memory
+
+    assert explicit_memory("내가 싫어하는 것과 좋아하는 것을 기억해?") is None
+    assert explicit_memory("내가 향료 싫어하는 거 기억해요?") is None
+    assert explicit_memory("향료 들어간 건 싫어, 기억해") == "향료 들어간 건 싫어"
+
+
+async def test_explicit_items_uses_context_via_ai_and_falls_back_to_rule(monkeypatch) -> None:
+    seen = {}
+
+    async def fake(messages, system, **k):
+        seen["convo"] = messages[0]["content"]
+        return '[{"kind":"preference","text":"촉촉한 크림을 선호함"}]'
+
+    monkeypatch.setattr("app.services.memory.llm.chat_completion", fake)
+    items = await mem.explicit_items(
+        "그거 기억해줘",
+        [{"role": "user", "content": "가벼운 로션보다 촉촉한 크림이 좋아"}, {"role": "assistant", "content": "알겠어요"}],
+    )
+    assert items == [("preference", "촉촉한 크림을 선호함")]
+    assert "촉촉한 크림이 좋아" in seen["convo"] and "알겠어요" not in seen["convo"]     # 앞선 사용자 발화만 본다
+    assert await mem.explicit_items("내가 좋아하는 것 기억해?", []) == []              # 질문은 AI를 부르지 않고 저장하지 않는다
+
+    async def down(*a, **k):
+        raise mem.llm.LLMUnavailable("down")
+
+    monkeypatch.setattr("app.services.memory.llm.chat_completion", down)
+    assert await mem.explicit_items("향료 들어간 건 싫어, 기억해", []) == [("fact", "향료 들어간 건 싫어")]
