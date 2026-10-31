@@ -103,7 +103,7 @@ export default function MypagePage() {
   const { likedProducts } = useLikedProducts();
   const { decorationId } = useCharacter();
   const [expGuideOpen, setExpGuideOpen] = useState(false);
-  const { logout } = useAuth();
+  const { logout, isUser } = useAuth();
 
   /**
    * 예전에는 `navigate('/')`만 했다 — **세션이 그대로 남아** 토큰도 계정
@@ -116,18 +116,19 @@ export default function MypagePage() {
   };
 
   // 배송지·재입고는 뺐다. 실제 배송이 없어 화면에 채울 근거가 없다.
+  // 주문내역 목록은 취소·반품한 주문도 함께 보여 주므로 개수도 둘을 더한다(orderCount는 취소·반품을 뺀 값).
   // 취소·반품은 orders.status 기록이 생겨 돌아왔다(배송 단계는 서버가 계산).
   // '보낸/받은 선물'은 gifts 테이블에서 온다.
   const shopping: MenuItem[] = [
-    { icon: <LineIcon><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" /><path d="M4 8l8 4 8-4M12 12v8" /></LineIcon>, label: '주문내역', right: stats ? `${stats.orderCount}건` : undefined, onClick: () => navigate('/mypage/order-history') },
-    { icon: <LineIcon><path d="M9 14l-4-4 4-4" /><path d="M5 10h10a4 4 0 010 8h-2" /></LineIcon>, label: '취소/반품/환불 내역', onClick: () => navigate('/mypage/cancel-return') },
+    { icon: <LineIcon><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z" /><path d="M4 8l8 4 8-4M12 12v8" /></LineIcon>, label: '주문내역', right: stats ? `${stats.orderCount + stats.cancelReturnCount}건` : undefined, onClick: () => navigate('/mypage/order-history') },
+    { icon: <LineIcon><path d="M9 14l-4-4 4-4" /><path d="M5 10h10a4 4 0 010 8h-2" /></LineIcon>, label: '취소/반품/환불 내역', right: stats ? `${stats.cancelReturnCount}건` : undefined, onClick: () => navigate('/mypage/cancel-return') },
     { icon: <LineIcon><rect x="3" y="8" width="18" height="12.5" rx="1.5" /><path d="M3 12h18M12 8v12.5" /></LineIcon>, label: '장바구니', right: stats ? `${stats.cartCount}개` : undefined, onClick: () => navigate('/cart') },
-    { icon: <LineIcon><path d="M12 21s-7-5.5-7-11a7 7 0 1114 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></LineIcon>, label: '내 화장대', right: `${stats?.closetCount ?? closetCount}개`, onClick: () => navigate('/closet') },
-    { icon: <LineIcon><rect x="4" y="9" width="16" height="11" rx="1.5" /><path d="M3 6h18v3H3zM12 6v14" /></LineIcon>, label: '보낸/받은 선물', onClick: () => navigate('/mypage/gifts') },
+    { icon: <LineIcon><path d="M9.5 3h5v3h-5z" /><path d="M8 6h8v13.5a1.5 1.5 0 01-1.5 1.5h-5A1.5 1.5 0 018 19.5V6z" /><path d="M8 11h8" /></LineIcon>, label: '내 화장대', right: `${stats?.closetCount ?? closetCount}개`, onClick: () => navigate('/closet') },
+    { icon: <LineIcon><rect x="4" y="9" width="16" height="11" rx="1.5" /><path d="M3 6h18v3H3zM12 6v14" /></LineIcon>, label: '보낸/받은 선물', right: stats ? `보낸 ${stats.giftCount} · 받은 ${stats.receivedGiftCount}` : undefined, onClick: () => navigate('/mypage/gifts') },
   ];
 
   const benefits: MenuItem[] = [
-    { icon: <LineIcon><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" /></LineIcon>, label: '후기', onClick: () => navigate('/mypage/reviews') },
+    { icon: <LineIcon><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" /></LineIcon>, label: '후기', right: stats ? `작성 가능 ${stats.reviewableCount}개` : undefined, onClick: () => navigate('/mypage/reviews') },
     { icon: <LineIcon><path d="M3 8l4 4 5-7 5 7 4-4-2 10H5L3 8z" /></LineIcon>, label: '구독 관리', right: subscription ? (subscription.active ? (subscription.status === 'cancelled' ? '해지 예정' : '구독 중') : '미구독') : undefined, onClick: () => setMembershipOpen(true) },
     { icon: <LineIcon><circle cx="12" cy="12" r="8" /><path d="M9.5 10.5h5M9.5 13.5h5" /></LineIcon>, label: '포인트', right: stats ? `${stats.pointBalance.toLocaleString()}P` : undefined, onClick: () => navigate('/mypage/points') },
     { icon: <LineIcon><path d="M5 13a7 7 0 0114 0" /><rect x="4" y="13" width="3.5" height="6" rx="1.5" /><rect x="16.5" y="13" width="3.5" height="6" rx="1.5" /></LineIcon>, label: '고객센터', onClick: () => navigate('/mypage/customer-service') },
@@ -292,30 +293,52 @@ export default function MypagePage() {
           )}
         </div>
 
-        {/* AI 피부관리 — 피부타입 카드와 통계 바 사이. 남은 횟수는 동의 전이면 '시작하기'. */}
-        <button
-          type="button"
-          onClick={() => navigate('/mypage/subscription')}
-          className="mt-3 flex w-full items-center gap-3 rounded-[20px] border border-[#ECEEE8] bg-white px-4 py-3.5 text-left active:bg-[#F7F8F4]"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ob-surface">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="11" r="6.5" />
-              <path d="M9.5 10h.01M14.5 10h.01M9.5 13.5c1.5 1.4 3.5 1.4 5 0" />
-              <path d="M5 5l1.5 1.5M19 5l-1.5 1.5" />
+        {/* AI 피부관리 — 피부타입 카드와 통계 바 사이(AI 기능 묶음). 남은 횟수는 동의 전이면 '시작하기'. */}
+        <div className="mt-3 overflow-hidden rounded-[20px] border border-[#ECEEE8] bg-white">
+          <button
+            type="button"
+            onClick={() => navigate('/mypage/subscription')}
+            className="flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-[#F7F8F4]"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ob-surface">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="11" r="6.5" />
+                <path d="M9.5 10h.01M14.5 10h.01M9.5 13.5c1.5 1.4 3.5 1.4 5 0" />
+                <path d="M5 5l1.5 1.5M19 5l-1.5 1.5" />
+              </svg>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14px] font-extrabold text-gray-100">AI 피부관리</span>
+              <span className="mt-px block text-[11px] text-gray-50">얼굴 사진으로 내 피부 상태를 확인해요</span>
+            </span>
+            <span className="shrink-0 text-[12px] font-bold text-primary-dark">
+              {quota ? (quota.consentGranted ? `${quota.remaining}회 남음` : '시작하기') : ''}
+            </span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="shrink-0">
+              <path d="M9 6l6 6-6 6" stroke="#C7CBD1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[14px] font-extrabold text-gray-100">AI 피부관리</span>
-            <span className="mt-px block text-[11px] text-gray-50">얼굴 사진으로 내 피부 상태를 확인해요</span>
-          </span>
-          <span className="shrink-0 text-[12px] font-bold text-primary-dark">
-            {quota ? (quota.consentGranted ? `${quota.remaining}회 남음` : '시작하기') : ''}
-          </span>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="shrink-0">
-            <path d="M9 6l6 6-6 6" stroke="#C7CBD1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
+          </button>
+          {isUser && (
+            <button
+              type="button"
+              onClick={() => navigate('/mypage/ai-me')}
+              className="flex w-full items-center gap-3 border-t border-gray-10 px-4 py-3.5 text-left active:bg-[#F7F8F4]"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ob-surface">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2B6B52" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z" />
+                </svg>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] font-extrabold text-gray-100">AI가 기억하는 나</span>
+                <span className="mt-px block text-[11px] text-gray-50">취향 성분과 챗봇이 기억한 정보</span>
+              </span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="shrink-0">
+                <path d="M9 6l6 6-6 6" stroke="#C7CBD1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+        </div>
 
         {/* 통계 바. 전부 GET /me/stats가 실제 행에서 센 값이다. 비회원은
             stats가 null이라 로컬 개수로 대신한다. */}

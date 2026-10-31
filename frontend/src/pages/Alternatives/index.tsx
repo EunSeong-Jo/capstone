@@ -247,6 +247,15 @@ export default function AlternativesPage() {
             <SeedSwitcher seedId={seed.id} options={switchOptions} onPick={pickSeed}>
               {seedRow}
             </SeedSwitcher>
+          ) : seed ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/detail/${seed.id}`)}
+              aria-label={`${seed.name} 상세 보기`}
+              className="block w-full text-left"
+            >
+              {seedRow}
+            </button>
           ) : (
             seedRow
           )}

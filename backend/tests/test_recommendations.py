@@ -53,7 +53,7 @@ async def test_envelope(client: AsyncClient) -> None:
     res = await client.get(_url(1))
     assert res.status_code == 200, res.text
     body = res.json()
-    assert set(body) == {"seedId", "method", "seedSkinFitScore", "items"}
+    assert set(body) == {"seedId", "method", "seedSkinFitScore", "seedUnitPrice", "seedUnitLabel", "items"}
     assert body["seedId"] == 1
     assert body["method"] == "tfidf"  # 기본값
     assert isinstance(body["items"], list)

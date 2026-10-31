@@ -21,6 +21,7 @@ from app.models.personal import (
     RecentlyViewed,
     Review,
     ScanResult,
+    UserMemory,
 )
 from app.models.product import (
     Brand,
@@ -75,6 +76,7 @@ __all__ = [
     "Review",
     "PointTransaction",
     "ScanResult",
+    "UserMemory",
     # 얼굴 사진 AI 분석
     "UserConsent",
     "Subscription",

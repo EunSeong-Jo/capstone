@@ -95,7 +95,7 @@ class SkinAnalysis(Base):
     )
     quota_kind: Mapped[str] = mapped_column(Text, nullable=False)       # free / subscription
     concern_set: Mapped[str] = mapped_column(Text, nullable=False)      # basic / extended
-    provider_mode: Mapped[str] = mapped_column(Text, nullable=False)    # sd / hd / mock
+    provider_mode: Mapped[str] = mapped_column(Text, nullable=False)    # sd / hd / mock / sample(허용 계정 외: 저장된 분석을 복사)
     metrics: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
 

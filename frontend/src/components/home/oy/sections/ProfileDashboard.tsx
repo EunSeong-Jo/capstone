@@ -17,6 +17,8 @@ interface ProfileDashboardProps {
   /** 오늘의 케어 문구. AI 생성 결과(또는 실패 시 정적 폴백) — useCareTip이 넘겨준다.
    *  null이면 로딩 중 — 스켈레톤을 보여준다. */
   careTip: string | null;
+  /** 주면 케어 문구가 눌린다(오늘의 브리핑 열기). 비회원은 넘기지 않는다. */
+  onCareTipClick?: () => void;
   character: CharacterState;
   /**
    * 레벨을 아직 받아오는 중이다(로그인 사용자).
@@ -46,6 +48,7 @@ interface ProfileDashboardProps {
 export function ProfileDashboard({
   weather,
   careTip,
+  onCareTipClick,
   character,
   user,
   registry,
@@ -87,22 +90,20 @@ export function ProfileDashboard({
       <div className="rounded-[24px] bg-white border border-gray-10 shadow-soft p-5">
         {/* 상단 미니 날씨바 (조건·온도·습도 + 피부타입 칩). weather가 null이면
             아직 로딩 중이라는 뜻 — 더미 값 대신 펄스 플레이스홀더를 보여준다 */}
-        <div className="flex items-center justify-between gap-2">
+        {/* 피부타입 칩이 긴 계정(수부지(수부지)·게스트의 '로그인하고 진단하기')에서도 날씨 글자가 어절 중간에서 꺾이지 않게
+            글자는 줄바꿈하지 않고, 한 줄에 다 안 들어가면 칩이 다음 줄로 내려간다. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
           {weather ? (
-            <div className="flex items-center gap-1.5 text-sm font-bold text-gray-100 min-w-0">
+            <div className="flex items-center gap-1.5 whitespace-nowrap text-[12px] font-bold text-gray-100">
               <img
                 src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`}
                 alt={weather.conditionLabel}
-                className="h-6 w-6 -my-1 shrink-0"
+                className="h-5 w-5 -my-1 shrink-0"
               />
               <span>{weather.conditionLabel}</span>
-              <span className="text-gray-20">·</span>
               <span>{weather.temperature}°</span>
               {weather.humidity != null && (
-                <>
-                  <span className="text-gray-20">·</span>
-                  <span className="font-medium text-gray-50">습도 {weather.humidity}%</span>
-                </>
+                <span className="font-medium text-gray-50">습도 {weather.humidity}%</span>
               )}
             </div>
           ) : (
@@ -121,7 +122,7 @@ export function ProfileDashboard({
               onClick={() => navigate(isUser ? '/qna' : '/login')}
               className="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-full bg-primary text-[11px] font-bold text-white active:scale-95 transition-transform"
             >
-              {UNKNOWN_SKIN_META.emoji} {isUser ? '피부타입 진단하기' : '로그인하고 진단하기'}
+              {UNKNOWN_SKIN_META.emoji} {isUser ? '피부타입 진단하기' : '로그인하고 진단'}
             </button>
           ) : (
             <span className="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-full bg-primary-light text-[11px] font-bold text-primary">
@@ -162,14 +163,28 @@ export function ProfileDashboard({
               튀어나와 있고, 레벨 줄 텍스트는 박스 안에서 line-height 때문에 실제
               글자가 박스 하단보다 위쪽에 떠 보인다 — 두 효과를 합쳐서 늘렸다.
               justify-between: 말풍선(flex-1)이 남는 공간을 채우고, 레벨 줄은 항상
-              컬럼 맨 아래에 붙는다. 문구 길이가 달라져도 이 정렬은 안 깨진다. */}
+              컬럼 맨 아래에 붙는다. 문구 길이가 달라져도 이 정렬은 안 깨진다 —
+            말풍선은 2줄(line-clamp-2)·min-h-0으로 막아, 문구가 길어도 레벨 줄이
+            카드 밖으로 밀리지 않는다(전문은 눌러서 여는 브리핑 시트에 있다). */}
           <div className="min-w-0 flex-1 h-[88px] flex flex-col justify-between gap-2">
             <div
-              className="min-w-0 flex-1 flex items-center rounded-2xl bg-gray-5 px-3 py-2"
+              className={`min-h-0 min-w-0 flex-1 flex items-center overflow-hidden rounded-2xl bg-gray-5 px-3 py-2${
+                onCareTipClick && careTip !== null ? ' cursor-pointer active:bg-gray-10' : ''
+              }`}
               aria-label="오늘의 케어"
+              {...(onCareTipClick && careTip !== null
+                ? { role: 'button', tabIndex: 0, onClick: onCareTipClick, onKeyDown: (e: React.KeyboardEvent) => e.key === 'Enter' && onCareTipClick() }
+                : {})}
             >
               {careTip !== null ? (
-                <p className="text-[13px] leading-relaxed text-gray-70">{careTip}</p>
+                <>
+                  <p className="min-w-0 flex-1 line-clamp-2 text-[13px] leading-relaxed text-gray-70">{careTip}</p>
+                  {onCareTipClick && (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="ml-1 shrink-0" aria-hidden>
+                      <path d="M9 6l6 6-6 6" stroke="#8A8F98" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </>
               ) : (
                 <div className="w-full space-y-1.5">
                   <div className="h-2.5 w-4/5 animate-pulse rounded-full bg-gray-10" />

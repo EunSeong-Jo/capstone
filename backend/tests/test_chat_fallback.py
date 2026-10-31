@@ -32,12 +32,42 @@ async def test_recommend_lists_products_with_fit_score() -> None:
 
 
 async def test_unknown_question_gets_guide_not_products() -> None:
-    r = await _reply("안녕")
-    assert "1️⃣ **" not in r and "이렇게 물어봐 주세요" in r
+    r = await _reply("블라블라 아무말")
+    assert "1️⃣ **" not in r.split("아래처럼")[0] and "아래처럼 물어보시면" in r
+    assert "진정 성분이 뭐야?" in r
+
+
+async def test_greeting_and_thanks_get_short_replies_without_notice() -> None:
+    hi, thanks = await _reply("안녕"), await _reply("고마워")
+    assert chat_fallback.NOTICE not in hi and "안녕하세요" in hi and len(hi) < 80
+    assert chat_fallback.NOTICE not in thanks and len(thanks) < 80
+
+
+async def test_app_howto_questions_get_fixed_answers_not_products() -> None:
+    points = await _reply("포인트는 어떻게 모아요?")
+    assert "1%" in points and "100P" in points and "마이페이지 > 포인트" in points
+    ship = await _reply("배송은 언제 와요?")
+    assert "주문내역" in ship and "1️⃣" not in ship
+    diag = await _reply("피부 타입 진단은 어떻게 해?")
+    assert "문답 진단" in diag and "AI 피부관리" in diag
+    closet = await _reply("화장대에 제품 어떻게 등록해?")
+    assert "내 화장품 등록하기" in closet
+    app = await _reply("이 앱 뭐하는 앱이야?")
+    assert "대체품" in app and "1️⃣" not in app
+
+
+async def test_function_question_lists_ingredients_not_a_random_product() -> None:
+    r = await _reply("진정 성분이 뭐야?")
+    assert "**진정**" in r and "· " in r and "1️⃣" not in r
+
+
+async def test_sensitive_question_lists_what_to_avoid() -> None:
+    r = await _reply("민감성 피부한테 안 좋은 성분 알려줘")
+    assert "향료" in r and "알코올" in r
 
 
 async def test_no_unsupported_markdown() -> None:
-    for q in ("레티놀이 뭐야?", "토너 추천해줘", "안녕"):
+    for q in ("레티놀이 뭐야?", "토너 추천해줘", "안녕", "진정 성분이 뭐야?", "포인트는 어떻게 모아요?"):
         body = (await _reply(q)).replace("**", "")
         assert not re.search(r"^[#>`-]", body, re.M), q
 

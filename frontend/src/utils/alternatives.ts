@@ -29,7 +29,7 @@ export type SeedRef = Pick<Product, 'id' | 'price'> & { brand?: string; name?: s
  *
  * 위 분포는 tfidf 기준이다. 기본 방식이 hybrid로 바뀌면서(점수가 전반적으로 높다:
  * 시드당 20개 중 0.30 이상이 hybrid는 9개를 넘는다) 같은 비중(시드당 약 4개)이
- * 초록이 되는 55로 다시 잡았다. 0.50은 9.1개, 0.55는 4.0개, 0.60은 1.8개였다(로컬 DB 실측,
+ * 초록이 되는 55로 다시 잡았다(경계 값 55 자체는 주황, 초과만 초록). 0.50은 9.1개, 0.55는 4.0개, 0.60은 1.8개였다(로컬 DB 실측,
  * 제형 일치·판정 보정 반영 후).
  * method를 바꾸면 이 값도 다시 잡아야 한다.
  */
@@ -52,9 +52,13 @@ const SAME_PRODUCT_MIN = 99;
  */
 const VOLUME_SUFFIX = /[\s(]*\d+(?:\.\d+)?\s*(?:ml|mL|ML|g|G|매|ea|EA|개|정)\)?\s*$/;
 
+/** 제품명 말미의 리필 표기. '토너 200ml 리필팩' → '토너 200ml' */
+const REFILL_SUFFIX = /\s*리필\s*(?:팩|파우치)?\s*$/;
+
 /** 용량과 공백을 뗀 제품명. 같은 제품의 다른 용량을 맞춰 보는 데 쓴다. */
 function nameBody(name: string): string {
-  return name.replace(VOLUME_SUFFIX, '').replace(/\s+/g, '');
+  // '…토너 200ml 리필팩'은 같은 제품의 리필이다. 끝의 리필 표기를 먼저 떼야 용량 표기가 맨 뒤로 와서 본품과 같은 몸통이 된다.
+  return name.replace(REFILL_SUFFIX, '').replace(VOLUME_SUFFIX, '').replace(/\s+/g, '');
 }
 
 /**
@@ -67,9 +71,9 @@ export function toSimilarityPercent(score: number): number {
   return Math.min(100, Math.max(0, Math.round(score * 100)));
 }
 
-/** 카드 우상단 뱃지 색. 두 카드 컴포넌트가 이 함수를 공유한다. */
+/** 유사도 색. SIMILARITY_HIGH(55%) 이하는 주황, 초과만 초록. 모든 유사도 표시가 이 함수를 공유한다. */
 export function similarityBadgeType(percent: number): 'sim-high' | 'sim-mid' {
-  return percent >= SIMILARITY_HIGH ? 'sim-high' : 'sim-mid';
+  return percent > SIMILARITY_HIGH ? 'sim-high' : 'sim-mid';
 }
 
 /**

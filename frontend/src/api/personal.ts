@@ -126,7 +126,13 @@ export interface StatsDto {
   orderCount: number;
   scanCount: number;
   reviewCount: number;
+  /** 보낸 선물 */
   giftCount: number;
+  receivedGiftCount: number;
+  /** 취소·반품·환불한 주문 */
+  cancelReturnCount: number;
+  /** 지금 후기를 쓸 수 있는 제품(배송 완료, 아직 후기 없음) */
+  reviewableCount: number;
   totalSpent: number;
   pointBalance: number;
   /**
@@ -157,7 +163,7 @@ async function send(path: string, method: string, body?: unknown): Promise<void>
 export const fetchCloset = () => request<ClosetItemDto[]>('/api/v1/me/closet');
 export const addClosetItem = (productId: number, addedVia = 'search') =>
   postJson<ClosetItemDto>('/api/v1/me/closet', { productId, addedVia });
-/** 기본은 '삭제된 제품'으로 옮기기. permanent면 행을 지운다 */
+/** 기본은 '미사용 제품'으로 옮기기. permanent면 행을 지운다 */
 export const removeClosetItem = (productId: number, permanent = false) =>
   send(`/api/v1/me/closet/${productId}${permanent ? '?permanent=true' : ''}`, 'DELETE');
 

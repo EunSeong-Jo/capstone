@@ -64,7 +64,7 @@ export function IngredientBand({ anatomy }: { anatomy: AnatomyItem[] }) {
               onClick={() => !dense && setPicked(on ? null : a)}
               className="relative flex h-full min-w-0 flex-1 flex-col justify-end"
             >
-              {a.caution && <span className="mb-0.5 h-1.5 w-full rounded-full bg-accent" />}
+              {a.caution && <span className="mb-0.5 h-1.5 w-full rounded-full bg-caution-solid" />}
               <span
                 className={`block w-full ${dense ? '' : 'rounded-[2px]'} ${on ? 'h-full ring-2 ring-oy-text' : 'h-[70%]'}`}
                 style={{ background: colorOf(a) }}
@@ -104,7 +104,7 @@ export function IngredientBand({ anatomy }: { anatomy: AnatomyItem[] }) {
           베이스(용매·유화 등)
         </li>
         <li className="flex items-center gap-1">
-          <span className="h-1.5 w-3 rounded-full bg-accent" />
+          <span className="h-1.5 w-3 rounded-full bg-caution-solid" />
           주의 성분
         </li>
       </ul>

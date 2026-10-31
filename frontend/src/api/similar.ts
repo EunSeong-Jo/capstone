@@ -50,6 +50,9 @@ export interface SimilarResponse {
   method: string;
   /** fitFor를 줬을 때 기준 제품의 궁합 점수(0~100). 대체품의 skinFitScore와 같은 척도다 */
   seedSkinFitScore?: number | null;
+  /** 기준 제품의 단가(같은 제품의 다른 용량·리필이 단가로도 싼지 견주는 기준). 서버가 단가를 모르면 null */
+  seedUnitPrice?: number | null;
+  seedUnitLabel?: string | null;
   items: SimilarItem[];
 }
 

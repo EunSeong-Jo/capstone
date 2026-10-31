@@ -8,14 +8,15 @@ import { readJSON, writeJSON } from '../context/storage';
  * 있어야 해서 **비밀 명령**으로 켜고 끈다: 로고를 {@link SECRET_TAPS}번 연달아(각 탭 사이 {@link TAP_GAP_MS} 이내) 누른다.
  * 선택은 기기에 저장돼 다음 실행에도 유지된다.
  *
- * 기본값(저장된 선택이 없을 때)은 빌드 변수 `VITE_DEMO_PANEL`이 정한다 — `off`면 숨김, 그 밖에는 표시(개발·웹).
- * 배포용 빌드는 `VITE_DEMO_PANEL=off`로 만든다.
+ * 기본값(저장된 선택이 없을 때)은 **숨김**이다. 개발 중에 처음부터 보이게 하려면 빌드 변수
+ * `VITE_DEMO_PANEL=on`을 준다. 배포·웹·앱 빌드는 아무 설정 없이도 숨겨진다.
  */
-const KEY = 'swappy:ui:demoPanel:v1';
+// v2: 예전에 비밀 명령으로 '켜짐'이 저장된 기기도 기본값(숨김)으로 돌아가게 키를 올렸다
+const KEY = 'swappy:ui:demoPanel:v2';
 export const SECRET_TAPS = 7;
 const TAP_GAP_MS = 1200;
 
-const defaultOn = import.meta.env.VITE_DEMO_PANEL !== 'off';
+const defaultOn = import.meta.env.VITE_DEMO_PANEL === 'on';
 
 export function useDemoPanel(): {
   visible: boolean;

@@ -27,17 +27,7 @@ export const POPULAR_SEARCH_RANKING: Record<PopularSearchFilter, string[]> = {
     '라운드랩', '토리든', '아누아', '메디힐', '닥터지',
     '달바', '에스트라', '라로슈포제', '구달', '넘버즈인',
   ],
-};export interface IngredientCategory {
-  id: string;
-  emoji: string;
-  label: string;
-}
-
-export const INGREDIENT_DICTIONARY: IngredientCategory[] = [
-  { id: 'caution20', emoji: '💧', label: '20가지 주의 성분' },
-  { id: 'allergy', emoji: '💥', label: '알레르기 유발 주의 성분' },
-  { id: 'uv', emoji: '🛡️', label: '자외선 차단 기능 성분' },
-];
+};
 
 // ===== 성분 스캔 화면(3c) — 최근 스캔 목업 =====
 export interface RecentScan {

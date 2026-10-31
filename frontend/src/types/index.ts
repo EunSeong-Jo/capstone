@@ -47,7 +47,7 @@ export interface Product {
   price: number;
   originalPrice?: number;
   discountRate?: number;
-  rating?: number;
+  rating?: number | null;
   reviewCount?: number;
   isNew?: boolean;
   isBest?: boolean;
@@ -59,6 +59,8 @@ export interface Product {
    *  (`sheet`·`ml10`·`g10`·`piece`)이고 문구는 lib/unitPrice.ts가 정한다. */
   unitPrice?: number | null;
   unitLabel?: string | null;
+  /** 내 성분 취향과 겹칠 때만 서버가 채우는 추천 이유("내가 좋아한 ○○ 성분이 들어 있어요") */
+  personalReason?: string | null;
 }
 
 // ===== 대체품 추천 =====

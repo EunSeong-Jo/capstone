@@ -5,6 +5,7 @@
 #   scripts/aws_db.sh verify             AWS DB의 행 수를 로컬 DB와 견준다(읽기 전용)
 #   scripts/aws_db.sh restore --yes      덤프를 **빈** AWS DB에 복원한다
 #   scripts/aws_db.sh migrate --yes      AWS DB에 alembic upgrade head (백엔드 컨테이너로 실행)
+#   scripts/aws_db.sh sql 파일.sql --yes  AWS DB에 SQL 파일을 실행한다(작은 보정용. 예: scripts/fix_refill_similarity.py가 만든 SQL)
 #   scripts/aws_db.sh demo --yes         조은성 데모 계정을 지우고 최신 데모 덤프로 다시 올린다(다른 계정은 건드리지 않음)
 #
 # AWS 접속 정보는 저장소 루트의 `.env.aws`(커밋 금지, .gitignore에 있음)에서만 읽는다:
@@ -69,7 +70,7 @@ cmd_dump() {
   chmod 600 "$cat"
   echo "✔ 기준 데이터: $cat ($(du -h "$cat" | cut -f1))"
 
-  # 데모 계정 한 명의 모든 데이터(로그인 세션 refresh_tokens만 뺀다). 적용할 때 먼저 그 계정을 지우므로 여러 번 돌려도 된다.
+  # 데모 계정 한 명의 모든 데이터(로그인 세션 refresh_tokens만 뺀다. 보낸 선물은 받는 사람 연결(recipient_user_id)을 비운다 — 운영에는 그 계정이 같은 id로 없다). 적용할 때 먼저 그 계정을 지우므로 여러 번 돌려도 된다.
   local demo="$DUMP_DIR/swappy_demo_${DEMO_EMAIL%%@*}_$stamp.sql" me="(select id from users where email='$DEMO_EMAIL')"
   [ -n "$(local_psql -c "select 1 from users where email='$DEMO_EMAIL'")" ] || die "로컬 DB에 $DEMO_EMAIL 계정이 없습니다."
   {
@@ -87,6 +88,10 @@ cmd_dump() {
                 "point_transactions|select * from point_transactions where user_id=$me order by id" \
                 "recently_viewed|select * from recently_viewed where user_id=$me" \
                 "scan_results|select * from scan_results where user_id=$me order by id" \
+                "likes|select * from likes where user_id=$me order by id" \
+                "reviews|select * from reviews where user_id=$me order by id" \
+                "review_photos|select * from review_photos where review_id in (select id from reviews where user_id=$me) order by id" \
+                "gifts|select id, sender_user_id, product_id, product_name, brand_name, unit_price, recipient_name, message, status, created_at, null::uuid as recipient_user_id from gifts where sender_user_id=$me order by created_at" \
                 "user_consents|select * from user_consents where user_id=$me" \
                 "subscriptions|select * from subscriptions where user_id=$me" \
                 "skin_analyses|select * from skin_analyses where user_id=$me order by created_at" \
@@ -94,6 +99,10 @@ cmd_dump() {
       echo "COPY ${spec%%|*} FROM stdin;"
       local_psql -c "COPY (${spec#*|}) TO STDOUT"
       echo '\.'
+    done
+    # 행을 id째 넣었으니 serial 번호표도 따라가게 한다. 안 그러면 운영에서 새 행을 만들 때 id가 겹쳐 실패한다.
+    for t in diagnoses closet_items cart_items likes order_items point_transactions scan_results reviews review_photos; do
+      echo "SELECT setval(pg_get_serial_sequence('$t','id'), GREATEST((SELECT COALESCE(MAX(id),1) FROM $t), (SELECT last_value FROM $(local_psql -c "select split_part(pg_get_serial_sequence('$t','id'),'.',2)" | tr -d '"')))) ;"
     done
     echo "COMMIT;"
   } > "$demo"
@@ -171,14 +180,29 @@ cmd_demo() {
   PGDSN=$(keepalive "$PGDSN"); export PGDSN
   local demo; demo=$(latest 'swappy_demo_*.sql'); [ -n "$demo" ] || die "데모 덤프가 없습니다. 먼저 scripts/aws_db.sh dump"
   echo "적용: $(basename "$demo")"
-  psql_remote -q -f - < "$demo" >/dev/null
+  # 덤프 전체가 한 트랜잭션(BEGIN~COMMIT)이라 연결이 끊기면 아무것도 바뀌지 않는다 — 안전하게 다시 시도한다.
+  local try
+  for try in 1 2 3; do
+    if psql_remote -q -f - < "$demo" >/dev/null; then break; fi
+    [ "$try" = 3 ] && die "3번 모두 실패했습니다. 운영 DB는 바뀌지 않았습니다(트랜잭션 롤백). 네트워크를 확인하고 다시 실행하세요."
+    echo "연결이 끊겼어요. 롤백됐으니 다시 시도합니다($try/3)…"; sleep 3
+  done
   local me="(select id from users where email='$DEMO_EMAIL')" t
   for t in profiles diagnoses closet_items orders user_consents subscriptions skin_analyses skin_analysis_images; do
     printf "  %-22s AWS %s행\n" "$t" "$(q_remote -c "select count(*) from $t where user_id=$me")"
   done
 }
 
+cmd_sql() {
+  local file="${1:-}"; [ -f "$file" ] || die "SQL 파일을 주세요. 예) scripts/aws_db.sh sql fix.sql --yes"
+  [ "${2:-}" = "--yes" ] || die "운영 DB에 $file 을 실행합니다. 내용을 확인한 뒤 --yes를 붙여 다시 실행하세요."
+  load_target
+  PGDSN=$(keepalive "$PGDSN"); export PGDSN
+  psql_remote -q -v ON_ERROR_STOP=1 -f - < "$file" >/dev/null && echo "✔ 적용했습니다: $file"
+}
+
 case "${1:-help}" in
+  sql)     shift; cmd_sql "$@" ;;
   dump)    cmd_dump ;;
   restore) shift; cmd_restore "${1:-}" ;;
   verify)  cmd_verify ;;

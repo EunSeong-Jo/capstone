@@ -4,6 +4,8 @@ import { Icon } from '../../components/category/Icon';
 import { OySectionHeader } from '../../components/home/oy/OySectionHeader';
 import { useLikedProducts } from '../../context/liked';
 import { useCart } from '../../context/cart';
+import { useCloset } from '../../context/closet';
+import { useToast } from '../../context/toast';
 import { HeaderActions } from '../../components/layout/HeaderActions';
 import { useProduct } from '../../hooks/useProduct';
 import { useSimilarProducts } from '../../hooks/useSimilarProducts';
@@ -17,6 +19,7 @@ import { skinTypes } from '../../data/skinTypes';
 import type { ProductIngredient } from '../../api/products';
 import { ProductReviews } from '../../components/product/ProductReviews';
 import { IngredientSheet } from '../../components/product/IngredientSheet';
+import { useMyIngredients } from '../../hooks/useMyIngredients';
 import { SkinFitCard } from '../../components/product/SkinFitCard';
 import { OptionPicker } from '../../components/product/OptionPicker';
 import { KEEP_SCROLL } from '../../components/layout/keepScroll';
@@ -162,6 +165,30 @@ export default function ProductDetailPage() {
   const { addRecentlyViewed } = useRecentlyViewed();
   const { isLiked, toggleLike } = useLikedProducts();
   const { addToCart, inCart } = useCart();
+  const { hasItem, addItem, removeItem, restoreItem } = useCloset();
+  const { showToast } = useToast();
+  const inCloset = productId !== undefined && hasItem(productId);
+  /** 이 제품을 내 화장대에 담는다. 담은 뒤에는 성분 분석으로 바로 갈 수 있게 토스트에 링크를 둔다. */
+  const addToClosetHere = () => {
+    if (!product) return;
+    if (requireLogin('화장대는 로그인하면 쓸 수 있어요')) return;
+    addItem({
+      id: product.id,
+      brand: product.brand,
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      imageUrl: product.imageUrl,
+      addedVia: 'search',
+    });
+    showToast('화장대에 담았어요', { label: '성분 분석 보기', onClick: () => navigate(`/analysis/${product.id}`) });
+  };
+  /** 담겨 있는 제품을 다시 누르면 화장대에서 뺀다(지우지 않고 '미사용 제품'으로 옮기므로 되돌릴 수 있다). */
+  const removeFromClosetHere = () => {
+    if (!product) return;
+    removeItem(product.id);
+    showToast('미사용 제품으로 옮겼어요', { label: '되돌리기', onClick: () => restoreItem(product.id) });
+  };
   const [showAll, setShowAll] = useState(false);
   // 궁합 카드의 이유를 눌렀을 때 강조할 성분(전성분 표기 순서). 칩 key의 id는 겹칠 수 있어 position으로 센다.
   const [highlight, setHighlight] = useState<ReadonlySet<number>>(new Set());
@@ -181,6 +208,7 @@ export default function ProductDetailPage() {
   }, [highlight]);
   // 설명 시트에 띄울 성분. 시트의 useEffect가 onClose에 의존하므로 참조를 고정한다.
   const [selected, setSelected] = useState<ProductIngredient | null>(null);
+  const myIngredients = useMyIngredients();
   const closeSheet = useCallback(() => setSelected(null), []);
 
   // 전성분은 라벨을 분리해 묶음으로 만든다. 기획세트가 아니면 묶음 1개다.
@@ -190,6 +218,11 @@ export default function ProductDetailPage() {
   );
   const total = countIngredients(groups);
   const hasLabels = groups.some((g) => g.label !== null);
+  // 이 제품의 전성분 중 내가 마이 성분으로 담아 둔 것의 개수(같은 성분이 묶음마다 나와도 한 번만 센다)
+  const mineCount = useMemo(
+    () => new Set(groups.flatMap((g) => g.items.map((i) => i.id)).filter((id) => myIngredients.has(id))).size,
+    [groups, myIngredients],
+  );
 
   // 등급별 개수. 근거가 있는 것만 세고, 분류 미정은 세지 않는다.
   const gradeCount = useMemo(() => {
@@ -220,8 +253,8 @@ export default function ProductDetailPage() {
   );
 
   useEffect(() => {
-    if (asProduct) addRecentlyViewed(asProduct);
-  }, [asProduct, addRecentlyViewed]);
+    if (asProduct) addRecentlyViewed(asProduct, product?.optionParentId);
+  }, [asProduct, product?.optionParentId, addRecentlyViewed]);
 
   const liked = asProduct ? isLiked(asProduct.id) : false;
 
@@ -271,7 +304,11 @@ export default function ProductDetailPage() {
 
           {/* ── 브랜드 · 이름 · 가격 ─────────────────── */}
           <Section>
-            <p className="text-sm text-oy-sub">{product.brand}</p>
+            <p className="text-sm text-oy-sub">
+              {product.brand}
+              {product.category && <span aria-hidden> · </span>}
+              {product.category}
+            </p>
             <h1 className="mt-1.5 text-xl font-bold leading-snug">
               {product.name}
             </h1>
@@ -301,10 +338,6 @@ export default function ProductDetailPage() {
               </p>
             )}
 
-            <span className="mt-3 inline-block rounded-full bg-oy-chip px-2.5 py-1 text-xs text-oy-sub">
-              {product.category}
-            </span>
-
             {similarTo && (
               <button
                 type="button"
@@ -326,12 +359,49 @@ export default function ProductDetailPage() {
                 <span className="shrink-0 text-xs font-bold text-primary">비교 ›</span>
               </button>
             )}
+
+            {/* 직접 고른 다른 제품과 성분 비교(상대는 검색 화면 선택 모드에서 고른다). 교체 제안에서 온 경우엔 위 배너가 비교 대상을 이미 정해 두었다. */}
+            {!similarTo && (
+              <button
+                type="button"
+                onClick={() => navigate(`/search?pick=${product.id}`)}
+                className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl border border-oy-line bg-white px-3.5 py-2.5 text-left active:scale-[.99]"
+              >
+                <span className="min-w-0 text-sm font-bold text-oy-text">⇄ 다른 제품과 성분 비교하기</span>
+                <span className="shrink-0 text-xs font-bold text-primary">›</span>
+              </button>
+            )}
           </Section>
 
           <Divider />
 
           {/* ── 내 피부와의 궁합 — 전성분보다 먼저 ───────── */}
-          <SkinFitCard productId={product.id} onReasonClick={onReasonClick} />
+          <SkinFitCard
+            productId={product.id}
+            onReasonClick={onReasonClick}
+            // 내 화장대에 담기. 담겨 있으면 다시 눌러 뺀다(미사용 제품으로 옮기고 되돌릴 수 있다)
+            headerAside={
+              inCloset ? (
+                <button
+                  type="button"
+                  onClick={removeFromClosetHere}
+                  aria-pressed
+                  aria-label="화장대에서 빼기"
+                  className="py-1 text-[13px] font-bold text-good active:opacity-60"
+                >
+                  화장대에 있어요
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={addToClosetHere}
+                  className="py-1 text-[13px] font-bold text-primary active:opacity-60"
+                >
+                  + 화장대에 추가
+                </button>
+              )
+            }
+          />
           {/* 성분 분석 — 기능 강도·핵심/주의 성분·전성분 해부도·내 피부 상태와 견주기·내 화장대와 견주기 */}
           <div className="-mt-2 px-4 pb-5">
             {/* 스와피 로고의 연한 물결 색(#9DCDB8) + 진한 물결 색(#2B6B52) 글자 */}
@@ -351,7 +421,16 @@ export default function ProductDetailPage() {
 
           {/* ── 전성분 (핵심 섹션) ───────────────────── */}
           <section ref={ingredientsRef} className="px-4 py-5 scroll-mt-14">
-            <OySectionHeader title={`전성분 ${total}개`} />
+            <OySectionHeader
+              title={`전성분 ${total}개`}
+              aside={
+                mineCount > 0 && (
+                  <span className="text-sm font-semibold text-primary" title="이 제품에 든 마이 성분" aria-label={`마이 성분 ${mineCount}개`}>
+                    ♥ {mineCount}
+                  </span>
+                )
+              }
+            />
             <p className="-mt-1 mb-3 text-xs text-oy-sub">
               화장품 전성분은 함량이 많은 순서로 표기됩니다.
               {hasLabels && ' 이 상품은 구성품별로 나뉘어 있어요.'}
@@ -411,6 +490,11 @@ export default function ProductDetailPage() {
                             >
                               {ing.name}
                               {ing.isAllergen && <span className="ml-1">⚠</span>}
+                              {myIngredients.has(ing.id) && (
+                                <span className="ml-1" title="마이 성분" aria-label="마이 성분">
+                                  ♥
+                                </span>
+                              )}
                             </button>
                           </li>
                         ))}
@@ -554,7 +638,12 @@ export default function ProductDetailPage() {
         </div>
       )}
 
-      <IngredientSheet ingredient={selected} onClose={closeSheet} skinTypeLabel={skinTypeLabel} />
+      <IngredientSheet
+        ingredient={selected}
+        onClose={closeSheet}
+        skinTypeLabel={skinTypeLabel}
+        isMine={selected !== null && myIngredients.has(selected.id)}
+      />
     </div>
   );
 }

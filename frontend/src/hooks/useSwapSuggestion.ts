@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../api/client';
-import { loadSimilarProducts } from '../api/similar';
+import { loadSimilarProducts, type SimilarResponse } from '../api/similar';
 import { invalidate, load, peek } from '../api/queryCache';
 import { ClosetItem } from '../context/closet';
 import { Alternative, SkinType } from '../types';
@@ -94,19 +94,28 @@ interface UseSwapSuggestionResult {
 const MAX_SEEDS = 5;
 
 /**
- * 오늘 쓸 화장대 제품을 고른다. 화장대가 MAX_SEEDS개 이하면 전부, 많으면 날짜로 섞어 MAX_SEEDS개.
+ * 교체 제안에서 뺀다. 마스크팩·패드는 한 봉지의 매수가 제각각(1매 1,500원 vs 10매 15,000원)이라 값만 견주면
+ * 실제로는 아낀 게 거의 없는데 절약이 큰 것처럼 보인다. 쓰던 제품으로도, 대체품으로도 올리지 않는다.
+ * (화장대·검색·'내 마스크팩 제품과 비슷한 추천'에는 그대로 나온다)
+ */
+const PACK_CATEGORY = '마스크팩';
+/** 종류가 비어 더 물을 때를 포함해 한 번에 조회하는 화장대 제품의 상한 */
+const MAX_SEEDS_TOTAL = 40;
+
+/**
+ * 오늘 쓸 화장대 제품의 순서를 정한다. 날짜로 섞어, 앞의 MAX_SEEDS개가 오늘의 제품이다(나머지는 종류가 비었을 때 뒤에서 채운다).
  *
  * 같은 날에는 항상 같은 제품이 뽑히고(새로고침해도 안 바뀐다) 날이 바뀌면 달라져서,
  * 며칠 안에 화장대의 모든 제품이 한 번씩 나온다.
  */
-function pickSeedsOfToday<T extends { id: number }>(items: T[], today: string): T[] {
+function orderSeedsOfToday<T extends { id: number }>(items: T[], today: string): T[] {
   if (items.length <= MAX_SEEDS) return items;
   const hash = (id: number) => {
     let h = 2166136261;
     for (const ch of `${today}:${id}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
     return h >>> 0;
   };
-  return [...items].sort((a, b) => hash(a.id) - hash(b.id)).slice(0, MAX_SEEDS);
+  return [...items].sort((a, b) => hash(a.id) - hash(b.id));
 }
 
 /** 로컬 날짜(YYYY-MM-DD). 하루의 경계는 사용자 기기 기준이다. */
@@ -133,10 +142,10 @@ export function totalSavingOf(candidates: SwapSuggestion[]): number {
 }
 
 /**
- * 홈의 교체 제안 카드(1순위)에 올릴 최소 성분 유사도(%). 절약액·궁합 점수로 1등을 뽑으므로,
+ * 홈의 교체 제안 카드(1순위)에 올릴 성분 유사도(%)의 경계. 이 값을 넘는 제품만 올린다(초록 기준과 같다). 절약액·궁합 점수로 1등을 뽑으므로,
  * 이 하한이 없으면 성분이 많이 다른 제품이 1등이 될 수 있다. 목록 화면에는 적용하지 않는다.
  */
-export const HOME_SIMILARITY_MIN = 50;
+export const HOME_SIMILARITY_MIN = 55;
 
 /** '더 좋은 대체품'(가격 무관)이 되려면 쓰던 제품보다 궁합 점수가 이만큼 이상 높아야 한다 */
 export const FIT_GAIN_MIN = 5;
@@ -199,10 +208,37 @@ const swapCacheKey = (seedKey: string, skinType?: SkinType) => `swap:${seedKey}:
  * 쓴다. 캐시 키가 같으므로 `load`가 한 번만 계산한다 — 예전에는 둘이
  * 따로 계산해 /similar가 화장대 제품 수의 두 배만큼 나갔다.
  */
-async function computeSwap(current: SwapSeed[], skinType?: SkinType): Promise<SwapResult> {
-  const results = await Promise.allSettled(
-    current.map((seed) => loadSimilarProducts(seed.id, { limit: PER_SEED_LIMIT, skinType, fitFor: skinType })),
-  );
+async function computeSwap(ordered: SwapSeed[], skinType?: SkinType): Promise<SwapResult> {
+  const ask = (seeds: SwapSeed[]) =>
+    Promise.allSettled(
+      seeds.map((seed) => loadSimilarProducts(seed.id, { limit: PER_SEED_LIMIT, skinType, fitFor: skinType })),
+    );
+
+  // 오늘의 제품 MAX_SEEDS개로 시작한다. 홈 카드가 세 종류(더 저렴한·더 좋은·리필) 모두 하나씩은 보여 주려면
+  // 종류가 비었을 때만 화장대의 다른 제품을 MAX_SEEDS개씩 더 물어 채운다(전부 합쳐 MAX_SEEDS_TOTAL개까지).
+  let used = Math.min(MAX_SEEDS, ordered.length);
+  let results = await ask(ordered.slice(0, used));
+  let built = buildSwap(ordered.slice(0, used), results, skinType);
+  while (needsMore(built) && used < Math.min(ordered.length, MAX_SEEDS_TOTAL)) {
+    const next = Math.min(used + MAX_SEEDS, ordered.length, MAX_SEEDS_TOTAL);
+    results = results.concat(await ask(ordered.slice(used, next)));
+    used = next;
+    built = buildSwap(ordered.slice(0, used), results, skinType);
+  }
+  return built;
+}
+
+/** 홈 카드에 올릴 만한(유사도 하한 이상) 후보가 없는 종류가 있는가 */
+function needsMore(r: SwapResult): boolean {
+  const ok = (list: SwapSuggestion[]) => list.some((c) => c.alt.similarityScore > HOME_SIMILARITY_MIN);
+  return !ok(r.candidates) || !ok(r.betterCandidates) || !ok(r.refillCandidates);
+}
+
+function buildSwap(
+  current: SwapSeed[],
+  results: PromiseSettledResult<SimilarResponse>[],
+  skinType?: SkinType,
+): SwapResult {
 
   // 404는 고장이 아니다. 화장대에는 카탈로그에 없는 id가 섞인다 —
   // 챗봇으로 등록한 제품(960001+)이 그렇고, id 체계가 바뀌기 전에
@@ -242,7 +278,9 @@ async function computeSwap(current: SwapSeed[], skinType?: SkinType): Promise<Sw
     const seed = current[i];
     // basedOn: 상세 페이지가 "내 화장대의 어느 제품과 비슷한지"를 알려 주는 데 쓴다(화장대가 기준이라 항상 참이다).
     const seedFit = result.value.seedSkinFitScore ?? null;
-    const mapped = result.value.items.map((item) => ({ ...toAlternative(item, seed, skinType), basedOn: seed.name }));
+    const mapped = result.value.items
+      .filter((item) => item.category !== PACK_CATEGORY)
+      .map((item) => ({ ...toAlternative(item, seed, skinType), basedOn: seed.name }));
     // 같은 제품의 다른 용량은 교체 제안이 아니다. 이걸 빼지 않으면
     // "유사도 100%" 1등이 대부분 자기 자신의 대용량 버전이 된다.
     // 다만 버리지는 않는다 — 진짜 대체품이 없을 때 "같은 제품 대용량이
@@ -256,8 +294,20 @@ async function computeSwap(current: SwapSeed[], skinType?: SkinType): Promise<Sw
         better.push({ seed, alt, fitGain: fit - seedFit });
       }
     });
+    // "리필·다른 용량"은 값이 싸다는 뜻이 아니라 **단가가 싸다**는 뜻이다. 10매짜리 대신 1매짜리(1,500원)를 고르면
+    // 가격은 90% 낮아 보여도 단가는 같다 — 그런 건 절약이 아니라서 단가를 견줄 수 있고 더 싼 것만 남긴다.
+    const seedUnit = result.value.seedUnitPrice;
+    const seedUnitLabel = result.value.seedUnitLabel;
     variants.forEach((alt) => {
       if ((alt.priceDelta ?? 0) >= 0) return;
+      if (
+        seedUnit == null ||
+        alt.unitPrice == null ||
+        alt.unitLabel !== seedUnitLabel ||
+        alt.unitPrice >= seedUnit * 0.98
+      ) {
+        return;
+      }
       variantCandidates.push({ seed, alt });
     });
   });
@@ -299,10 +349,11 @@ export function useSwapSuggestion(
   const seedKey = useMemo(
     () =>
       JSON.stringify(
-        pickSeedsOfToday(
-          items.filter((c) => (c.price ?? 0) > 0),
+        orderSeedsOfToday(
+          items.filter((c) => (c.price ?? 0) > 0 && c.category !== PACK_CATEGORY),
           todayKey(),
         )
+          .slice(0, MAX_SEEDS_TOTAL)
           .map<SwapSeed>((c) => ({
             id: c.id,
             brand: c.brand,
@@ -381,4 +432,60 @@ export function useSwapSuggestion(
     error: current?.error ?? null,
     reload,
   };
+}
+
+/**
+ * 화장대 **전체**로 아낄 수 있는 최대 금액 — 홈 상단 "최대 ○○원 절약 가능"이 쓴다.
+ *
+ * 오늘의 교체 제안은 날마다 다른 제품 5개만 물어서(`orderSeedsOfToday`) 그 합계로 띄우면 숫자가 날마다 바뀐다.
+ * 이 훅은 날짜와 무관하게 화장대의 모든 제품(마스크팩 제외)을 id 순으로 물어 같은 화장대면 항상 같은 값을 낸다.
+ * 합계 규칙은 홈 카드와 같다(유사도 하한 이상, 쓰던 제품마다 1등 후보 하나).
+ */
+export function useClosetMaxSaving(items: ClosetItem[], skinType?: SkinType): number | undefined {
+  const seedKey = useMemo(
+    () =>
+      JSON.stringify(
+        items
+          .filter((c) => (c.price ?? 0) > 0 && c.category !== PACK_CATEGORY)
+          .sort((a, b) => a.id - b.id)
+          .slice(0, MAX_SEEDS_TOTAL)
+          .map<SwapSeed>((c) => ({
+            id: c.id,
+            brand: c.brand,
+            name: c.name,
+            price: c.price ?? 0,
+            imageUrl: c.imageUrl,
+          })),
+      ),
+    [items],
+  );
+  const [loaded, setLoaded] = useState<{ key: string; value: number | undefined } | null>(null);
+  const key = `${seedKey}:${skinType}`;
+
+  useEffect(() => {
+    if (seedKey === '[]') return;
+    let alive = true;
+    load(
+      `maxsave:${key}`,
+      async () => {
+        const seeds = JSON.parse(seedKey) as SwapSeed[];
+        const results = await Promise.allSettled(
+          seeds.map((seed) => loadSimilarProducts(seed.id, { limit: PER_SEED_LIMIT, skinType, fitFor: skinType })),
+        );
+        const shown = buildSwap(seeds, results, skinType).candidates.filter(
+          (c) => c.alt.similarityScore > HOME_SIMILARITY_MIN,
+        );
+        return { total: shown.length > 0 ? totalSavingOf(shown) : null };
+      },
+      SWAP_FRESH_MS,
+    )
+      .then((r) => alive && setLoaded({ key, value: r.total ?? undefined }))
+      .catch(() => alive && setLoaded({ key, value: undefined }));
+    return () => {
+      alive = false;
+    };
+  }, [key, seedKey, skinType]);
+
+  if (seedKey === '[]') return undefined;
+  return loaded?.key === key ? loaded.value : undefined;
 }

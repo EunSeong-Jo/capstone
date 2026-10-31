@@ -157,9 +157,9 @@
   }
 
   .igr-chip.warn {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--accent-light);
+    border-color: #F2DDA0;
+    color: #8A5A00;
+    background: #FFF4D6;
   }
 
   /* 궁합 카드의 이유를 눌렀을 때 강조되는 성분 */
@@ -168,7 +168,7 @@
     font-weight: 700;
   }
   .igr-chip.warn.hl {
-    box-shadow: 0 0 0 2px var(--accent);
+    box-shadow: 0 0 0 2px #E8A317;
   }
 
   /* 유사도 뱃지 */

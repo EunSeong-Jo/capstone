@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OySectionHeader } from '../home/oy/OySectionHeader';
 import type { FitVerdict } from '../../api/skinFit';
@@ -5,27 +6,23 @@ import { useSkinFit } from '../../hooks/useSkinFit';
 import { skinTypes } from '../../data/skinTypes';
 import { useSkinType } from '../../hooks/useSkinType';
 
-const VERDICT: Record<FitVerdict, { emoji: string; title: string; box: string; badge: string }> = {
+const VERDICT: Record<FitVerdict, { title: string; box: string; badge: string }> = {
   good: {
-    emoji: '💚',
     title: '내 피부에 잘 맞아요',
-    box: 'border-primary/30 bg-primary-light',
-    badge: 'bg-primary text-white',
+    box: 'border-good-line bg-good-soft',
+    badge: 'bg-good-soft text-good',
   },
   ok: {
-    emoji: '🙂',
     title: '무난해요',
     box: 'border-oy-line bg-white',
     badge: 'bg-oy-chip text-oy-sub',
   },
   caution: {
-    emoji: '⚠️',
     title: '내 피부엔 주의가 필요해요',
-    box: 'border-orange-200 bg-orange-50',
-    badge: 'bg-warning text-white',
+    box: 'border-caution-line bg-caution-soft',
+    badge: 'bg-caution-soft text-caution',
   },
   unknown: {
-    emoji: '🔍',
     title: '판단할 근거가 부족해요',
     box: 'border-dashed border-oy-line bg-white',
     badge: 'bg-oy-chip text-oy-sub',
@@ -42,8 +39,11 @@ const VERDICT: Record<FitVerdict, { emoji: string; title: string; box: string; b
 export function SkinFitCard({
   productId,
   onReasonClick,
+  headerAside,
 }: {
   productId: number;
+  /** 제목 줄 오른쪽에 붙는 버튼(상세 화면의 '화장대 추가') */
+  headerAside?: ReactNode;
   /** 이유를 눌렀을 때 — 그 이유를 만든 성분의 전성분 표기 순서들을 넘긴다 */
   onReasonClick?: (positions: number[]) => void;
 }) {
@@ -54,7 +54,7 @@ export function SkinFitCard({
 
   return (
     <section className="px-4 py-5">
-      <OySectionHeader title="내 피부와의 궁합" />
+      <OySectionHeader title="내 피부와의 궁합" aside={headerAside} centerAside bottomClass="mb-4" />
 
       {needsDiagnosis && (
         <div className="rounded-xl border border-dashed border-oy-line bg-white px-4 py-5 text-center">
@@ -85,7 +85,6 @@ export function SkinFitCard({
         <div className={`rounded-xl border px-4 py-4 ${VERDICT[fit.verdict].box}`}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-base font-bold text-oy-text">
-              <span className="mr-1">{VERDICT[fit.verdict].emoji}</span>
               {VERDICT[fit.verdict].title}
             </p>
             {fit.score !== null && (

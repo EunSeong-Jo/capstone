@@ -53,7 +53,7 @@ export default function QuestionScreen({
 
   return (
     <motion.div
-      className="absolute inset-0 flex flex-col overflow-hidden bg-white"
+      className="absolute inset-0 flex flex-col overflow-y-auto bg-white"
       style={{
         paddingBottom: 'var(--safe-bottom)',
       }}
@@ -63,7 +63,7 @@ export default function QuestionScreen({
       transition={{ duration: 0.5 }}
     >
       {/* 콘텐츠 상단 여백. 상태바/노치 인셋은 body의 --safe-top이 담당하므로 여기선 디자인 여백만 둔다 */}
-      <div className="pt-11" />
+      <div className="shrink-0 pt-3" />
 
       {/* 진행바 + 뒤로가기 + 카운트 — 바로 아래에 질문이 붙는다 */}
       <div className="flex items-center gap-3 px-5">
@@ -85,14 +85,14 @@ export default function QuestionScreen({
       </div>
 
       {/* 질문 */}
-      <div className="px-5 pt-5">
+      <div className="px-5 pt-3">
         <p className="text-[18px] font-semibold text-ob-green-deep">Q{qIndex + 1}.</p>
         <p className="mt-2 text-[15px] font-bold leading-snug text-black">{question.q}</p>
         <p className="mt-2 text-[11px] font-semibold" style={{ color: '#b3b3b3' }}>{QUESTION_HINT}</p>
       </div>
 
       {/* 보기 */}
-      <div className="flex flex-1 flex-col gap-4 px-5 pb-2 pt-5">
+      <div className="flex flex-1 flex-col gap-2 px-5 pb-3 pt-3">
         {question.options.map((opt, i) => {
           const isSel = selected === i;
           return (
@@ -100,12 +100,12 @@ export default function QuestionScreen({
               key={i}
               type="button"
               onClick={() => onPick(isSel ? null : i)}
-              className="flex items-center gap-3 rounded-lg bg-white px-4 py-5 text-left transition-shadow"
+              className="flex items-center gap-3 shrink-0 grow rounded-lg bg-white px-4 py-[6px] text-left transition-shadow"
               style={{ boxShadow: isSel ? '0 0 0 2px var(--ob-green)' : '0 0 2px rgba(0,0,0,0.4)' }}
             >
               <span className="flex-1">
                 <span className="block text-[12px] font-medium text-black">{opt.title}</span>
-                <span className="mt-1 block text-[11px]" style={{ color: '#9d9d9d' }}>{opt.desc}</span>
+                <span className="mt-0.5 block text-[11px]" style={{ color: '#9d9d9d' }}>{opt.desc}</span>
               </span>
               <span
                 className="grid h-5 w-5 shrink-0 place-items-center rounded-full border"
@@ -118,8 +118,10 @@ export default function QuestionScreen({
         })}
       </div>
 
+      {/* 아래 두 블록(AI 피부진단·다음으로)은 보기가 길어 스크롤돼도 화면 아래에 붙어 있게 한다 */}
+      <div className="sticky bottom-0 z-10 shrink-0 bg-white">
       {/* AI 피부진단 — 촬영만 미리 해 두고, 분석은 진단을 마칠 때 한다 */}
-      <div className="px-5 pt-1">
+      <div className="shrink-0 px-5 pt-0">
         {photoNotice && (
           <p className="mb-2 rounded-xl bg-accent-light px-3 py-2 text-[11px] font-semibold leading-snug text-accent">
             {photoNotice}
@@ -187,6 +189,7 @@ export default function QuestionScreen({
             />
           </svg>
         </button>
+      </div>
       </div>
     </motion.div>
   );

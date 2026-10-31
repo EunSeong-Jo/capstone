@@ -413,6 +413,25 @@ async def test_stats_counts_real_rows(client: AsyncClient, account, product_ids)
     assert stats["cartCount"] == 0, "주문하면 장바구니가 비워진다"
     assert stats["orderCount"] == 1
     assert stats["totalSpent"] == order["total"]
+    # 새 주문은 배송 전이라 후기를 쓸 수 없다. 취소하면 주문 수에서 빠지고 취소·반품 수로 간다.
+    assert stats["reviewableCount"] == 0
+    assert stats["cancelReturnCount"] == 0
+    await client.post(f"{ME}/orders/{order['id']}/cancel", json={}, **account)
+    after = (await client.get(f"{ME}/stats", **account)).json()
+    assert after["orderCount"] == 0 and after["cancelReturnCount"] == 1
+
+
+async def test_stats_counts_sent_and_received_gifts(client: AsyncClient, account, recipient, product_ids: list[int]) -> None:
+    before = (await client.get(f"{ME}/stats", **account)).json()
+    assert before["giftCount"] == 0 and before["receivedGiftCount"] == 0
+    res = await client.post(
+        GIFTS, headers=account["headers"], json={"productId": product_ids[0], "recipientNickname": recipient["nickname"]}
+    )
+    assert res.status_code == 201
+    mine = (await client.get(f"{ME}/stats", **account)).json()
+    assert mine["giftCount"] == 1 and mine["receivedGiftCount"] == 0
+    theirs = (await client.get(f"{ME}/stats", headers=recipient["headers"])).json()
+    assert theirs["receivedGiftCount"] == 1 and theirs["giftCount"] == 0
 
 
 # ── 선물하기 ──────────────────────────────────────────────────
@@ -536,6 +555,7 @@ async def test_stats_starts_at_level_one(client: AsyncClient, account) -> None:
     assert body["level"] == 1
     assert body["expInLevel"] == 0
     assert body["levelSpan"] == 100
+    assert body["receivedGiftCount"] == 0 and body["cancelReturnCount"] == 0 and body["reviewableCount"] == 0
 
 
 async def test_stats_counts_exp_from_records(
@@ -944,3 +964,53 @@ async def test_product_reviews_filter_and_sort(
 
     asc = (await client.get(url, params={"sort": "rating_asc", "limit": 100})).json()["items"]
     assert [r["rating"] for r in asc] == sorted(r["rating"] for r in asc)
+
+
+async def _option_siblings() -> list[int]:
+    """옵션 행이 2개 이상인 옵션 그룹 하나의 제품 id들(판매 중)."""
+    from sqlalchemy import func, select
+    from app.models.product import Product
+
+    async with AsyncSessionLocal() as db:
+        parent = await db.scalar(
+            select(Product.option_parent_id)
+            .where(Product.option_parent_id.is_not(None), Product.status == "active")
+            .group_by(Product.option_parent_id)
+            .having(func.count() >= 2)
+            .limit(1)
+        )
+        if parent is None:
+            pytest.skip("옵션형 묶음 제품이 카탈로그에 없다")
+        ids = await db.scalars(
+            select(Product.id)
+            .where(Product.option_parent_id == parent, Product.status == "active")
+            .order_by(Product.id)
+            .limit(2)
+        )
+        return list(ids)
+
+
+async def test_recently_viewed_collapses_option_siblings(client: AsyncClient, account) -> None:
+    """옵션형 묶음의 옵션을 바꿔 보면 같은 제품이 옵션 수만큼 쌓이던 문제 — 한 줄만 남고 가장 최근 옵션이다."""
+    a, b = await _option_siblings()
+    for pid in (a, b):
+        assert (
+            await client.post(f"{ME}/recently-viewed", json={"productId": pid}, **account)
+        ).status_code == 204
+    got = (await client.get(f"{ME}/recently-viewed", **account)).json()
+    assert [p["id"] for p in got] == [b]
+
+
+async def test_recently_viewed_list_collapses_old_option_rows(client: AsyncClient, account) -> None:
+    """이미 쌓여 있던 옵션 중복 기록도 조회에서 접는다(쓰기 경로를 거치지 않은 옛 데이터)."""
+    from app.models.personal import RecentlyViewed
+
+    a, b = await _option_siblings()
+    me = (await client.get("/api/v1/auth/me", **account)).json()
+    now = datetime.now(timezone.utc)
+    async with AsyncSessionLocal() as db:
+        db.add(RecentlyViewed(user_id=uuid.UUID(me["id"]), product_id=a, viewed_at=now - timedelta(minutes=5)))
+        db.add(RecentlyViewed(user_id=uuid.UUID(me["id"]), product_id=b, viewed_at=now))
+        await db.commit()
+    got = (await client.get(f"{ME}/recently-viewed", **account)).json()
+    assert [p["id"] for p in got] == [b]

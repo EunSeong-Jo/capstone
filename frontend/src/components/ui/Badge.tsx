@@ -7,8 +7,8 @@ const BADGE_STYLES: Record<BadgeProps['type'], string> = {
   BEST:      'bg-warning text-white',
   NEW:       'bg-primary text-white',
   SALE:      'bg-accent text-white',
-  'sim-high': 'bg-primary text-white',
-  'sim-mid':  'bg-warning text-white',
+  'sim-high': 'bg-good-soft text-good',
+  'sim-mid':  'bg-caution-soft text-caution',
 };
 
 export function Badge({ type, label }: BadgeProps) {

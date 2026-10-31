@@ -188,11 +188,13 @@ export function ProductReviews({ productId }: { productId: number }) {
             {data.items.map((r) => (
               <li key={r.id} className="py-3.5">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Stars rating={r.rating} />
-                    <span className="text-[12px] font-semibold text-gray-100">{r.nickname}</span>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="shrink-0">
+                      <Stars rating={r.rating} />
+                    </span>
+                    <span className="min-w-0 truncate text-[12px] font-semibold text-gray-100">{r.nickname}</span>
                     {skinLabel(r.skinType) && (
-                      <span className="text-[11px] text-gray-50">{skinLabel(r.skinType)}</span>
+                      <span className="shrink-0 whitespace-nowrap text-[11px] text-gray-50">{skinLabel(r.skinType)}</span>
                     )}
                   </div>
                   <span className="shrink-0 text-[11px] text-gray-50">{fmtDate(r.createdAt)}</span>

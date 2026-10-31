@@ -137,6 +137,15 @@ class Settings(BaseSettings):
     PERFECT_CORP_MODE: str = "sd"          # "sd" | "hd" — 같은 사진에서 점수 거의 동일, SD가 더 싸다
     PERFECT_CORP_MOCK: bool = False        # True면 저장해 둔 응답을 쓴다(외부 호출·유닛 소모 없음)
 
+    # 얼굴 사진 분석 실호출 허용 계정(쉼표로 구분한 이메일). Perfect Corp 유닛이 호출마다 나가서, 허용 계정만
+    # 실제로 부르고 나머지는 외부 호출 없이 SKIN_SAMPLE_EMAIL 계정에 저장된 분석 결과를 보여 준다
+    # (services/skin_sample.py). 비우면 아무도 실호출하지 않는다.
+    SKIN_ANALYSIS_ALLOWED_EMAILS: str = "capstone@gmail.com"
+    SKIN_SAMPLE_EMAIL: str = "eunseong@swappy.app"
+    # 구독 중이어도 무료와 같은 기본 항목(8개)만 분석하는 계정(쉼표로 구분한 이메일). 시연 계정이 구독 상태여도
+    # 무료 분석 화면을 보여 줘야 할 때 쓴다. 월 이용 횟수는 구독 그대로다(services/skin_quota.py).
+    SKIN_BASIC_ITEMS_EMAILS: str = "eunseong@swappy.app"
+
     # 사진 분석 이용 한도 (services/skin_quota.py). 월 경계는 Asia/Seoul.
     # 무료는 얼굴 사진 수집에 동의한 사용자만, 구독자는 동의 + 활성 구독이 필요하다.
     SKIN_FREE_MONTHLY: int = 1
@@ -188,6 +197,11 @@ class Settings(BaseSettings):
 
     # 비회원 챗봇 하루 답변 수(IP 기준). 화면도 같은 수만큼 열어 둔다.
     GUEST_CHAT_DAILY_LIMIT: int = 3
+
+    # 퍼스널 AI(챗봇이 내 화장대·피부 상태를 아는 기능). 문제가 생기면 false로 두면 예전 챗봇으로 돌아간다.
+    PERSONAL_AI_ENABLED: bool = True
+    # 로그인한 사용자의 챗봇이 도구(대체품·궁합·예산 루틴·담기 제안)를 부를 수 있게 한다. 끄면 도구 없는 챗봇으로 돌아간다.
+    CHAT_TOOLS_ENABLED: bool = True
 
     # env_file은 실행 위치가 아니라 파일 위치 기준으로 찾는다.
     # backend/ 에서 uvicorn을 띄우든 리포 루트에서 스크립트를 돌리든

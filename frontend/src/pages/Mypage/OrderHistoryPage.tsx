@@ -78,7 +78,7 @@ export default function OrderHistoryPage() {
       });
       setClosing(null);
       reload();
-      // 서버가 이 주문으로 담긴 제품을 '삭제된 제품'으로 옮겼다. 화장대 목록도 다시 받는다.
+      // 서버가 이 주문으로 담긴 제품을 '미사용 제품'으로 옮겼다. 화장대 목록도 다시 받는다.
       void reloadCloset();
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : '처리하지 못했어요');

@@ -795,7 +795,8 @@ async def list_product_reviews(
     if rating_filter is not None:
         stmt = stmt.where(Review.rating == rating_filter)
     if skin_type:
-        stmt = stmt.where(Profile.skin_type == skin_type)
+        # 샘플 후기는 user_id가 없어 프로필 조인이 비므로, 화면에 보이는 값(author_skin_type 우선)과 같은 기준으로 거른다.
+        stmt = stmt.where(func.coalesce(Review.author_skin_type, Profile.skin_type) == skin_type)
 
     matched = await db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 

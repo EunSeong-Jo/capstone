@@ -14,6 +14,13 @@ export default {
           DEFAULT: '#FF5C7A',
           light: '#FFF0F3',
         },
+        // 상태색 — 색이 전하는 의미를 하나로 고정한다. 좋음(연한 초록)·주의(노랑)·위험(빨강).
+        // 채운 초록(primary)은 누를 수 있는 것에만, 할인·세일은 accent(핑크 빨강)를 쓴다.
+        // DEFAULT는 글자색, soft는 배경, line은 테두리, solid는 막대·점.
+        good: { DEFAULT: '#2B6B52', soft: '#EAF5EF', line: '#CDE5D9' },
+        // strong은 이미지 위 칩처럼 흰 글씨를 얹는 진한 바탕
+        caution: { DEFAULT: '#8A5A00', soft: '#FFF4D6', line: '#F2DDA0', solid: '#E8A317', strong: '#B26B00' },
+        danger: { DEFAULT: '#C23B3B', soft: '#FDECEC', line: '#F3C7C7' },
         warning: '#FF9500',
         star: '#FFB800',
         badge: '#FF3B30',

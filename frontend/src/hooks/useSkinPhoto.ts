@@ -27,7 +27,7 @@ interface Loaded<T> {
   failed: boolean;
 }
 
-function useServerValue<T>(name: string, fetcher: () => Promise<T>) {
+export function useServerValue<T>(name: string, fetcher: () => Promise<T>) {
   const { isUser, scope, loading: authLoading } = useAuth();
   const [loaded, setLoaded] = useState<Loaded<T> | null>(null);
   const [nonce, setNonce] = useState(0);

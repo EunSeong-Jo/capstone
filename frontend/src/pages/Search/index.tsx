@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLoginPrompt } from '../../hooks/useLoginPrompt';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
@@ -7,14 +7,18 @@ import { ProductCard } from '../../components/product/ProductCard';
 import {
   POPULAR_SEARCH_FILTERS,
   POPULAR_SEARCH_RANKING,
-  INGREDIENT_DICTIONARY,
   PopularSearchFilter,
 } from '../../mocks/search';
 import { useRecentSearches } from '../../hooks/useRecentSearches';
 import { useMyIngredients } from '../../hooks/useMyIngredients';
+import { IngredientDictPanel } from '../../components/ingredient/IngredientDictPanel';
+import { MyIngredientsPanel } from '../../components/ingredient/MyIngredientsPanel';
 import { useSearchProducts } from '../../hooks/useSearchProducts';
 import { useProducts } from '../../hooks/useProducts';
 import { useCloset } from '../../context/closet';
+import { useProduct } from '../../hooks/useProduct';
+import { useToast } from '../../context/toast';
+import { isSameKind, pickCompareTarget, type PickableProduct } from '../../utils/comparePick';
 
 type MainTab = 'general' | 'ingredient';
 type IngredientSubTab = 'dict' | 'my';
@@ -80,6 +84,13 @@ function RecentSearchChips({
 export default function SearchPage() {
   const navigate = useNavigate();
   const { requireLogin } = useLoginPrompt();
+  const { showToast } = useToast();
+  // 선택 모드: /search?pick=<기준 제품 id> — 결과를 누르면 상세가 아니라 그 제품과의 성분 비교로 간다
+  const [params] = useSearchParams();
+  const pickRaw = Number(params.get('pick'));
+  const pickId = Number.isInteger(pickRaw) && pickRaw > 0 ? pickRaw : undefined;
+  const picking = pickId !== undefined;
+  const { product: seed } = useProduct(pickId);
   const [mainTab, setMainTab] = useState<MainTab>('general');
   const [ingredientSubTab, setIngredientSubTab] = useState<IngredientSubTab>('dict');
   const [popularFilter, setPopularFilter] = useState<PopularSearchFilter>(POPULAR_SEARCH_FILTERS[0]);
@@ -103,16 +114,36 @@ export default function SearchPage() {
   // 예전에는 mocks/alternatives의 SEED_PRODUCTS를 썼는데, 그 id는 실제
   // 카탈로그와 무관해서 '대체품 찾기'가 엉뚱한 제품으로 갔다.
   const { items: myShelf } = useCloset();
+  // 선택 모드면 기준 제품과 같은 종류의 내 제품만(기준 제품은 뺀다)
+  const shelf = picking ? myShelf.filter((p) => isSameKind(seed, p)) : myShelf;
   // 인기 TOP 5 (리뷰수 기준). 예전 REALTIME_BEST 목업을 대체한다.
   const { products: popular } = useProducts({ sort: 'popular', size: 5 });
 
-  const handleSearch = (q: string, tab: MainTab = mainTab) => {
+  /** 선택 모드에서 제품을 눌렀을 때. 같은 제품·다른 종류는 토스트로 막는다. */
+  const choose = (picked: PickableProduct) => {
+    const r = pickCompareTarget(seed, picked);
+    if (r.ok) navigate(r.to);
+    else showToast(r.reason);
+  };
+
+  // 입력창에 글자를 칠 때마다 부르는 것 — 검색어만 바꾸고 '최근 검색'에는 남기지 않는다.
+  // (예전에는 여기서 저장해 "ㅂ", "브", "브링"…이 전부 최근 검색어로 쌓였다)
+  const handleType = (q: string) => {
     setQuery(q);
-    const searching = q.trim().length > 0;
-    setIsSearching(searching);
-    if (searching) {
-      (tab === 'general' ? generalSearches : ingredientSearches).addSearch(q.trim());
-    }
+    setIsSearching(q.trim().length > 0);
+  };
+
+  /** 최근 검색에 남긴다 — 검색을 확정했을 때(엔터·입력창을 벗어남)와 칩을 눌렀을 때만. 한 글자는 검색이 아니라서 남기지 않는다. */
+  const remember = (q: string, tab: MainTab = mainTab) => {
+    const word = q.trim();
+    if (word.length < 2) return;
+    (tab === 'general' ? generalSearches : ingredientSearches).addSearch(word);
+  };
+
+  // 칩·인기 검색어·성분 사전의 '이 성분 제품 보기'처럼 완성된 검색어를 한 번에 넣을 때
+  const handleSearch = (q: string, tab: MainTab = mainTab) => {
+    handleType(q);
+    remember(q, tab);
   };
 
   // 성분 인기 검색어는 성분검색 탭으로 넘겨서 찾는다.
@@ -159,7 +190,7 @@ export default function SearchPage() {
         </p>
         <div className="grid grid-cols-2 gap-3">
           {searchResults.map((p, i) => (
-            <ProductCard key={p.id} product={p} index={i} />
+            <ProductCard key={p.id} product={p} index={i} onSelect={picking ? choose : undefined} />
           ))}
         </div>
       </>
@@ -176,18 +207,27 @@ export default function SearchPage() {
           </svg>
           <input
             value={query}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => handleType(e.target.value)}
+            onKeyDown={(e) => {
+              // 한글 조합 중의 엔터는 글자를 확정하는 키라 검색으로 보지 않는다
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                remember(query);
+                e.currentTarget.blur();
+              }
+            }}
+            onBlur={() => remember(query)}
+            enterKeyHint="search"
             placeholder={mainTab === 'general' ? '제품명·브랜드·성분으로 검색' : '성분으로 검색해 보세요'}
             className="flex-1 min-w-0 bg-transparent text-sm text-gray-100 outline-none placeholder:text-gray-50"
           />
           {query && (
-            <button onClick={() => handleSearch('')} aria-label="검색어 지우기" className="text-gray-50 active:scale-90 transition-transform">✕</button>
+            <button onMouseDown={(e) => e.preventDefault()} onClick={() => handleType('')} aria-label="검색어 지우기" className="text-gray-50 active:scale-90 transition-transform">✕</button>
           )}
           {/* 검색표시 옆 카메라 → 화장품 스캔(3c) 이동 */}
           <button
             onClick={() => {
               if (requireLogin('화장품 스캔은 로그인하면 쓸 수 있어요')) return;
-              navigate('/scan');
+              navigate(picking ? `/scan?pick=${pickId}` : '/scan');
             }}
             aria-label="화장품 스캔"
             title="화장품 스캔"
@@ -200,15 +240,28 @@ export default function SearchPage() {
           </button>
         </div>
 
-        {/* 통합검색 / 성분검색 탭 */}
-        <div className="flex mt-1.5">
+        {/* 선택 모드 안내 — 어떤 제품과 비교할 건지 */}
+        {picking && (
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-primary-light px-3.5 py-2.5">
+            <p className="min-w-0 text-xs text-primary-dark">
+              <b className="block text-[13px]">비교할 제품을 골라 주세요</b>
+              <span className="block truncate">기준: {seed?.name ?? '불러오는 중…'}</span>
+            </p>
+            <button type="button" onClick={() => navigate(-1)} className="shrink-0 text-xs font-bold text-primary active:opacity-60">
+              취소
+            </button>
+          </div>
+        )}
+
+        {/* 통합검색 / 성분검색 탭 (선택 모드는 제품만 고를 수 있어 통합검색만) */}
+        <div className={`mt-1.5 flex ${picking ? 'hidden' : ''}`}>
           {([
             ['general', '통합검색'],
             ['ingredient', '성분검색'],
           ] as [MainTab, string][]).map(([tab, label]) => (
             <button
               key={tab}
-              onClick={() => { setMainTab(tab); handleSearch(''); }}
+              onClick={() => { setMainTab(tab); handleType(''); }}
               className={`mr-5 px-1 py-2.5 text-sm border-b-2 transition-colors ${
                 mainTab === tab ? 'font-extrabold text-primary-dark border-primary' : 'font-semibold text-gray-50 border-transparent'
               }`}
@@ -226,15 +279,15 @@ export default function SearchPage() {
             searchResultsView
           ) : (
             <>
-              {/* 내 화장대에서 대체품 찾기 (핵심 차별화) */}
-              {myShelf.length > 0 && (
+              {/* 내 화장대에서 대체품 찾기 (핵심 차별화). 선택 모드에서는 같은 종류의 내 제품으로 바로 비교한다 */}
+              {shelf.length > 0 && (
                 <div className="mb-[22px] rounded-2xl bg-primary-light p-3.5">
                   <div className="flex items-center justify-between mb-2.5">
-                    <span className="text-sm font-extrabold text-primary-dark">내 화장대에서 대체품 찾기</span>
-                    <span className="text-xs font-semibold text-primary">전체 {myShelf.length}개</span>
+                    <span className="text-sm font-extrabold text-primary-dark">{picking ? '내 화장대에서 고르기' : '내 화장대에서 대체품 찾기'}</span>
+                    <span className="text-xs font-semibold text-primary">전체 {shelf.length}개</span>
                   </div>
                   <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-3.5 px-3.5">
-                    {myShelf.map((p) => (
+                    {shelf.map((p) => (
                       <div
                         key={p.id}
                         className="shrink-0 w-32 rounded-xl bg-white p-2.5 shadow-[0_1px_4px_rgba(43,107,82,.08)]"
@@ -249,10 +302,10 @@ export default function SearchPage() {
                         <span className="block text-[11px] font-semibold text-gray-50">{p.brand}</span>
                         <span className="mb-2 line-clamp-2 min-h-[2.5em] text-xs font-bold leading-snug text-gray-100">{p.name}</span>
                         <button
-                          onClick={() => navigate(`/alternatives?seed=${p.id}&from=search`)}
+                          onClick={() => (picking ? choose(p) : navigate(`/alternatives?seed=${p.id}&from=search`))}
                           className="flex items-center justify-center w-full h-7 rounded-lg bg-primary text-[11px] font-extrabold text-white active:scale-95 transition-transform"
                         >
-                          대체품 찾기
+                          {picking ? '이 제품과 비교' : '대체품 찾기'}
                         </button>
                       </div>
                     ))}
@@ -305,7 +358,7 @@ export default function SearchPage() {
               <button
                 onClick={() => {
                   if (requireLogin('화장품 스캔은 로그인하면 쓸 수 있어요')) return;
-                  navigate('/scan');
+                  navigate(picking ? `/scan?pick=${pickId}` : '/scan');
                 }}
                 className="flex w-full items-center gap-3.5 rounded-2xl bg-oy-black p-4 mb-[22px] text-left active:scale-[.99] transition-transform"
               >
@@ -316,7 +369,9 @@ export default function SearchPage() {
                   {/* 예전 문구는 "AI가 전성분을 읽는다"였지만 /scan은 앞면 사진으로 제품을
                       찾는 기능이다(뒷면 인식은 실사진 평가에서 0건). 전성분은 찾은 제품의
                       상세 화면에서 보인다(QA 12). */}
-                  <span className="block text-sm font-extrabold text-white">제품명이 헷갈리면, 찍어보세요</span>
+                  <span className="block text-sm font-extrabold text-white">
+                    {picking ? '비교할 제품, 찍어서 찾아보세요' : '제품명이 헷갈리면, 찍어보세요'}
+                  </span>
                   <span className="block text-xs text-white/55 mt-0.5">
                     앞면을 찍으면 화장품을 찾아 드려요. 제품을 누르면 전성분을 볼 수 있어요
                   </span>
@@ -336,7 +391,7 @@ export default function SearchPage() {
                     {popular.map((p, i) => (
                       <button
                         key={p.id}
-                        onClick={() => navigate(`/detail/${p.id}`)}
+                        onClick={() => (picking ? choose(p) : navigate(`/detail/${p.id}`))}
                         className="w-full flex items-center gap-3 p-3 rounded-[14px] border border-gray-10 bg-white active:scale-[.98] transition-transform"
                       >
                         <span className={`w-4 text-[17px] font-black italic shrink-0 ${i < 3 ? 'text-primary' : 'text-gray-50'}`}>{i + 1}</span>
@@ -391,55 +446,9 @@ export default function SearchPage() {
             </div>
 
             {ingredientSubTab === 'dict' ? (
-              <div className="flex flex-col">
-                {INGREDIENT_DICTIONARY.map((cat) => (
-                  <div
-                    key={cat.id}
-                    className="flex items-center justify-between py-3.5 border-b border-gray-10 last:border-0"
-                  >
-                    <button className="flex items-center gap-3 flex-1 text-left active:opacity-60 transition-opacity">
-                      <span className="text-xl">{cat.emoji}</span>
-                      <span className="text-sm text-gray-100">{cat.label}</span>
-                    </button>
-                    <button
-                      onClick={() => myIngredients.addIngredient(cat.label)}
-                      aria-label={`${cat.label} 마이 성분에 추가`}
-                      className={`w-7 h-7 rounded-lg border flex items-center justify-center text-sm font-light transition-colors ${
-                        myIngredients.items.includes(cat.label)
-                          ? 'border-primary text-primary bg-primary-light'
-                          : 'border-gray-20 text-gray-50'
-                      }`}
-                    >
-                      +
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : myIngredients.items.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 pt-12 text-center">
-                <span className="w-12 h-12 rounded-full border border-gray-20 flex items-center justify-center text-lg font-bold text-gray-50">!</span>
-                <p className="text-sm font-semibold text-gray-100">즐겨찾는 성분이 없어요</p>
-                <p className="text-xs text-gray-50 leading-relaxed">
-                  성분 사전에서 + 버튼을 눌러
-                  <br />
-                  나만의 성분을 관리해 보세요.
-                </p>
-              </div>
+              <IngredientDictPanel my={myIngredients} onFindProducts={(name) => handleSearch(name, 'ingredient')} />
             ) : (
-              <div className="flex flex-col">
-                {myIngredients.items.map((name) => (
-                  <div key={name} className="flex items-center justify-between py-3.5 border-b border-gray-10 last:border-0">
-                    <span className="text-sm text-gray-100">{name}</span>
-                    <button
-                      onClick={() => myIngredients.removeIngredient(name)}
-                      aria-label={`${name} 삭제`}
-                      className="text-gray-50 text-sm active:scale-90 transition-transform"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <MyIngredientsPanel my={myIngredients} onFindProducts={(name) => handleSearch(name, 'ingredient')} />
             )}
           </>
         )}

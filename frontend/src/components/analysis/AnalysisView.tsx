@@ -11,10 +11,10 @@ import { PhotoCta } from './PhotoCta';
 import { SkinStateSection } from './SkinStateSection';
 
 const VERDICT = {
-  good: { emoji: '💚', title: '내 피부에 잘 맞아요', box: 'border-primary/30 bg-primary-light', badge: 'bg-primary text-white' },
-  ok: { emoji: '🙂', title: '무난해요', box: 'border-oy-line bg-white', badge: 'bg-oy-chip text-oy-sub' },
-  caution: { emoji: '⚠️', title: '내 피부엔 주의가 필요해요', box: 'border-orange-200 bg-orange-50', badge: 'bg-warning text-white' },
-  unknown: { emoji: '🔍', title: '판단할 근거가 부족해요', box: 'border-dashed border-oy-line bg-white', badge: 'bg-oy-chip text-oy-sub' },
+  good: { title: '내 피부에 잘 맞아요', box: 'border-good-line bg-good-soft', badge: 'bg-good-soft text-good' },
+  ok: { title: '무난해요', box: 'border-oy-line bg-white', badge: 'bg-oy-chip text-oy-sub' },
+  caution: { title: '내 피부엔 주의가 필요해요', box: 'border-caution-line bg-caution-soft', badge: 'bg-caution-soft text-caution' },
+  unknown: { title: '판단할 근거가 부족해요', box: 'border-dashed border-oy-line bg-white', badge: 'bg-oy-chip text-oy-sub' },
 } as const;
 
 const CAUTION_NOTE: Record<CautionKind, string> = {
@@ -99,7 +99,6 @@ export function AnalysisView({
               <div className={`mt-4 rounded-xl border px-4 py-4 ${VERDICT[analysis.fit.verdict].box}`}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-base font-bold text-oy-text">
-                    <span className="mr-1">{VERDICT[analysis.fit.verdict].emoji}</span>
                     {VERDICT[analysis.fit.verdict].title}
                   </p>
                   {analysis.fit.score !== null && (
@@ -215,12 +214,15 @@ export function AnalysisView({
           {/* 5. 주의 성분 */}
           <Section title="주의 성분" hint="확실하게 분류된 성분만 알려드려요">
             {analysis.cautions.length === 0 ? (
-              <p className="rounded-xl bg-primary-light px-4 py-3 text-sm text-primary">알려진 주의 성분이 없어요.</p>
+              <p className="rounded-xl bg-good-soft px-4 py-3 text-sm text-good">알려진 주의 성분이 없어요.</p>
             ) : (
               <div className="space-y-3">
                 {analysis.cautions.map((g) => (
-                  <div key={g.kind} className="rounded-xl border border-accent/30 bg-accent-light px-4 py-3">
-                    <p className="text-sm font-bold text-accent">
+                  <div
+                    key={g.kind}
+                    className={`rounded-xl border px-4 py-3 ${g.kind === 'listed' ? 'border-danger-line bg-danger-soft' : 'border-caution-line bg-caution-soft'}`}
+                  >
+                    <p className={`text-sm font-bold ${g.kind === 'listed' ? 'text-danger' : 'text-caution'}`}>
                       {g.label} · {g.ingredients.length}종
                     </p>
                     <p className="mt-0.5 text-xs text-oy-sub">{CAUTION_NOTE[g.kind]}</p>

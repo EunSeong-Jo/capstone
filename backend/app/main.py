@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import mimetypes
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -23,7 +24,11 @@ from app.api.care_tip import router as care_tip_router
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
 from app.api.diagnosis import router as diagnosis_router
+from app.api.ingredients import router as ingredients_router
 from app.api.me import router as me_router
+from app.api.insights import router as insights_router
+from app.api.memory import router as memory_router
+from app.api.preferences import router as preferences_router
 from app.api.personal import (
     gifts_router,
     orders_router,
@@ -86,6 +91,9 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(me_router)
+app.include_router(memory_router)
+app.include_router(insights_router)
+app.include_router(preferences_router)
 app.include_router(diagnosis_router)
 app.include_router(skin_photo_router)
 app.include_router(personal_router)
@@ -93,6 +101,7 @@ app.include_router(orders_router)
 app.include_router(gifts_router)
 app.include_router(reviews_router)
 app.include_router(chat_router)
+app.include_router(ingredients_router)
 app.include_router(products_router)
 app.include_router(recommendations_router)
 app.include_router(skin_fit_router)
@@ -186,6 +195,9 @@ async def health_check():
 # 모든 API 라우트보다 뒤에 등록해야 한다 — 이 캐치올이 먼저면 /api가 가려진다.
 if settings.STATIC_DIR and Path(settings.STATIC_DIR).is_dir():
     _static_root = Path(settings.STATIC_DIR).resolve()
+    # 운영 이미지(python:slim)의 mimetypes에는 .apk가 없어 text/plain으로 내려갔다. 그러면 일부 안드로이드
+    # 브라우저가 설치 파일로 인식하지 못한다(로그인 화면의 '앱 설치하기').
+    mimetypes.add_type("application/vnd.android.package-archive", ".apk")
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_frontend(full_path: str):

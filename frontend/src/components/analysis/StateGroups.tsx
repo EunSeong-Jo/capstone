@@ -19,15 +19,15 @@ export interface StateRow {
 }
 
 const TONE = {
-  focus: { bar: 'bg-accent', text: 'text-accent' },
-  mild: { bar: 'bg-[#F2B632]', text: 'text-oy-text' },
+  focus: { bar: 'bg-caution-solid', text: 'text-caution' },
+  mild: { bar: 'bg-caution-solid', text: 'text-oy-text' },
   fine: { bar: 'bg-primary', text: 'text-primary' },
 } as const;
 
 const PILL = {
-  good: 'bg-primary-light text-primary',
-  some: 'bg-[#FFF4D6] text-[#9A6B00]',
-  lack: 'bg-accent-light text-accent',
+  good: 'bg-good-soft text-good',
+  some: 'bg-caution-soft text-caution',
+  lack: 'bg-danger-soft text-danger',
   fine: 'bg-oy-chip text-oy-sub',
   na: 'bg-oy-chip text-oy-sub',
 } as const;
@@ -61,13 +61,13 @@ function Row({ r }: { r: StateRow }) {
           {r.message && <span className={r.status === 'na' ? 'text-oy-sub' : 'text-oy-text'}>{r.message}</span>}
         </p>
       )}
-      {r.risk && <p className="mt-1 text-xs leading-snug text-accent">－ {r.risk}</p>}
+      {r.risk && <p className="mt-1 text-xs leading-snug text-caution">－ {r.risk}</p>}
     </li>
   );
 }
 
 function Group({ title, hint, tone, children }: { title: string; hint?: string; tone: 'accent' | 'primary' | 'plain'; children: ReactNode }) {
-  const head = { accent: 'text-accent', primary: 'text-primary', plain: 'text-oy-text' }[tone];
+  const head = { accent: 'text-caution', primary: 'text-good', plain: 'text-oy-text' }[tone];
   return (
     <div className="rounded-xl bg-white px-3.5 pt-3 pb-1 shadow-sm">
       <p className={`text-[13px] font-extrabold ${head}`}>{title}</p>

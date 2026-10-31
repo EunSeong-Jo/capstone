@@ -28,7 +28,8 @@ const SOURCE_LABEL: Record<ClosetItem['addedVia'], string> = {
 };
 
 type VanityFilter = 'owned' | 'removed';
-const HINT_KEY = 'swappy:closet:altHintClosed';
+// v2 — 안내 문구가 '대체품 찾기 버튼'에서 '제품을 누르면'으로 바뀌어, 예전에 닫은 사람에게도 새 문구를 한 번 보인다.
+const HINT_KEY = 'swappy:closet:altHintClosed:v2';
 
 /**
  * 비회원의 '내 화장대' 자리. 화장대·예산은 개인 데이터라 로그인한 사용자만 쓴다.
@@ -56,10 +57,13 @@ function VanityLoginGate() {
 }
 
 /** 계정별 '마지막으로 화장대를 본 시각'. 기기(localStorage)에 둔다 */
+/** 카테고리 칩의 표시 순서 */
+const CATEGORY_ORDER = ['스킨케어', '선케어', '마스크팩', '클렌징'];
+
 const seenKey = (scope: string) => `swappy:closet-seen:v1:${scope}`;
 
 /**
- * 4c — 내 화장대(보유 제품 · 삭제된 제품 · 예산).
+ * 4c — 내 화장대(보유 제품 · 미사용 제품 · 예산).
  *
  * `lastSeen`: 지난 방문 시각. 그 뒤에 담긴 제품에만 담긴 경로('주문으로 추가' 등)를
  * 보여 준다 — 새로 들어왔다는 걸 한 번 알리면 충분하고, 매번 붙어 있으면 목록이 시끄럽다.
@@ -69,22 +73,28 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
   const { items, removedItems, removeItem, restoreItem, purgeItem } = useCloset();
   const { showToast } = useToast();
   const [filter, setFilter] = useState<VanityFilter>('owned');
-  // '대체품 찾기' 버튼 안내 — 한 번 닫으면 다시 안 띄운다(저장이 막히면 그냥 매번 보인다)
+  // 화장대 사용 안내(제품을 누르면 성분 분석·대체품) — 한 번 닫으면 다시 안 띄운다(저장이 막히면 그냥 매번 보인다)
   const [hintClosed, setHintClosed] = useState(() => readJSON<boolean>(HINT_KEY, false));
   const closeHint = () => {
     setHintClosed(true);
     writeJSON(HINT_KEY, true);
   };
 
-  const shown = filter === 'owned' ? items : removedItems;
+  // 카테고리별로 걸러 보기 — 화장대가 커지면(데모 계정은 25개) 한 줄 목록으로는 찾기 어렵다. 2개 이상 카테고리가 있을 때만 보인다.
+  const [category, setCategory] = useState<string>('all');
+  const categories = CATEGORY_ORDER.concat(items.map((i) => i.category).filter((c) => c && !CATEGORY_ORDER.includes(c)))
+    .filter((c, idx, all) => all.indexOf(c) === idx && items.some((i) => i.category === c));
+  const activeCategory = categories.includes(category) ? category : 'all';
+  const shown =
+    filter === 'owned' ? (activeCategory === 'all' ? items : items.filter((i) => i.category === activeCategory)) : removedItems;
   const filters: [VanityFilter, string, number][] = [
     ['owned', '보유 중', items.length],
-    ['removed', '삭제된 제품', removedItems.length],
+    ['removed', '미사용 제품', removedItems.length],
   ];
 
   const remove = (item: ClosetItem) => {
     removeItem(item.id);
-    showToast('삭제된 제품으로 옮겼어요', { label: '되돌리기', onClick: () => restoreItem(item.id) });
+    showToast('미사용 제품으로 옮겼어요', { label: '되돌리기', onClick: () => restoreItem(item.id) });
   };
 
   const restore = (item: ClosetItem) => {
@@ -138,7 +148,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
         </div>
       ) : (
         <>
-          {/* 보유 중 / 삭제된 제품 */}
+          {/* 보유 중 / 미사용 제품 */}
           <div className="flex items-center gap-2 -mx-4 px-4 py-3">
             {filters.map(([key, label, count]) => {
               const active = filter === key;
@@ -156,10 +166,32 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
             })}
           </div>
 
+          {filter === 'owned' && categories.length > 1 && (
+            <div className="-mx-4 mb-2 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="tablist" aria-label="카테고리">
+              {['all', ...categories].map((c) => {
+                const on = activeCategory === c;
+                const n = c === 'all' ? items.length : items.filter((i) => i.category === c).length;
+                return (
+                  <button
+                    key={c}
+                    role="tab"
+                    aria-selected={on}
+                    onClick={() => setCategory(c)}
+                    className={`shrink-0 inline-flex h-7 items-center rounded-full px-3 text-[11px] transition-colors ${
+                      on ? 'bg-primary-dark font-bold text-white' : 'border border-[#E1E4DD] bg-white font-semibold text-gray-70'
+                    }`}
+                  >
+                    {c === 'all' ? '전체' : c} {n}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {filter === 'owned' && !hintClosed && items.length > 0 && (
             <div className="mb-2 flex items-start gap-2 rounded-2xl bg-primary-light/60 px-3.5 py-3">
               <p className="min-w-0 flex-1 text-[12px] leading-relaxed text-gray-70">
-                제품 오른쪽 <b className="font-bold text-primary-dark">대체품 찾기</b>를 누르면 더 저렴하거나 비슷한 제품을 보여 드려요.
+                제품을 누르면 <b className="font-bold text-primary-dark">성분 분석과 대체품</b>을 볼 수 있어요.
               </p>
               <button
                 type="button"
@@ -178,7 +210,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
           <div className="rounded-[20px] bg-white border border-[#ECEEE8] px-4">
             {shown.length === 0 && (
               <p className="py-8 text-center text-xs text-gray-50">
-                {filter === 'owned' ? '화장대에 담긴 제품이 없어요' : '삭제된 제품이 없어요'}
+                {filter === 'owned' ? '화장대에 담긴 제품이 없어요' : '미사용 제품이 없어요'}
               </p>
             )}
             {shown.map((item, i) => {
@@ -193,7 +225,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
                   <div className="flex items-center gap-3">
                     {/* 제품을 누르면 내 제품 성분 분석으로 간다. 예전에는 대체품 추천으로
                         바로 넘어가 내 제품을 눌렀는데 다른 제품들이 나와 당황스러웠다(QA 10).
-                        대체품은 아래 '대체품 찾기' 버튼으로 따로 연다 — 이름 옆에 두면 이름이 3~4글자만 남는다. */}
+                        대체품은 분석 화면 아래 '비슷한 대체품 보기'로 이어진다 — 목록에 버튼을 두면 행이 커지고 이름이 좁아진다. */}
                     <button
                       onClick={() =>
                         navigate(removed ? `/detail/${item.id}` : `/analysis/${item.id}`)
@@ -211,7 +243,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
                         <span className="mt-0.5 flex items-center gap-1">
                           <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${removed ? 'bg-gray-50' : 'bg-primary'}`} />
                           <span className={`text-[11px] font-semibold ${removed ? 'text-gray-50' : 'text-primary-dark'}`}>
-                            {removed ? '삭제됨' : '보유 중'}
+                            {removed ? '미사용' : '보유 중'}
                             {via ? ` · ${via}` : ''}
                           </span>
                         </span>
@@ -239,7 +271,7 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
                     ) : (
                       <button
                         onClick={() => remove(item)}
-                        aria-label="화장대에서 빼기"
+                        aria-label="미사용 제품으로 옮기기"
                         className="shrink-0 self-start rounded-full p-1.5 text-gray-50 active:scale-90 transition-transform"
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -248,18 +280,6 @@ function VanityView({ lastSeen }: { lastSeen: number }) {
                       </button>
                     )}
                   </div>
-
-                  {!removed && (
-                    <button
-                      onClick={() => navigate(`/alternatives?seed=${item.id}&from=closet`)}
-                      className="ml-[66px] mt-2 inline-flex h-9 items-center gap-0.5 rounded-lg bg-primary-light px-3 text-[12px] font-bold text-primary-dark active:scale-95 transition-transform"
-                    >
-                      대체품 찾기
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  )}
                 </div>
               );
             })}
