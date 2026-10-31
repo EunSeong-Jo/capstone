@@ -1,6 +1,7 @@
 # 성분 유사도 엔진 (Task 3)
 
-> 최종 실측: 2026-09-10 · 4종 전체 적재 완료 (단일제품 2,452건 / 147,060행)
+> 현재 기본 방식은 **hybrid**(평가 2026-10-25). 적재 규모 실측은 2026-09-10(tfidf·jaccard·rbo 3방식 시절, 단일제품 2,452건)이고,
+> 이후 4,013개 제품 기준 `similarities`는 **146,940행**입니다(2026-10-03 실측, [db-schema.md](db-schema.md)). 이 문서의 건수는 측정 시점이 서로 다르니 각 절의 날짜를 보세요.
 
 제품 두 개가 얼마나 비슷한지를 **전성분만 보고** 정한다. 리뷰·판매량·브랜드를
 쓰지 않는다. 이 서비스가 "성분 유사도 기반 대체품 추천"을 표방하는 근거가 여기다.
@@ -222,7 +223,7 @@ python scripts/compute_similarities.py --duplicates         # 중복 후보 목�
 
 ### 소요 시간
 
-단일제품만 계산하는 기준 실측이다 (2026-09-10, 4종 전체).
+단일제품만 계산하는 기준 실측이다 (2026-09-10, 4종 전체, **3방식을 모두 적재하던 시절이라 행수가 ×3**이다. 지금은 tfidf·hybrid 두 방식이다).
 
 | 카테고리 | 제품 | 계산 행 |
 |---|---|---|
@@ -273,7 +274,7 @@ GET /api/v1/products/{id}/similar?method=tfidf&limit=10
 
 > 2026-09-10. 아래 §1이 이 작업으로 해소됐다.
 
-`products.composition`이 제품 구성을 네 값으로 나눈다. 배치는 `single`만 계산하고
+`products.composition`이 제품 구성을 네 값으로 나눈다(건수는 2026-09-10 실측, 현재 값은 [db-schema.md](db-schema.md)). 배치는 `single`만 계산하고
 조회 API도 기본으로 `single`만 내보낸다. 판정 규칙은
 [`backend/app/utils/composition.py`](../backend/app/utils/composition.py).
 
@@ -473,12 +474,10 @@ DELETE FROM similarities s USING products p
 
 ## 남은 일
 
-- **방식 선정** — 세 개를 다 적재해 둔 상태다. 화면에 붙여 보고 하나를 고른다
-- **bonus 재포함 판단** — 선케어가 69건뿐이라 대체품이 빈약할 수 있다.
-  결과를 보고 정한다
-- **프론트 연결** — `/alternatives`·홈 대체품 캐러셀·상세의 '성분이 비슷한 제품'
-- **가격·피부타입 축** — `Alternative` 타입의 `priceDelta`·`skinMatch`는
-  Task 13·14의 몫이다. 지금은 성분 축만 있다
+- **정답 판정의 독립 검증** — 평가셋(`similarity_gold.csv`)과 보정치(`similarity_curated.csv`)는 판정자가 AI 1명이다.
+  사람(성분 전문가) 표본 검수로 일치율을 재야 nDCG 0.799를 "독립 검증"으로 말할 수 있다
+- **bonus 재포함 판단** — 배치는 아직 `single`만 계산한다. 선케어는 후보가 적어 대체품이 빈약할 수 있다
+- 방식 선정(hybrid), 프론트 연결(`/alternatives`·홈 대체품·상세), 가격·피부 궁합 축(`priceDelta`·`skinMatch`)은 **끝났다**
 
 ---
 

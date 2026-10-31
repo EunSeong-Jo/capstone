@@ -1,7 +1,9 @@
 # 운영 DB를 AWS(서울)로 — 덤프·복원·배포 절차
 
 > 개발·테스트는 **Neon**(팀 공용), 운영은 **AWS DB**로 나눕니다. 이 문서는 AWS DB를 처음 만들고 로컬에서 만든 데이터를 올리는 절차입니다.
-> 작성: 2026-10-26. 요금·화면 이름은 시기에 따라 달라질 수 있으니 AWS 콘솔의 현재 안내를 우선하세요.
+> 작성: 2026-10-26, 점검: 2026-10-31. 요금·화면 이름은 시기에 따라 달라질 수 있으니 AWS 콘솔의 현재 안내를 우선하세요.
+>
+> **이 문서의 숫자(테이블 37개, `alembic_version = d2e4f6a8b0c1`, 행 수)는 2026-10-26 복원 시점의 값입니다.** 이후 마이그레이션이 3개 늘어(`e3f5a7b9c1d2` 분석 이미지, `f4a6b8c0d2e3` 생성 후기, `a3f5c7d9e1b2` AI 기억) 현재 head는 `a3f5c7d9e1b2`, 테이블은 38개입니다. 운영에 반영하려면 6절 1번(`alembic upgrade head`)을 따릅니다.
 
 ## 1. 왜 AWS로 옮기나
 
@@ -23,11 +25,13 @@
 
 | 파일 | 내용 |
 |---|---|
-| `swappy_catalog_YYYYMMDD.dump` | **기준 데이터**: 제품·성분·유사도·궁합·성분 기능 라벨·진단 문항 등 + **전체 스키마(37개 테이블)**. 사용자 데이터 테이블은 **구조만** 있고 행은 없다. 약 6MB |
+| `swappy_catalog_YYYYMMDD.dump` | **기준 데이터**: 제품·성분·유사도·궁합·성분 기능 라벨·진단 문항 등 + **전체 스키마(복원 당시 37개, 현재 38개 테이블)**. 사용자 데이터 테이블은 **구조만** 있고 행은 없다. 약 6MB |
 | `swappy_demo_eunseong_YYYYMMDD.sql` | **조은성 데모 계정**(`eunseong@swappy.app`)과 그 프로필·진단 기록·화장대만 추린 데이터. 비밀번호 해시가 있어 공유 금지 |
 
 기준 데이터 덤프에서 사용자 데이터를 뺀 이유: 로컬 DB의 사용자 43명 중 35명은 pytest가 남긴 테스트 계정이고, 세션 토큰(`refresh_tokens`)과 주문·후기도 섞여 있어 운영에 올리면 안 되기 때문입니다.
-제외하는 테이블: `users profiles refresh_tokens diagnoses diagnosis_ranks closet_items cart_items likes orders order_items point_transactions recently_viewed reviews review_photos scan_results skin_analyses subscriptions user_consents gifts`.
+제외하는 테이블(`scripts/aws_db.sh`의 `USER_TABLES`): `users profiles refresh_tokens diagnoses diagnosis_ranks closet_items cart_items likes orders order_items point_transactions recently_viewed reviews review_photos scan_results skin_analyses skin_analysis_images subscriptions user_consents gifts user_memories`.
+
+> `user_memories`(AI 기억)도 이 목록에 들어 있습니다(2026-10-31 추가). 사용자가 챗봇에게 한 말이 담기는 테이블이라 기준 덤프에 행이 섞이면 안 됩니다. 새 사용자 테이블을 만들 때는 `USER_TABLES`에도 넣으세요.
 
 > 덤프에는 마이그레이션이 이미 적용된 스키마가 들어 있어(`alembic_version = d2e4f6a8b0c1`) AWS에서 `alembic upgrade`를 따로 돌릴 필요가 없습니다.
 > 다른 데모 계정(최동균·박주원·심유빈·김미송)이 필요하면 복원 뒤 `python scripts/seed_test_users.py`(멱등)로 만들 수 있습니다.
@@ -88,7 +92,7 @@ scripts/aws_db.sh verify            # 언제든 로컬과 AWS의 행 수·alembi
 1. **외부 접속을 닫습니다**: 복원이 끝나면 DB의 *Public mode*를 끕니다.
 2. **서버(Lightsail 컨테이너)가 DB에 닿게** 합니다: 같은 계정의 Lightsail 컨테이너 서비스와 DB는 **VPC 피어링**을 켜면 비공개 주소로 통신합니다(Lightsail 콘솔 → *Account → Advanced → VPC peering*). 이 경우 DSN 호스트는 DB의 **private 엔드포인트**를 씁니다.
 3. 컨테이너 서비스의 **환경 변수** `DATABASE_DSN`을 새 DB로 바꿉니다(Neon 값을 교체). `APP_ENV=production`, `STATIC_DIR` 등 나머지는 그대로입니다.
-4. **최신 이미지로 재배포**합니다: 저장소 루트에서 `docker build -f Dockerfile.prod -t swappy .` → Lightsail 컨테이너 서비스에 푸시·배포. 현재 AWS 서버는 옛 버전(성분 분석·옵션 분해 등이 없음)이라 이 재배포가 필요합니다.
+4. **최신 이미지로 재배포**합니다: 저장소 루트에서 `docker build -f Dockerfile.prod -t swappy .` → Lightsail 컨테이너 서비스에 푸시·배포(`aws lightsail push-container-image --service-name swappy --label web --image swappy:latest`). 이미지가 바뀔 때마다 Redis가 비워지는 점도 알아 두세요. 배포 절차 전체는 [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) 11장.
 5. 확인:
    ```bash
    B=https://swappy.1r9x85xv4q310.ap-northeast-2.cs.amazonlightsail.com
