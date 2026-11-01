@@ -133,7 +133,7 @@ export default function SearchPage() {
     setIsSearching(q.trim().length > 0);
   };
 
-  /** 최근 검색에 남긴다 — 검색을 확정했을 때(엔터·입력창을 벗어남)와 칩을 눌렀을 때만. 한 글자는 검색이 아니라서 남기지 않는다. */
+  /** 최근 검색에 남긴다 — 검색 버튼(키보드의 엔터·검색 키)을 눌렀을 때와 칩·인기 검색어를 눌렀을 때만. 입력창을 벗어나는 것(blur)만으로는 남기지 않는다. 한 글자는 검색이 아니라서 남기지 않는다. */
   const remember = (q: string, tab: MainTab = mainTab) => {
     const word = q.trim();
     if (word.length < 2) return;
@@ -215,7 +215,6 @@ export default function SearchPage() {
                 e.currentTarget.blur();
               }
             }}
-            onBlur={() => remember(query)}
             enterKeyHint="search"
             placeholder={mainTab === 'general' ? '제품명·브랜드·성분으로 검색' : '성분으로 검색해 보세요'}
             className="flex-1 min-w-0 bg-transparent text-sm text-gray-100 outline-none placeholder:text-gray-50"
