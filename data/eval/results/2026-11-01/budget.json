@@ -1,0 +1,106 @@
+{
+  "protocol": "PROTOCOL.md D",
+  "requests": 1000,
+  "ok": 1000,
+  "empty_result": 0,
+  "partial_routine": 50,
+  "violations": {},
+  "examples": {},
+  "latency_ms": {
+    "p50": 559.8160870003994,
+    "p95": 1102.4298680999889,
+    "n": 1000
+  },
+  "quality_vs_random": {
+    "n": 711,
+    "guide_mean": 71.46413502109705,
+    "random_mean": 58.776786752052296,
+    "paired": {
+      "diff": 12.687348269044785,
+      "lo": 12.430025840078407,
+      "hi": 12.944726575963715,
+      "p_le0": 0.0,
+      "n": 711
+    }
+  },
+  "main_vs_popular": {
+    "ondalsam": {
+      "main_caution": 0,
+      "popular_caution": 0,
+      "n": 8,
+      "main_mean_fit": 73.25,
+      "popular_mean_fit": 57.875,
+      "main_hard_excluded": 0
+    },
+    "mulgae": {
+      "main_caution": 0,
+      "popular_caution": 0,
+      "n": 8,
+      "main_mean_fit": 73.375,
+      "popular_mean_fit": 61.25,
+      "main_hard_excluded": 0
+    },
+    "subuji": {
+      "main_caution": 0,
+      "popular_caution": 0,
+      "n": 8,
+      "main_mean_fit": 76.375,
+      "popular_mean_fit": 60.25,
+      "main_hard_excluded": 0
+    },
+    "hwasan": {
+      "main_caution": 0,
+      "popular_caution": 0,
+      "n": 8,
+      "main_mean_fit": 83.5,
+      "popular_mean_fit": 54.875,
+      "main_hard_excluded": 0
+    },
+    "samak": {
+      "main_caution": 0,
+      "popular_caution": 0,
+      "n": 8,
+      "main_mean_fit": 74.375,
+      "popular_mean_fit": 59.0,
+      "main_hard_excluded": 0
+    },
+    "injeolmi": {
+      "main_caution": 0,
+      "popular_caution": 0,
+      "n": 8,
+      "main_mean_fit": 75.0,
+      "popular_mean_fit": 58.0,
+      "main_hard_excluded": 0
+    },
+    "yuriguseul": {
+      "main_caution": 0,
+      "popular_caution": 3,
+      "n": 8,
+      "main_mean_fit": 76.875,
+      "popular_mean_fit": 48.125,
+      "main_hard_excluded": 0
+    },
+    "memilmuk": {
+      "main_caution": 0,
+      "popular_caution": 0,
+      "n": 8,
+      "main_mean_fit": 83.125,
+      "popular_mean_fit": 51.375,
+      "main_hard_excluded": 0
+    }
+  },
+  "env": {
+    "git_commit": "f0b02e5",
+    "alembic": "a3f5c7d9e1b2",
+    "db_counts": {
+      "products": 4402,
+      "ingredients": 23150,
+      "product_ingredients": 178758,
+      "similarities": 105620,
+      "product_skin_fit": 35216
+    },
+    "seed": 20261101,
+    "data_hash": {},
+    "note": "로컬 스냅샷. AWS 운영 DB와 평가 대상 테이블이 행 단위로 동일함(2026-11-01 확인)"
+  }
+}

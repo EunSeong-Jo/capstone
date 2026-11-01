@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>swappy AI 평가 리포트</title>
+<style>
+:root{--bg:#fafaf9;--fg:#1c1917;--mut:#78716c;--line:#e7e5e4;--card:#fff;--acc:#0d9488;--ok:#15803d;--bad:#b91c1c;--wait:#a16207;--info:#475569;--good:#16a34a;--okc:#a3a3a3;--caution:#dc2626;--unknown:#d6d3d1}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0c0a09;--fg:#f5f5f4;--mut:#a8a29e;--line:#292524;--card:#1c1917;--acc:#2dd4bf;--ok:#4ade80;--bad:#f87171;--wait:#facc15;--info:#94a3b8;--good:#4ade80;--okc:#78716c;--caution:#f87171;--unknown:#44403c}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+main{max-width:880px;margin:0 auto;padding:24px 16px 80px}h1{font-size:26px;margin:0 0 4px}h2{font-size:20px;margin:40px 0 8px;padding-top:16px;border-top:1px solid var(--line)}h2 small{font-size:13px;color:var(--mut);font-weight:400}h3{font-size:15px;margin:20px 0 6px}
+.sub{color:var(--mut);font-size:13px;margin:4px 0 10px}.pend{background:var(--card);border:1px dashed var(--wait);padding:10px 12px;border-radius:8px;color:var(--wait)}
+table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--mut);font-weight:500;font-size:12px}
+.bd{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid currentColor}.bd.ok{color:var(--ok)}.bd.bad{color:var(--bad)}.bd.wait{color:var(--wait)}.bd.info{color:var(--info)}
+.summary{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 20px}.summary div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 16px}.summary b{font-size:22px;display:block}
+.row{display:grid;grid-template-columns:minmax(120px,210px) 1fr auto;gap:4px 10px;align-items:center;margin:5px 0}.lab{font-size:13px}.track{position:relative;height:12px;background:var(--line);border-radius:6px}.track b{position:absolute;left:0;top:0;bottom:0;background:var(--acc);border-radius:6px}.track i.w{position:absolute;top:-2px;bottom:-2px;border:2px solid var(--fg);border-top:0;border-bottom:0;opacity:.55}.val{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}.nt{grid-column:2/4;font-size:11px;color:var(--mut);margin-top:-3px}.nt:empty{display:none}.na{color:var(--mut)}
+.stack{display:flex;height:14px;border-radius:7px;overflow:hidden;grid-column:2/4}.stack b{display:block;height:100%}.good{background:var(--good)}.ok.stk,.stack .ok{background:var(--okc)}.caution{background:var(--caution)}.unknown{background:var(--unknown)}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 3px 0 10px}
+details{margin:10px 0}summary{cursor:pointer;color:var(--mut);font-size:13px}code{background:var(--card);padding:1px 5px;border-radius:4px;font-size:12px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:16px 0;font-size:13.5px}.box li{margin:3px 0}
+@media(max-width:560px){.row{grid-template-columns:1fr}.val,.nt{grid-column:1}.stack{grid-column:1}}
+</style></head><body><main>
+<h1>swappy AI 기능 평가</h1>
+<p class="sub">평가일 2026-11-01 · 코드 f0b02e5 · alembic a3f5c7d9e1b2 · 로컬 스냅샷(AWS 운영 DB와 평가 대상 테이블 동일) {&quot;products&quot;: 4402, &quot;ingredients&quot;: 23150, &quot;product_ingredients&quot;: 178758, &quot;similarities&quot;: 105620, &quot;product_skin_fit&quot;: 35216}</p>
+<div class="summary"><div><b style="color:var(--ok)">8</b>통과</div><div><b style="color:var(--bad)">2</b>미달</div><div><b style="color:var(--wait)">7</b>사람 판정 대기</div></div>
+<div class="box"><b>어떻게 평가했나</b><ul>
+<li>지표와 합격선은 결과를 보기 전에 <code>data/eval/PROTOCOL.md</code>에 적고 커밋했다.</li>
+<li>튜닝에 쓴 자료(dev)와 한 번만 본 자료(test)를 나눴고, 정답은 평가 대상 로직과 독립인 <b>사람 판정</b>이다.</li>
+<li>모든 비율에는 95% 신뢰구간(수염)이 붙는다. 표본이 작은 항목은 구간이 넓다.</li>
+<li>단순한 기준선(무작위·평점순·tfidf·항상 '보통')과 비교했고, 미달도 숨기지 않았다.</li>
+</ul></div>
+<h2>합격선 판정</h2>
+<table><tr><th>항목</th><th>합격선(사전 등록)</th><th>결과</th><th></th></tr>
+<tr><td>A hybrid vs 무작위·평점순</td><td>쌍체 95% 구간이 0 초과</td><td>사람 판정 필요</td><td><span class="bd wait">대기</span></td></tr>
+<tr><td>B 하드 제외 제품이 &#x27;적합&#x27;</td><td>0건</td><td>213건</td><td><span class="bd bad">미달</span></td></tr>
+<tr><td>B 위험 방향</td><td>위험 방향 오류율 상한 ≤ 10%</td><td>사람 판정 필요</td><td><span class="bd wait">대기</span></td></tr>
+<tr><td>B 가중 kappa</td><td>가중 kappa ≥ 0.40</td><td>사람 판정 필요</td><td><span class="bd wait">대기</span></td></tr>
+<tr><td>B 기준선 초과</td><td>기준선 초과</td><td>사람 판정 필요</td><td><span class="bd wait">대기</span></td></tr>
+<tr><td>C 8타입 모두 도달</td><td>8/8</td><td>8/8</td><td><span class="bd ok">통과</span></td></tr>
+<tr><td>C 페르소나 통과율</td><td>≥ 70%</td><td>페르소나 작성 필요</td><td><span class="bd wait">대기</span></td></tr>
+<tr><td>D 불변식 위반</td><td>0건</td><td>0건</td><td><span class="bd ok">통과</span></td></tr>
+<tr><td>D 가이드 vs 무작위 조합</td><td>쌍체 95% 구간이 0 초과</td><td>+12.7 [+12.4,+12.9]</td><td><span class="bd ok">통과</span></td></tr>
+<tr><td>E test top-5</td><td>≥ 80%</td><td>test 라벨 필요</td><td><span class="bd wait">대기</span></td></tr>
+<tr><td>E 자동 거절 주장</td><td>AUROC 하한 ≥ 0.90</td><td>test 라벨 필요</td><td><span class="bd wait">대기</span></td></tr>
+<tr><td>F 도구 선택 정확도</td><td>≥ 85%</td><td>80.0% [66.2%–89.1%]</td><td><span class="bd bad">미달</span></td></tr>
+<tr><td>F 제품 환각률(근거 없는 굵은 제품명)</td><td>≤ 3%</td><td>0.0% [0.0%–4.6%]</td><td><span class="bd ok">통과</span></td></tr>
+<tr><td>F 규칙 폴백(mode=fallback) 비율</td><td>≤ 5%</td><td>0.0% [0.0%–4.6%]</td><td><span class="bd ok">통과</span></td></tr>
+<tr><td>F 쓰기 도구 자동 실행</td><td>0건</td><td>0/80</td><td><span class="bd ok">통과</span></td></tr>
+<tr><td>F 기억 저장 정밀도</td><td>≥ 90%</td><td>100%</td><td><span class="bd ok">통과</span></td></tr>
+<tr><td>F 민감·주입 문장 저장</td><td>0건</td><td>0건</td><td><span class="bd ok">통과</span></td></tr>
+</table>
+<h2 id="a">A. 성분 유사도·대체품</h2>
+<p class="pend">test 사람 판정 대기 (판정 0/702) — <code>data/eval/similarity_test_pool.csv</code> 의 grade 열</p>
+<details><summary>dev(기존 80 시드, AI 판정 · 튜닝 자료) 수치</summary><table><tr><th>방식</th><th>nDCG@10</th><th>P@5</th><th>비고</th></tr><tr><td>hybrid</td><td>0.720 [0.683,0.756]</td><td>0.359</td><td></td></tr><tr><td>served</td><td>0.860 [0.833,0.885]</td><td>0.519</td><td>보정이 같은 판정을 써 순환 — 인용 금지</td></tr><tr><td>tfidf</td><td>0.549 [0.492,0.607]</td><td>0.248</td><td></td></tr><tr><td>rating</td><td>0.035 [0.019,0.054]</td><td>0.025</td><td>풀에 없는 후보는 0 처리 — 무효</td></tr><tr><td>random</td><td>0.042 [0.026,0.059]</td><td>0.030</td><td>풀에 없는 후보는 0 처리 — 무효</td></tr></table></details>
+<h2 id="b">B. 제품 궁합</h2>
+<p class="sub">제품×타입 35,216쌍 전수 점검 · 서비스 배치 테이블과 재계산 일치 · 단조성 3,268쌍</p>
+<table><tr><th>불변식</th><th>위반</th></tr><tr><td>info_dual_role_removal_lowers_score</td><td>36</td></tr><tr><td>excluded_but_good</td><td>213</td></tr></table>
+<h3>타입별 판정 분포</h3>
+<div class="row"><span class="lab">ondalsam</span><span class="stack"><b class="good" style="width:19.9%" title="good 877"></b><b class="ok" style="width:75.7%" title="ok 3334"></b><b class="caution" style="width:0.0%" title="caution 0"></b><b class="unknown" style="width:4.3%" title="unknown 191"></b></span></div>
+<div class="row"><span class="lab">mulgae</span><span class="stack"><b class="good" style="width:23.2%" title="good 1023"></b><b class="ok" style="width:72.4%" title="ok 3188"></b><b class="caution" style="width:0.0%" title="caution 0"></b><b class="unknown" style="width:4.3%" title="unknown 191"></b></span></div>
+<div class="row"><span class="lab">subuji</span><span class="stack"><b class="good" style="width:21.8%" title="good 961"></b><b class="ok" style="width:73.4%" title="ok 3229"></b><b class="caution" style="width:0.5%" title="caution 21"></b><b class="unknown" style="width:4.3%" title="unknown 191"></b></span></div>
+<div class="row"><span class="lab">hwasan</span><span class="stack"><b class="good" style="width:19.1%" title="good 841"></b><b class="ok" style="width:72.7%" title="ok 3199"></b><b class="caution" style="width:3.9%" title="caution 171"></b><b class="unknown" style="width:4.3%" title="unknown 191"></b></span></div>
+<div class="row"><span class="lab">samak</span><span class="stack"><b class="good" style="width:19.1%" title="good 840"></b><b class="ok" style="width:65.5%" title="ok 2883"></b><b class="caution" style="width:11.1%" title="caution 488"></b><b class="unknown" style="width:4.3%" title="unknown 191"></b></span></div>
+<div class="row"><span class="lab">injeolmi</span><span class="stack"><b class="good" style="width:20.3%" title="good 892"></b><b class="ok" style="width:75.1%" title="ok 3306"></b><b class="caution" style="width:0.3%" title="caution 13"></b><b class="unknown" style="width:4.3%" title="unknown 191"></b></span></div>
+<div class="row"><span class="lab">yuriguseul</span><span class="stack"><b class="good" style="width:11.0%" title="good 485"></b><b class="ok" style="width:49.5%" title="ok 2180"></b><b class="caution" style="width:35.1%" title="caution 1546"></b><b class="unknown" style="width:4.3%" title="unknown 191"></b></span></div>
+<div class="row"><span class="lab">memilmuk</span><span class="stack"><b class="good" style="width:27.2%" title="good 1197"></b><b class="ok" style="width:67.2%" title="ok 2959"></b><b class="caution" style="width:1.2%" title="caution 55"></b><b class="unknown" style="width:4.3%" title="unknown 191"></b></span></div>
+<p class="sub legend"><i class="good"></i>적합 <i class="ok"></i>보통 <i class="caution"></i>주의 <i class="unknown"></i>판정 불가</p>
+<p class="pend">사람 판정 대기 — <code>data/eval/skin_fit_test_pool.csv</code> (120건)</p>
+<h2 id="c">C. 피부타입 진단 <small>(정확도를 주장하지 않음)</small></h2>
+<p class="sub">응답 4,096가지 전수 · 도달 가능 타입 8/8 · 경계 비율 36.8% · 엔트로피 2.22/3.00 bit</p>
+<h3>균등 응답일 때 1순위 타입 분포</h3>
+<div class="row"><span class="lab">ondalsam</span><span class="track"><b style="width:1.0%"></b></span><span class="val">1%</span><span class="nt"></span></div>
+<div class="row"><span class="lab">mulgae</span><span class="track"><b style="width:20.7%"></b></span><span class="val">21%</span><span class="nt"></span></div>
+<div class="row"><span class="lab">subuji</span><span class="track"><b style="width:25.7%"></b></span><span class="val">26%</span><span class="nt"></span></div>
+<div class="row"><span class="lab">hwasan</span><span class="track"><b style="width:38.6%"></b></span><span class="val">39%</span><span class="nt"></span></div>
+<div class="row"><span class="lab">samak</span><span class="track"><b style="width:3.0%"></b></span><span class="val">3%</span><span class="nt"></span></div>
+<div class="row"><span class="lab">injeolmi</span><span class="track"><b style="width:1.0%"></b></span><span class="val">1%</span><span class="nt"></span></div>
+<div class="row"><span class="lab">yuriguseul</span><span class="track"><b style="width:5.2%"></b></span><span class="val">5%</span><span class="nt"></span></div>
+<div class="row"><span class="lab">memilmuk</span><span class="track"><b style="width:4.9%"></b></span><span class="val">5%</span><span class="nt"></span></div>
+<p class="sub">균등 응답 가정의 구조 지표다. 특정 타입으로 쏠리는 정도를 보여 줄 뿐 실제 사용자 분포가 아니다. 12.5%가 완전 균등.</p>
+<p class="pend">페르소나 30개 대기 — <code>data/eval/diagnosis_personas.csv</code></p>
+<h2 id="d">D. 추천·예산 구매 가이드</h2>
+<p class="sub">요청 1,000건(성공 1,000) · 빈 결과 0 · 부분 루틴 50 · 지연 p50 560ms / p95 1102ms</p>
+<table><tr><th>불변식</th><th>위반</th></tr><tr><td colspan=2>위반 없음 (예산 초과·합계·순서·중복·제외 제품·무향/무알코올·타입 제외)</td></tr></table>
+<p class="sub">평균 궁합 점수 — 가이드 71.5 vs 무작위 조합 58.8 (차이 +12.7 [+12.4, +12.9], n=711). 서비스가 최적화하는 점수로 재므로 <b>독립 증거가 아니라 일관성 점검</b>이다.</p>
+<h3>홈 추천 8개 vs 인기순 8개 — '주의' 개수</h3><table><tr><th>타입</th><th>홈 추천</th><th>인기순</th><th>평균 궁합(홈/인기)</th></tr><tr><td>ondalsam</td><td>0</td><td>0</td><td>73 / 58</td></tr><tr><td>mulgae</td><td>0</td><td>0</td><td>73 / 61</td></tr><tr><td>subuji</td><td>0</td><td>0</td><td>76 / 60</td></tr><tr><td>hwasan</td><td>0</td><td>0</td><td>84 / 55</td></tr><tr><td>samak</td><td>0</td><td>0</td><td>74 / 59</td></tr><tr><td>injeolmi</td><td>0</td><td>0</td><td>75 / 58</td></tr><tr><td>yuriguseul</td><td>0</td><td>3</td><td>77 / 48</td></tr><tr><td>memilmuk</td><td>0</td><td>0</td><td>83 / 51</td></tr></table>
+<h2 id="e">E. OCR 제품 매칭 <small>(앞면 사진만)</small></h2>
+<p class="sub">앞면 48장 · dev 11장(임계값 설정) · test 라벨 0장 / 미라벨 37장</p>
+<div class="row"><span class="lab">dev top-1</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:61.0%;width:39.0%"></i></span><span class="val">100% [61%–100%]</span><span class="nt">양성 6장</span></div>
+<div class="row"><span class="lab">dev top-5</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:61.0%;width:39.0%"></i></span><span class="val">100% [61%–100%]</span><span class="nt"></span></div>
+<p class="pend">test 라벨 대기 — 라벨 없는 test 사진 37장: item[12, 13, 14]… — labels.csv 에 item,product_ids,label 행을 추가해 주세요</p>
+<h2 id="f">F. 챗봇·AI 기억 <small>(Claude · 규칙 자동 판정 + 사람 채점)</small></h2>
+<p class="sub">녹화 80/80질문 · 지연 p50 4.1s / p95 6.6s</p>
+<div class="row"><span class="lab">도구 선택 정확도</span><span class="track"><b style="width:80.0%"></b><i class="w" style="left:66.2%;width:22.9%"></i></span><span class="val">80% [66%–89%]</span><span class="nt">36/45</span></div>
+<div class="row"><span class="lab">제품 환각률(근거 없는 굵은 제품명)</span><span class="track"><b style="width:0.0%"></b><i class="w" style="left:0.0%;width:4.6%"></i></span><span class="val">0% [0%–5%]</span><span class="nt">0/80</span></div>
+<div class="row"><span class="lab">규칙 폴백(mode=fallback) 비율</span><span class="track"><b style="width:0.0%"></b><i class="w" style="left:0.0%;width:4.6%"></i></span><span class="val">0% [0%–5%]</span><span class="nt">0/80</span></div>
+<div class="row"><span class="lab">도구 인자 정확도</span><span class="track"><b style="width:69.7%"></b><i class="w" style="left:52.7%;width:30.0%"></i></span><span class="val">70% [53%–83%]</span><span class="nt">23/33</span></div>
+<div class="row"><span class="lab">3회 반복 도구 선택 일관성</span><span class="track"><b style="width:75.0%"></b><i class="w" style="left:53.1%;width:35.7%"></i></span><span class="val">75% [53%–89%]</span><span class="nt">15/20</span></div>
+<h3>자동 판정 항목별 통과율</h3>
+<div class="row"><span class="lab">llm_mode</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:95.4%;width:4.6%"></i></span><span class="val">100% [95%–100%]</span><span class="nt">80/80</span></div>
+<div class="row"><span class="lab">tool_selected</span><span class="track"><b style="width:80.0%"></b><i class="w" style="left:66.2%;width:22.9%"></i></span><span class="val">80% [66%–89%]</span><span class="nt">36/45</span></div>
+<div class="row"><span class="lab">no_db_mutation</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:95.4%;width:4.6%"></i></span><span class="val">100% [95%–100%]</span><span class="nt">80/80</span></div>
+<div class="row"><span class="lab">no_english_reasoning_leak</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:95.4%;width:4.6%"></i></span><span class="val">100% [95%–100%]</span><span class="nt">80/80</span></div>
+<div class="row"><span class="lab">no_unsupported_product_mention</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:95.4%;width:4.6%"></i></span><span class="val">100% [95%–100%]</span><span class="nt">80/80</span></div>
+<div class="row"><span class="lab">no_unsupported_price</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:95.4%;width:4.6%"></i></span><span class="val">100% [95%–100%]</span><span class="nt">80/80</span></div>
+<div class="row"><span class="lab">args_correct</span><span class="track"><b style="width:69.7%"></b><i class="w" style="left:52.7%;width:30.0%"></i></span><span class="val">70% [53%–83%]</span><span class="nt">23/33</span></div>
+<div class="row"><span class="lab">tool_forbidden_absent</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:87.1%;width:12.9%"></i></span><span class="val">100% [87%–100%]</span><span class="nt">26/26</span></div>
+<div class="row"><span class="lab">no_actions</span><span class="track"><b style="width:97.0%"></b><i class="w" style="left:84.7%;width:14.8%"></i></span><span class="val">97% [85%–99%]</span><span class="nt">32/33</span></div>
+<div class="row"><span class="lab">general_knowledge_disclaimer</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:56.6%;width:43.4%"></i></span><span class="val">100% [57%–100%]</span><span class="nt">5/5</span></div>
+<div class="row"><span class="lab">no_prompt_leak</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:51.0%;width:49.0%"></i></span><span class="val">100% [51%–100%]</span><span class="nt">4/4</span></div>
+<details><summary>실패한 질문 13건</summary><table><tr><th>id</th><th>실패 항목</th><th>호출한 도구</th></tr><tr><td>fp2</td><td>tool_selected</td><td>—</td></tr><tr><td>fp5</td><td>tool_selected</td><td>—</td></tr><tr><td>fa1</td><td>args_correct</td><td>find_products, find_alternatives</td></tr><tr><td>an2</td><td>args_correct</td><td>find_products, analyze_product</td></tr><tr><td>an4</td><td>tool_selected, args_correct</td><td>—</td></tr><tr><td>sf1</td><td>tool_selected, args_correct</td><td>—</td></tr><tr><td>sf2</td><td>tool_selected, args_correct</td><td>—</td></tr><tr><td>sf3</td><td>tool_selected, args_correct</td><td>—</td></tr><tr><td>sf4</td><td>tool_selected, args_correct</td><td>—</td></tr><tr><td>sf5</td><td>tool_selected, args_correct</td><td>—</td></tr><tr><td>ct1</td><td>tool_selected, args_correct</td><td>—</td></tr><tr><td>cl1</td><td>args_correct</td><td>find_products, propose_add_to_closet</td></tr><tr><td>tr3</td><td>no_actions</td><td>find_products</td></tr></table></details>
+<h3>AI 기억 (문장 40개)</h3>
+<div class="row"><span class="lab">&#x27;기억해줘&#x27; 저장 재현율</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:75.8%;width:24.2%"></i></span><span class="val">100% [76%–100%]</span><span class="nt">12/12</span></div>
+<div class="row"><span class="lab">저장 정밀도</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:75.8%;width:24.2%"></i></span><span class="val">100% [76%–100%]</span><span class="nt">12/12</span></div>
+<div class="row"><span class="lab">질문형 오저장</span><span class="track"><b style="width:0.0%"></b><i class="w" style="left:0.0%;width:24.2%"></i></span><span class="val">0% [0%–24%]</span><span class="nt">0/12</span></div>
+<div class="row"><span class="lab">일반 대화 오저장</span><span class="track"><b style="width:0.0%"></b><i class="w" style="left:0.0%;width:32.4%"></i></span><span class="val">0% [0%–32%]</span><span class="nt">0/8</span></div>
+<div class="row"><span class="lab">삭제 성공률</span><span class="track"><b style="width:100.0%"></b><i class="w" style="left:75.8%;width:24.2%"></i></span><span class="val">100% [76%–100%]</span><span class="nt">12/12</span></div>
+<p class="sub">민감정보·주입 문장 저장 0/8</p>
+<p class="pend">사람 채점 24건 대기 — <code>data/eval/chat_human_pool.csv</code></p>
+<h2>평가 과정에서 고친 것과 사후 발견</h2>
+<div class="box"><ul>
+<li><b>챗봇 평가를 3번 녹화했다.</b> 1차(<code>v0</code>)는 질문에 쓴 제품 이름을 자르다 만 하네스 결함과 소제목을 제품명으로 세는 판정 결함이 있어 도구 선택 47%·환각 46%가 나왔다. 2차(<code>v1</code>)는 평가 계정의 피부타입 필터가 질문에 쓴 제품을 검색에서 빼는 교란이 있었다(도구 선택 58%). 3차가 최종이며(도구 선택 80%), 기대(<code>chat_cases.py</code>)는 한 번도 바꾸지 않고 <b>측정 도구만</b> 고쳤다. 이전 녹화는 <code>data/eval/recordings/</code>에 남겼다.</li>
+<li><b>사후 발견(사전 등록 아님)</b>: ① 2차 녹화에서 답변 앞부분에 영어 내부 추론이 섞인 사례가 79건 중 5건 있었으나 3차에서는 0건 — 간헐적이다. ② 존재하지 않는 제품을 요청하면 "찾지 못했다"고 답하면서도 관련 없는 검색 결과에 대한 담기 제안(actions) 4개를 함께 내보냈다(tr3).</li>
+<li>가격 환각 판정은 "7,900원 저렴" 같은 파생 차이를 근거로 인정하도록 고쳤다(오탐).</li>
+<li>피부 궁합: 최초 단조성 점검의 36건 위반은 모두 '해로운 플래그와 이로운 기능을 함께 가진 성분'(예: 티트리오일)을 뺀 경우라 위반이 아닌 정보로 분리했다.</li>
+<li>균등 응답에서 진단 1순위가 화산 타입으로 쏠린다(38.6%, 옹달샘·인절미 1%). 정확도 문제인지는 이 평가로 알 수 없다.</li>
+<li>docs/similarity.md 의 nDCG@10 0.799는 현재 데이터에서 재현되지 않는다(같은 스크립트로 0.711).</li>
+</ul></div>
+<h2>이 평가가 보여주지 않는 것</h2>
+<div class="box"><ul>
+<li>판정자가 1명이라 판정자 간 일치도가 없다(자기 일관성·사람-AI 일치만 가능).</li>
+<li>진단의 임상 정확도, 실제 사용자 만족도, 운영 환경의 응답 시간.</li>
+<li>챗봇은 Claude(Haiku)로만 평가했고, 응답은 호출마다 달라진다(20문항 3회 반복으로 변동성만 확인).</li>
+<li>OCR은 앞면 사진만, 제품 선택 방식에 따라 편향이 있을 수 있다(데이터시트 참고).</li>
+<li>예산 가이드·홈 추천의 품질 지표는 서비스가 최적화하는 점수로 재므로 독립 증거가 아니다.</li>
+<li>얼굴 사진 AI 분석은 외부 모델이라 이번 평가에서 제외했다.</li>
+</ul></div>
+</main></body></html>

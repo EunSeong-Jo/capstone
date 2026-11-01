@@ -1,0 +1,103 @@
+{
+  "protocol": "PROTOCOL.md C 구조",
+  "n_combinations": 4096,
+  "reachable_types": 8,
+  "top1_counts": {
+    "ondalsam": 41,
+    "mulgae": 846,
+    "subuji": 1052,
+    "hwasan": 1580,
+    "samak": 124,
+    "injeolmi": 41,
+    "yuriguseul": 212,
+    "memilmuk": 200
+  },
+  "top1_share": {
+    "ondalsam": 0.010009765625,
+    "mulgae": 0.20654296875,
+    "subuji": 0.2568359375,
+    "hwasan": 0.3857421875,
+    "samak": 0.0302734375,
+    "injeolmi": 0.010009765625,
+    "yuriguseul": 0.0517578125,
+    "memilmuk": 0.048828125
+  },
+  "entropy_bits": 2.223332165599162,
+  "max_entropy_bits": 3.0,
+  "borderline_rate": 0.3681640625,
+  "question_sensitivity": {
+    "q1": {
+      "axis": "moisture",
+      "p_change": 0.4012044270833333
+    },
+    "q2": {
+      "axis": "sensitivity",
+      "p_change": 0.3981119791666667
+    },
+    "q3": {
+      "axis": "trouble",
+      "p_change": 0.5997721354166666
+    },
+    "q4": {
+      "axis": "pigmentation",
+      "p_change": 0.4095052083333333
+    },
+    "q5": {
+      "axis": "oil",
+      "p_change": 0.20784505208333334
+    },
+    "q6": {
+      "axis": "moisture",
+      "p_change": 0.2648111979166667
+    }
+  },
+  "axes_touched_by_question": {
+    "q1": [
+      "moisture",
+      "oil"
+    ],
+    "q2": [
+      "moisture",
+      "sensitivity",
+      "trouble"
+    ],
+    "q3": [
+      "oil",
+      "sensitivity",
+      "trouble"
+    ],
+    "q4": [
+      "moisture",
+      "oil",
+      "pigmentation",
+      "sensitivity",
+      "trouble"
+    ],
+    "q5": [
+      "moisture",
+      "oil"
+    ],
+    "q6": [
+      "moisture",
+      "oil",
+      "pigmentation",
+      "sensitivity"
+    ]
+  },
+  "axes_never_touched": [],
+  "note": "균등 응답 가정의 구조 지표다. 실제 사용자 응답 분포·임상 정확도를 뜻하지 않는다.",
+  "env": {
+    "git_commit": "f0b02e5",
+    "alembic": "a3f5c7d9e1b2",
+    "db_counts": {
+      "products": 4402,
+      "ingredients": 23150,
+      "product_ingredients": 178758,
+      "similarities": 105620,
+      "product_skin_fit": 35216
+    },
+    "seed": 20261101,
+    "data_hash": {},
+    "note": "로컬 스냅샷. AWS 운영 DB와 평가 대상 테이블이 행 단위로 동일함(2026-11-01 확인)"
+  }
+}
