@@ -1,0 +1,158 @@
+{
+  "protocol": "PROTOCOL.md E (앞면만)",
+  "photos_front": 48,
+  "dev_items": 11,
+  "test_items_labeled": 0,
+  "test_items_unlabeled": 37,
+  "dev": {
+    "n_pos": 6,
+    "n_neg": 5,
+    "top1": {
+      "p": 1.0,
+      "lo": 0.6096657120978346,
+      "hi": 1.0
+    },
+    "top5": {
+      "p": 1.0,
+      "lo": 0.6096657120978346,
+      "hi": 1.0
+    },
+    "auroc": 0.8666666666666667,
+    "auroc_lo": 0.6,
+    "auroc_hi": 1.0,
+    "threshold": 0.3853,
+    "accepted_positive": {
+      "p": 0.8333333333333334,
+      "lo": 0.43649717781352987,
+      "hi": 0.9699466302516935
+    },
+    "accepted_correct_among_accepted": {
+      "p": 1.0,
+      "lo": 0.5655175352168251,
+      "hi": 1.0
+    },
+    "false_accept_negative": {
+      "p": 0.2,
+      "lo": 0.03622410863243014,
+      "hi": 0.6244653702374747
+    }
+  },
+  "dev_items_detail": [
+    {
+      "item": 1,
+      "gold": [],
+      "rank": null,
+      "top_score": 0.25,
+      "top_name": "코스알엑스 울트라 라이트 물막 수분 선세럼 50ml"
+    },
+    {
+      "item": 2,
+      "gold": [],
+      "rank": null,
+      "top_score": 0.3106,
+      "top_name": "달바 핑크 톤업 선크림 65ml"
+    },
+    {
+      "item": 3,
+      "gold": [],
+      "rank": null,
+      "top_score": 0.187,
+      "top_name": "닥터지 블랙스네일 레티놀 앰플 50ml"
+    },
+    {
+      "item": 4,
+      "gold": [
+        3064
+      ],
+      "rank": 1,
+      "top_score": 0.4189,
+      "top_name": "김정문알로에 큐어 피토그린 앰플 마스크 1매"
+    },
+    {
+      "item": 5,
+      "gold": [],
+      "rank": null,
+      "top_score": 0.2451,
+      "top_name": "채운 히알루론 푸딩 미스트 앰플 100g"
+    },
+    {
+      "item": 6,
+      "gold": [
+        735,
+        743
+      ],
+      "rank": 1,
+      "top_score": 0.2897,
+      "top_name": "에스트라 아토베리어365 로션 150ml"
+    },
+    {
+      "item": 7,
+      "gold": [
+        3665,
+        3862
+      ],
+      "rank": 1,
+      "top_score": 0.3853,
+      "top_name": "스킨푸드 캐롯 카로틴 카밍 워터 패드 60매"
+    },
+    {
+      "item": 8,
+      "gold": [
+        3370,
+        3371
+      ],
+      "rank": 1,
+      "top_score": 0.5196,
+      "top_name": "라운드랩 동백 딥 콜라겐 탄력 겔 마스크 1매"
+    },
+    {
+      "item": 9,
+      "gold": [
+        3948,
+        3973,
+        4293,
+        4304,
+        237986
+      ],
+      "rank": 1,
+      "top_score": 0.7843,
+      "top_name": "비플레인 녹두 약산성 클렌징폼 40ml"
+    },
+    {
+      "item": 10,
+      "gold": [],
+      "rank": null,
+      "top_score": 0.3976,
+      "top_name": "아이디얼포맨 올인원 2종"
+    },
+    {
+      "item": 11,
+      "gold": [
+        3691,
+        3759
+      ],
+      "rank": 1,
+      "top_score": 0.3902,
+      "top_name": "더랩바이블랑두 그린 플라보노이드 2.5 패드 90매"
+    }
+  ],
+  "test": null,
+  "test_pending": "라벨 없는 test 사진 37장: item[12, 13, 14]… — labels.csv 에 item,product_ids,label 행을 추가해 주세요",
+  "env": {
+    "git_commit": "f0b02e5",
+    "alembic": "a3f5c7d9e1b2",
+    "db_counts": {
+      "products": 4402,
+      "ingredients": 23150,
+      "product_ingredients": 178758,
+      "similarities": 105620,
+      "product_skin_fit": 35216
+    },
+    "seed": 20261101,
+    "data_hash": {
+      "labels.csv": "0df2a39268ea4f22",
+      "ocr_service_cache.json": "d3e146b207b3d79c"
+    },
+    "note": "로컬 스냅샷. AWS 운영 DB와 평가 대상 테이블이 행 단위로 동일함(2026-11-01 확인)"
+  }
+}
