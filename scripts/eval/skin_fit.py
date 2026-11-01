@@ -23,7 +23,7 @@ from common import EVAL_DIR, REPO, SEED  # noqa: E402
 import stats  # noqa: E402
 
 from app.services.diagnosis import PROFILES  # noqa: E402
-from app.services.skin_fit import AVOID, PREFER, evaluate, hard_excluded, product_facts  # noqa: E402
+from app.services.skin_fit import AVOID, HARD_EXCLUDE_ALCOHOL, HARD_EXCLUDE_FRAGRANCE, PREFER, evaluate, hard_excluded, product_facts  # noqa: E402
 from app.services.skin_type import SKIN_TYPE_LABELS  # noqa: E402
 from compute_skin_fit import load_labels  # noqa: E402
 
@@ -49,6 +49,21 @@ def load_docs(cur):
     return docs, poss
 
 
+def _kappa_ci(t, p, reps: int = 5000):
+    """가중 kappa 의 부트스트랩 95% 구간(제품×타입 쌍 단위 재표집, PROTOCOL 5,000회·seed 고정)."""
+    rng = random.Random(SEED)
+    n = len(t)
+    vals = []
+    for _ in range(reps):
+        idx = [rng.randrange(n) for _ in range(n)]
+        try:
+            vals.append(stats.cohen_kappa([t[i] for i in idx], [p[i] for i in idx], "quadratic"))
+        except Exception:
+            continue
+    vals.sort()
+    return [vals[int(0.025 * len(vals))], vals[int(0.975 * len(vals)) - 1]] if vals else None
+
+
 def cmd_invariants(_a) -> None:
     conn = common.connect()
     cur = conn.cursor()
@@ -60,6 +75,8 @@ def cmd_invariants(_a) -> None:
     served = {(p, t): (s, v, bool(e)) for p, t, s, v, e in cur.fetchall()}
 
     viol = Counter()
+    good_causes: Counter = Counter()      # 하드 제외인데 '적합'으로 나온 쌍의 (타입, 제외 사유) 분포
+    good_scores: list = []
     examples: dict[str, list] = {}
     dist = {t: Counter() for t in PREFER}
     checked = 0
@@ -92,6 +109,10 @@ def cmd_invariants(_a) -> None:
             # (3) 하드 제외 제품이 '적합'으로 나오면 안 된다 — 사용자에게 가장 해로운 방향의 오류
             if fit.excluded and fit.verdict == "good":
                 note("excluded_but_good", (pid, t, fit.score))
+                _fr, _al = product_facts(doc, labels)
+                _cause = "+".join(x for x, on in (("향료", _fr and t in HARD_EXCLUDE_FRAGRANCE), ("알코올", _al and t in HARD_EXCLUDE_ALCOHOL)) if on)
+                good_causes[(t, _cause)] += 1
+                good_scores.append(fit.score)
             # (4) 서비스 경로 일치: 배치 테이블(product_skin_fit)이 지금 코드의 재계산과 같은가
             s = served.get((pid, t))
             if s is None:
@@ -124,6 +145,8 @@ def cmd_invariants(_a) -> None:
         "protocol": "PROTOCOL.md B 불변식",
         "checked_pairs": checked, "monotonic_pairs_checked": mono_pairs,
         "violations": dict(viol), "examples": examples,
+        "excluded_but_good_causes": {f"{t}/{c}": n for (t, c), n in sorted(good_causes.items())},
+        "excluded_but_good_score_min": min(good_scores) if good_scores else None,
         "verdict_distribution": {t: dict(c) for t, c in dist.items()},
         "env": common.env_info(cur, []),
     }
@@ -230,8 +253,10 @@ def cmd_score(_a) -> None:
                 "baseline_always_ok": dict(zip(("p", "lo", "hi"), stats.wilson(base_ok, n))),
                 "baseline_random": dict(zip(("p", "lo", "hi"), stats.wilson(base_rand, n))),
                 "weighted_kappa_quadratic": stats.cohen_kappa(ord_t, ord_p, "quadratic") if ord_t else None,
+                "weighted_kappa_ci95": _kappa_ci(ord_t, ord_p) if ord_t else None,
                 "danger_caution_to_good": {"k": danger, "of_human_caution": n_caution,
-                                           "rate_over_all": dict(zip(("p", "lo", "hi"), stats.wilson(danger, n)))},
+                                           "rate_over_all": dict(zip(("p", "lo", "hi"), stats.wilson(danger, n))),
+                                           "rate_over_caution": dict(zip(("p", "lo", "hi"), stats.wilson(danger, max(1, n_caution))))},
                 "confusion": stats.confusion(truth, pred, ["good", "ok", "caution", "unknown"]),
             }
     out["env"] = common.env_info(cur, [TEST_POOL, REVIEW])

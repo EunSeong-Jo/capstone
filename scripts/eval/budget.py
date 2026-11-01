@@ -127,7 +127,8 @@ def main() -> None:
                     note("alcohol_free_violated", (i,))
                 if st and fit.get((i, st), (None, None, False))[2]:
                     note("hard_excluded_type_returned", (i, st))
-        # 품질: 첫 안(점수 최고 구간이 아닌 '균형' 포함 전체)의 평균 궁합 vs 같은 단계 구성의 무작위 조합
+        # 품질: 조합 목록의 가운데 안(combos[len//2], 점수 최고도 최저가도 아닌 중간)의 평균 궁합 vs 같은 단계 구성의 무작위 조합.
+        # 표본 제외 조건: 피부타입이 없는 요청, 빈 단계(missingSteps)가 있는 부분 루틴, 같은 단계에 무작위로 뽑을 후보가 없는 경우
         if st and not out["missingSteps"]:
             best = combos[len(combos) // 2]
             sc = [fit[(i["product"]["id"], st)][0] for i in best["items"] if fit.get((i["product"]["id"], st), (None,))[0] is not None]

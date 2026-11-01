@@ -2,8 +2,8 @@
   "protocol": "PROTOCOL.md E (앞면만)",
   "photos_front": 48,
   "dev_items": 11,
-  "test_items_labeled": 0,
-  "test_items_unlabeled": 37,
+  "test_items_labeled": 37,
+  "test_items_unlabeled": 0,
   "dev": {
     "n_pos": 6,
     "n_neg": 5,
@@ -35,6 +35,11 @@
       "p": 0.2,
       "lo": 0.03622410863243014,
       "hi": 0.6244653702374747
+    },
+    "top3": {
+      "p": 1.0,
+      "lo": 0.6096657120978346,
+      "hi": 1.0
     }
   },
   "dev_items_detail": [
@@ -136,10 +141,380 @@
       "top_name": "더랩바이블랑두 그린 플라보노이드 2.5 패드 90매"
     }
   ],
-  "test": null,
-  "test_pending": "라벨 없는 test 사진 37장: item[12, 13, 14]… — data/ocr_test/labels_test.csv 의 in_catalog(Y/N)·product_ids 를 채워 주세요",
+  "test": {
+    "n_pos": 32,
+    "n_neg": 5,
+    "top1": {
+      "p": 0.6875,
+      "lo": 0.5143332169904459,
+      "hi": 0.8204745836639026
+    },
+    "top5": {
+      "p": 0.8125,
+      "lo": 0.6469084479862404,
+      "hi": 0.9111045531043405
+    },
+    "auroc": 0.675,
+    "auroc_lo": 0.4125,
+    "auroc_hi": 0.9,
+    "threshold": 0.3853,
+    "accepted_positive": {
+      "p": 0.28125,
+      "lo": 0.15564580497742764,
+      "hi": 0.45374509425916565
+    },
+    "accepted_correct_among_accepted": {
+      "p": 0.7777777777777778,
+      "lo": 0.45258896910698887,
+      "hi": 0.9367748928821533
+    },
+    "false_accept_negative": {
+      "p": 0.2,
+      "lo": 0.03622410863243014,
+      "hi": 0.6244653702374747
+    },
+    "top3": {
+      "p": 0.78125,
+      "lo": 0.6124500635075647,
+      "hi": 0.8897616374739581
+    }
+  },
+  "test_items_detail": [
+    {
+      "item": 12,
+      "gold": [
+        808
+      ],
+      "rank": null,
+      "top_score": 0.2703,
+      "top_name": "한율 어린쑥 진정 맑은 클렌징오일 200ml"
+    },
+    {
+      "item": 13,
+      "gold": [
+        4220
+      ],
+      "rank": 4,
+      "top_score": 0.3125,
+      "top_name": "아리얼 스트레스 릴리빙 데일리 픽 토닝 패드 (30매 x 3개입)"
+    },
+    {
+      "item": 14,
+      "gold": [],
+      "rank": null,
+      "top_score": 0.2029,
+      "top_name": "브리올옴므 퍼펙트 화이트닝 토너 120ml*"
+    },
+    {
+      "item": 15,
+      "gold": [
+        3668
+      ],
+      "rank": null,
+      "top_score": 0.2215,
+      "top_name": "메디큐브 PDRN 핑크 콜라겐 겔 마스크팩 1매"
+    },
+    {
+      "item": 16,
+      "gold": [
+        3665,
+        3862
+      ],
+      "rank": 1,
+      "top_score": 0.4526,
+      "top_name": "스킨푸드 캐롯 카로틴 카밍 워터 패드 60매"
+    },
+    {
+      "item": 17,
+      "gold": [
+        281612,
+        281619
+      ],
+      "rank": null,
+      "top_score": 0.1739,
+      "top_name": "메디힐 PDRN 모공 탄력 더마 크림 50ml"
+    },
+    {
+      "item": 18,
+      "gold": [
+        1465,
+        3712
+      ],
+      "rank": 1,
+      "top_score": 0.3793,
+      "top_name": "라운드랩 자작나무 수분 패드 80매"
+    },
+    {
+      "item": 19,
+      "gold": [
+        3024,
+        3047
+      ],
+      "rank": 1,
+      "top_score": 0.3534,
+      "top_name": "프롬리에 EGF 피지팩 하이퍼 액티브 모공 피지 마스크 4+1"
+    },
+    {
+      "item": 20,
+      "gold": [
+        3059
+      ],
+      "rank": 1,
+      "top_score": 0.2914,
+      "top_name": "메디힐 마데카소사이드 에센셜 마스크 10매"
+    },
+    {
+      "item": 21,
+      "gold": [
+        3054,
+        3231
+      ],
+      "rank": 1,
+      "top_score": 0.179,
+      "top_name": "메디힐 W.H.P 미백수분 블랙 마스크 EX 1매"
+    },
+    {
+      "item": 22,
+      "gold": [],
+      "rank": null,
+      "top_score": 0.2576,
+      "top_name": "메디힐 콜라겐 임팩트인 타이트닝 마스크 1매"
+    },
+    {
+      "item": 23,
+      "gold": [
+        281640
+      ],
+      "rank": null,
+      "top_score": 0.0,
+      "top_name": null
+    },
+    {
+      "item": 24,
+      "gold": [
+        3487
+      ],
+      "rank": 1,
+      "top_score": 0.2262,
+      "top_name": "브링그린 프레시볼 팩 8g 8종"
+    },
+    {
+      "item": 25,
+      "gold": [
+        3487
+      ],
+      "rank": 1,
+      "top_score": 0.2561,
+      "top_name": "브링그린 프레시볼 팩 8g 8종"
+    },
+    {
+      "item": 26,
+      "gold": [
+        281822
+      ],
+      "rank": null,
+      "top_score": 0.3458,
+      "top_name": "듀이트리 픽앤퀵 뽑아쓰는 화장발 마스크"
+    },
+    {
+      "item": 27,
+      "gold": [
+        689
+      ],
+      "rank": 1,
+      "top_score": 0.3445,
+      "top_name": "웰라쥬 리얼 히알루로닉 블루 100 앰플 75ml 2입"
+    },
+    {
+      "item": 28,
+      "gold": [
+        689
+      ],
+      "rank": 1,
+      "top_score": 0.6833,
+      "top_name": "웰라쥬 리얼 히알루로닉 블루 100 앰플 75ml 2입"
+    },
+    {
+      "item": 29,
+      "gold": [
+        237923
+      ],
+      "rank": 1,
+      "top_score": 0.3205,
+      "top_name": "온그리디언츠 스킨 베리어 카밍 로션 이엑스 220ml"
+    },
+    {
+      "item": 30,
+      "gold": [
+        1393
+      ],
+      "rank": 1,
+      "top_score": 0.5758,
+      "top_name": "정샘물 에센셜 물 마이크로 피팅 미스트(55ml/120ml/55ml듀오)"
+    },
+    {
+      "item": 31,
+      "gold": [
+        2057
+      ],
+      "rank": 1,
+      "top_score": 0.2527,
+      "top_name": "닥터지 더모이스처 배리어 D 인텐스 크림 100ml 3종"
+    },
+    {
+      "item": 32,
+      "gold": [
+        703
+      ],
+      "rank": 1,
+      "top_score": 0.6212,
+      "top_name": "이니스프리 레티놀 시카 모공 흔적 앰플 30ml"
+    },
+    {
+      "item": 33,
+      "gold": [
+        2863
+      ],
+      "rank": 1,
+      "top_score": 0.3057,
+      "top_name": "온그리디언츠 스킨 베리어 2종"
+    },
+    {
+      "item": 34,
+      "gold": [],
+      "rank": null,
+      "top_score": 0.2985,
+      "top_name": "넘버즈인 1번 판토텐산 액티브업 수딩세럼 50ml"
+    },
+    {
+      "item": 35,
+      "gold": [
+        685
+      ],
+      "rank": 1,
+      "top_score": 0.2587,
+      "top_name": "파티온 노스카나인 트러블 세럼 50ml"
+    },
+    {
+      "item": 36,
+      "gold": [],
+      "rank": null,
+      "top_score": 0.4483,
+      "top_name": "성분에디터 그린토마토 NMN 포어 리프팅 앰플 40ml"
+    },
+    {
+      "item": 37,
+      "gold": [],
+      "rank": null,
+      "top_score": 0.0,
+      "top_name": null
+    },
+    {
+      "item": 38,
+      "gold": [
+        720,
+        2063
+      ],
+      "rank": 1,
+      "top_score": 0.371,
+      "top_name": "닥터지 레드블레미쉬 클리어 수딩크림 EX 70ml"
+    },
+    {
+      "item": 39,
+      "gold": [
+        1388,
+        2526,
+        2554
+      ],
+      "rank": null,
+      "top_score": 0.0,
+      "top_name": null
+    },
+    {
+      "item": 40,
+      "gold": [
+        2629
+      ],
+      "rank": 1,
+      "top_score": 0.7037,
+      "top_name": "닥터지 레드 블레미쉬 쿨 수딩 젤리 미스트 50ml"
+    },
+    {
+      "item": 41,
+      "gold": [
+        654
+      ],
+      "rank": 1,
+      "top_score": 0.9138,
+      "top_name": "성분에디터 머루포도 비타씨 다크 스팟 앰플 40ml"
+    },
+    {
+      "item": 42,
+      "gold": [
+        920
+      ],
+      "rank": 2,
+      "top_score": 0.5,
+      "top_name": "셀퓨전씨 어드밴스드 클리어 썬스크린 35ml"
+    },
+    {
+      "item": 43,
+      "gold": [
+        1572
+      ],
+      "rank": 3,
+      "top_score": 0.2432,
+      "top_name": "토코보 선스틱 SPF50+ PA++++"
+    },
+    {
+      "item": 44,
+      "gold": [
+        938
+      ],
+      "rank": 3,
+      "top_score": 0.4459,
+      "top_name": "헤라 옴므 올인원 스킨 하이드로 트리트먼트 150ML"
+    },
+    {
+      "item": 45,
+      "gold": [
+        900
+      ],
+      "rank": 1,
+      "top_score": 0.2688,
+      "top_name": "달바 핑크 톤업 선크림 65ml"
+    },
+    {
+      "item": 46,
+      "gold": [
+        1586
+      ],
+      "rank": 1,
+      "top_score": 0.3373,
+      "top_name": "메디힐 마데카소사이드 수분 선세럼 흔적 리페어 50g"
+    },
+    {
+      "item": 47,
+      "gold": [
+        685
+      ],
+      "rank": 1,
+      "top_score": 0.2609,
+      "top_name": "파티온 노스카나인 트러블 세럼 50ml"
+    },
+    {
+      "item": 48,
+      "gold": [
+        180,
+        1372
+      ],
+      "rank": 1,
+      "top_score": 0.589,
+      "top_name": "닥터지 레드 블레미쉬 클리어 히알 시카 수딩 세럼 50ml 2종(20ml , 단품]"
+    }
+  ],
   "env": {
-    "git_commit": "daf493e",
+    "git_commit": "59a5f0b",
     "alembic": "a3f5c7d9e1b2",
     "db_counts": {
       "products": 4402,
@@ -151,6 +526,7 @@
     "seed": 20261101,
     "data_hash": {
       "labels.csv": "0df2a39268ea4f22",
+      "labels_test.csv": "6cbd4d8ba44ec78f",
       "ocr_service_cache.json": "d3e146b207b3d79c"
     },
     "note": "로컬 스냅샷. AWS 운영 DB와 평가 대상 테이블이 행 단위로 동일함(2026-11-01 확인)"

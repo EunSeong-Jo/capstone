@@ -68,6 +68,7 @@ python3 scripts/eval/skin_fit.py score
 python3 scripts/eval/diagnosis.py personas
 python3 scripts/eval/ocr.py score
 python3 scripts/eval/chat.py human-score
+python3 scripts/eval/independence.py        # test 표본이 dev 와 겹치지 않는지(id 교집합)
 python3 scripts/eval/build_report.py        # → docs/evaluation/index.html
 ```
 

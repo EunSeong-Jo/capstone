@@ -87,7 +87,7 @@
   "axes_never_touched": [],
   "note": "균등 응답 가정의 구조 지표다. 실제 사용자 응답 분포·임상 정확도를 뜻하지 않는다.",
   "env": {
-    "git_commit": "f0b02e5",
+    "git_commit": "59a5f0b",
     "alembic": "a3f5c7d9e1b2",
     "db_counts": {
       "products": 4402,

@@ -379,7 +379,7 @@
     "fallback_or_error": 0
   },
   "env": {
-    "git_commit": "f0b02e5",
+    "git_commit": "59a5f0b",
     "alembic": "a3f5c7d9e1b2",
     "db_counts": {
       "products": 4402,

@@ -67,6 +67,12 @@
       ]
     ]
   },
+  "excluded_but_good_causes": {
+    "hwasan/향료": 168,
+    "subuji/알코올": 24,
+    "yuriguseul/향료": 21
+  },
+  "excluded_but_good_score_min": 66,
   "verdict_distribution": {
     "ondalsam": {
       "ok": 3334,
@@ -116,7 +122,7 @@
     }
   },
   "env": {
-    "git_commit": "f0b02e5",
+    "git_commit": "59a5f0b",
     "alembic": "a3f5c7d9e1b2",
     "db_counts": {
       "products": 4402,

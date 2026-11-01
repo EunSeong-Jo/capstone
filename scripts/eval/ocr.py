@@ -80,12 +80,15 @@ async def cmd_find(a) -> None:
     async with AsyncSessionLocal() as db:
         # 한글 상품명 + 영문 상품명(product_names_en)을 함께 찾는다. 영문 이름이 없는 제품도 있으므로 한글 이름 검색이 기본이다.
         rows = (await db.execute(text(
-            "select p.id, p.name, (select string_agg(e.name_en, ' / ') from product_names_en e where e.product_id = p.id) "
-            "from products p where p.status='active' and (p.name ilike :q or exists "
+            "select p.id, p.name, p.composition, p.image_url, (select string_agg(e.name_en, ' / ') from product_names_en e where e.product_id = p.id) "
+            "from products p where p.status='active' and p.composition <> 'optgroup' and (p.name ilike :q or exists "
             "(select 1 from product_names_en e where e.product_id = p.id and (e.name_en ilike :q or e.brand_en ilike :q))) "
             "order by p.id limit 40"), {"q": f"%{a.q}%"})).all()
-    for i, n, en in rows:
-        print(i, n + (f"   [EN] {en}" if en else ""))
+    for i, n, comp, img, en in rows:
+        # composition 이 optgroup 인 행은 스캔 후보에서 빠진다(옵션 행이 대신 나온다). 이미지는 사진과 대조할 때 연다.
+        print(i, f"({comp})", n + (f"   [EN] {en}" if en else ""))
+        if img:
+            print("     ", img)
 
 
 def prep_placeholder():
@@ -192,12 +195,12 @@ def summarize(tag, pos1, pos5, ps, ns, thr):
         boots = []
         import random
         rng = random.Random(common.SEED)
-        for _ in range(2000):
+        for _ in range(5000):
             a = [ps[rng.randrange(len(ps))] for _ in ps]
             b = [ns[rng.randrange(len(ns))] for _ in ns]
             boots.append(stats.auroc(a, b))
         boots.sort()
-        d["auroc_lo"], d["auroc_hi"] = boots[50], boots[1949]
+        d["auroc_lo"], d["auroc_hi"] = boots[124], boots[4874]
     if thr is not None and (ps or ns):
         d["threshold"] = thr
         acc_pos = [(s >= thr, ok) for s, ok in zip(ps, pos1)]
@@ -205,6 +208,14 @@ def summarize(tag, pos1, pos5, ps, ns, thr):
         d["accepted_correct_among_accepted"] = dict(zip(("p", "lo", "hi"), stats.wilson(sum(1 for a, ok in acc_pos if a and ok), max(1, sum(a for a, _ in acc_pos)))))
         d["false_accept_negative"] = dict(zip(("p", "lo", "hi"), stats.wilson(sum(1 for s in ns if s >= thr), max(1, len(ns)))))
     return d
+
+
+def add_top3(d, per) -> None:
+    """앱 스캔 화면은 후보를 3개(`ScanBody.limit` 기본 3)만 보여 준다 — 사용자가 실제로 보는 범위의 적중률.
+    사전 등록 지표(top-5)는 그대로 두고, 서비스 화면과 일치하는 top-3 를 함께 보고한다(사후 추가)."""
+    pos = [x for x in per if x["gold"]]
+    if pos:
+        d["top3"] = dict(zip(("p", "lo", "hi"), stats.wilson(sum(1 for x in pos if x["rank"] is not None and x["rank"] <= 3), len(pos))))
 
 
 async def cmd_score(_a) -> None:
@@ -220,16 +231,18 @@ async def cmd_score(_a) -> None:
     d1, d5, dps, dns, dper = evaluate(dev_items, res, labels)
     thr = best_threshold(dps, dns, d1) if dps and dns else None
     out["dev"] = summarize("dev", d1, d5, dps, dns, thr)
+    add_top3(out["dev"], dper)
     out["dev_items_detail"] = dper
     if test_items and len(unlabeled) == 0:
         t1, t5, tps, tns, tper = evaluate(test_items, res, labels)
         out["test"] = summarize("test", t1, t5, tps, tns, thr)     # 임계값은 dev 값 그대로
+        add_top3(out["test"], tper)
         out["test_items_detail"] = tper
     else:
         out["test"] = None
         out["test_pending"] = f"라벨 없는 test 사진 {len(unlabeled)}장: item{unlabeled[:3]}… — data/ocr_test/labels_test.csv 의 in_catalog(Y/N)·product_ids 를 채워 주세요"
     with common.connect() as conn:
-        out["env"] = common.env_info(conn.cursor(), [LABELS, CACHE])
+        out["env"] = common.env_info(conn.cursor(), [LABELS, LABELS_TEST, CACHE])
     p = common.dump_json("ocr.json", out)
     dv = out["dev"]
     print(f"앞면 사진 {out['photos_front']}장 · dev 라벨 {len(dev_items)} · test 라벨 {len(test_items)} / 미라벨 {len(unlabeled)}")

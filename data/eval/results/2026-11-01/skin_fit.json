@@ -42,6 +42,10 @@
       "hi": 0.47265919461579525
     },
     "weighted_kappa_quadratic": 0.527754763877382,
+    "weighted_kappa_ci95": [
+      0.4185393258426966,
+      0.6218825422365244
+    ],
     "danger_caution_to_good": {
       "k": 0,
       "of_human_caution": 53,
@@ -49,6 +53,11 @@
         "p": 0.0,
         "lo": 0.0,
         "hi": 0.031019166418703486
+      },
+      "rate_over_caution": {
+        "p": 0.0,
+        "lo": 0.0,
+        "hi": 0.06758198857654187
       }
     },
     "confusion": {
@@ -87,7 +96,7 @@
     }
   },
   "env": {
-    "git_commit": "daf493e",
+    "git_commit": "59a5f0b",
     "alembic": "a3f5c7d9e1b2",
     "db_counts": {
       "products": 4402,

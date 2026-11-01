@@ -431,7 +431,7 @@
     }
   ],
   "env": {
-    "git_commit": "daf493e",
+    "git_commit": "59a5f0b",
     "alembic": "a3f5c7d9e1b2",
     "db_counts": {
       "products": 4402,
