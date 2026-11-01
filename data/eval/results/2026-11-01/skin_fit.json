@@ -1,0 +1,106 @@
+{
+  "protocol": "PROTOCOL.md B",
+  "label_review": {
+    "rows": 299,
+    "judged": 299,
+    "precision": 0.5652173913043478,
+    "wilson_lo": 0.5085518595927839,
+    "wilson_hi": 0.6202283944446628,
+    "by_reason": {
+      "무작위": {
+        "맞음": 74,
+        "불일치": 26
+      },
+      "오염 판정": {
+        "맞음": 20
+      },
+      "확신도 1": {
+        "맞음": 75,
+        "불일치": 104
+      }
+    }
+  },
+  "output_judged": {
+    "rows": 120,
+    "judged": 120
+  },
+  "output": {
+    "n": 120,
+    "accuracy": {
+      "p": 0.525,
+      "lo": 0.43626995305824834,
+      "hi": 0.6121790886208165
+    },
+    "baseline_always_ok": {
+      "p": 0.3416666666666667,
+      "lo": 0.26290438368564517,
+      "hi": 0.4302516856802777
+    },
+    "baseline_random": {
+      "p": 0.38333333333333336,
+      "lo": 0.30124527754856906,
+      "hi": 0.47265919461579525
+    },
+    "weighted_kappa_quadratic": 0.527754763877382,
+    "danger_caution_to_good": {
+      "k": 0,
+      "of_human_caution": 53,
+      "rate_over_all": {
+        "p": 0.0,
+        "lo": 0.0,
+        "hi": 0.031019166418703486
+      }
+    },
+    "confusion": {
+      "labels": [
+        "good",
+        "ok",
+        "caution",
+        "unknown"
+      ],
+      "matrix": [
+        [
+          7,
+          19,
+          0,
+          0
+        ],
+        [
+          10,
+          28,
+          3,
+          0
+        ],
+        [
+          0,
+          25,
+          28,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  },
+  "env": {
+    "git_commit": "daf493e",
+    "alembic": "a3f5c7d9e1b2",
+    "db_counts": {
+      "products": 4402,
+      "ingredients": 23150,
+      "product_ingredients": 178758,
+      "similarities": 105620,
+      "product_skin_fit": 35216
+    },
+    "seed": 20261101,
+    "data_hash": {
+      "skin_fit_test_pool.csv": "39f480f2a7eb696d",
+      "review_sample.csv": "10b2a3ae092c4161"
+    },
+    "note": "로컬 스냅샷. AWS 운영 DB와 평가 대상 테이블이 행 단위로 동일함(2026-11-01 확인)"
+  }
+}

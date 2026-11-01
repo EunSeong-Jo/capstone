@@ -137,9 +137,9 @@
     }
   ],
   "test": null,
-  "test_pending": "라벨 없는 test 사진 37장: item[12, 13, 14]… — labels.csv 에 item,product_ids,label 행을 추가해 주세요",
+  "test_pending": "라벨 없는 test 사진 37장: item[12, 13, 14]… — data/ocr_test/labels_test.csv 의 in_catalog(Y/N)·product_ids 를 채워 주세요",
   "env": {
-    "git_commit": "f0b02e5",
+    "git_commit": "daf493e",
     "alembic": "a3f5c7d9e1b2",
     "db_counts": {
       "products": 4402,

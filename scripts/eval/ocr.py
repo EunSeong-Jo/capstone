@@ -78,10 +78,14 @@ async def cmd_find(a) -> None:
 
     from app.db.session import AsyncSessionLocal
     async with AsyncSessionLocal() as db:
-        rows = (await db.execute(text("select id, name from products where name ilike :q and status='active' order by id limit 30"),
-                                 {"q": f"%{a.q}%"})).all()
-    for i, n in rows:
-        print(i, n)
+        # 한글 상품명 + 영문 상품명(product_names_en)을 함께 찾는다. 영문 이름이 없는 제품도 있으므로 한글 이름 검색이 기본이다.
+        rows = (await db.execute(text(
+            "select p.id, p.name, (select string_agg(e.name_en, ' / ') from product_names_en e where e.product_id = p.id) "
+            "from products p where p.status='active' and (p.name ilike :q or exists "
+            "(select 1 from product_names_en e where e.product_id = p.id and (e.name_en ilike :q or e.brand_en ilike :q))) "
+            "order by p.id limit 40"), {"q": f"%{a.q}%"})).all()
+    for i, n, en in rows:
+        print(i, n + (f"   [EN] {en}" if en else ""))
 
 
 def prep_placeholder():

@@ -14,6 +14,8 @@ import json
 from datetime import date
 from pathlib import Path
 
+from stats import wilson
+
 REPO = Path(__file__).resolve().parents[2]
 RES = REPO / "data" / "eval" / "results"
 OUT = REPO / "docs" / "evaluation" / "index.html"
@@ -64,7 +66,7 @@ def build(date_str: str) -> str:
     if sim and sim.get("test"):
         t = sim["test"]
         names = {"hybrid": "hybrid(현재 기본값)", "served": "서비스 제공값", "tfidf": "tfidf", "rating": "평점순", "random": "무작위"}
-        s.append(f'<p class="sub">test 시드 {t["hybrid"]["n_seeds"]}개 · 사람 판정 {sim["test_judged"]}쌍 · 막대=nDCG@5(판정 완전), 수염=95% 구간</p>')
+        s.append(f'<p class="sub">test 시드 {t["hybrid"]["n_seeds"]}개 · <b>Claude 판정</b> {sim["test_judged"]}쌍(사람 정답 아님, 방식 정보는 보지 않고 판정) · 막대=nDCG@5(판정 완전), 수염=95% 구간</p>')
         for m in ("hybrid", "served", "tfidf", "rating", "random"):
             if m in t:
                 v = t[m]["ndcg5"]
@@ -104,11 +106,27 @@ def build(date_str: str) -> str:
             s.append(f'<div class="row"><span class="lab">{t}</span><span class="stack">' + "".join(
                 f'<b class="{k}" style="width:{c.get(k, 0) / n * 100:.1f}%" title="{k} {c.get(k, 0)}"></b>' for k in ("good", "ok", "caution", "unknown")) + "</span></div>")
         s.append('<p class="sub legend"><i class="good"></i>적합 <i class="ok"></i>보통 <i class="caution"></i>주의 <i class="unknown"></i>판정 불가</p>')
+    if sff and sff.get("label_review", {}).get("judged"):
+        lr = sff["label_review"]
+        br = lr.get("by_reason", {})
+        def _agree(k):
+            c = br.get(k, {}); n = sum(c.values()); ok = c.get("맞음", 0)
+            return ok, n
+        lines = []
+        for k in ("무작위", "확신도 1", "오염 판정"):
+            ok, n = _agree(k)
+            if n:
+                p_, lo_, hi_ = wilson(ok, n)
+                lines.append(f"<tr><td>{e(k)}</td><td>{ok}/{n}</td><td>{p_:.0%} [{lo_:.0%}, {hi_:.0%}]</td></tr>")
+        s.append("<h3>성분 기능 라벨 — AI 모델 간 일치도 (Opus가 이름만 보고 독립 판정)</h3>"
+                 "<table><tr><th>표본</th><th>기능 코드 일치</th><th>일치율 [95%]</th></tr>" + "".join(lines) + "</table>"
+                 '<p class="sub"><b>정확도가 아니라 일치도다.</b> 사람 검수가 아니며(Claude 계열 두 모델), 둘 다 틀렸을 수 있다. 전체 추정은 무작위 표본의 값을 쓴다 — 확신도 1 표본은 일부러 어려운 행을 뽑았다. 불일치는 대부분 식물추출물의 기능 배정(예: 항산화 vs 진정)이라 이런 성분의 라벨은 불안정하다. 불일치 목록: <code>review_sample.csv</code>의 verdict=불일치.</p>')
     if sff and sff.get("output"):
         o = sff["output"]
         dg = o["danger_caution_to_good"]
-        s.append(bar("사람 판정과 일치", o["accuracy"]["p"], o["accuracy"]["lo"], o["accuracy"]["hi"]))
+        s.append(bar("AI(Claude) 판정과 일치", o["accuracy"]["p"], o["accuracy"]["lo"], o["accuracy"]["hi"]))
         s.append(bar("기준선: 항상 '보통'", o["baseline_always_ok"]["p"], o["baseline_always_ok"]["lo"], o["baseline_always_ok"]["hi"]))
+        s.append('<p class="sub"><b>정답은 사람이 아니라 Claude가 판정했다</b>(판정자의 성분 지식 부족, 앱 결과는 보지 않음). 입력 성분 라벨도 AI가 만들었으므로 독립 검증이 아니다 — DATASHEET B절.</p>')
         s.append(f'<p class="sub">가중 kappa {o["weighted_kappa_quadratic"]:.2f} · 위험 방향 오류 {dg["k"]}/{o["n"]} (상한 {fmt(dg["rate_over_all"]["hi"], 1)})</p>')
         rows.append(verdict_row("B 위험 방향 오류율 상한", "≤ 10%", fmt(dg["rate_over_all"]["hi"], 1), "통과" if dg["rate_over_all"]["hi"] <= 0.10 else "미달"))
         rows.append(verdict_row("B 가중 kappa", "≥ 0.40", f"{o['weighted_kappa_quadratic']:.2f}", "통과" if o["weighted_kappa_quadratic"] >= 0.40 else "미달"))

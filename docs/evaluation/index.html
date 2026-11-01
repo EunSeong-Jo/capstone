@@ -17,8 +17,8 @@ details{margin:10px 0}summary{cursor:pointer;color:var(--mut);font-size:13px}cod
 @media(max-width:560px){.row{grid-template-columns:1fr}.val,.nt{grid-column:1}.stack{grid-column:1}}
 </style></head><body><main>
 <h1>swappy AI 기능 평가</h1>
-<p class="sub">평가일 2026-11-01 · 코드 f0b02e5 · alembic a3f5c7d9e1b2 · 로컬 스냅샷(AWS 운영 DB와 평가 대상 테이블 동일) {&quot;products&quot;: 4402, &quot;ingredients&quot;: 23150, &quot;product_ingredients&quot;: 178758, &quot;similarities&quot;: 105620, &quot;product_skin_fit&quot;: 35216}</p>
-<div class="summary"><div><b style="color:var(--ok)">8</b>통과</div><div><b style="color:var(--bad)">2</b>미달</div><div><b style="color:var(--wait)">7</b>사람 판정 대기</div></div>
+<p class="sub">평가일 2026-11-01 · 코드 daf493e · alembic a3f5c7d9e1b2 · 로컬 스냅샷(AWS 운영 DB와 평가 대상 테이블 동일) {&quot;products&quot;: 4402, &quot;ingredients&quot;: 23150, &quot;product_ingredients&quot;: 178758, &quot;similarities&quot;: 105620, &quot;product_skin_fit&quot;: 35216}</p>
+<div class="summary"><div><b style="color:var(--ok)">12</b>통과</div><div><b style="color:var(--bad)">2</b>미달</div><div><b style="color:var(--wait)">3</b>사람 판정 대기</div></div>
 <div class="box"><b>어떻게 평가했나</b><ul>
 <li>지표와 합격선은 결과를 보기 전에 <code>data/eval/PROTOCOL.md</code>에 적고 커밋했다.</li>
 <li>튜닝에 쓴 자료(dev)와 한 번만 본 자료(test)를 나눴고, 정답은 평가 대상 로직과 독립인 <b>사람 판정</b>이다.</li>
@@ -27,11 +27,12 @@ details{margin:10px 0}summary{cursor:pointer;color:var(--mut);font-size:13px}cod
 </ul></div>
 <h2>합격선 판정</h2>
 <table><tr><th>항목</th><th>합격선(사전 등록)</th><th>결과</th><th></th></tr>
-<tr><td>A hybrid vs 무작위·평점순</td><td>쌍체 95% 구간이 0 초과</td><td>사람 판정 필요</td><td><span class="bd wait">대기</span></td></tr>
+<tr><td>A hybrid vs 무작위·평점순</td><td>쌍체 95% 구간이 0 초과</td><td>random +0.45 / rating +0.41</td><td><span class="bd ok">통과</span></td></tr>
+<tr><td>A hybrid vs tfidf</td><td>차이를 있는 그대로 보고(합격 조건 아님)</td><td>+0.024 [-0.045, +0.096]</td><td><span class="bd info">참고</span></td></tr>
 <tr><td>B 하드 제외 제품이 &#x27;적합&#x27;</td><td>0건</td><td>213건</td><td><span class="bd bad">미달</span></td></tr>
-<tr><td>B 위험 방향</td><td>위험 방향 오류율 상한 ≤ 10%</td><td>사람 판정 필요</td><td><span class="bd wait">대기</span></td></tr>
-<tr><td>B 가중 kappa</td><td>가중 kappa ≥ 0.40</td><td>사람 판정 필요</td><td><span class="bd wait">대기</span></td></tr>
-<tr><td>B 기준선 초과</td><td>기준선 초과</td><td>사람 판정 필요</td><td><span class="bd wait">대기</span></td></tr>
+<tr><td>B 위험 방향 오류율 상한</td><td>≤ 10%</td><td>3.1%</td><td><span class="bd ok">통과</span></td></tr>
+<tr><td>B 가중 kappa</td><td>≥ 0.40</td><td>0.53</td><td><span class="bd ok">통과</span></td></tr>
+<tr><td>B 기준선(항상 &#x27;보통&#x27;) 초과</td><td>정확도가 더 높음</td><td>52% vs 34%</td><td><span class="bd ok">통과</span></td></tr>
 <tr><td>C 8타입 모두 도달</td><td>8/8</td><td>8/8</td><td><span class="bd ok">통과</span></td></tr>
 <tr><td>C 페르소나 통과율</td><td>≥ 70%</td><td>페르소나 작성 필요</td><td><span class="bd wait">대기</span></td></tr>
 <tr><td>D 불변식 위반</td><td>0건</td><td>0건</td><td><span class="bd ok">통과</span></td></tr>
@@ -46,8 +47,15 @@ details{margin:10px 0}summary{cursor:pointer;color:var(--mut);font-size:13px}cod
 <tr><td>F 민감·주입 문장 저장</td><td>0건</td><td>0건</td><td><span class="bd ok">통과</span></td></tr>
 </table>
 <h2 id="a">A. 성분 유사도·대체품</h2>
-<p class="pend">test 사람 판정 대기 (판정 0/702) — <code>data/eval/similarity_test_pool.csv</code> 의 grade 열</p>
-<details><summary>dev(기존 80 시드, AI 판정 · 튜닝 자료) 수치</summary><table><tr><th>방식</th><th>nDCG@10</th><th>P@5</th><th>비고</th></tr><tr><td>hybrid</td><td>0.720 [0.683,0.756]</td><td>0.359</td><td></td></tr><tr><td>served</td><td>0.860 [0.833,0.885]</td><td>0.519</td><td>보정이 같은 판정을 써 순환 — 인용 금지</td></tr><tr><td>tfidf</td><td>0.549 [0.492,0.607]</td><td>0.248</td><td></td></tr><tr><td>rating</td><td>0.035 [0.019,0.054]</td><td>0.025</td><td>풀에 없는 후보는 0 처리 — 무효</td></tr><tr><td>random</td><td>0.042 [0.026,0.059]</td><td>0.030</td><td>풀에 없는 후보는 0 처리 — 무효</td></tr></table></details>
+<p class="sub">test 시드 40개 · <b>Claude 판정</b> 702쌍(사람 정답 아님, 방식 정보는 보지 않고 판정) · 막대=nDCG@5(판정 완전), 수염=95% 구간</p>
+<div class="row"><span class="lab">hybrid(현재 기본값)</span><span class="track"><b style="width:80.7%"></b><i class="w" style="left:75.3%;width:10.6%"></i></span><span class="val">81% [75%–86%]</span><span class="nt"></span></div>
+<div class="row"><span class="lab">서비스 제공값</span><span class="track"><b style="width:80.7%"></b><i class="w" style="left:75.3%;width:10.6%"></i></span><span class="val">81% [75%–86%]</span><span class="nt"></span></div>
+<div class="row"><span class="lab">tfidf</span><span class="track"><b style="width:71.3%"></b><i class="w" style="left:64.6%;width:13.0%"></i></span><span class="val">71% [65%–78%]</span><span class="nt"></span></div>
+<div class="row"><span class="lab">평점순</span><span class="track"><b style="width:30.1%"></b><i class="w" style="left:23.3%;width:13.5%"></i></span><span class="val">30% [23%–37%]</span><span class="nt"></span></div>
+<div class="row"><span class="lab">무작위</span><span class="track"><b style="width:25.9%"></b><i class="w" style="left:19.8%;width:12.3%"></i></span><span class="val">26% [20%–32%]</span><span class="nt"></span></div>
+<h3>쌍체 비교 (nDCG@10 차이, 95% 구간)</h3><table><tr><td>hybrid_vs_random</td><td>+0.446 [+0.375, +0.517]</td><td>n=40</td></tr><tr><td>hybrid_vs_rating</td><td>+0.413 [+0.341, +0.483]</td><td>n=40</td></tr><tr><td>hybrid_vs_tfidf</td><td>+0.024 [-0.045, +0.096]</td><td>n=40</td></tr><tr><td>served_vs_hybrid</td><td>+0.000 [+0.000, +0.000]</td><td>n=40</td></tr></table>
+<p class="sub">낙관 편향 점검 — hybrid nDCG@10: dev(튜닝에 쓴 80 시드) 0.757 → test 0.655 (차 +0.102)</p>
+<details><summary>dev(기존 80 시드, AI 판정 · 튜닝 자료) 수치</summary><table><tr><th>방식</th><th>nDCG@10</th><th>P@5</th><th>비고</th></tr><tr><td>hybrid</td><td>0.757 [0.725,0.790]</td><td>0.415</td><td></td></tr><tr><td>served</td><td>0.866 [0.843,0.887]</td><td>0.539</td><td>보정이 같은 판정을 써 순환 — 인용 금지</td></tr><tr><td>tfidf</td><td>0.613 [0.560,0.665]</td><td>0.299</td><td></td></tr><tr><td>rating</td><td>0.046 [0.028,0.068]</td><td>0.033</td><td>풀에 없는 후보는 0 처리 — 무효</td></tr><tr><td>random</td><td>0.044 [0.027,0.064]</td><td>0.035</td><td>풀에 없는 후보는 0 처리 — 무효</td></tr></table></details>
 <h2 id="b">B. 제품 궁합</h2>
 <p class="sub">제품×타입 35,216쌍 전수 점검 · 서비스 배치 테이블과 재계산 일치 · 단조성 3,268쌍</p>
 <table><tr><th>불변식</th><th>위반</th></tr><tr><td>info_dual_role_removal_lowers_score</td><td>36</td></tr><tr><td>excluded_but_good</td><td>213</td></tr></table>
@@ -61,7 +69,11 @@ details{margin:10px 0}summary{cursor:pointer;color:var(--mut);font-size:13px}cod
 <div class="row"><span class="lab">yuriguseul</span><span class="stack"><b class="good" style="width:11.0%" title="good 485"></b><b class="ok" style="width:49.5%" title="ok 2180"></b><b class="caution" style="width:35.1%" title="caution 1546"></b><b class="unknown" style="width:4.3%" title="unknown 191"></b></span></div>
 <div class="row"><span class="lab">memilmuk</span><span class="stack"><b class="good" style="width:27.2%" title="good 1197"></b><b class="ok" style="width:67.2%" title="ok 2959"></b><b class="caution" style="width:1.2%" title="caution 55"></b><b class="unknown" style="width:4.3%" title="unknown 191"></b></span></div>
 <p class="sub legend"><i class="good"></i>적합 <i class="ok"></i>보통 <i class="caution"></i>주의 <i class="unknown"></i>판정 불가</p>
-<p class="pend">사람 판정 대기 — <code>data/eval/skin_fit_test_pool.csv</code> (120건)</p>
+<h3>성분 기능 라벨 — AI 모델 간 일치도 (Opus가 이름만 보고 독립 판정)</h3><table><tr><th>표본</th><th>기능 코드 일치</th><th>일치율 [95%]</th></tr><tr><td>무작위</td><td>74/100</td><td>74% [65%, 82%]</td></tr><tr><td>확신도 1</td><td>75/179</td><td>42% [35%, 49%]</td></tr><tr><td>오염 판정</td><td>20/20</td><td>100% [84%, 100%]</td></tr></table><p class="sub"><b>정확도가 아니라 일치도다.</b> 사람 검수가 아니며(Claude 계열 두 모델), 둘 다 틀렸을 수 있다. 전체 추정은 무작위 표본의 값을 쓴다 — 확신도 1 표본은 일부러 어려운 행을 뽑았다. 불일치는 대부분 식물추출물의 기능 배정(예: 항산화 vs 진정)이라 이런 성분의 라벨은 불안정하다. 불일치 목록: <code>review_sample.csv</code>의 verdict=불일치.</p>
+<div class="row"><span class="lab">AI(Claude) 판정과 일치</span><span class="track"><b style="width:52.5%"></b><i class="w" style="left:43.6%;width:17.6%"></i></span><span class="val">52% [44%–61%]</span><span class="nt"></span></div>
+<div class="row"><span class="lab">기준선: 항상 &#x27;보통&#x27;</span><span class="track"><b style="width:34.2%"></b><i class="w" style="left:26.3%;width:16.7%"></i></span><span class="val">34% [26%–43%]</span><span class="nt"></span></div>
+<p class="sub"><b>정답은 사람이 아니라 Claude가 판정했다</b>(판정자의 성분 지식 부족, 앱 결과는 보지 않음). 입력 성분 라벨도 AI가 만들었으므로 독립 검증이 아니다 — DATASHEET B절.</p>
+<p class="sub">가중 kappa 0.53 · 위험 방향 오류 0/120 (상한 3.1%)</p>
 <h2 id="c">C. 피부타입 진단 <small>(정확도를 주장하지 않음)</small></h2>
 <p class="sub">응답 4,096가지 전수 · 도달 가능 타입 8/8 · 경계 비율 36.8% · 엔트로피 2.22/3.00 bit</p>
 <h3>균등 응답일 때 1순위 타입 분포</h3>
