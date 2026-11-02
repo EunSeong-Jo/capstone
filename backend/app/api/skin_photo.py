@@ -21,6 +21,8 @@ Perfect Corp(502/503). **한도는 분석이 성공한 뒤에만 쓴다** — �
 from __future__ import annotations
 
 import uuid
+
+import structlog
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -59,12 +61,15 @@ from app.services.skin_sample import (
 )
 from app.services.skin_quota import (
     SUBSCRIPTION_PERIOD_DAYS,
+    Quota,
     active_subscription,
     basic_items_only,
     get_quota,
     has_face_consent,
     lock_user,
 )
+
+log = structlog.get_logger()
 
 router = APIRouter(tags=["skin-photo"])
 
@@ -284,6 +289,28 @@ async def precheck_photo(
     )
 
 
+
+async def _sample_analysis(db: AsyncSession, user: User, quota: Quota) -> AnalysisOut | None:
+    """표본 계정의 최근 분석을 이 계정의 분석으로 남기고 돌려준다(외부 호출 없음, 한도는 실호출과 똑같이 쓴다). 표본이 없으면 None."""
+    source = await find_sample(db)
+    if source is None:
+        return None
+    metrics, concern_set, fake = sample_metrics(source, quota)
+    row = SkinAnalysis(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        quota_kind=quota.quota_kind,
+        concern_set=concern_set,
+        provider_mode=SAMPLE_MODE,
+        metrics=metrics,
+    )
+    db.add(row)
+    await db.flush()
+    skin_images.add_images(db, user.id, row.id, skin_images.valid_images(fake))
+    await db.commit()
+    await db.refresh(row)
+    return _analysis_out(row, metrics["images"], remaining=quota.remaining - 1)
+
 @router.post("/api/v1/skin-analysis", response_model=AnalysisOut, status_code=201,
              summary="얼굴 사진 분석")
 async def analyze(
@@ -309,28 +336,25 @@ async def analyze(
     if not live_analysis_allowed(user):
         # 허용 계정이 아니면 Perfect Corp을 부르지 않는다. 표본 계정에 저장된 분석 결과를 이 계정의 분석으로 남긴다
         # (services/skin_sample.py). 사진은 여기서 버려진다 — 외부로 나가지도, 저장되지도 않는다.
-        source = await find_sample(db)
-        if source is None:
+        sampled = await _sample_analysis(db, user, quota)
+        if sampled is None:
             raise HTTPException(status_code=503, detail="사진 분석을 지금은 쓸 수 없어요")
-        metrics, concern_set, fake = sample_metrics(source, quota)
-        row = SkinAnalysis(
-            id=uuid.uuid4(),
-            user_id=user.id,
-            quota_kind=quota.quota_kind,
-            concern_set=concern_set,
-            provider_mode=SAMPLE_MODE,
-            metrics=metrics,
-        )
-        db.add(row)
-        await db.flush()
-        skin_images.add_images(db, user.id, row.id, skin_images.valid_images(fake))
-        await db.commit()
-        await db.refresh(row)
-        return _analysis_out(row, metrics["images"], remaining=quota.remaining - 1)
+        return sampled
 
-    output = await analyze_face(photo.jpeg, quota.concerns)
-    parsed = parse_output(output)
-    axes = to_axes(parsed)
+    try:
+        output = await analyze_face(photo.jpeg, quota.concerns)
+        parsed = parse_output(output)
+        axes = to_axes(parsed)
+    except HTTPException as exc:
+        # 키 만료·유닛 소진·분석 서비스 장애(502·503)면 저장된 표본 분석으로 대신 보여 준다.
+        # 사진 문제(422 등)는 사용자가 사진을 다시 찍어야 하니 그대로 올린다. 표본이 없으면 원래 오류를 올린다.
+        if exc.status_code not in (502, 503):
+            raise
+        sampled = await _sample_analysis(db, user, quota)
+        if sampled is None:
+            raise
+        log.warning("skin_analysis_fell_back_to_sample", status=exc.status_code, user_id=str(user.id))
+        return sampled
 
     # 분석 이미지를 받아 DB에 둔다(내려받기가 실패해도 점수 분석은 성공이다).
     analysis_id = uuid.uuid4()
