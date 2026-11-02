@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 import structlog
@@ -56,8 +57,12 @@ _SYSTEM_PROMPT = """\
 _MAX_CHARS = 28
 
 
+# 모델이 지시("공백 포함 18~26자")를 따라 "(22자)"처럼 글자수를 문구 끝에 덧붙이는 일이 있다. 문구가 아니므로 걷어 낸다.
+_COUNT_NOTE = re.compile(r"\s*[(（\[]\s*(?:공백\s*포함\s*)?(?:글자\s*수|글자수)?\s*:?\s*\d+(?:\s*[~-]\s*\d+)?\s*자[^)）\]]*[)）\]]")
+
+
 def _clamp_tip(text: str) -> str:
-    text = text.strip().strip('"').strip()
+    text = _COUNT_NOTE.sub("", text).strip().strip('"').strip()
     if len(text) <= _MAX_CHARS:
         return text
     cut = text[:_MAX_CHARS]

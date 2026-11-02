@@ -94,7 +94,7 @@ TOOLS: list[dict] = [
     },
     {
         "name": "recommend_for_me",
-        "description": "내 성분 취향(후기·찜·재구매·화장대에서 배운 것)과 피부타입을 함께 반영해 제품을 추천한다. '나한테 맞는 거 추천해줘'에 쓴다. 취향이 아직 없으면 피부타입 기준으로 고른다.",
+        "description": "내 성분 취향(후기·찜·재구매·화장대에서 배운 것)과 피부타입을 함께 반영해 제품을 추천한다. '나한테 맞는 거 추천해줘'에 쓴다. 취향이 아직 없으면 피부타입 기준으로 고른다. 크림·토너·세럼처럼 **제품 종류를 말했으면 쓰지 말고 find_products**로 그 종류를 찾는다(이 도구는 종류를 가리지 않는다).",
         "parameters": {"type": "object", "properties": {"category": {"type": "string", "enum": ["스킨케어", "선케어", "마스크팩", "클렌징"], "description": "원하는 종류. 비우면 전체"}}},
     },
     {
@@ -454,6 +454,66 @@ def wants_routine(text: str) -> bool:
 
 def wants_cart(text: str) -> bool:
     return "장바구니" in text and any(w in text for w in ("담아", "넣어", "담기"))
+
+
+# 직전 답변을 가리키는 말. "그 루틴 장바구니에 담아줘"처럼 새 제품을 말하지 않고 앞서 추천한 것을 담으라는 뜻일 때 쓴다.
+# "추천해줘"·"루틴 짜줘"는 새로 만들어 달라는 말이라 넣지 않는다(과거형 "추천한/추천해 준"만 직전 답변을 가리킨다).
+_REFERS_BACK = ("그", "방금", "위", "이거", "이걸", "이대로", "전부", "모두", "다 ", "추천한", "추천해 준", "추천해준", "추천받은")
+# 새로 짜 달라는 요청(예산이나 "짜" 같은 말이 있으면 직전 카드가 아니라 새 루틴이다)
+_WANTS_NEW = re.compile(r"(만\s*원|원으로|예산|짜\s*(줘|서|주)|짜줘|만들어)")
+
+
+def pick_recent_for_cart(message: str, recent: list) -> list | None:
+    """"담아줘"가 **직전에 보여 준 제품**을 담으라는 뜻이면 그 제품들(recent의 부분집합)을, 아니면 None.
+
+    모델은 앞 턴의 제품 id를 보지 못해(id는 사용자에게 안 보이게 지우고 글만 넘긴다) 담기 제안을 만들려고 제품을 다시 검색하다
+    추천하지 않은 제품이나 빠진 제품이 나왔다. 화면이 직전 카드의 id를 함께 보내 주므로, 그대로 담기 제안으로 만든다.
+    recent의 원소는 `id`, `name` 속성을 가진다.
+    """
+    if not recent or not wants_cart(message):
+        return None
+    if _WANTS_NEW.search(message):
+        return None
+    flat = "".join(message.split())
+    named = [r for r in recent if len(r.name) >= 4 and "".join(r.name.split())[:6] in flat]
+    if named:
+        return named
+    if not any(w in message for w in _REFERS_BACK):
+        return None
+    kinds = rag.kind_words(message)
+    if kinds:
+        of_kind = [r for r in recent if any(k in r.name for k in kinds)]
+        if of_kind:
+            return of_kind
+    return list(recent)
+
+
+# 직전 추천을 의심하거나 반박하는 말("틀렸어", "가격이 이상한데 정확한 거 맞아?", "진짜 있는 제품이야?"). 모델은 이런 말에 맞는 답까지
+# "임의로 적은 값이었어요"라며 뒤집는다. 반면 "이거 내 화장대 제품 아니야?"처럼 출처를 묻는 말은 정당한 질문이라 모델이 답하게 둔다.
+_DISPUTE = re.compile(
+    r"(틀렸|틀린|잘못|거짓|지어냈|지어낸|임의로|없는\s*제품|다른\s*제품이\s*(나왔|담겼|떴)|추천\s*안\s*한|추천하지\s*않은"
+    r"|정확한\s*(거|값|가격)?\s*맞|가격[^.?!]{0,8}(이상|정확|맞아|맞나|확인)|(진짜|실제)\s*(있는\s*)?(제품|가격)|확인한\s*(거|값|제품))"
+)
+_ASKS_SOURCE = re.compile(r"(화장대|출처|어디서|어떻게\s*알|왜\s*그)")
+
+
+def is_dispute_of_recent(message: str, recent: list) -> bool:
+    """방금 보여 준 제품 추천을 의심·반박하는 말인가(직전 카드가 있을 때만)."""
+    return bool(recent) and bool(_DISPUTE.search(message)) and not _ASKS_SOURCE.search(message)
+
+
+async def cards_for_ids(ctx: ToolContext, ids: list[int]) -> list[dict]:
+    """제품 id 순서대로 카드. 판매 중인 제품만(없어졌으면 빠진다)."""
+    if not ids:
+        return []
+    rows = (
+        await ctx.db.scalars(
+            select(Product).where(Product.id.in_(ids), Product.status == "active").options(joinedload(Product.brand), joinedload(Product.category))
+        )
+    ).unique().all()
+    by_id = {p.id: p for p in rows}
+    fits = await _fit_scores(ctx, [i for i in ids if i in by_id])
+    return [_card(by_id[i], fits.get(i)) for i in ids if i in by_id]
 
 
 def routine_reply(result: dict, ask_cart: bool) -> str:

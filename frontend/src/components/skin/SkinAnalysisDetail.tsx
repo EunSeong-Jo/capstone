@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { CountUp } from '../common/CountUp';
 import type { AnalysisDto } from '../../api/skinPhoto';
 import AnalysisImage from './AnalysisImage';
 import AnalysisGuideSheet from './AnalysisGuideSheet';
@@ -33,6 +35,8 @@ interface SkinAnalysisDetailProps {
   showUpsell?: boolean;
   /** 구독 안내를 누르면. 없으면 안내 문구만 보인다 */
   onUpsell?: () => void;
+  /** 막대·숫자 등장 효과. 방금 분석을 마친 결과 창에서만 켠다(피부관리의 지난 분석 보기는 끈다) */
+  animated?: boolean;
 }
 
 const typeLabel = (v: string | null) => (v ? (SKIN_TYPE_LABEL[v] ?? v) : '-');
@@ -90,6 +94,28 @@ function Delta({ diff }: { diff: number }) {
   );
 }
 
+/** 항목 한 줄. 효과를 켰으면 화면에 보일 때 나타나고, 아니면 그냥 `li`다 */
+function Item({
+  animate,
+  initial,
+  inView,
+  transition,
+  children,
+}: {
+  animate: boolean;
+  initial: { opacity: number; y: number };
+  inView: { opacity: number; y: number };
+  transition: object;
+  children: React.ReactNode;
+}) {
+  if (!animate) return <li>{children}</li>;
+  return (
+    <motion.li initial={initial} whileInView={inView} viewport={{ once: true, amount: 0.3 }} transition={transition}>
+      {children}
+    </motion.li>
+  );
+}
+
 export default function SkinAnalysisDetail({
   analysis,
   previous = null,
@@ -97,7 +123,11 @@ export default function SkinAnalysisDetail({
   currentLabel = '현재',
   showUpsell = false,
   onUpsell,
+  animated = false,
 }: SkinAnalysisDetailProps) {
+  const reduceMotion = useReducedMotion();
+  // 효과를 켜지 않았거나 "동작 줄이기"면 처음부터 완성된 상태로 보여 준다
+  const reduce = reduceMotion || !animated;
   const byKey = new Map(analysis.concerns.map((c) => [c.key, c.score]));
   // 바로 앞 분석의 같은 항목 점수 — 현재 점수 왼쪽에 변화(▲3·▼2)로 보여 준다. 양쪽에 있는 항목만 센다.
   const prevByKey = new Map((previous?.concerns ?? []).map((c) => [c.key, c.score]));
@@ -132,7 +162,9 @@ export default function SkinAnalysisDetail({
           <div className="mt-1.5 flex items-baseline gap-2">
             {/* "양호 80" — 앞은 피부 분류 단계, 뒤는 항목 평균. 분류가 없으면 평균 점수로 단계를 정한다 */}
             <span className={`shrink-0 whitespace-nowrap text-[26px] font-extrabold ${CLASS_TEXT[headLevel]}`}>{CLASS_LEVELS[headLevel]}</span>
-            <span className={`shrink-0 whitespace-nowrap text-[26px] font-extrabold ${tone(summary.average).text}`}>{summary.average}</span>
+            <span className={`shrink-0 whitespace-nowrap text-[26px] font-extrabold ${tone(summary.average).text}`}>
+              {animated ? <CountUp value={summary.average} duration={1.2} /> : summary.average}
+            </span>
             <span className="text-[12px] font-bold text-gray-100">{summary.headline}</span>
           </div>
           <dl className="mt-2 flex flex-col gap-1.5 text-[12px] leading-relaxed">
@@ -150,17 +182,25 @@ export default function SkinAnalysisDetail({
 
       {/* 항목별 */}
       <ul className="flex flex-col gap-3">
-        {rows.map((key) => {
+        {rows.map((key, idx) => {
           const score = byKey.get(key) ?? 0;
           const meta = CONCERN_META[key];
           const t = tone(score);
+          // 위에서 아래로 항목이 차례로 나타나고, 막대가 차오르며 숫자가 올라간다(결과를 처음 열 때 한 번)
+          const delay = 0.1 + (idx % 6) * 0.07; // 보이기 시작한 묶음 안에서 차례로(스크롤로 늦게 보이는 항목도 오래 기다리지 않게)
           return (
-            <li key={key}>
+            <Item
+              key={key}
+              animate={!reduce}
+              initial={{ opacity: 0, y: 10 }}
+              inView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay, ease: 'easeOut' }}
+            >
               <div className="flex items-baseline justify-between">
                 <span className="text-[13px] font-semibold text-gray-100">{meta?.label ?? key}</span>
                 <span className={`text-[12px] font-bold ${t.text}`}>
                   {prevByKey.has(key) && <Delta diff={score - (prevByKey.get(key) ?? score)} />}
-                  {score}
+                  {animated ? <CountUp value={score} delay={delay} duration={0.9} /> : score}
                   <span className="ml-1 font-medium text-gray-50">
                     {score < 60 && meta ? meta.low : ''}
                   </span>
@@ -174,7 +214,17 @@ export default function SkinAnalysisDetail({
                 aria-valuemin={0}
                 aria-valuemax={100}
               >
-                <div className={`h-full rounded-full ${t.bar}`} style={{ width: `${score}%` }} />
+                {reduce ? (
+                  <div className={`h-full rounded-full ${t.bar}`} style={{ width: `${score}%` }} />
+                ) : (
+                  <motion.div
+                    className={`h-full rounded-full ${t.bar}`}
+                    initial={{ width: 0 }}
+                    whileInView={{ width: `${score}%` }}
+                    viewport={{ once: true, amount: 0.6 }}
+                    transition={{ duration: 0.9, delay, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                )}
               </div>
               {hasImage.has(key) && (
                 <>
@@ -228,7 +278,7 @@ export default function SkinAnalysisDetail({
                   )}
                 </>
               )}
-            </li>
+            </Item>
           );
         })}
       </ul>

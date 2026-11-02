@@ -1,4 +1,4 @@
-import type { SkinStateAxis } from '../../api/analysis';
+import type { AnatomyItem, SkinStateAxis } from '../../api/analysis';
 import type { SkinStateSource } from '../../hooks/useSkinStateSource';
 import { StateGroups, type StateRow } from './StateGroups';
 
@@ -22,10 +22,18 @@ export function SkinStateSection({
   state,
   source,
   photoAt,
+  product,
+  anatomy,
+  onIngredient,
 }: {
   state: SkinStateAxis[];
   source: SkinStateSource;
   photoAt: string | null;
+  /** 병 모양·라벨에 쓰는 제품 정보 */
+  product?: { name: string; brand: string };
+  /** 항목별 "도와주는 성분" 이름을 찾는 전성분 해부도 */
+  anatomy?: AnatomyItem[];
+  onIngredient?: (name: string) => void;
 }) {
   // 5축 원본은 0~10(수분만 높을수록 좋음). 서버가 사진 분석과 같은 방향·단위·색 경계의 건강도 100점으로 환산해 준다.
   const rows: StateRow[] = state.map((s) => ({
@@ -36,6 +44,8 @@ export function SkinStateSection({
     concern: s.concern,
     label: s.level,
     status: s.status,
+    coverage: s.coverage,
+    need: s.need,
     message: s.message,
     risk: s.risk,
   }));
@@ -43,7 +53,7 @@ export function SkinStateSection({
   return (
     <div>
       <p className="mb-2 text-[11px] font-semibold text-primary">{SOURCE_LABEL(source, photoAt)}</p>
-      <StateGroups rows={rows} />
+      <StateGroups rows={rows} product={product} anatomy={anatomy} onIngredient={onIngredient} />
       <p className="mt-2.5 text-[11px] leading-snug text-oy-sub">
         성분 구성으로 본 참고 정보예요.
       </p>

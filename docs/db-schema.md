@@ -10,9 +10,9 @@
 | DBMS | PostgreSQL 16.15 |
 | 호스팅 | Neon (serverless) · branch `production` · db `neondb` |
 | 확장 | `pg_trgm` 1.6 |
-| alembic head | `c3d9a1e7b2f4` |
-| 테이블 | 34 (Phase 1 18 + 개인 데이터 11 + 성분 설명 1 + 영문 제품명 1 + 얼굴 사진 분석 3) |
-| 기준일 | 2026-10-03 |
+| alembic head | `a3f5c7d9e1b2` (마이그레이션 26개) |
+| 테이블 | 38 (제품·성분 11 + 추천 3 + 진단 5 + 사용자 3 + 개인 데이터 11 + 얼굴 사진 분석 4 + AI 기억 1) |
+| 기준일 | 스키마 2026-10-31 · **행수는 2026-10-03 실측** (이후 DB 접속이 막혀 재집계하지 못했습니다) |
 
 ---
 
@@ -39,16 +39,19 @@
 
 ---
 
-## 테이블 18개 — 데이터 유무
+## 테이블 38개 — 도메인별
 
-**데이터가 있는 10개**는 지금 바로 조회할 수 있고, **나머지 8개는 스키마만** 있습니다. 해당 기능이 아직 없어서지 스키마 결함이 아닙니다.
+| 도메인 | 테이블 |
+|---|---|
+| 제품·성분 (11) | `products` `brands` `categories` `ingredients` `ingredient_aliases` `ingredient_descriptions` `ingredient_functions` `product_ingredients` `product_names_en` `tags` `ingredient_tags` |
+| 추천 (3) | `similarities` `product_skin_fit` `skin_type_rules` |
+| 진단 (5) | `quiz_versions` `quiz_questions` `quiz_options` `diagnoses` `diagnosis_ranks` |
+| 사용자·인증 (3) | `users` `profiles` `refresh_tokens` |
+| 개인 데이터 (11) | `closet_items` `cart_items` `likes` `recently_viewed` `orders` `order_items` `reviews` `review_photos` `point_transactions` `scan_results` `gifts` |
+| 얼굴 사진 분석 (4) | `user_consents` `subscriptions` `skin_analyses` `skin_analysis_images` |
+| AI 기억 (1) | `user_memories` |
 
-| 도메인 | 데이터 있음 | 스키마만 |
-|---|---|---|
-| 제품·성분 | `products` `ingredients` `product_ingredients` `ingredient_aliases` `brands` `categories` `tags` `ingredient_tags` | — |
-| 사용자·인증 | — | `users` `profiles` `refresh_tokens` |
-| 진단 | — | `quiz_versions` `quiz_questions` `quiz_options` `diagnoses` `diagnosis_ranks` |
-| 추천 | `similarities` `skin_type_rules` | — |
+`tags` · `ingredient_tags` · `skin_type_rules`는 **더 이상 읽지 않는** 옛 규칙입니다(현행은 `ingredient_functions` + `product_skin_fit`).
 
 ---
 
@@ -73,9 +76,21 @@ erDiagram
   quiz_versions   ||--o{ diagnoses : ""
   quiz_questions  ||--o{ quiz_options : ""
   diagnoses       ||--o{ diagnosis_ranks : "1~3순위"
+  skin_analyses   ||--o{ diagnoses : "사진 혼합 (SET NULL)"
+  skin_analyses   ||--o{ skin_analysis_images : "분석 이미지"
+  users           ||--o{ skin_analyses : ""
+  users           ||--o{ user_consents : ""
+  users           ||--o{ subscriptions : ""
+  users           ||--o{ user_memories : "AI 기억"
+  users           ||--o{ orders : ""
+  orders          ||--o{ order_items : ""
+  products        ||--o{ product_skin_fit : "8타입 궁합"
+  ingredients     ||--o| ingredient_functions : "기능 라벨"
+  products        ||--o{ product_names_en : "영문명"
+  reviews         ||--o{ review_photos : ""
 ```
 
-`skin_type_rules`는 `tags.code`를 JSONB 배열로 참조합니다. FK가 아니라 관계도에 선이 없습니다.
+`skin_type_rules`는 `tags.code`를 JSONB 배열로 참조합니다. FK가 아니라 관계도에 선이 없습니다. 개인 데이터 테이블(`closet_items` `cart_items` `likes` `recently_viewed` `reviews` `scan_results` `gifts` `point_transactions`)은 모두 `users`와 `products`를 가리키며, 관계도에는 대표만 그렸습니다.
 
 ---
 
@@ -414,7 +429,7 @@ is_active(bool = true) · updated_at
 
 **지금 진단은 로그인 이후에만 가능합니다**(`POST /profile/skin-quiz`가 인증을 요구하고, `/claim`은 제거했습니다). 이 컬럼은 더 채워지지 않으며, 과거 행을 지우지 않으려고 컬럼만 남겨 두었습니다.
 
-### `diagnoses` — 0행
+### `diagnoses`
 
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
@@ -449,7 +464,7 @@ quiz_options    : id(PK) · question_id(FK) · label · weights(jsonb) · order_
 QnA 진단에 **얼굴 사진 분석**(Perfect Corp YouCam Skin Analysis)을 선택으로 더합니다. **원본 사진은 담지 않습니다** — 사진은 요청 중 메모리에만 있습니다(`docs/dev_guidelines.md` 11.2). 업체가 돌려주는 분석 이미지 URL(2시간 만료)은 저장하지 않고, 서버가 분석 직후 그 마스크(얼굴 사진 없는 투명 PNG)를 받아 **`skin_analysis_images`**(PK `analysis_id`+`key`, `png` bytea, `user_id`)에 보관합니다. 분석·사용자 삭제 시에만 CASCADE로 지우고, 동의를 철회해도 이미 만든 결과는 남깁니다. 마이그레이션 `c3d9a1e7b2f4`(세 테이블), `e3f5a7b9c1d2`(이미지 테이블).
 
 ```
-user_consents : id(PK, uuid) · user_id(FK → users [CASCADE]) · consent_type(= 'face_photo')
+user_consents : id(PK, uuid) · user_id(FK → users [CASCADE]) · consent_type('face_photo' | 'ai-memory')
                 version · agreed_at · withdrawn_at(NULL 허용)
                 UNIQUE(user_id, consent_type)
                 → (사용자, 종류)당 1행. 재동의·철회는 같은 행을 갱신한다.
@@ -469,15 +484,33 @@ skin_analyses : id(PK, uuid) · user_id(FK → users [CASCADE]) · created_at
                   metrics = {axes, concerns{key:{raw,ui}}, skin_types{whole,t_zone,u_zone}}
 ```
 
-**이용 한도**(`services/skin_quota.py`): 얼굴 사진 수집에 동의한 사용자만 쓸 수 있고, 무료 월 1회·구독자 월 4회입니다(Asia/Seoul 달 경계). 얼굴이 인식되지 않는 등 **실패는 행을 만들지 않아 한도를 쓰지 않습니다.** 분석 항목은 무료 8개(호출당 12유닛), 구독자 12개(14유닛)입니다.
+**이용 한도**(`services/skin_quota.py`): 얼굴 사진 수집에 동의한 사용자만 쓸 수 있고, 무료 월 1회·구독자 월 4회입니다(Asia/Seoul 달 경계). 얼굴이 인식되지 않는 등 **실패는 행을 만들지 않아 한도를 쓰지 않습니다.** 분석 항목은 무료 8개(호출당 12유닛), 구독자 16개(16유닛)입니다. 구독 중이어도 `SKIN_BASIC_ITEMS_EMAILS`에 있는 계정은 8개만 분석합니다.
 
 **진단 혼합**: `POST /profile/skin-quiz`에 `analysisId`를 실으면 서버가 저장된 분석의 5축 점수를 QnA에 `PHOTO_BLEND_WEIGHT`(기본 0.4) 비중으로 섞습니다. 점수는 클라이언트가 보내지 않으며, 1시간 안의 본인 분석만 받습니다. `analysisId`가 없으면 QnA 100%입니다.
 
 ---
 
+## AI 기억
+
+챗봇이 대화에서 알게 된 사용자 정보를 **한 줄 문장**으로 저장합니다(`services/memory.py`, 마이그레이션 `a3f5c7d9e1b2`). 동의한 사용자(`user_consents`의 `ai-memory`)에게만 쌓고, 사용자가 마이페이지에서 보고 고치고 끄고 지울 수 있습니다.
+
+```
+user_memories : id(PK, serial) · user_id(FK → users [CASCADE])
+                content(한 줄, 80자 이하) · norm_text(공백·마침표를 걷은 중복 판정용 사본)
+                kind(preference | avoid | concern | fact) · source(explicit | auto | user)
+                enabled(= true) · created_at · updated_at
+                UNIQUE(user_id, norm_text)   INDEX(user_id, updated_at)
+                → 사용자가 직접 한 말만 담는다(추정·진단·연락처는 저장하지 않음).
+                  enabled=false면 챗봇 프롬프트에는 빠지지만 목록에는 남는다
+```
+
+사용자당 최대 20개, 프롬프트에는 최근 수정 순 10개만 들어갑니다.
+
+---
+
 ## 사용자 · 인증
 
-JWT 기반(Task 12, 미착수). `users.id`는 UUID이고 `gen_random_uuid()`로 DB가 직접 발급합니다.
+JWT 기반(Task 12.1~12.5 완료, 소셜 로그인 12.6은 남음). `users.id`는 UUID이고 `gen_random_uuid()`로 DB가 직접 발급합니다.
 
 ```
 users          : id(PK, uuid = gen_random_uuid()) · email(UQ) · password_hash(NULL 허용)
@@ -516,6 +549,9 @@ refresh_tokens : id(PK, uuid = gen_random_uuid()) · user_id(FK) · token_hash
 | `idx_quiz_questions_version` | quiz_questions | `btree (version_id, order_no)` | 문항 순서 조회 |
 | `idx_refresh_tokens_hash` | refresh_tokens | `btree (token_hash)` | 토큰 검증 |
 | `idx_refresh_tokens_user` | refresh_tokens | `btree (user_id)` | 전체 로그아웃 |
+| `idx_user_memories_user` | user_memories | `btree (user_id, updated_at)` | 최근 기억 조회 |
+| `idx_skin_analyses_user` | skin_analyses | `btree (user_id, created_at)` | 분석 이력·월 이용 횟수 |
+| `idx_subscriptions_user` | subscriptions | `btree (user_id, current_period_end)` | 활성 구독 조회 |
 
 **명명 규칙** — 인덱스는 `idx_<테이블>_<용도>`, 제약 44개는 모두 `<테이블>_<컬럼>_<종류>`를 따릅니다.
 
@@ -523,15 +559,18 @@ refresh_tokens : id(PK, uuid = gen_random_uuid()) · user_id(FK) · token_hash
 
 ## 적재 파이프라인
 
-`.env`에 `DATABASE_DSN`만 넣으면 아래 순서로 같은 상태에 도달합니다. **두 스크립트 모두 멱등해서 몇 번을 돌려도 행수가 변하지 않습니다.** 자세한 절차는 [backend/README.md](../backend/README.md) 참고.
+`.env`에 `DATABASE_DSN`만 넣으면 아래 순서로 같은 상태에 도달합니다. **스크립트는 모두 멱등해서 몇 번을 돌려도 행수가 변하지 않습니다.** 자세한 절차는 [backend/README.md](../backend/README.md) 참고.
 
 | | 명령 | 하는 일 |
 |---|---|---|
-| 1 | `cd backend && alembic upgrade head` | 테이블 18개 + `pg_trgm` 확장 생성 |
+| 1 | `cd backend && alembic upgrade head` | 테이블 38개 + `pg_trgm` 확장 생성 |
 | 2 | `python scripts/seed_ingredients.py` | 협회 표준화명칭목록·명칭변경목록 + 오타 교정 CSV → `ingredients` + `ingredient_aliases` |
 | 3 | `python scripts/load_products.py` | v5 정제본 5,157행 → 카테고리 교정·제외 목록 → 필터 → dedup → 전성분 파싱 → 벌크 삽입 |
 | 4 | `python scripts/seed_skin_type_tags.py` | `criteria.csv` 키워드로 `tags` · `ingredient_tags` · `skin_type_rules` 채우기 |
 | 5 | `python scripts/compute_similarities.py` | 단일제품 유사도 계산 → `similarities` |
+| 6 | `python scripts/seed_ingredient_functions.py` | `labels.csv` → `ingredient_functions` (성분 기능 라벨) |
+| 7 | `python scripts/compute_skin_fit.py` | 라벨·규칙으로 제품 × 8타입 궁합 계산 → `product_skin_fit` (라벨·규칙을 바꾸면 다시) |
+| — | `seed_quiz.py` · `seed_ingredient_descriptions.py` · `seed_product_names_en.py` | 진단 문항 · 성분 설명 · 영문 제품명 (각각 멱등) |
 
 **순서 의존이 없습니다.** 예전에는 3번 뒤에 보정 스크립트 둘(`apply_category_fixes.py` · `backfill_from_v5.py`)을 반드시 다시 돌려야 했습니다. 구 CSV를 적재 기준으로 쓰는 동안에는 거기에 교정 전 카테고리가 들어 있고 `처리메모`·`증정기획_정리`·`내용량_정리` 컬럼이 아예 없어서, 로더가 보정 결과를 매번 덮어썼기 때문입니다. **적재 기준을 v5로 옮기면서 두 스크립트를 지웠습니다** — 로더가 카테고리 교정 로그까지 직접 읽어 적재 전에 반영합니다.
 

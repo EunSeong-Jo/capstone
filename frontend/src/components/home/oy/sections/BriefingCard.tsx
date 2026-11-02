@@ -57,7 +57,7 @@ function BriefingBody({ onNavigate }: { onNavigate: () => void }) {
           className="mt-2.5 w-full rounded-xl bg-white px-3 py-2 text-left active:scale-[.99]"
         >
           <span className="block text-[11px] text-gray-50">{b.pick.brand}</span>
-          <span className="line-clamp-1 block text-[12px] font-bold text-gray-100">{b.pick.name}</span>
+          <span className="line-clamp-1 text-[12px] font-bold text-gray-100">{b.pick.name}</span>
           <span className="mt-0.5 block text-[11px] leading-snug text-primary-dark">{b.pick.why}</span>
         </button>
       )}

@@ -197,6 +197,44 @@ async def test_search_escapes_like_wildcards(client: AsyncClient) -> None:
     assert all("50%" in i["name"] for i in body["items"])
 
 
+async def test_search_words_need_not_be_adjacent(client: AsyncClient) -> None:
+    """'코스알엑스 세럼'처럼 단어 사이에 다른 단어가 끼는 제품명도 공백으로 나눠 찾는다(예전엔 0건)."""
+    items = await _items(client, size=100)
+    target = next(i for i in items if len(i["name"].split()) >= 4)
+    words = target["name"].split()
+    first, last = words[0], words[-1]
+    assert len(first) + len(last) >= 2
+    found = await _items(client, SEARCH, q=f"{first} {last}", size=100)
+    assert target["id"] in {i["id"] for i in found}
+    # 단어 순서는 상관없다
+    swapped = await _items(client, SEARCH, q=f"{last} {first}", size=100)
+    assert target["id"] in {i["id"] for i in swapped}
+
+
+async def test_search_ignores_spaces(client: AsyncClient) -> None:
+    """붙여 쓴 검색어('한율어린쑥')로 띄어 쓴 이름('한율 어린쑥 …')을 찾는다."""
+    items = await _items(client, size=100)
+    target = next(i for i in items if len(i["name"].split()) >= 3)
+    words = target["name"].split()
+    joined = words[0] + words[1]
+    found = await _items(client, SEARCH, q=joined, size=100)
+    assert target["id"] in {i["id"] for i in found}
+
+
+async def test_search_allows_single_char_word(client: AsyncClient) -> None:
+    """한 글자 단어가 섞여도('더 세럼') 되고, 다른 단어가 결과를 좁힌다."""
+    res = await client.get(SEARCH, params={"q": "더 세럼", "size": 100})
+    assert res.status_code == 200
+    items = res.json()["items"]
+    assert items
+    assert all("더" in i["name"] and "세럼" in i["name"] for i in items if "-" not in i["name"])
+
+
+async def test_search_whitespace_only_or_too_short_is_rejected(client: AsyncClient) -> None:
+    assert (await client.get(SEARCH, params={"q": "  "})).status_code == 422
+    assert (await client.get(SEARCH, params={"q": " 토"})).status_code == 422
+
+
 async def test_search_no_match_is_empty(client: AsyncClient) -> None:
     res = await client.get(SEARCH, params={"q": "존재하지않는제품명xyz"})
     assert res.status_code == 200

@@ -1,6 +1,11 @@
-# swappy — 앱 개발 가이드라인 v1.0
+# swappy — 앱 개발 가이드라인 v1.1
 
 > PRD v1.8 + prototype.html 기반. 팀원이 일관된 방향으로 개발할 수 있도록 디자인 시스템, 화면 구조, API, DB, 역할 분담을 한 문서에 정리합니다.
+>
+> **2026-10-31 갱신 안내.** 2·4·5장(디자인 토큰·화면 체크리스트·컴포넌트 스펙)은 설계 시점의 기준으로 그대로 두었고, 체크박스는 **구현 여부가 아니라 화면이 갖춰야 할 요건**입니다.
+> 3·6·7·8·9장과 11장의 인증·유사도·진단·챗봇 항목은 **현재 구현에 맞게 고쳤습니다.** 구현의 정본은 코드와
+> [db-schema.md](db-schema.md)(스키마) · [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)(기능 총정리) · [similarity.md](similarity.md)(유사도)이고,
+> 프론트 규격은 [frontend/README.md](../frontend/README.md) 7-1절을 따릅니다.
 
 ---
 
@@ -28,18 +33,19 @@
 ### 메인 플로우 (P0)
 
 ```
-온보딩(가입) → 피부타입 QnA(7~10문항) → 8타입 결과 캐릭터
-    → 추천 세트 팝업 → 메인(큐레이션) → 제품 상세 → 대체품 TOP 3 → 가성비 비교 → 구매 링크
+온보딩(가입) → 피부타입 QnA(6문항, 선택으로 얼굴 사진 AI 분석) → 8타입 결과 캐릭터
+    → 추천 세트 → 메인(큐레이션) → 제품 상세 → 대체품 → 성분 비교 → 화장대·장바구니·주문
 ```
 
 ### 서비스 우선순위 한 줄 요약
 
 | 우선순위 | 범위 | 목표 완성 |
 |---------|------|---------|
-| **P0** | 회원가입·QnA·프로필 추천·대체품·비교·구매링크 | 7월 말 (로컬) |
-| **P1a** | 예산 가이드·AI 챗봇·성분 필터링·서버 배포 | 8월 말 |
-| **P1b** | KoBERT·알고리즘 고도화 (여유 시) | 9월 |
-| **P2** | 날씨 추천·도메인 확장 (졸업작품 발표 후) | 10월~ |
+| **P0** | 회원가입·QnA·프로필 추천·대체품·비교·구매링크 | ✅ 구현 |
+| **P1a** | 예산 가이드·AI 챗봇·성분 필터링·서버 배포 | ✅ 예산 가이드·챗봇·궁합 필터 구현, 배포는 AWS Lightsail |
+| **P1b** | KoBERT·알고리즘 고도화 (여유 시) | KoBERT는 하지 않음 — hybrid 유사도로 대체 |
+| **P2** | 날씨 추천·도메인 확장 | 날씨(서울 고정)는 구현, 도메인 확장은 하지 않음 |
+| (추가) | 얼굴 사진 AI 분석 · 퍼스널 AI(AI 기억·취향·리포트·브리핑) · 사진으로 제품 찾기 · Android 앱 | ✅ 구현 |
 
 ---
 
@@ -115,44 +121,46 @@
 
 ### 3.1 화면 목록
 
-| 화면 ID | 화면명 | 진입 조건 |
-|---------|--------|---------|
-| `s-onboard` | 스플래시 / 온보딩 | 앱 최초 실행 |
-| `s-qna` | 피부타입 QnA | "가입하기" 선택 후 |
-| `s-result` | QnA 결과 (캐릭터 확인) | QnA 완료 |
-| `s-popup` | 추천 세트 팝업 | 결과 화면 CTA 클릭 |
-| `s-home` | 메인 홈 | 팝업 닫기 또는 "둘러보기" |
-| `s-detail` | 제품 상세 + 대체품 TOP3 | 제품 카드 클릭 |
-| `s-search` | 검색 (텍스트 + 이미지) | 하단 탭 또는 검색바 |
-| `s-mypage` | 마이페이지 | 하단 탭 |
+설계 당시 화면 ID(`s-*`)는 아래 4장 체크리스트에서 쓰는 이름이고, 실제 라우트는 `frontend/src/App.tsx`가 정본입니다(46개 + 리다이렉트).
+
+| 화면 ID (설계) | 현재 라우트 | 비고 |
+|---------|---------|------|
+| `s-onboard` | `/`(스플래시) · `/login` · `/signup` · `/onboarding` | 로그인 없이 둘러보기 가능 |
+| `s-qna` · `s-result` | `/qna`(재진단) · `/onboarding` 안의 문답·결과 | 사진 분석을 선택으로 섞음 |
+| `s-popup` | 홈의 추천세트 시트 | 별도 라우트 없음 |
+| `s-home` | `/home` · `/home/cheaper-alternatives` | 오늘의 케어 문구 → 브리핑 시트 |
+| `s-detail` | `/detail/:id` · `/analysis/:id` · `/alternatives` · `/compare` | 상세·성분 분석·대체품·비교로 나뉨 |
+| `s-search` | `/search` · `/scan` · `/scan/history` | 사진으로 찾기는 스캔 화면 |
+| `s-mypage` | `/mypage` 와 하위 화면 | 주문·선물·후기·구독·AI 기억 등 |
+| (추가) | `/closet` · `/category` · `/cart` · `/history` · `/notifications` | 화장대·카테고리·장바구니·기록·알림 |
 
 ### 3.2 전체 네비게이션 플로우
 
 ```
 [첫 실행]
-  s-onboard
-    ├── "가입하기" → s-qna → s-result → s-popup → s-home
-    └── "둘러보기" → s-home (게스트 모드)
+  스플래시 → 로그인 / 가입
+    ├── "가입하기" → 온보딩(인삿말 → 피부타입 알아요/몰라요 → QnA 또는 직접 선택 → 결과) → 홈
+    └── "로그인 없이 둘러보기" → 홈 (게스트 모드)
 
-[하단 내비게이션]
-  홈(s-home) | 검색(s-search) | 마이(s-mypage)
+[하단 내비게이션 — OyBottomNav 5탭]
+  홈 | 카테고리 | 검색(→ 스캔 FAB) | 화장대 | 마이
 
-[메인에서 상세로]
-  s-home 제품 카드 탭 → s-detail
-  (상세 페이지 하단에 대체품 TOP3 + 가성비 비교 내장)
+[홈에서 상세로]
+  제품 카드 탭 → /detail/:id → (성분 분석 /analysis/:id · 대체품 /alternatives · 비교 /compare)
 
 [Soft-gate]
-  게스트가 개인화 기능 클릭 → 가입 유도 모달
+  진단까지는 로그인 없이, 개인 데이터(화장대·장바구니·주문 …)부터 로그인.
+  계정 화면은 RequireAuth가 게스트를 막고, 로그인하면 비회원 localStorage 데이터를 서버로 옮긴다
 ```
 
 ### 3.3 하단 내비게이션 탭 구성
 
 ```
-[홈 아이콘]  [검색 아이콘]  [마이페이지 아이콘]
-  홈            검색            MY
+[홈]  [카테고리]  [검색]  [화장대]  [MY]
 ```
 
-활성 탭은 `--primary` 색상, 비활성은 `--gray50`.
+활성 탭은 `--primary` 색상, 비활성은 `--gray50`. 검색 화면에서는 검색 탭이 중앙 돌출 스캔 FAB로 바뀝니다.
+표준 컴포넌트는 `components/home/oy/OyBottomNav.tsx`입니다(히스토리는 탭이 아니라 화장대 내부 탭).
 
 ---
 
@@ -175,7 +183,7 @@
 - [ ] 질문 텍스트 (`--t-xl`, bold)
 - [ ] 4~5지선다 옵션 카드: 선택 전 `--gray20` 테두리 / 선택 후 `--primary` 테두리 + `--primary-light` 배경
 - [ ] 옵션 선택 전 "다음" 버튼 비활성 (opacity 0.5), 선택 후 활성화
-- [ ] 총 7~10문항 (5축: moisture, oil, sensitivity, pigmentation, trouble)
+- [ ] 총 6문항 (5축: moisture, oil, sensitivity, pigmentation, trouble)
 - [ ] 중간 이탈 시 진행률 `localStorage` 저장 → 재진입 시 "이어서 진단하기" 안내
 
 ### 4.3 QnA 결과 / 캐릭터 확인 (s-result)
@@ -226,7 +234,7 @@
   - AI 분석 라벨 칩 + "이 제품과 비슷한 대체품" 제목
   - 각 대체품 카드: 이미지 + 브랜드/이름/가격 + 유사도 % 뱃지
   - 카드 하단 비교 정보: ml당가격 / 주요성분 겹침수 / 별점
-  - 유사도 ≥ 80%: 녹색 뱃지 (`sim-high`), 50~80%: 주황 (`sim-mid`)
+  - 유사도 55% 초과: 녹색 뱃지 (`sim-high`), 그 이하: 주황 (`sim-mid`) — 임계값은 hybrid 점수 분포에 맞춰 잡은 값(`SIMILARITY_HIGH`)
 
 ### 4.7 검색 (s-search)
 
@@ -293,8 +301,8 @@
 
 ```
 .alt-card-sim
-  .sim-high { background: var(--primary) }   // ≥ 80%
-  .sim-mid  { background: var(--warning) }   // 50~79%
+  .sim-high { background: var(--primary) }   // 55% 초과 (SIMILARITY_HIGH = 55, utils/alternatives.ts)
+  .sim-mid  { background: var(--warning) }   // 55% 이하
 ```
 
 ---
@@ -302,143 +310,52 @@
 ## 6. API 엔드포인트 요약
 
 모든 인증 필요 요청: `Authorization: Bearer {access_token}` 헤더 포함  
-Base URL: `http://localhost:8000` (P0) / `https://api.swappy.com` (P1)
+Base URL: 같은 주소에서 화면과 API를 함께 서빙합니다(`/api/v1`). 로컬은 `http://localhost:8000`.
 
-### 6.1 인증
+**엔드포인트는 83개**(`/health` 포함)이고, 목록·스키마·시험 호출은 실행한 서버의 Swagger(`/api/docs`)가 정본입니다. 아래는 프론트가 가장 많이 쓰는 묶음입니다.
+도메인별 전체 표는 [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) 6장에 있습니다.
 
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| POST | `/api/v1/auth/signup` | 회원가입 `{email, password, agreements}` |
-| POST | `/api/v1/auth/login` | 로그인 `{email, password}` |
-| POST | `/api/v1/auth/refresh` | 토큰 갱신 `{refresh_token}` |
+| 묶음 | 대표 엔드포인트 |
+|---|---|
+| 인증 | `POST /auth/signup` · `/auth/login` · `/auth/refresh` · `/auth/logout` · `GET /auth/me` |
+| 프로필·진단 | `GET/PATCH /me/profile` · `POST /profile/skin-quiz`(QnA 제출, 사진 분석 `analysisId` 혼합) · `GET /profile/skin-quiz/questions` · `GET/PATCH/DELETE /profile/skin-quiz/latest` |
+| 제품 | `GET /products`(필터·정렬) · `/products/search` · `/products/search/ingredient` · `/products/{id}` · `/products/{id}/reviews` · `POST /products/scan`(사진으로 찾기) |
+| 유사도·궁합 | `GET /products/{id}/similar`(대체품) · `/products/{id}/skin-fit` · `/products/{id}/analysis` · `GET /skin-fit?ids=` |
+| 추천 | `GET /recommendations/main`(홈) · `/recommendations/set`(추천 세트) · `POST /recommendations/budget`(예산 가이드) |
+| 개인 데이터 | `/me/closet` · `/me/cart` · `/me/likes` · `/me/recently-viewed` · `/me/orders` · `/me/reviews` · `/me/points` · `/me/gifts/*` · `/me/notifications` |
+| 얼굴 사진 분석 | `POST /skin-analysis/check`(사전 검증) · `POST /skin-analysis` · `GET /skin-analysis` · `/me/consents/face-photo` · `/me/subscription` |
+| AI | `POST /chat` · `GET /care-tip` · `GET /weather` · 퍼스널 AI(`/me/ai-memory` · `/me/memories` · `/me/preferences` · `/me/skin-report` · `/me/briefing`) |
 
-### 6.2 프로필 / QnA
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/api/v1/profile/me` | 내 프로필 조회 |
-| POST | `/api/v1/profile/skin-quiz` | QnA 제출 `{answers: [{question_id, value}]}` |
-| PATCH | `/api/v1/profile/me` | 프로필 갱신 (도메인 선택 등) |
-
-**QnA 응답 예시:**
+**QnA 제출 응답 예시** (`POST /profile/skin-quiz`, camelCase):
 ```json
 {
-  "skin_type": "ondalsam",
-  "traits": {"moisture": 7, "oil": 5, "sensitivity": 2},
-  "recommended_tags": ["균형보습", "항산화"],
-  "avoid_tags": []
+  "id": 12,
+  "skinType": "ondalsam",
+  "scores": {"moisture": 7, "oil": 5, "sensitivity": 3, "pigmentation": 3, "trouble": 2},
+  "ranks": [{"rank": 1, "skinType": "ondalsam", "score": 0.52}],
+  "borderline": false,
+  "photoUsed": false, "photoOnly": false, "answeredCount": 6,
+  "createdAt": "2026-10-31T09:00:00+09:00"
 }
 ```
-
-### 6.3 추천
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/api/v1/recommendations/main` | 메인 큐레이션 `?limit=12` |
-| GET | `/api/v1/recommendations/welcome-set` | 가입 직후 추천 세트 (로그인 필요) |
-| POST | `/api/v1/recommendations/budget` | 예산 가이드 (P1a) `{budget, categories, preferences?}` |
-
-### 6.4 제품 / 유사도
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/api/v1/products/search` | 텍스트 검색 `?q=에스티로더&limit=10` |
-| POST | `/api/v1/products/search/image` | 이미지 검색 `multipart/form-data` |
-| GET | `/api/v1/products/{id}` | 제품 상세 + 전성분 |
-| GET | `/api/v1/products/{id}/alternatives` | 대체품 TOP 3 `?limit=3` |
-| GET | `/api/v1/products/{id}/compare` | 가성비 비교표 `?compare_ids=2,3,4` |
-
-### 6.5 챗봇 (P1a)
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| POST | `/api/v1/chat` | 메시지 전송 (SSE 스트리밍) |
-| GET | `/api/v1/chat/sessions/{id}` | 대화 히스토리 |
+(`ranks`는 1~3순위 전체이고 `score`는 상위 3개 안의 비중(합 1)입니다. 챗봇은 SSE 스트리밍이 아니라 한 번에 응답하며 대화 이력은 클라이언트가 보냅니다.)
 
 ---
 
 ## 7. DB 스키마 요약
 
-> **정본은 [db-schema.md](db-schema.md)입니다.** 여기서는 프론트엔드 연동에 자주 쓸 테이블만 추립니다.
+> **정본은 [db-schema.md](db-schema.md)입니다.** 테이블은 **38개**이고 컬럼·인덱스·적재 순서는 그 문서에만 둡니다(여기에 복사하면 어긋납니다).
 > PRD v1.8 §7.9는 설계 시점의 안이라 실제와 테이블·컬럼명이 다릅니다.
->
-> 2026-08-17 기준 — 테이블 18개 중 **제품·성분 6개에만 데이터가 있습니다.** 나머지는 스키마만 있습니다.
 
-### 7.1 제품 · 성분 (데이터 있음)
+프론트 연동에서 자주 헷갈리는 점만 추립니다.
 
-```sql
-products              -- 4,013행
-  id, goods_no(UQ), name,
-  brand_id(FK → brands), category_id(FK → categories),
-  price, list_price, discount_rate, rating, review_count,
-  image_url, product_url,
-  volume, country, manufacturer, expiry, report_no,
-  ingredient_count_raw,      -- 원본 성분 개수(중복 포함)
-  status('active'), source('oliveyoung'), created_at, updated_at
-
-ingredients           -- 23,147행 (대한화장품협회 표준화명칭목록 + 크롤링 신규)
-  id, norm_name(UQ), name_ko, name_en, code,
-  ewg_grade, grade, is_allergen        -- 앞 셋은 아직 비어 있음
-
-product_ingredients   -- 163,103행 · (product_id, ingredient_id) 복합 PK
-  product_id, ingredient_id, position, raw_name
-
-brands                -- 511행 : id, name(UQ)
-categories            -- 4행   : id, code(UQ), label, parent_id
-```
-
-**주의할 점**
-
-- `products.brand`·`category`는 **문자열이 아니라 FK**입니다. 표시하려면 조인하세요
-- `position`은 전성분 표기 순서입니다. 함량 내림차순이라 순서 자체가 정보입니다
+- `products.brand`·`category`는 **문자열이 아니라 FK**(`brand_id`·`category_id`)입니다. 화면용 이름은 API 응답이 조인해서 줍니다
+- `product_ingredients.position`은 전성분 표기 순서입니다. 함량 내림차순이라 순서 자체가 정보입니다
 - 카테고리는 **스킨케어 / 마스크팩 / 클렌징 / 선케어 4종**뿐입니다. 얼굴용만 적재합니다
-- `ingredients.grade`·`ewg_grade`는 수동 큐레이션 대상이라 **아직 NULL**입니다. 성분 등급 UI는 이 값이 채워진 뒤에 붙습니다
-
-```sql
--- 제품 1건의 전성분을 순서대로
-SELECT p.name, i.name_ko, pi.position
-FROM products p
-JOIN product_ingredients pi ON pi.product_id = p.id
-JOIN ingredients i ON i.id = pi.ingredient_id
-WHERE p.id = $1
-ORDER BY pi.position;
-```
-
-### 7.2 사용자 / 프로필 (스키마만)
-
-```sql
-users     id(uuid), email(UQ), password_hash, nickname,
-          provider('local'/kakao/google), is_active, created_at, last_login_at
-
-profiles  user_id(PK, FK → users), skin_type, scores(jsonb),
-          budget_min, budget_max, domains(jsonb)
-```
-
-`skin_type` 값: `ondalsam | mulgae | subuji | hwasan | samak | injeolmi | yuriguseul | memilmuk`
-
-### 7.3 진단 (스키마만)
-
-```sql
-quiz_versions    id, label, is_active           -- is_active 하나만 켜서 현행 문항을 정한다
-quiz_questions   id, version_id(FK), code, axis, body, order_no
-quiz_options     id, question_id(FK), label, weights(jsonb), order_no
-diagnoses        id, user_id(FK, NULL 허용), guest_token, version_id(FK),
-                 answers(jsonb), scores(jsonb)  -- 비회원 진단은 guest_token으로
-diagnosis_ranks  diagnosis_id(FK), rank, skin_type, score  -- 1~3순위
-```
-
-### 7.4 추천 (스키마만)
-
-```sql
-similarities     product_id(FK), similar_id(FK), method, score,
-                 shared_ingredients(jsonb), computed_at
-                 -- product_id가 기준 제품, similar_id가 대체품. 방향이 있다
-                 -- method: tfidf / jaccard / rbo
-
-skin_type_rules  id, skin_type(UQ), include_tags(jsonb), exclude_tags(jsonb), is_active
-tags             id, code(UQ), label          -- 효능 태그 마스터
-ingredient_tags  ingredient_id, tag_id        -- 성분 ↔ 태그 N:M
-```
+- 목록·검색은 기본으로 `composition = 'single'`만 내보냅니다(기획·증정·묶음은 숨김). 옵션형 묶음은 대표 옵션만 나오고 상세에서 드롭다운으로 고릅니다
+- 피부 궁합은 `product_skin_fit`(제품 × 8타입, 사전 계산)을 읽습니다. 옛 `skin_type_rules`·`tags`는 더 이상 읽지 않습니다
+- `users.id`는 UUID, `profiles.skin_type` 값: `ondalsam | mulgae | subuji | hwasan | samak | injeolmi | yuriguseul | memilmuk`
+- 유사도 `similarities.method`는 `tfidf` / `hybrid`(기본)입니다. jaccard·rbo는 평가 후 제거했습니다
 
 ## 8. 기술 스택 및 환경 설정
 
@@ -446,85 +363,53 @@ ingredient_tags  ingredient_id, tag_id        -- 성분 ↔ 태그 N:M
 
 | 영역 | 기술 |
 |------|------|
-| **Frontend** | React 18 + TypeScript, Tailwind CSS |
-| **Backend** | Python 3.11 + FastAPI |
-| **인증** | FastAPI-Users + python-jose (JWT) |
-| **DB** | PostgreSQL 16 + Redis (Docker) |
-| **ML/AI** | scikit-learn (TF-IDF, 코사인), NumPy, SciPy |
-| **이미지 인식** | OpenCV + Tesseract + EasyOCR |
-| **챗봇 (P1a)** | Claude API (`claude-sonnet-4-20250514`) |
-| **인프라 (P0)** | Docker Compose (로컬) |
-| **인프라 (P1)** | AWS EC2 |
-| **CI/CD** | GitHub Actions |
-| **모니터링 (P0)** | Sentry + structlog |
+| **Frontend** | React 18 + TypeScript + Vite + Tailwind CSS, framer-motion, Capacitor(Android 앱), MediaPipe(촬영 전 얼굴 확인) |
+| **Backend** | Python 3.11 + FastAPI(비동기) + SQLAlchemy 2.0 + Alembic |
+| **인증** | 자체 구현 — bcrypt 해싱 + JWT(액세스 30분 / 리프레시 14일, 회전). FastAPI-Users·passlib은 쓰지 않음 |
+| **DB** | PostgreSQL 16(+ `pg_trgm`) — 개발 Neon, 운영 AWS. Redis 7(캐시·일일 한도) |
+| **유사도** | numpy + scipy로 TF-IDF/코사인 직접 구현(scikit-learn 미사용), 성분 기능 라벨 기반 hybrid |
+| **이미지 인식** | 네이버 CLOVA OCR + `pg_trgm` (Tesseract/EasyOCR은 벤치마크 후 탈락) |
+| **얼굴 분석** | Perfect Corp YouCam(외부 API), OpenCV YuNet + MediaPipe 가림 검사 |
+| **챗봇** | OpenAI `gpt-4o-mini` → 실패 시 Anthropic `claude-haiku-5-5`, 전부 실패하면 DB 규칙 폴백 |
+| **인프라** | Docker Compose(로컬), AWS Lightsail 컨테이너 + DB(운영) |
+| **모니터링** | Sentry + structlog |
 
 ### 8.2 로컬 개발 환경 요구사항
 
 - Docker Desktop 설치 (RAM 8GB 이상 권장)
-- Node.js 20+, Python 3.11+
-- `.env` 파일에 다음 키 설정 필요:
-  ```
-  POSTGRES_URL=...
-  REDIS_URL=...
-  JWT_SECRET=...
-  식약처_API_KEY=...
-  NAVER_SHOPPING_API_KEY=...
-  ANTHROPIC_API_KEY=...   # P1a
-  ```
+- Node.js 22 LTS(`frontend/.nvmrc`), Python 3.11+
+- `.env`는 루트의 `.env.example`을 복사해 채웁니다. 필수는 `DATABASE_DSN`(Neon 연결 문자열) 하나이고,
+  `OPENAI_API_KEY`·`ANTHROPIC_API_KEY`(챗봇), `CLOVA_OCR_*`(사진으로 찾기), `PERFECT_CORP_*`(얼굴 분석), `OPENWEATHER_API_KEY`(날씨)는 없어도 서버가 뜹니다(해당 기능만 폴백/503)
 
-### 8.3 Docker Compose 구성 (P0 기준)
+### 8.3 Docker Compose 구성
 
 ```
 services:
-  db: postgres:16
-  redis: redis:7
-  backend: python fastapi (./backend)
-  frontend: node react (./frontend)
+  backend:   python fastapi (./backend)
+  frontend:  node react (./frontend)
+  # 프로파일 local-db 를 켜면 postgres:16 · redis:7 도 함께 뜬다
 ```
+
+기본 기동에는 `backend`·`frontend` 둘뿐입니다(팀 공용 DB가 Neon). 자세한 절차는 [루트 README](../README.md)와 [backend/README.md](../backend/README.md).
 
 ---
 
 ## 9. 개발 우선순위
 
-### P0 체크리스트 (7월 말 기준)
+설계 당시의 P0/P1a 체크리스트는 모두 구현됐거나 대체됐습니다. 현재 진척의 정본은 **코드·`docs/db-schema.md`·루트 `CLAUDE.md`의 현황표**입니다
+(`.taskmaster/tasks/tasks.json`은 진척 판단에 쓰지 않습니다).
 
-> 이것만 있으면 E2E 플로우 시연 가능.
-
-**데이터 (5월 전반 ~ 후반)**
-- [ ] 식약처 API 수집기 구현 (스킨케어 2,000개 목표)
-- [ ] 올리브영 크롤러 (가격·이미지·별점)
-- [ ] 성분명 정규화 파이프라인 (INCI 기준)
-- [ ] 피부타입 QnA 7문항 + 8타입 매핑 룰 v1
-
-**ML/AI (6월)**
-- [ ] TF-IDF / Weighted Jaccard / RBO 3종 알고리즘 비교 실험
-- [ ] 최적 알고리즘 선정 + 벡터 캐싱 (Redis)
-- [ ] 룰 기반 프로필 추천 엔진 (skin_type → 추천 성분 태그 → 상위 제품)
-
-**Backend (6월~7월 전반)**
-- [ ] FastAPI 기반 REST API 서버
-- [ ] JWT 인증 모듈 (signup / login / refresh)
-- [ ] 프로필 + QnA API
-- [ ] 제품 검색 API (텍스트 + 이미지)
-- [ ] 유사도 API (대체품 TOP 3)
-- [ ] 가성비 비교 API
-- [ ] 메인 큐레이션 API
-- [ ] Docker Compose 로컬 환경 구성
-
-**Frontend (6월 후반~7월 전반)**
-- [ ] 온보딩 화면 (s-onboard)
-- [ ] QnA 흐름 (s-qna → s-result → s-popup)
-- [ ] 메인 홈 (s-home): 게스트 / 로그인 분기
-- [ ] 제품 상세 + 대체품 TOP 3 (s-detail)
-- [ ] 검색 화면 (s-search)
-- [ ] 마이페이지 (s-mypage)
-- [ ] 하단 네비게이션 탭
-- [ ] Soft-gate 모달
-
-**통합 및 검증 (7월 후반)**
-- [ ] E2E 플로우 전체 동작 확인
-- [ ] QnA 완주율 80% / 피부타입 만족도 설문 (베타 자가평가)
-- [ ] Hit Rate Ground Truth 50쌍 구축 + 측정
+| 설계 당시 항목 | 현재 |
+|---|---|
+| 식약처 수집기·올리브영 크롤러·성분 정규화 | 올리브영 Playwright 크롤러 + 협회 성분 사전 정규화(97.8%) 완료. 식약처 API 수집기는 초기 코드만 남음 |
+| QnA 7문항 + 8타입 매핑 | **6문항**, 선택지 가중치(`quiz_options.weights`) + 8타입 프로필 유클리드 거리 |
+| TF-IDF / Jaccard / RBO 비교 실험 | 비교 후 jaccard·rbo 제거, **hybrid**(역할 가중 TF-IDF + 기능 프로필 + 제형 일치) 채택 — [similarity.md](similarity.md) |
+| Redis 벡터 캐싱 | 유사도는 `similarities` 테이블에 **사전 계산**해 적재(Redis는 응답 캐시용) |
+| 룰 기반 프로필 추천 | `product_skin_fit`(제품 × 8타입 궁합) + 홈 추천 점수 |
+| 가성비 비교 API | 성분 비교 화면(`/compare`) + 단가(`unit_price`) |
+| Hit Rate Ground Truth 50쌍 | 시드 80개 × 후보 843건 평가셋(판정자 AI 1명), nDCG@10 0.799 |
+| 온보딩·QnA·홈·상세·검색·마이페이지·Soft-gate | 구현 + 화장대·장바구니·주문·선물·후기·알림·카테고리·스캔 추가 |
+| QnA 완주율 80% / 만족도 설문 (베타) | **미수행**(베타 테스트 Task 10 대기) |
 
 ---
 
@@ -555,39 +440,41 @@ services:
 
 ### 11.2 인증 / 보안
 
-- JWT: access token 30분 / refresh token 30일
+- JWT: access token 30분 / refresh token 14일(갱신마다 회전, DB에는 SHA-256 해시만 저장)
 - 비밀번호: bcrypt 해싱 (절대 평문 저장 금지)
-- 게스트 모드: 로컬 `sessionStorage`에 임시 UUID 발급, 개인화 API 호출 시 401 → Soft-gate 모달
-- 이미지 업로드: OCR 처리 후 즉시 삭제 (서버·로컬 모두 보관 금지)
+- 게스트 모드: 서버에 게스트 계정을 만들지 않는다. 진단까지는 로그인 없이 보고, 개인 데이터는 localStorage에 두었다가 로그인하면 서버로 옮긴다. 계정 화면은 `RequireAuth`가 막는다
+- 이미지 업로드: OCR 처리 후 즉시 삭제 (서버·로컬 모두 보관 금지). 후기 사진은 사용자가 올리는 콘텐츠라 `review_photos`에 보관한다
 - 얼굴 사진 분석: **원본 사진은 저장 금지**(분석 중 메모리에만). 단 업체가 돌려주는 분석 이미지(얼굴 사진이 없는 투명 마스크 PNG, 합성하지 않음)는 지난 결과를 보여 주려고 DB(`skin_analysis_images`)에 보관한다 — 본인만 인증 API로 받고, 계정 삭제 때만 삭제(동의 철회로는 지우지 않는다). 동의 문구(`data/faceConsent.ts`)와 `FACE_CONSENT_VERSION`이 이 보관을 포함한다
 
 ### 11.3 유사도 알고리즘 (ML Engineer 필독)
 
-- TF-IDF 한계: 성분 리스트에서 TF=1이므로 IDF만 작동 → 위치 기반 가중치로 보완
-- **3종 알고리즘을 Ground Truth 50쌍으로 먼저 비교 실험 후 최적 선택** (6월 전에 완료)
-- 벡터 사전 계산 후 Redis 캐싱 필수 (실시간 계산 금지)
-- 동일 브랜드 결과는 최대 1개로 제한
+- 성분 리스트는 TF=1이라 IDF만 작동한다. 그래서 IDF로 가중하고, 성분 **역할**(활성 1.0 … 용매 0.2)과 **표기 순서**(앞 성분일수록 크게)로 보완한다
+- 방식 선택은 평가셋으로 했다: tfidf 0.635 → hybrid 0.678 → **+ 제형 일치 0.799**(nDCG@10). 상세는 [similarity.md](similarity.md)
+- 유사도는 **배치로 사전 계산**해 `similarities`에 적재한다(실시간 계산 금지). 카테고리 안에서만 비교하고, 단일제품(`composition = 'single'`)만 계산한다
+- 용량·매수만 다른 같은 제품의 변형은 후보 하나로 접고, 같은 옵션 그룹은 서로 대체품으로 올리지 않는다
+- 점수 임계값(`SIMILARITY_HIGH = 55`)은 방식을 바꿀 때마다 분포를 보고 다시 잡는다
 
 ### 11.4 QnA 진단 룰
 
-- 가중치 룰은 코드가 아닌 DB `skin_type_rules` 테이블로 관리 (재배포 없이 튜닝 가능)
-- 점수 차이가 작을 때 (≤2점 차이) → 두 타입 사이임을 안내 + 보조 질문으로 확정
-- QnA 응답 원본 + 5축 점수 + 최종 타입 모두 DB 저장 (추후 룰 재산정 가능하게)
+- 선택지별 5축 증감은 DB `quiz_options.weights`에 두되, **원본은 프론트 `data/skinTypeScoring.ts`**다(비회원이 오프라인에서도 진단을 끝내야 해서). `scripts/seed_quiz.py`가 DB로 옮긴다. 서버(`services/diagnosis.py`)와 프론트는 값이 같아야 한다
+- 8타입 프로필(5축 값)은 코드 상수이고, 내 5축과의 유클리드 거리로 순위를 낸다. 1·2순위 근사도 차이가 0.03 이하이면 `borderline`으로 두 타입 사이임을 안내한다
+- QnA 응답 원본 + 5축 점수 + 상위 3순위를 모두 DB에 저장한다(`diagnoses`·`diagnosis_ranks`, 문항 버전 `version_id` 포함 — 추후 룰 재산정 가능)
+- 얼굴 사진 분석이 있으면 서버가 저장된 분석 점수를 섞는다(문항 전부 0.4 / 일부 0.5). **클라이언트가 보낸 점수는 받지 않는다**
 
 ### 11.5 크롤링 / 데이터
 
 - 올리브영 `robots.txt` 사전 확인 필수
 - 요청 간 2~5초 랜덤 딜레이 + User-Agent 로테이션
 - 식약처 API: 일 1,000건 제한 → 멀티 키 발급 검토
-- 성분명 정규화 실패 시 수동 검토 큐(`normalization_queue` 테이블) 활용
+- 성분명 정규화 실패는 버리지 않고 `code = NULL`로 신규 등록하고, 오타는 `ingredient_typo_fixes.csv`·`pg_trgm` 후보 + 사람 검토로 교정한다(`scripts/find_typo_aliases.py`)
 
-### 11.6 챗봇 (P1a)
+### 11.6 챗봇
 
-- Claude API 모델: `claude-sonnet-4-20250514`
-- Context Injection 순서: 사용자 프로필 → 현재 제품 정보 → 대체품 결과 → 성분 사전 참조 → 최근 10턴 대화
-- 의료 진단 질문은 반드시 "피부과 전문의 상담 권장" 안내로 전환
-- 사용자당 일일 50회 제한 (미로그인 10회), Redis로 카운팅
-- 챗봇 내 제품 카드 삽입: LLM 응답의 `[PRODUCT_CARD:product_id]` 마커를 프론트가 파싱하여 컴포넌트 렌더링
+- 모델: OpenAI `gpt-4o-mini` → 실패 시 Claude `claude-haiku-5-5` → 전부 실패하면 DB 규칙 폴백(`mode: "fallback"`). 키가 없어도 서버는 뜬다
+- 프롬프트 구성: 피부타입 · 오늘 날씨 · 개인 요약(로그인 사용자) · 참고 제품 데이터(RAG) · 클라이언트가 보낸 최근 대화 이력
+- 제품 사실(이름·가격·성분·평점)은 **제공된 데이터에 있는 것만** 말하게 한다. 성분 자체 설명은 일반 지식임을 밝히고 허용한다
+- 비회원은 IP당 일일 3회(`GUEST_CHAT_DAILY_LIMIT`, Redis), 초과 시 로그인 유도
+- 제품 카드: 도구가 찾은 제품을 응답의 `cards`로 내려 프론트가 렌더링한다(`[PRODUCT_CARD:id]` 마커 방식은 쓰지 않음). 담기는 `actions` 제안을 사용자가 버튼으로 확정한다
 
 ### 11.7 성능 목표
 
@@ -604,5 +491,5 @@ services:
 ## 참고 문서
 
 - `docs/PRD_swappy_v1.8.md` — 전체 기획 명세
-- `docs/prototype.html` — 화면 디자인 시연 (브라우저에서 직접 열어 확인)
-- `tasks/` — 개별 작업 태스크 목록
+- `docs/design/prototype.html` — 화면 디자인 시연 (브라우저에서 직접 열어 확인)
+- [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) · [db-schema.md](db-schema.md) · [similarity.md](similarity.md) — 구현 현황 정본

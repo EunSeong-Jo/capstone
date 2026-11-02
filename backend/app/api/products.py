@@ -18,7 +18,7 @@ import json
 from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
-from sqlalchemy import Select, exists, func, or_, select, text
+from sqlalchemy import Select, and_, exists, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, joinedload
 
@@ -329,25 +329,43 @@ async def search_products(
             headers={"Cache-Control": "public, max-age=60", "X-Cache": "HIT"},
         )
 
-    escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    # 정제명과 원본명 둘 다 본다. 정제 과정에서 '기획'·'더블' 같은 단어가
-    # 지워지므로, 정제명만 보면 그 단어로 검색한 사용자가 아무것도 못 찾는다.
-    # 반대로 원본명만 보면 정제 후 바뀐 표기를 놓친다.
-    pattern = f"%{escaped}%"
+    # 공백으로 나눈 단어를 모두 포함하는 제품을 찾는다(순서 무관, 공백을 무시한 붙여 쓴 형태도 허용). 한 덩어리로 찾으면 '코스알엑스 세럼'처럼
+    # 단어 사이에 다른 단어('더 나이아신아마이드 15')가 끼는 이름은 0건이 된다. 한 글자 단어('더')도 쓸 수
+    # 있다 — 다른 단어와 AND라 결과를 넓히지 않는다. 대신 공백을 뺀 글자가 2자 미만이면 거절한다.
+    tokens = q.split()
+    if sum(len(t) for t in tokens) < 2:
+        raise HTTPException(status_code=422, detail="검색어는 공백을 뺀 2자 이상이어야 합니다")
+    def _esc(t: str) -> str:
+        return t.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    patterns = ["%" + _esc(t) + "%" for t in tokens]
+    # 공백을 무시한 비교도 한다 — '한율어린쑥'(붙여 씀)으로 '한율 어린쑥 …'을 찾는다. 이름의 공백을 지운 값과
+    # 검색어를 이어 붙인 값을 비교하므로 단어가 이름에서 이어져 있어야 한다. 이 비교는 trigram 인덱스를 못 타지만
+    # 제품이 4천 건대라 순차 스캔이 왕복 한 번보다 싸다.
+    compact = "%" + _esc("".join(tokens)) + "%"
     rule = await load_rule(db, skin_type)
+
+    def _match(col):
+        return or_(
+            and_(*[col.ilike(p, escape="\\") for p in patterns]),
+            func.replace(col, " ", "").ilike(compact, escape="\\"),
+        )
+
+    # 정제명과 원본명 둘 다 본다. 정제 과정에서 '기획'·'더블' 같은 단어가 지워지므로, 정제명만 보면 그 단어로
+    # 검색한 사용자가 아무것도 못 찾는다. 반대로 원본명만 보면 정제 후 바뀐 표기를 놓친다.
     # 옵션형 묶음은 같은 그룹의 어느 옵션 이름에 걸려도 그룹(대표 옵션)이 나온다 — '카밍풀'을 쳐서 '픽앤퀵 마스크'를 찾는다
     sibling = aliased(Product)
     option_hit = exists().where(
         sibling.option_parent_id == Product.option_parent_id,
-        sibling.name.ilike(pattern, escape="\\"),
+        _match(sibling.name),
     )
     stmt = _apply_composition(
         select(Product)
         .where(Product.status == "active")
         .where(
             or_(
-                Product.name.ilike(pattern, escape="\\"),
-                Product.display_name.ilike(pattern, escape="\\"),
+                _match(Product.name),
+                _match(Product.display_name),
                 option_hit,
             )
         ),

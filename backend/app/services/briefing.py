@@ -132,12 +132,12 @@ def compose(
     if picked and picked[1].why not in reasons:
         reasons.insert(0, picked[1].why)
     if picked:
-        entry, need, value = picked
+        entry, need, _ = picked
         func_name = FUNC_NAMES.get(need.func, need.func)
         headline = f"오늘은 '{entry.name}'{josa(entry.name, '을를')[len(entry.name):]} 먼저 써 보세요"
         pick = {
             "id": entry.id, "name": entry.name, "brand": entry.brand, "function": func_name,
-            "why": f"{func_name} 성분이 내 화장대에서 가장 강한 제품이에요({value}).",
+            "why": f"{func_name} 성분이 내 화장대에서 가장 강한 제품이에요.",
         }
         missing = None
     else:

@@ -1,5 +1,8 @@
 import { OptionPicker } from '../product/OptionPicker';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import type { ProductIngredient } from '../../api/products';
+import { useProduct } from '../../hooks/useProduct';
+import { IngredientSheet } from '../product/IngredientSheet';
 import { useAuth } from '../../context/auth';
 import type { ProductAnalysis, CautionKind } from '../../api/analysis';
 import type { AnalysisDto } from '../../api/skinPhoto';
@@ -70,6 +73,14 @@ export function AnalysisView({
   const reloadPhoto = onReloadPhoto;
   const { isUser } = useAuth();
   const focus = useMemo(() => new Set(analysis.focusFunctions ?? []), [analysis]);
+  // "자세히 보기"의 성분 이름을 누르면 성분 설명 시트. 설명은 제품 상세 응답에 실려 있다.
+  const prod = useProduct(analysis.productId);
+  const [pickedName, setPickedName] = useState<string | null>(null);
+  const picked: ProductIngredient | null = useMemo(() => {
+    if (!pickedName) return null;
+    const norm = (n: string) => n.trim().toLowerCase();
+    return (prod.product?.ingredients ?? []).find((i) => norm(i.name) === norm(pickedName)) ?? { id: 0, name: pickedName, position: 0 };
+  }, [pickedName, prod.product]);
   return (
     <>
         <main className="pb-24">
@@ -147,6 +158,9 @@ export function AnalysisView({
                 state={analysis.concernState}
                 photo={photo}
                 onSubscribe={() => navigate('/mypage/subscription')}
+                product={{ name: analysis.name, brand: analysis.brand }}
+                anatomy={analysis.anatomy}
+                onIngredient={setPickedName}
               />
             ) : analysis.skinState.length > 0 ? (
               <>
@@ -154,6 +168,9 @@ export function AnalysisView({
                   state={analysis.skinState}
                   source={stateSource}
                   photoAt={photoAt}
+                  product={{ name: analysis.name, brand: analysis.brand }}
+                  anatomy={analysis.anatomy}
+                  onIngredient={setPickedName}
                 />
                 {stateSource === 'qna' && <PhotoCta compact onDone={reloadPhoto} />}
               </>
@@ -175,79 +192,7 @@ export function AnalysisView({
           </Section>
           <Divider />
 
-          {/* 3. 핵심 성분 */}
-          <Section
-            title="핵심 성분"
-            hint={
-              analysis.keyIngredients.some((k) => k.recommended)
-                ? '앞쪽(많이 들어 있는) 활성 성분이에요 · ★은 내 피부 추천'
-                : '앞쪽(많이 들어 있는) 활성 성분이에요'
-            }
-          >
-            {analysis.keyIngredients.length === 0 ? (
-              <p className="text-sm text-oy-sub">분류된 활성 성분이 아직 충분하지 않아요.</p>
-            ) : (
-              <ul className="divide-y divide-oy-line rounded-xl bg-white px-3.5 shadow-sm">
-                {analysis.keyIngredients.map((k) => (
-                  <li key={k.position} className="flex items-center gap-3 py-2.5">
-                    <span className="w-5 shrink-0 text-center text-xs font-bold text-oy-sub">{k.position}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-oy-text">
-                        {k.name}
-                        {k.recommended && <span className="ml-1 text-primary">★</span>}
-                      </span>
-                      <span className="block text-xs text-oy-sub">{k.functions.join(' · ')}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-          <Divider />
-
-          {/* 4. 기능별 강도 */}
-          <Section title="이 제품이 하는 일" hint={skinType ? '★는 내 피부타입이 중요하게 보는 기능이에요' : '활성·오일 성분이 어떤 기능을 얼마나 내는지 보여 줘요'}>
-            <FunctionBars functions={analysis.functions} focus={focus} />
-          </Section>
-          <Divider />
-
-          {/* 5. 주의 성분 */}
-          <Section title="주의 성분" hint="확실하게 분류된 성분만 알려드려요">
-            {analysis.cautions.length === 0 ? (
-              <p className="rounded-xl bg-good-soft px-4 py-3 text-sm text-good">알려진 주의 성분이 없어요.</p>
-            ) : (
-              <div className="space-y-3">
-                {analysis.cautions.map((g) => (
-                  <div
-                    key={g.kind}
-                    className={`rounded-xl border px-4 py-3 ${g.kind === 'listed' ? 'border-danger-line bg-danger-soft' : 'border-caution-line bg-caution-soft'}`}
-                  >
-                    <p className={`text-sm font-bold ${g.kind === 'listed' ? 'text-danger' : 'text-caution'}`}>
-                      {g.label} · {g.ingredients.length}종
-                    </p>
-                    <p className="mt-0.5 text-xs text-oy-sub">{CAUTION_NOTE[g.kind]}</p>
-                    <ul className="mt-2 flex flex-wrap gap-1.5">
-                      {g.ingredients.map((i) => (
-                        <li key={i.position} className="igr-chip warn">
-                          {i.name}
-                          <span className="ml-1 text-[11px] opacity-70">{i.position}번</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Section>
-          <Divider />
-
-          {/* 6. 전성분 해부도 */}
-          <Section title="전성분 해부도" hint="적게 들어 있는 성분부터 많은 성분 순서로, 기능별로 색을 칠했어요">
-            <IngredientBand anatomy={analysis.anatomy} />
-          </Section>
-          <Divider />
-
-          {/* 7. 내 화장대에서의 위치 */}
+          {/* 3. 내 화장대와 견주기 — 내 피부 상태 다음에 바로 이어서 보여 준다 */}
           <Section title={owned ? '내 화장대에서의 위치' : '내 화장대와 견주면'} hint={analysis.closet ? `같은 ${analysis.closet.category} 제품과 견줬어요` : undefined}>
             {!analysis.closet || analysis.closet.ownedCount === 0 ? (
               <p className="text-sm text-oy-sub">
@@ -312,6 +257,78 @@ export function AnalysisView({
               </div>
             )}
           </Section>
+          <Divider />
+
+          {/* 4. 핵심 성분 */}
+          <Section
+            title="핵심 성분"
+            hint={
+              analysis.keyIngredients.some((k) => k.recommended)
+                ? '앞쪽(많이 들어 있는) 활성 성분이에요 · ★은 내 피부 추천'
+                : '앞쪽(많이 들어 있는) 활성 성분이에요'
+            }
+          >
+            {analysis.keyIngredients.length === 0 ? (
+              <p className="text-sm text-oy-sub">분류된 활성 성분이 아직 충분하지 않아요.</p>
+            ) : (
+              <ul className="divide-y divide-oy-line rounded-xl bg-white px-3.5 shadow-sm">
+                {analysis.keyIngredients.map((k) => (
+                  <li key={k.position} className="flex items-center gap-3 py-2.5">
+                    <span className="w-5 shrink-0 text-center text-xs font-bold text-oy-sub">{k.position}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-oy-text">
+                        {k.name}
+                        {k.recommended && <span className="ml-1 text-primary">★</span>}
+                      </span>
+                      <span className="block text-xs text-oy-sub">{k.functions.join(' · ')}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+          <Divider />
+
+          {/* 5. 기능별 강도 */}
+          <Section title="이 제품이 하는 일" hint={skinType ? '★는 내 피부타입이 중요하게 보는 기능이에요' : '활성·오일 성분이 어떤 기능을 얼마나 내는지 보여 줘요'}>
+            <FunctionBars functions={analysis.functions} focus={focus} />
+          </Section>
+          <Divider />
+
+          {/* 6. 주의 성분 */}
+          <Section title="주의 성분" hint="확실하게 분류된 성분만 알려드려요">
+            {analysis.cautions.length === 0 ? (
+              <p className="rounded-xl bg-good-soft px-4 py-3 text-sm text-good">알려진 주의 성분이 없어요.</p>
+            ) : (
+              <div className="space-y-3">
+                {analysis.cautions.map((g) => (
+                  <div
+                    key={g.kind}
+                    className={`rounded-xl border px-4 py-3 ${g.kind === 'listed' ? 'border-danger-line bg-danger-soft' : 'border-caution-line bg-caution-soft'}`}
+                  >
+                    <p className={`text-sm font-bold ${g.kind === 'listed' ? 'text-danger' : 'text-caution'}`}>
+                      {g.label} · {g.ingredients.length}종
+                    </p>
+                    <p className="mt-0.5 text-xs text-oy-sub">{CAUTION_NOTE[g.kind]}</p>
+                    <ul className="mt-2 flex flex-wrap gap-1.5">
+                      {g.ingredients.map((i) => (
+                        <li key={i.position} className="igr-chip warn">
+                          {i.name}
+                          <span className="ml-1 text-[11px] opacity-70">{i.position}번</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+          <Divider />
+
+          {/* 7. 전성분 해부도 */}
+          <Section title="전성분 해부도" hint="적게 들어 있는 성분부터 많은 성분 순서로, 기능별로 색을 칠했어요">
+            <IngredientBand anatomy={analysis.anatomy} />
+          </Section>
         </main>
 
       {/* 8. 다음 행동 */}
@@ -334,6 +351,7 @@ export function AnalysisView({
             비슷한 대체품 보기
           </button>
         </div>
+      <IngredientSheet ingredient={picked} onClose={() => setPickedName(null)} skinTypeLabel={typeLabel ?? null} />
     </>
   );
 }

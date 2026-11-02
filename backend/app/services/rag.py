@@ -2,15 +2,19 @@
 RAG 서비스 — Neon(PostgreSQL) 제품 DB에서 검색해 LLM 컨텍스트를 구성한다.
 
 검색은 제품명 · 브랜드명 · 성분명 매칭으로 하고, 피부타입을 받으면
-`skin_type_rules`의 exclude_tags에 걸리는 제품을 뺀다
-(services/skin_type.py). 추천 태그를 가점으로 쓰는 스코어링은 아직 없다 —
-지금은 평점·리뷰 수 순이다.
+`product_skin_fit`의 하드 제외(`excluded`)에 걸리는 제품을 뺀다
+(services/skin_type.py). 정렬은 평점·리뷰 수 순이고, 로그인한 사용자(`prefer_fit`)는
+내 피부타입 궁합 점수가 높은 순이다. 피부타입을 알면 각 제품에 궁합(`fit`: 점수·판정·향료/알코올 여부)을
+함께 실어, 챗봇이 상세 화면의 궁합 카드와 같은 값을 말하게 한다.
 
 이전 버전(rag_seed.py의 SQLite 임시 시드)은 더 이상 쓰지 않는다.
 """
 from __future__ import annotations
 
-from sqlalchemy import or_, select, true
+import operator
+from functools import reduce
+
+from sqlalchemy import case, literal, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -33,6 +37,9 @@ _SKIN_TYPE_LABEL: dict[str, str] = {
 }
 
 _MAX_INGREDIENTS_SHOWN = 6
+
+# product_skin_fit.verdict → 모델·사용자에게 보이는 말(화면의 궁합 카드와 같은 표현)
+_VERDICT_LABEL = {"good": "잘 맞음", "ok": "무난", "caution": "주의", "unknown": "판단 근거 부족"}
 
 # ── 통용명 → 표준화명칭 매핑 (임시) ──────────────────────────────────────
 # DB의 ingredients.name_ko는 대한화장품협회 표준화명칭이라 "히알루론산" 같은
@@ -121,6 +128,59 @@ async def _by_fit(db: AsyncSession, products: list[Product], rule: SkinRule, top
     return ranked[:top_k]
 
 
+async def _fit_map(db: AsyncSession, product_ids: list[int], skin_type: str) -> dict[int, dict]:
+    """제품 id → 이 피부타입의 궁합(`product_skin_fit`, 사전 계산). 행이 없는 제품은 빠진다."""
+    if not product_ids:
+        return {}
+    rows = await db.execute(
+        select(ProductSkinFit).where(
+            ProductSkinFit.product_id.in_(product_ids), ProductSkinFit.skin_type == skin_type
+        )
+    )
+    return {
+        r.product_id: {
+            "score": r.score,
+            "verdict": r.verdict,
+            "fragrance": bool(r.has_fragrance),
+            "alcohol": bool(r.has_drying_alcohol),
+        }
+        for r in rows.scalars()
+    }
+
+
+def fit_text(fit: dict | None) -> str:
+    """궁합 한 줄. 없으면(피부타입을 모르거나 계산 전) 빈 문자열.
+
+    판정 근거가 부족한 제품은 점수를 말하지 않는다 — 모르는 것을 '무난'으로 보여 주지 않는다.
+    """
+    if not fit:
+        return ""
+    label = _VERDICT_LABEL.get(fit.get("verdict"), "판단 근거 부족")
+    score = fit.get("score")
+    text = f"{label}({score}점)" if score is not None and fit.get("verdict") != "unknown" else label
+    notes = [n for n, on in (("향료 포함", fit.get("fragrance")), ("건조 알코올 포함", fit.get("alcohol"))) if on]
+    return text + (f", {', '.join(notes)}" if notes else "")
+
+
+def render_products_context(products: list[dict]) -> str:
+    """검색 결과 → 시스템 프롬프트의 [참고 제품 데이터]. 궁합이 있으면 '내 피부 궁합'을 덧붙인다."""
+    if not products:
+        return "현재 등록된 제품 데이터 없음"
+    lines = []
+    for p in products:
+        line = (
+            f"- {p['name']} ({p['brand']}, {p['price']:,}원) | "
+            f"카테고리: {p['category']} | "
+            f"주요성분: {', '.join(p['ingredients']) or '정보 없음'} | "
+            f"평점: {p['rating'] if p['rating'] is not None else '정보 없음'}"
+        )
+        fit = fit_text(p.get("fit"))
+        if fit:
+            line += f" | 내 피부 궁합: {fit}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
 async def search_products(
     db: AsyncSession,
     query: str,
@@ -146,8 +206,17 @@ async def search_products(
     name_patterns = [f"%{_escape_like(t)}%" for t in _tokenize(query)]
     ingredient_patterns = [f"%{_escape_like(p)}%" for p in _expand_ingredient_patterns(query)]
 
+    # 검색어 토큰이 제품명·브랜드명에 얼마나 많이 걸렸는가. 평점순만 쓰면 "메디힐 마데카소사이드 더마 세럼"처럼 정확히 부른 제품이
+    # 토큰 하나("세럼")만 겹친 다른 고평점 제품에 밀려 후보에서 빠진다.
+    relevance = reduce(
+        operator.add,
+        [case((Product.name.ilike(p, escape="\\"), 1), else_=0) for p in name_patterns]
+        + [case((Brand.name.ilike(p, escape="\\"), 1), else_=0) for p in name_patterns],
+        literal(0),
+    ).label("relevance")
+
     stmt = (
-        select(Product)
+        select(Product, relevance)
         .distinct()
         .join(Brand, Brand.id == Product.brand_id, isouter=True)
         .join(ProductIngredient, ProductIngredient.product_id == Product.id, isouter=True)
@@ -166,17 +235,25 @@ async def search_products(
             )
         )
         .options(joinedload(Product.brand), joinedload(Product.category))
-        .order_by(Product.rating.desc().nullslast(), Product.review_count.desc().nullslast())
+        .order_by(relevance.desc(), Product.rating.desc().nullslast(), Product.review_count.desc().nullslast())
         # 궁합 순으로 다시 줄 세우려면 후보를 넉넉히 받아야 한다(평점 상위 top_k개만 보면 궁합이 높은 제품이 잘린다).
         .limit(top_k * _FIT_POOL if (prefer_fit and rule) or kinds else top_k)
     )
-    products = (await db.execute(apply_exclusions(stmt, rule))).scalars().all()
+    rows = (await db.execute(apply_exclusions(stmt, rule))).all()
+    products = [row[0] for row in rows]
+    rels = {row[0].id: int(row[1] or 0) for row in rows}
     if kinds:
         # 종류를 말했으면 그 종류의 제품만(없으면 후보 그대로). 평점순을 유지한다.
         of_kind = [p for p in products if any(k in (p.name or "") for k in kinds)]
         products = of_kind or products
     if prefer_fit and rule and products:
-        products = await _by_fit(db, products, rule, top_k)
+        # 이름을 여러 토큰으로 정확히 부른 제품("아토베리어365 크림")은 궁합이 낮아도 먼저 낸다 — 궁합순으로만 자르면 불러 놓고도 빠진다.
+        top_rel = max(rels.values(), default=0)
+        exact = [p for p in products if top_rel >= 2 and rels.get(p.id, 0) >= top_rel]
+        rest = [p for p in products if p not in exact]
+        products = (await _by_fit(db, exact, rule, top_k) if exact else [])
+        products += await _by_fit(db, rest, rule, top_k - len(products)) if rest and len(products) < top_k else []
+        products = products[:top_k]
     else:
         products = products[:top_k]
 
@@ -184,7 +261,12 @@ async def search_products(
         products = await _fallback_top_rated(db, top_k, rule)
         ingredient_patterns = []  # 폴백은 검색어 매칭이 아니므로 강제 포함할 성분이 없다
 
-    return [await _to_dict(db, p, ingredient_patterns) for p in products]
+    items = [await _to_dict(db, p, ingredient_patterns) for p in products]
+    if rule:
+        fits = await _fit_map(db, [i["id"] for i in items], rule.skin_type)
+        for i in items:
+            i["fit"] = fits.get(i["id"])
+    return items
 
 
 async def _fallback_top_rated(

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -13,7 +14,11 @@ import {
 } from '../../api/personalAi';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/toast';
+import { readJSON, writeJSON } from '../../context/storage';
 import { invalidateAiMemory, useAiMemoryState, useMemories } from '../../hooks/usePersonalAi';
+
+/** 이 기기에서 이미 본 기억 id. 처음 열 때(저장된 값 없음)는 전부 본 것으로 치고, 이후에 늘어난 것만 "방금 기억했어요"로 보여 준다 */
+const seenKey = (scope: string) => `swappy:aiMemorySeen:v1:${scope}`;
 
 const EXAMPLES = ['향료가 들어간 제품은 싫어요', '건조해서 보습이 제일 고민이에요', '무향 제품을 선호해요'];
 
@@ -38,6 +43,11 @@ export function AiMemoryPanel() {
   const [editing, setEditing] = useState<{ id: number; text: string } | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
   const [busy, setBusy] = useState(false);
+  // 열 때의 "이미 본 기억" 스냅샷. 이 화면을 보는 동안은 바뀌지 않아 새로 생긴 항목이 계속 강조된다
+  const [seen0] = useState<Set<number> | null>(() => {
+    const saved = readJSON<number[] | null>(seenKey(scope), null);
+    return saved ? new Set(saved) : null;
+  });
 
   const refresh = () => {
     invalidateAiMemory(scope);
@@ -60,6 +70,12 @@ export function AiMemoryPanel() {
 
   const enabled = state?.enabled === true;
   const list = memories ?? [];
+  const freshIds = seen0 === null ? new Set<number>() : new Set(list.filter((m) => !seen0.has(m.id)).map((m) => m.id));
+  const listKey = list.map((m) => m.id).join(',');
+  useEffect(() => {
+    if (memories) writeJSON(seenKey(scope), memories.map((m) => m.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listKey, scope]);
 
   return (
     <>
@@ -90,8 +106,17 @@ export function AiMemoryPanel() {
           <p className="mt-3 text-[12px] leading-relaxed text-gray-50">아직 기억한 게 없어요.</p>
         ) : (
           <ul className="mt-1 divide-y divide-gray-10">
-            {list.map((m) => (
-              <li key={m.id} className="py-2.5">
+            {list.map((m, idx) => {
+              const fresh = freshIds.has(m.id);
+              return (
+              <motion.li
+                key={m.id}
+                className="py-2.5"
+                initial={fresh ? { opacity: 0, x: -28 } : false}
+                animate={{ opacity: 1, x: 0 }}
+                transition={fresh ? { type: 'spring', stiffness: 160, damping: 18, delay: 0.2 + idx * 0.08 } : { duration: 0 }}
+              >
+                {fresh && <span className="mb-1 inline-block rounded-full bg-good-soft px-2 py-0.5 text-[10px] font-bold text-good">방금 기억했어요</span>}
                 {editing?.id === m.id ? (
                   <form
                     className="flex gap-2"
@@ -138,8 +163,9 @@ export function AiMemoryPanel() {
                     </div>
                   </div>
                 )}
-              </li>
-            ))}
+              </motion.li>
+              );
+            })}
           </ul>
         )}
 

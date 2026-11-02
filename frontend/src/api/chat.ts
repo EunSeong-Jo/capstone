@@ -17,6 +17,8 @@ export interface ChatRequest {
   history?: ChatMessage[];
   /** 마이 성분 이름(기기에만 있어 실어 보낸다). 로그인한 사용자의 개인 요약에만 쓰이고 비회원 요청에서는 무시된다. */
   my_ingredients?: string[];
+  /** 직전 답변에서 보여 준 제품 카드의 id·이름. "그 루틴 담아줘"를 추천한 제품 그대로 처리하는 데 쓴다. */
+  recent_cards?: { id: number; name: string }[];
 }
 
 /** 답변 아래에 보여 주는 제품 카드(AI가 도구로 찾아 말한 제품). */

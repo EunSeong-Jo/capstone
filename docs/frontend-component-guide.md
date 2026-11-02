@@ -25,7 +25,9 @@
 | 빌드 도구 | Vite 6 |
 | 스타일 | Tailwind CSS 3 |
 | 라우팅 | React Router v6 |
-| 하이브리드 앱 | Capacitor |
+| 하이브리드 앱 | Capacitor 8 (Android) |
+| 모션 | framer-motion |
+| 얼굴 확인 | MediaPipe Tasks Vision |
 
 ```bash
 # 전체 스택 실행 (Docker)
@@ -33,13 +35,12 @@ docker compose up --build
 
 # 프론트엔드만 로컬 실행
 cd frontend
-npm install
+npm ci             # package-lock 기준 동일 버전 설치
 npm run dev        # http://localhost:3000
 
-# 네이티브 앱 빌드 (iOS/Android 추가 후)
+# 네이티브 앱 빌드 — Android 프로젝트는 저장소에 있다(iOS는 아직 추가하지 않음, 7장 참고)
 npm run build
 npx cap sync
-npx cap open ios   # Xcode 실행
 npx cap open android  # Android Studio 실행
 ```
 
@@ -49,31 +50,24 @@ npx cap open android  # Android Studio 실행
 
 ```
 frontend/src/
-├── components/
-│   ├── ui/             # 원자 단위 공통 컴포넌트
-│   │   ├── Button.tsx
-│   │   ├── Chip.tsx
-│   │   └── Badge.tsx
-│   ├── layout/         # 레이아웃 컴포넌트
-│   │   ├── PageWrapper.tsx
-│   │   ├── Header.tsx
-│   │   └── BottomNav.tsx
-│   ├── product/        # 제품 관련 컴포넌트
-│   │   └── ProductCard.tsx
-│   └── skin/           # 피부타입 관련 컴포넌트
-│       └── SkinTypeBadge.tsx
-├── pages/
-│   ├── Onboarding/     # 스플래시 / 온보딩
-│   ├── QnA/            # 피부타입 진단 문항
-│   ├── Result/         # QnA 결과 & 캐릭터
-│   ├── Popup/          # 추천 세트 Bottom Sheet
-│   ├── Home/           # 메인 홈
-│   ├── Detail/         # 제품 상세 + 대체품 TOP3
-│   ├── Search/         # 검색 (텍스트 + 이미지)
-│   └── Mypage/         # 마이페이지
-├── types/
-│   └── index.ts        # 공유 타입 정의
-├── App.tsx             # 라우터 설정
+├── components/         # 기능별 폴더 (아래는 주요 폴더)
+│   ├── ui/             # 원자 단위 공통 컴포넌트 (Button, Chip, Badge, ConfirmDialog, 아이콘)
+│   ├── layout/         # PageWrapper, Header, BottomNav(레거시), AndroidBackButton …
+│   ├── home/oy/        # 현행 홈·하단 네비(OyBottomNav)·홈 섹션
+│   ├── product/        # ProductCard, FitBadge, SkinFitCard, IngredientSheet, OptionPicker, ProductReviews
+│   ├── skin/           # 피부 분석(SkinReportCard, SkinAnalysisDetail, FaceConsentSheet …)
+│   └── alternatives · analysis · category · closet · compare · history · mypage · orders · reviews · …
+├── pages/              # 라우트 단위 (Splash, Login, Signup, Onboarding, Home, Search, Scan, Category,
+│                       #   ProductDetail, Analysis, Alternatives, Compare, Closet, Cart, History, Gift,
+│                       #   Notifications, Mypage …)
+├── api/                # HTTP 클라이언트(client.ts) + 도메인별 호출 (products, personal, chat, skinPhoto …)
+├── hooks/              # 데이터 훅 (useProducts, useSimilarProducts, useSkinFit, usePersonalAi …)
+├── context/            # 전역 상태 (Auth, Cart, Closet, Diagnosis, Liked, UserProfile, Character, Toast)
+├── data/               # 정적 데이터 (진단 문항·점수표·피부타입·카테고리)
+├── utils/              # 순수 함수 (alternatives, compare, unitPrice, faceCheck …)
+├── mocks/              # 제품 id 없는 정적 문구·오프라인 폴백만
+├── types/index.ts      # 공유 타입 정의
+├── App.tsx             # 라우터 설정 (lazy 로딩)
 ├── main.tsx
 └── index.css           # CSS 변수 + Tailwind 설정
 ```
@@ -194,8 +188,9 @@ import { Badge } from '../components/ui/Badge';
 <Badge type="SALE" />   // 분홍 배경
 
 // 유사도 배지
-<Badge type="sim-high" label="92%" />  // ≥80%: 녹색
-<Badge type="sim-mid"  label="67%" />  // 50~79%: 주황
+<Badge type="sim-high" label="92%" />  // 55% 초과: 녹색
+<Badge type="sim-mid"  label="47%" />  // 55% 이하: 주황
+// 색을 직접 고르지 말고 utils/alternatives.ts의 similarityBadgeType(percent)를 쓰세요
 ```
 
 ---
@@ -245,6 +240,8 @@ import { Header } from '../components/layout/Header';
 
 ### 4.6 BottomNav
 
+> ⚠️ 이 절의 `layout/BottomNav`는 UI 통일 이전 컴포넌트입니다. **현행 표준은 `components/home/oy/OyBottomNav.tsx`**(홈·카테고리·검색·화장대·마이 5탭)이고, `BottomNav`는 `/history`에만 남아 있습니다.
+
 하단 네비게이션은 `PageWrapper hasBottomNav`와 함께 사용합니다.
 
 ```tsx
@@ -289,7 +286,7 @@ const product: Product = {
 ```
 
 `index` prop으로 카드 배경 그라디언트 색상이 자동으로 순환됩니다.
-클릭 시 `/detail/:id`로 자동 이동합니다.
+클릭 시 `/detail/:id`로 자동 이동합니다. `onSelect`를 넘기면 이동하지 않고 그 함수를 부릅니다(비교할 제품 고르기 등).
 
 ---
 
@@ -312,43 +309,41 @@ const skinType: SkinType = 'ondalsam';
 
 ## 5. 화면(페이지) 구조
 
-| 경로 | 페이지 파일 | 하단 탭 | 설명 |
-|------|------------|--------|------|
-| `/onboarding` | `pages/Onboarding` | ❌ | 앱 첫 진입 |
-| `/qna` | `pages/QnA` | ❌ | 피부타입 진단 |
-| `/result` | `pages/Result` | ❌ | 진단 결과 캐릭터 |
-| `/popup` | `pages/Popup` | ❌ | 추천 세트 Bottom Sheet |
-| `/home` | `pages/Home` | ✅ | 메인 큐레이션 |
-| `/detail/:id` | `pages/Detail` | ❌ | 제품 상세 + 대체품 |
-| `/search` | `pages/Search` | ✅ | 텍스트/이미지 검색 |
-| `/mypage` | `pages/Mypage` | ✅ | 마이페이지 |
+라우트(46개 + 리다이렉트)의 정본은 `src/App.tsx`입니다. 계정 화면은 `mine()`으로 감싸 `RequireAuth`가 게스트를 막습니다. 대표 경로만 적습니다.
+
+| 경로 | 페이지 | 하단 탭 | 설명 |
+|------|------|--------|------|
+| `/` · `/login` · `/signup` | `pages/Splash` · `Login` · `Signup` | ❌ | 시작·계정 |
+| `/onboarding` · `/qna` | `pages/Onboarding` · `pages/Onboarding` 내 문답 | ❌ | 진단(재진단은 `/qna`) |
+| `/home` | `pages/Home` | ✅ | 프로필 대시보드·추천·교체 제안 |
+| `/category` · `/category/:code` | `pages/Category` | ✅ | 카테고리·정렬 |
+| `/search` · `/scan` | `pages/Search` · `pages/Scan` | ✅ | 검색·사진으로 찾기 |
+| `/detail/:id` | `pages/ProductDetail` | ❌ | 제품 상세·궁합·전성분 |
+| `/analysis/:id` · `/alternatives` · `/compare` | `pages/Analysis` · `Alternatives` · `Compare` | ❌ | 성분 분석·대체품·직접 비교 |
+| `/closet` | `pages/Closet` | ✅ | 내 화장대(히스토리 탭 포함) |
+| `/cart` · `/gift/:productId` · `/notifications` | `pages/Cart` · `Gift` · `Notifications` | ❌ | 구매·선물·알림 |
+| `/mypage` 와 하위 | `pages/Mypage` | ✅ | 주문·선물·후기·구독·설정·AI 기억 |
+
+(옛 `/result`·`/popup`·`/detail` 폴더 구조는 사라졌습니다. 추천 세트는 홈의 시트, 진단 결과는 온보딩 안에 있습니다.)
 
 ### 라우팅 플로우
 
 ```
-/ → /onboarding
-  → "가입하기" → /qna → /result → /popup → /home
-  → "둘러보기" → /home
+/ → /login → "로그인 없이 둘러보기" → /home (게스트)
+          → 가입/로그인 → /onboarding(진단) → /home
 
-/home 제품 카드 탭 → /detail/:id
-하단 탭: /home | /search | /mypage
+/home 제품 카드 탭 → /detail/:id → /analysis/:id · /alternatives · /compare
+하단 탭: /home | /category | /search(→ /scan) | /closet | /mypage
 ```
 
 ---
 
 ## 6. 개발 규칙
 
-### 6.1 TODO 마커 활용
+### 6.1 목업과 TODO 마커
 
-현재 모든 페이지는 Mock 데이터를 사용합니다. API 연동 시 `TODO` 주석을 찾아 교체하세요.
-
-```tsx
-// TODO: Task 13 완료 후 실제 문항으로 교체
-const MOCK_QUESTIONS = [...]
-
-// TODO: Task 6 완료 후 실제 API 연동
-const MOCK_RESULTS = [...]
-```
+**제품 데이터는 전부 실 API**입니다. 제품 id를 담은 목업을 새로 만들지 마세요(`npm run check:dummy`가 막고, 배경은 [frontend/README.md](../frontend/README.md) 7-2절). 남은 목업은 제품 id가 없는 폴백(날씨·케어 문구 오프라인 문구, 인기 검색어 등)뿐이고 `src/mocks/`에 모읍니다.
+아직 연동하지 못한 부분에만 `// TODO`를 남깁니다.
 
 ### 6.2 피부타입 타입 사용
 
@@ -362,13 +357,20 @@ const meta = SKIN_TYPE_META[type];
 // meta.summary → '수분·유분 균형, 이상적 피부'
 ```
 
-### 6.3 API 호출 패턴 (Task 6 완료 후 작성 예정)
+### 6.3 API 호출 패턴
+
+`fetch`를 화면에서 직접 부르지 않습니다. `src/api/client.ts`가 토큰 주입·401 갱신 재시도·에러 변환(`ApiError`)을 맡고, 도메인별 호출은 `src/api/*.ts`, 화면은 `src/hooks/*`의 훅으로 씁니다.
 
 ```tsx
-// 임시 패턴 — 실제 API 클라이언트 확정 후 업데이트
-const res = await fetch('/api/v1/products/search?q=' + query);
-const data = await res.json();
+// hooks/useProduct.ts — 로딩·에러·404를 훅이 정리해서 준다
+const { product, loading, error, notFound, reload } = useProduct(id, { skinType });
+
+// 새 호출은 api/ 아래에 추가하고 client의 request/postJson/patchJson/putJson/deleteJson을 쓴다
+export const fetchProduct = (id: number, signal?: AbortSignal) =>
+  request<ProductDetail>(`/api/v1/products/${id}`, {}, signal);
 ```
+
+개인 데이터 조회는 `queryCache`(`api/queryCache.ts`)로 같은 키의 요청을 합치고, 로그인 시 서버·비회원 localStorage를 오가는 규칙은 [frontend/README.md](../frontend/README.md)를 보세요.
 
 ### 6.4 모바일 터치 피드백
 
@@ -402,7 +404,7 @@ className="p-4"
 
 ## 7. Capacitor 네이티브 빌드
 
-### 7.1 iOS 앱 추가 (Mac 환경 필요)
+### 7.1 iOS 앱 추가 (Mac 환경 필요 — 아직 추가하지 않았습니다)
 
 ```bash
 cd frontend
@@ -451,5 +453,5 @@ npx cap sync
 ## 참고 문서
 
 - [PRD v1.8](PRD_swappy_v1.8.md) — 전체 기획 명세
-- [개발 가이드라인](dev_guidelines.md) — 화면별 체크리스트, API 스펙
-- [프로토타입](prototype.html) — 브라우저에서 직접 열어 UI 확인
+- [개발 가이드라인](dev_guidelines.md) — 화면별 체크리스트, 디자인 시스템
+- [프로토타입](design/prototype.html) — 브라우저에서 직접 열어 UI 확인

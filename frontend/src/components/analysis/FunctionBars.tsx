@@ -1,5 +1,6 @@
 import type { FunctionStrength } from '../../api/analysis';
 import { FUNC_INFO } from './constants';
+import { GrowBar } from '../common/GrowBar';
 
 /**
  * 기능별 강도 막대. 이 제품이 보습·진정·피지 같은 기능 중 어디에 강한지가 한눈에 보인다.
@@ -20,7 +21,7 @@ export function FunctionBars({
   }
   return (
     <ul className="space-y-2.5">
-      {sorted.map((f) => (
+      {sorted.map((f, i) => (
         <li key={f.code} className="flex items-center gap-2.5">
           {/* 이름과 ★은 한 줄에 놓는다(긴 이름 '주름·탄력'에서도 줄바꿈되지 않게 ★ 자리를 따로 둔다) */}
           <span className="flex w-[96px] shrink-0 items-center whitespace-nowrap text-[13px] font-semibold text-oy-text">
@@ -28,10 +29,7 @@ export function FunctionBars({
             <span className="ml-1 w-3 text-center text-[12px] leading-none text-primary">{focus.has(f.code) ? '★' : ''}</span>
           </span>
           <span className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-oy-chip">
-            <span
-              className="absolute inset-y-0 left-0 rounded-full"
-              style={{ width: `${Math.max(f.value, f.value > 0 ? 4 : 0)}%`, background: FUNC_INFO[f.code]?.color }}
-            />
+            <GrowBar percent={Math.max(f.value, f.value > 0 ? 4 : 0)} color={FUNC_INFO[f.code]?.color} delay={0.1 + i * 0.07} />
           </span>
           <span className="w-[42px] shrink-0 text-right text-[11px] text-oy-sub">
             {f.count > 0 ? `${f.count}종` : '—'}
