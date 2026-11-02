@@ -1,5 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { ProductBubbles } from './ProductBubbles';
+import { GrowBar } from '../common/GrowBar';
+import { CountUp } from '../common/CountUp';
+import { Collapse } from '../common/Collapse';
 
 /** 화면용으로 정규화한 한 항목. 사진 분석 항목과 문답 5축이 같은 모양으로 그려진다. */
 export interface StateRow {
@@ -67,13 +70,13 @@ function Row({ r }: { r: StateRow }) {
       {showHelp ? (
         <div className="mt-1.5 flex items-center gap-2">
           <span className="relative block h-1.5 flex-1 overflow-hidden rounded-full bg-oy-chip">
-            <span className={`absolute inset-y-0 left-0 rounded-full ${help.bar}`} style={{ width: `${Math.max(r.coverage, 3)}%` }} />
+            <GrowBar percent={Math.max(r.coverage, 3)} className={help.bar} />
           </span>
-          <span className={`w-7 shrink-0 text-right text-[11px] font-bold ${help.text}`}>{Math.round(r.coverage)}</span>
+          <span className={`w-7 shrink-0 text-right text-[11px] font-bold ${help.text}`}><CountUp value={Math.round(r.coverage)} /></span>
         </div>
       ) : (
         <span className="relative mt-1.5 block h-1.5 overflow-hidden rounded-full bg-oy-chip">
-          <span className="absolute inset-y-0 left-0 rounded-full bg-oy-sub/40" style={{ width: `${Math.max(r.health, 3)}%` }} />
+          <GrowBar percent={Math.max(r.health, 3)} className="bg-oy-sub/40" />
         </span>
       )}
       {r.message && (
@@ -128,8 +131,8 @@ export function StateGroups({ rows }: { rows: StateRow[] }) {
           </button>
         }
       />
-      {showDetail && (
-        <>
+      <Collapse open={showDetail}>
+        <div className="space-y-3">
       {helped.length > 0 && (
         <Group title="좋은 점" hint="내가 신경 쓰는 부분을 성분이 돕고 있어요" tone="primary">
           {helped.map((r) => <Row key={r.key} r={r} />)}
@@ -160,8 +163,8 @@ export function StateGroups({ rows }: { rows: StateRow[] }) {
           </ul>
         </div>
       )}
-        </>
-      )}
+        </div>
+      </Collapse>
     </div>
   );
 }
