@@ -346,6 +346,8 @@ export default function ChatSupportPage() {
         skin_type: skinType ?? undefined,
         history,
         my_ingredients: myIngredients.map((i) => i.name).slice(0, 20),
+        // 직전에 카드를 보여 준 답변의 제품들(없으면 보내지 않는다)
+        recent_cards: [...messages].reverse().find((m) => m.role === 'bot' && m.cards?.length)?.cards?.map((c) => ({ id: c.id, name: c.name })).slice(0, 8),
       });
       const botReply: Message = { id: nextId.current++, role: 'bot', text: reply, cards, actions, live: true };
       setMessages((prev) => [...prev, botReply]);

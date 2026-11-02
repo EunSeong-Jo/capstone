@@ -86,6 +86,7 @@ _SYSTEM_TEMPLATE = """\
 - 피부가 어떻게 변했는지 물으면 get_skin_report, 오늘 뭘 바르면 좋은지 물으면 get_today_briefing을 쓴다(변화의 원인은 단정하지 않는다)
 - 장바구니·화장대에 담아 달라고 하면 propose_* 도구로 *제안*만 하고, "담았어요"라고 말하지 말고 "아래 버튼으로 담을 수 있어요"라고 안내한다
 - 도구가 오류를 주면 그대로 알리고 다른 방법을 제안한다
+- 도구·검색 결과가 어떻게 나왔는지("추천 도구의 결과는 세럼 위주라서…", "검색 결과에 크림이 없어서…") 사용자에게 설명하지 않는다. 사용자가 물은 제품과 이유만 말한다
 - 항상 한국어로 답한다. 제품 id(#번호)는 도구에 넘길 때만 쓰고 사용자에게 보이는 글에는 쓰지 않는다
 - 사용자가 담아 달라고 했고 어떤 제품인지 분명하면 되묻지 말고 그 제품마다 propose_* 도구를 바로 부른다(루틴이면 선택한 조합의 제품들, 최대 4개).
   화면에 사용자가 직접 누르는 [담기] 버튼이 따로 나오므로 글로 "담아 드릴까요?"라고 되묻는 것은 필요 없다.
@@ -165,17 +166,32 @@ _TRANSLATE_SYSTEM = (
 )
 
 
+# 답변 맨 앞의 영어 문장 하나("Since your skin is dry, here are creams…") — 나머지는 한국어인 경우
+_ENGLISH_LEAD = re.compile(r"^\s*([A-Za-z][^가-힣\n]{20,}?[.!?:])(?=\s|$)")
+
+
 async def _ensure_korean(reply: str) -> str:
-    """모델이 가끔 영어로 답한다(검색 결과가 없을 때 등). 영어면 한국어로 옮겨 쓴다. 실패하면 원문 그대로."""
-    if not _is_mostly_english(reply):
-        return reply
-    try:
-        out = await llm.chat_completion([{"role": "user", "content": reply}], _TRANSLATE_SYSTEM, max_tokens=_MAX_REPLY_TOKENS)
-        out = _tidy_reply(out)
-        return out if out and not _is_mostly_english(out) else reply
-    except Exception as exc:  # noqa: BLE001 — 번역 실패가 답변을 막으면 안 된다
-        log.warning("chat_translate_failed", error=str(exc)[:200])
-        return reply
+    """모델이 가끔 영어로 답한다(검색 결과가 없을 때 등). 통째로 영어면 한국어로 옮기고, 첫 문장만 영어면 그 문장만 옮긴다.
+    번역이 실패하면 전체 영어는 원문 그대로, 영어 첫 문장은 지운다(한국어 답변 앞에 영어가 남지 않게)."""
+    if _is_mostly_english(reply):
+        try:
+            out = await llm.chat_completion([{"role": "user", "content": reply}], _TRANSLATE_SYSTEM, max_tokens=_MAX_REPLY_TOKENS)
+            out = _tidy_reply(out)
+            return out if out and not _is_mostly_english(out) else reply
+        except Exception as exc:  # noqa: BLE001 — 번역 실패가 답변을 막으면 안 된다
+            log.warning("chat_translate_failed", error=str(exc)[:200])
+            return reply
+    lead = _ENGLISH_LEAD.match(reply)
+    if lead:
+        rest = reply[lead.end():].lstrip()
+        try:
+            ko = _tidy_reply(await llm.chat_completion([{"role": "user", "content": lead.group(1)}], _TRANSLATE_SYSTEM, max_tokens=200))
+            if ko and not _is_mostly_english(ko):
+                return f"{ko}\n\n{rest}" if rest else ko
+        except Exception as exc:  # noqa: BLE001
+            log.warning("chat_translate_failed", error=str(exc)[:200])
+        return rest or reply
+    return reply
 
 
 def _tidy_reply(reply: str) -> str:
@@ -190,12 +206,20 @@ class Message(BaseModel):
     content: str
 
 
+class RecentCard(BaseModel):
+    """직전 답변에서 사용자에게 보여 준 제품 카드(화면이 다시 보내 준다). \"그 루틴 담아줘\"를 정확히 처리하는 데 쓴다."""
+
+    id: int
+    name: str = Field(max_length=160)
+
+
 class ChatRequest(BaseModel):
     message: str
     skin_type: str | None = None
     history: list[Message] = []
     # 마이 성분은 기기에만 있어 클라이언트가 실어 보낸다(로그인한 사용자의 개인 요약에만 쓰인다).
     my_ingredients: list[str] = Field(default_factory=list, max_length=personal_context.MAX_MY_INGREDIENTS)
+    recent_cards: list[RecentCard] = Field(default_factory=list, max_length=8)
 
 
 class ProductCard(BaseModel):
@@ -354,6 +378,17 @@ async def chat(
 
     ctx = chat_tools.ToolContext(db=db, skin_type=skin_type, snapshot=snapshot, user_id=user.id if user else None)
     use_tools = user is not None and settings.PERSONAL_AI_ENABLED and settings.CHAT_TOOLS_ENABLED
+    # "그 루틴 장바구니에 담아줘": 직전에 보여 준 제품을 그대로 담기 제안으로 만든다(모델이 제품을 다시 찾다 엉뚱한 제품을 내지 않게).
+    picked = chat_tools.pick_recent_for_cart(req.message, req.recent_cards) if use_tools else None
+    if picked:
+        cards = await chat_tools.cards_for_ids(ctx, [r.id for r in picked])
+        if cards:
+            for c in cards:
+                ctx.add_card(c)
+                ctx.add_action({"type": "add_to_cart", "productId": c["id"], "label": f"{c['name']}을(를) 장바구니에 담을까요?"})
+            lines = "\n".join(f"· {c['name']} ({c['price']:,}원)" for c in cards)
+            reply = f"방금 추천해 드린 제품 {len(cards)}개를 담을 수 있게 해 뒀어요. 아래 [담기]를 눌러야 실제로 담겨요.\n\n{lines}"
+            return ChatResponse(reply=_with_remembered(reply, remembered), cards=cards, actions=ctx.actions)
     try:
         if use_tools:
             reply = _tidy_reply(
@@ -401,12 +436,13 @@ async def chat(
     # 사용자가 "장바구니에 담아 줘"라고 했는데 모델이 제안 도구를 부르지 않았으면, 답변에서 말한 제품으로 제안을 만든다.
     # 어차피 사용자가 [담기]를 눌러야 담기므로 안전하다(제안만 하고 실행하지 않는다).
     if use_tools and chat_tools.wants_cart(req.message) and not ctx.actions:
-        for c in _mentioned_cards(ctx.cards, reply)[:4]:
+        for c in _mentioned_cards(ctx.cards, reply, fallback=False)[:4]:
             ctx.add_action({"type": "add_to_cart", "productId": c["id"], "label": f"{c['name']}을(를) 장바구니에 담을까요?"})
     # 제안(actions)의 제품은 말했든 안 했든 카드로 함께 보인다(버튼이 어느 제품 것인지 알아야 한다)
     proposed = {a["productId"] for a in ctx.actions}
+    # 답변에 이름이 나온 제품만 카드로 낸다. 하나도 못 찾았다고 앞쪽 몇 개를 억지로 붙이면 글과 카드가 다른 제품이 된다.
     cards = [c for c in ctx.cards if c["id"] in proposed] + [
-        c for c in _mentioned_cards(ctx.cards, reply) if c["id"] not in proposed
+        c for c in _mentioned_cards(ctx.cards, reply, fallback=False) if c["id"] not in proposed
     ]
     if not cards and products:
         # 모델이 도구를 부르지 않고 참고 제품 데이터만으로 추천한 경우: 답변에 이름이 나온 제품만 카드로 낸다
