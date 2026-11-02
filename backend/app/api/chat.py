@@ -152,6 +152,32 @@ _MAX_REPLY_TOKENS = 1800
 _HONORIFIC = re.compile(r"(?:사용자|회원|고객)님(?:께서|께|이|은|는|의|도)?\s*")
 
 
+def _is_mostly_english(text: str) -> bool:
+    """답변이 한국어가 아니라 영어 문장이다(제품명 몇 개가 한글인 영어 문장 포함)."""
+    latin = len(re.findall(r"[A-Za-z]", text))
+    hangul = len(re.findall(r"[가-힣]", text))
+    return latin >= 40 and latin > hangul * 0.8
+
+
+_TRANSLATE_SYSTEM = (
+    "다음 글을 자연스러운 한국어 해요체로 옮겨 쓴다. 제품명·브랜드명은 그대로 둔다. "
+    "의미를 더하거나 빼지 않는다. 옮긴 글만 출력한다."
+)
+
+
+async def _ensure_korean(reply: str) -> str:
+    """모델이 가끔 영어로 답한다(검색 결과가 없을 때 등). 영어면 한국어로 옮겨 쓴다. 실패하면 원문 그대로."""
+    if not _is_mostly_english(reply):
+        return reply
+    try:
+        out = await llm.chat_completion([{"role": "user", "content": reply}], _TRANSLATE_SYSTEM, max_tokens=_MAX_REPLY_TOKENS)
+        out = _tidy_reply(out)
+        return out if out and not _is_mostly_english(out) else reply
+    except Exception as exc:  # noqa: BLE001 — 번역 실패가 답변을 막으면 안 된다
+        log.warning("chat_translate_failed", error=str(exc)[:200])
+        return reply
+
+
 def _tidy_reply(reply: str) -> str:
     """호칭을 빼고 빈 줄을 정리한다. 내용은 건드리지 않는다."""
     text = _HONORIFIC.sub("", reply)
@@ -337,6 +363,7 @@ async def chat(
             )
         else:
             reply = _tidy_reply(await llm.chat_completion(messages, system, max_tokens=_MAX_REPLY_TOKENS))
+        reply = await _ensure_korean(reply)
     except LLMUnavailable as exc:
         # 키 만료·한도·장애 — 모델 없이 DB로 답한다. 로그는 키 교체 신호로 남긴다.
         log.warning("chat_llm_fallback", error=str(exc)[:300])

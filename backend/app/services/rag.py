@@ -11,7 +11,10 @@ RAG 서비스 — Neon(PostgreSQL) 제품 DB에서 검색해 LLM 컨텍스트를
 """
 from __future__ import annotations
 
-from sqlalchemy import or_, select, true
+import operator
+from functools import reduce
+
+from sqlalchemy import case, literal, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -203,8 +206,17 @@ async def search_products(
     name_patterns = [f"%{_escape_like(t)}%" for t in _tokenize(query)]
     ingredient_patterns = [f"%{_escape_like(p)}%" for p in _expand_ingredient_patterns(query)]
 
+    # 검색어 토큰이 제품명·브랜드명에 얼마나 많이 걸렸는가. 평점순만 쓰면 "메디힐 마데카소사이드 더마 세럼"처럼 정확히 부른 제품이
+    # 토큰 하나("세럼")만 겹친 다른 고평점 제품에 밀려 후보에서 빠진다.
+    relevance = reduce(
+        operator.add,
+        [case((Product.name.ilike(p, escape="\\"), 1), else_=0) for p in name_patterns]
+        + [case((Brand.name.ilike(p, escape="\\"), 1), else_=0) for p in name_patterns],
+        literal(0),
+    ).label("relevance")
+
     stmt = (
-        select(Product)
+        select(Product, relevance)
         .distinct()
         .join(Brand, Brand.id == Product.brand_id, isouter=True)
         .join(ProductIngredient, ProductIngredient.product_id == Product.id, isouter=True)
@@ -223,11 +235,11 @@ async def search_products(
             )
         )
         .options(joinedload(Product.brand), joinedload(Product.category))
-        .order_by(Product.rating.desc().nullslast(), Product.review_count.desc().nullslast())
+        .order_by(relevance.desc(), Product.rating.desc().nullslast(), Product.review_count.desc().nullslast())
         # 궁합 순으로 다시 줄 세우려면 후보를 넉넉히 받아야 한다(평점 상위 top_k개만 보면 궁합이 높은 제품이 잘린다).
         .limit(top_k * _FIT_POOL if (prefer_fit and rule) or kinds else top_k)
     )
-    products = (await db.execute(apply_exclusions(stmt, rule))).scalars().all()
+    products = [row[0] for row in (await db.execute(apply_exclusions(stmt, rule))).all()]
     if kinds:
         # 종류를 말했으면 그 종류의 제품만(없으면 후보 그대로). 평점순을 유지한다.
         of_kind = [p for p in products if any(k in (p.name or "") for k in kinds)]
