@@ -1,5 +1,8 @@
 import { OptionPicker } from '../product/OptionPicker';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import type { ProductIngredient } from '../../api/products';
+import { useProduct } from '../../hooks/useProduct';
+import { IngredientSheet } from '../product/IngredientSheet';
 import { useAuth } from '../../context/auth';
 import type { ProductAnalysis, CautionKind } from '../../api/analysis';
 import type { AnalysisDto } from '../../api/skinPhoto';
@@ -70,6 +73,14 @@ export function AnalysisView({
   const reloadPhoto = onReloadPhoto;
   const { isUser } = useAuth();
   const focus = useMemo(() => new Set(analysis.focusFunctions ?? []), [analysis]);
+  // "자세히 보기"의 성분 이름을 누르면 성분 설명 시트. 설명은 제품 상세 응답에 실려 있다.
+  const prod = useProduct(analysis.productId);
+  const [pickedName, setPickedName] = useState<string | null>(null);
+  const picked: ProductIngredient | null = useMemo(() => {
+    if (!pickedName) return null;
+    const norm = (n: string) => n.trim().toLowerCase();
+    return (prod.product?.ingredients ?? []).find((i) => norm(i.name) === norm(pickedName)) ?? { id: 0, name: pickedName, position: 0 };
+  }, [pickedName, prod.product]);
   return (
     <>
         <main className="pb-24">
@@ -147,6 +158,9 @@ export function AnalysisView({
                 state={analysis.concernState}
                 photo={photo}
                 onSubscribe={() => navigate('/mypage/subscription')}
+                product={{ name: analysis.name, brand: analysis.brand }}
+                anatomy={analysis.anatomy}
+                onIngredient={setPickedName}
               />
             ) : analysis.skinState.length > 0 ? (
               <>
@@ -154,6 +168,9 @@ export function AnalysisView({
                   state={analysis.skinState}
                   source={stateSource}
                   photoAt={photoAt}
+                  product={{ name: analysis.name, brand: analysis.brand }}
+                  anatomy={analysis.anatomy}
+                  onIngredient={setPickedName}
                 />
                 {stateSource === 'qna' && <PhotoCta compact onDone={reloadPhoto} />}
               </>
@@ -334,6 +351,7 @@ export function AnalysisView({
             비슷한 대체품 보기
           </button>
         </div>
+      <IngredientSheet ingredient={picked} onClose={() => setPickedName(null)} skinTypeLabel={typeLabel ?? null} />
     </>
   );
 }

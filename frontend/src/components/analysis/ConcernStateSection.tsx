@@ -1,4 +1,4 @@
-import type { ConcernState } from '../../api/analysis';
+import type { AnatomyItem, ConcernState } from '../../api/analysis';
 import type { AnalysisDto } from '../../api/skinPhoto';
 import { CONCERN_META, SKIN_TYPE_LABEL } from '../../data/skinConcerns';
 import { StateGroups, type StateRow } from './StateGroups';
@@ -16,10 +16,18 @@ export function ConcernStateSection({
   state,
   photo,
   onSubscribe,
+  product,
+  anatomy,
+  onIngredient,
 }: {
   state: ConcernState[];
   photo: AnalysisDto;
   onSubscribe: () => void;
+  /** 병 모양·라벨에 쓰는 제품 정보 */
+  product?: { name: string; brand: string };
+  /** 항목별 "도와주는 성분" 이름을 찾는 전성분 해부도 */
+  anatomy?: AnatomyItem[];
+  onIngredient?: (name: string) => void;
 }) {
   const total = state.length + 1; // 피부 분류 1개 포함
   const whole = skinClass(photo.skinTypes.whole);
@@ -36,6 +44,7 @@ export function ConcernStateSection({
     label: CONCERN_META[c.key]?.low ?? c.level,
     status: c.status,
     coverage: c.coverage,
+    need: c.need,
     message: c.message,
     risk: c.risk,
   }));
@@ -62,7 +71,7 @@ export function ConcernStateSection({
         </div>
       )}
 
-      <StateGroups rows={rows} />
+      <StateGroups rows={rows} product={product} anatomy={anatomy} onIngredient={onIngredient} />
 
       {!photo.extended && (
         <button
