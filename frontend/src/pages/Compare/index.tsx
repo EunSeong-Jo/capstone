@@ -46,10 +46,12 @@ function ProductPair({ a, b }: { a: ProductAnalysis; b: ProductAnalysis }) {
       <span className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-oy-chip">
         {p.imageUrl && <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />}
       </span>
-      <span className="min-w-0">
-        <span className={`block text-[11px] font-bold ${tone}`}>{label}</span>
+      {/* 이미지(72px)와 같은 높이로 고정한다. 이름이 길면 두 줄까지만 보이고 ...으로 줄인다.
+          line-clamp는 display를 직접 정하므로 block을 같이 쓰면 줄 수 제한이 풀린다 */}
+      <span className="flex h-[72px] min-w-0 flex-1 flex-col justify-center overflow-hidden">
+        <span className={`block truncate text-[11px] font-bold ${tone}`}>{label}</span>
         <span className="block truncate text-[11px] text-oy-sub">{p.brand}</span>
-        <span className="line-clamp-2 block text-xs font-semibold leading-snug text-oy-text">{p.name}</span>
+        <span className="line-clamp-2 text-xs font-semibold leading-snug text-oy-text">{p.name}</span>
       </span>
     </div>
   );
