@@ -339,16 +339,53 @@ async def test_gate_rejection_does_not_use_quota(
     assert q["used"] == 0 and q["remaining"] == settings.SKIN_FREE_MONTHLY
 
 
-async def test_provider_error_does_not_use_quota(
+async def test_provider_error_without_a_sample_does_not_use_quota(
     client: AsyncClient, consented, monkeypatch
 ) -> None:
     async def provider_down(_jpeg, _concerns):
         raise HTTPException(status_code=502, detail="분석 서비스 오류")
 
     monkeypatch.setattr("app.api.skin_photo.analyze_face", provider_down)
+    monkeypatch.setattr(settings, "SKIN_SAMPLE_EMAIL", "")          # 대신 보여 줄 표본이 없다 → 원래 오류
     assert (await _analyze(client, consented)).status_code == 502
     q = await _quota(client, consented)
     assert q["used"] == 0 and q["remaining"] == settings.SKIN_FREE_MONTHLY
+
+
+async def test_provider_error_falls_back_to_the_stored_sample_for_an_allowed_account(
+    client: AsyncClient, consented, sample_owner, monkeypatch
+) -> None:
+    """실호출 허용 계정도 키 만료·유닛 소진·장애(502/503)이면 저장된 표본으로 대신 보여 준다(횟수는 정상 분석처럼 쓴다)."""
+    monkeypatch.setattr(settings, "SKIN_SAMPLE_EMAIL", sample_owner["email"])
+
+    async def provider_down(_jpeg, _concerns):
+        raise HTTPException(status_code=503, detail="피부 분석 키가 설정되지 않았습니다")
+
+    monkeypatch.setattr("app.api.skin_photo.analyze_face", provider_down)
+    res = await _analyze(client, consented)
+    assert res.status_code == 201, res.text
+    body = res.json()
+    assert body["axes"] == sample_owner["analysis"]["axes"] and body["analysisId"] != sample_owner["analysis"]["analysisId"]
+    q = await _quota(client, consented)
+    assert q["used"] == 1
+
+    async with AsyncSessionLocal() as db:
+        row = await db.scalar(select(SkinAnalysis).where(SkinAnalysis.id == uuid.UUID(body["analysisId"])))
+    assert row.provider_mode == "sample"
+
+
+async def test_photo_problem_from_the_provider_is_not_replaced_by_a_sample(
+    client: AsyncClient, consented, sample_owner, monkeypatch
+) -> None:
+    """사진 문제(422)는 표본으로 덮지 않는다 — 사용자가 사진을 다시 찍어야 한다."""
+    monkeypatch.setattr(settings, "SKIN_SAMPLE_EMAIL", sample_owner["email"])
+
+    async def bad_photo(_jpeg, _concerns):
+        raise HTTPException(status_code=422, detail="얼굴이 잘 보이지 않아요")
+
+    monkeypatch.setattr("app.api.skin_photo.analyze_face", bad_photo)
+    assert (await _analyze(client, consented)).status_code == 422
+    assert (await _quota(client, consented))["used"] == 0
 
 
 async def test_analyze_validates_the_image_payload(client: AsyncClient, consented) -> None:
@@ -366,6 +403,7 @@ async def test_provider_not_configured_is_503(
 ) -> None:
     monkeypatch.setattr(settings, "PERFECT_CORP_MOCK", False)
     monkeypatch.setattr(settings, "PERFECT_CORP_API_KEY", "")
+    monkeypatch.setattr(settings, "SKIN_SAMPLE_EMAIL", "")          # 표본이 없으면 표본으로 대신하지 못하고 503
     res = await _analyze(client, consented)
     assert res.status_code == 503
     assert (await _quota(client, consented))["used"] == 0
