@@ -3,6 +3,7 @@
  * 서버가 제품마다 같은 모양으로 주는 분석을 그대로 받아 계산한다 — 비교 전용 API는 없다.
  */
 import type { FunctionStrength, ProductAnalysis } from '../api/analysis';
+import { FUNC_INFO } from '../components/analysis/constants';
 
 export interface FunctionRow {
   code: string;
@@ -55,15 +56,23 @@ export interface IngredientSplit {
 /** 성분 이름으로 그 성분의 기능을 찾는 키 */
 export const ingredientKey = norm;
 
-/** 핵심 성분을 "둘 다 / 기준에만 / 대체품에만"으로 나눈다. 순서는 각 제품의 함량 순서를 따른다 */
+/** 비교에 쓰는 성분: 기능 강도의 성분 수(`functions[].count`)와 같은 기준 — 기능을 가진 활성·에몰리언트 성분 전부 */
+const functionalIngredients = (p: ProductAnalysis) =>
+  p.anatomy
+    .filter((i) => (i.role === 'a' || i.role === 'e') && i.functions.length > 0)
+    .map((i) => ({ name: i.name, functions: i.functions.map((c) => FUNC_INFO[c]?.name ?? c) }));
+
+/** 기능을 가진 성분 전부를 "둘 다 / 기준에만 / 대체품에만"으로 나눈다. 순서는 각 제품의 함량 순서를 따른다 */
 export function compareKeyIngredients(a: ProductAnalysis, b: ProductAnalysis): IngredientSplit {
-  const inB = new Set(b.keyIngredients.map((k) => norm(k.name)));
-  const inA = new Set(a.keyIngredients.map((k) => norm(k.name)));
-  const onlyAList = a.keyIngredients.filter((k) => !inB.has(norm(k.name)));
-  const onlyBList = b.keyIngredients.filter((k) => !inA.has(norm(k.name)));
+  const aList = functionalIngredients(a);
+  const bList = functionalIngredients(b);
+  const inB = new Set(bList.map((k) => norm(k.name)));
+  const inA = new Set(aList.map((k) => norm(k.name)));
+  const onlyAList = aList.filter((k) => !inB.has(norm(k.name)));
+  const onlyBList = bList.filter((k) => !inA.has(norm(k.name)));
 
   const functionsOf: Record<string, string[]> = {};
-  [...a.keyIngredients, ...b.keyIngredients].forEach((k) => {
+  [...aList, ...bList].forEach((k) => {
     functionsOf[norm(k.name)] = k.functions;
   });
 
@@ -77,7 +86,7 @@ export function compareKeyIngredients(a: ProductAnalysis, b: ProductAnalysis): I
   onlyAList.forEach((k) => k.functions.forEach((f) => bump(f, 'minus')));
 
   return {
-    both: a.keyIngredients.filter((k) => inB.has(norm(k.name))).map((k) => k.name),
+    both: aList.filter((k) => inB.has(norm(k.name))).map((k) => k.name),
     onlyA: onlyAList.map((k) => k.name),
     onlyB: onlyBList.map((k) => k.name),
     functionsOf,
@@ -119,11 +128,12 @@ export interface StateCompareRow {
   concern: 'focus' | 'mild' | 'fine';
   a: StateStatus;
   b: StateStatus;
-  /** 대체품이 기준보다 더 잘 돕는가 */
+  /** 제품이 이 항목을 돕는 정도 0~100(서버 coverage). 기준·대체품 */
+  aScore: number;
+  bScore: number;
+  /** 대체품이 기준보다 더 잘 돕는가(FUNCTION_GAP 이상 차이일 때만) */
   change: 'better' | 'worse' | 'same';
 }
-
-const STATUS_RANK: Record<StateStatus, number> = { good: 3, some: 2, lack: 1, fine: 0, na: 0 };
 
 interface StateItem {
   key: string;
@@ -134,14 +144,16 @@ interface StateItem {
   status: StateStatus;
   /** 괜찮은 항목도 제품이 돕는 정도를 말할 수 있게 status(fine)와 따로 둔다 */
   help: StateStatus;
+  /** 제품이 돕는 정도 0~100 */
+  coverage: number;
 }
 
 /** 사진 분석 항목이 있으면 그것, 없으면 문답 5축. 둘 다 없으면 빈 배열 */
 function stateItems(p: ProductAnalysis): StateItem[] {
   if (p.concernState.length > 0) {
-    return p.concernState.map((c) => ({ key: c.key, name: c.name, label: c.level, score: c.score, concern: c.concern, status: c.status, help: c.help ?? c.status }));
+    return p.concernState.map((c) => ({ key: c.key, name: c.name, label: c.level, score: c.score, concern: c.concern, status: c.status, help: c.help ?? c.status, coverage: c.coverage }));
   }
-  return p.skinState.map((s) => ({ key: s.axis, name: s.name, label: s.level, score: s.health, concern: s.concern, status: s.status, help: s.help ?? s.status }));
+  return p.skinState.map((s) => ({ key: s.axis, name: s.name, label: s.level, score: s.health, concern: s.concern, status: s.status, help: s.help ?? s.status, coverage: s.coverage }));
 }
 
 /**
@@ -157,7 +169,7 @@ export function compareSkinState(a: ProductAnalysis, b: ProductAnalysis): StateC
     .flatMap((i) => {
       const other = bByKey.get(i.key);
       if (!other) return [];
-      const diff = STATUS_RANK[other.help] - STATUS_RANK[i.help];
+      const diff = other.coverage - i.coverage;
       return [{
         key: i.key,
         name: i.name,
@@ -166,8 +178,10 @@ export function compareSkinState(a: ProductAnalysis, b: ProductAnalysis): StateC
         concern: i.concern,
         a: i.help,
         b: other.help,
-        change: diff > 0 ? ('better' as const) : diff < 0 ? ('worse' as const) : ('same' as const),
+        aScore: Math.round(i.coverage),
+        bScore: Math.round(other.coverage),
+        change: diff >= FUNCTION_GAP ? ('better' as const) : diff <= -FUNCTION_GAP ? ('worse' as const) : ('same' as const),
       }];
     })
-    .sort((x, y) => concernOrder[x.concern] - concernOrder[y.concern] || Math.abs(STATUS_RANK[y.b] - STATUS_RANK[y.a]) - Math.abs(STATUS_RANK[x.b] - STATUS_RANK[x.a]));
+    .sort((x, y) => concernOrder[x.concern] - concernOrder[y.concern] || Math.abs(y.bScore - y.aScore) - Math.abs(x.bScore - x.aScore));
 }

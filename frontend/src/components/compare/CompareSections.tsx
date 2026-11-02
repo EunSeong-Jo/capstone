@@ -64,41 +64,144 @@ export function Section({
 
 export const Divider = () => <div className="h-2 bg-oy-line" />;
 
-/** 기능마다 기준(회색)과 대체품(기능 색) 막대를 위아래로 */
-export function FunctionCompare({ rows }: { rows: FunctionRow[] }) {
+const B_COLOR = '#3D8F6F';
+
+/**
+ * 기능 강도를 방사형(레이더) 도형으로 견준다. 기능이 꼭짓점이고, 꼭짓점에 가까울수록 그 기능이 강하다.
+ * 기준 제품은 회색, 비교 제품은 초록 도형이다. 두 도형이 겹치면 비슷하고 어긋나면 그 기능에서 차이가 난다.
+ * 범례를 눌러 제품을 고르면 그 도형이 진해지고 다른 쪽은 흐려진다(다시 누르면 해제).
+ * 꼭짓점이 3개 미만이면 도형이 안 되므로 줄 목록으로 대신한다.
+ */
+export function FunctionCompare({
+  rows,
+  focus = [],
+}: {
+  rows: FunctionRow[];
+  /** 내 피부타입이 중요하게 보는 기능 코드(궁합 점수에 반영되는 기능). 도형 아래 안내 문장에서 이름을 강조한다 */
+  focus?: string[];
+}) {
   const L = useCompareLabels();
+  const [picked, setPicked] = useState<'a' | 'b' | null>(null);
   if (rows.length === 0) return <p className="text-sm text-oy-sub">비교할 기능 성분이 아직 충분하지 않아요.</p>;
+
+  const axes = rows;
+  const focusRows = rows.filter((r) => focus.includes(r.code));
+  const nameOf = (r: FunctionRow) => FUNC_INFO[r.code]?.name ?? r.name;
+
+  const W = 300;
+  const H = 250;
+  const cx = W / 2;
+  const cy = 122;
+  const R = 82;
+  const n = axes.length;
+  const angle = (i: number) => -Math.PI / 2 + (2 * Math.PI * i) / n;
+  const point = (i: number, ratio: number) => [cx + R * ratio * Math.cos(angle(i)), cy + R * ratio * Math.sin(angle(i))] as const;
+  const poly = (ratio: (i: number) => number) => axes.map((_, i) => point(i, ratio(i)).join(',')).join(' ');
+  const ratioA = (i: number) => Math.max(axes[i].a, axes[i].a > 0 ? 4 : 0) / 100;
+  const ratioB = (i: number) => Math.max(axes[i].b, axes[i].b > 0 ? 4 : 0) / 100;
+
   return (
-    <ul className="space-y-4">
-      {rows.map((r) => (
-        <li key={r.code}>
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] font-bold text-oy-text">{FUNC_INFO[r.code]?.name ?? r.name}</span>
-            {r.verdict === 'weaker' && (
-              <span className="rounded-full bg-accent-light px-2 py-0.5 text-[11px] font-bold text-accent">{L.b}이 약해요</span>
-            )}
-            {r.verdict === 'stronger' && (
-              <span className="rounded-full bg-primary-light px-2 py-0.5 text-[11px] font-bold text-primary">{L.b}이 강해요</span>
-            )}
-          </div>
-          {([
-            [L.a, r.a, r.aCount, A_COLOR],
-            [L.b, r.b, r.bCount, FUNC_INFO[r.code]?.color ?? '#3D8F6F'],
-          ] as const).map(([label, value, count, color]) => (
-            <div key={label} className="mt-1.5 flex items-center gap-2">
-              <span className="w-14 shrink-0 text-[11px] text-oy-sub">{label}</span>
-              <span className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-oy-chip">
-                <span
-                  className="absolute inset-y-0 left-0 rounded-full"
-                  style={{ width: `${Math.max(value, value > 0 ? 4 : 0)}%`, background: color }}
-                />
-              </span>
-              <span className="w-9 shrink-0 text-right text-[11px] text-oy-sub">{count > 0 ? `${count}종` : '—'}</span>
-            </div>
+    <div>
+      {n >= 3 && (
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="기능 강도 방사형 비교" className="mx-auto block w-full max-w-[340px]">
+          {[0.25, 0.5, 0.75, 1].map((g) => (
+            <polygon key={g} points={poly(() => g)} fill="none" stroke="#E4E8E1" strokeWidth={g === 1 ? 1.2 : 1} />
           ))}
-        </li>
-      ))}
-    </ul>
+          {axes.map((_, i) => {
+            const [x, y] = point(i, 1);
+            return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#E4E8E1" strokeWidth={1} />;
+          })}
+          {/* 고른 제품은 진하게, 다른 쪽은 흐리게. 고르지 않았으면 둘 다 보통 */}
+          {(
+            [
+              ['a', ratioA, A_COLOR],
+              ['b', ratioB, B_COLOR],
+            ] as const
+          ).map(([side, ratio, color]) => {
+            const on = picked === side;
+            const off = picked !== null && !on;
+            return (
+              <g key={side} opacity={off ? 0.3 : 1}>
+                <polygon
+                  points={poly(ratio)}
+                  fill={color}
+                  fillOpacity={on ? 0.55 : 0.28}
+                  stroke={color}
+                  strokeWidth={on ? 3 : 1.8}
+                  strokeLinejoin="round"
+                />
+                {on &&
+                  axes.map((r, i) => {
+                    const [x, y] = point(i, ratio(i));
+                    return <circle key={r.code} cx={x} cy={y} r={3.2} fill={color} />;
+                  })}
+              </g>
+            );
+          })}
+          {axes.map((r, i) => {
+            const [x, y] = point(i, 1.2);
+            const anchor = Math.abs(x - cx) < 6 ? 'middle' : x > cx ? 'start' : 'end';
+            // 비교 제품을 고르면 기능 이름 아래에 기준 제품 대비 변화를 적는다.
+            // 요약("N개 강해요")과 같은 기준(FUNCTION_GAP)이라, 차이가 작은 기능은 숫자 없이 "비슷"으로 둔다.
+            const diff = Math.round(r.b - r.a);
+            const showNote = picked === 'b';
+            const ty = showNote ? y - 6 : y;
+            return (
+              <g key={r.code}>
+              <text x={x} y={ty} textAnchor={anchor} dominantBaseline="middle" className="fill-oy-text text-[11px] font-bold">
+                <tspan x={x}>{nameOf(r)}</tspan>
+                {showNote && (
+                  <tspan
+                    x={x}
+                    dy={13}
+                    className={r.verdict === 'stronger' ? 'fill-good' : r.verdict === 'weaker' ? 'fill-accent' : 'fill-oy-sub font-semibold'}
+                  >
+                    {r.verdict === 'stronger' ? `▲ +${diff}점` : r.verdict === 'weaker' ? `▼ −${-diff}점` : '비슷'}
+                  </tspan>
+                )}
+              </text>
+              </g>
+            );
+          })}
+        </svg>
+      )}
+
+      {focusRows.length > 0 && (
+        <p className="mt-1 text-center text-[12px] text-oy-sub">
+          내 피부는{' '}
+          {focusRows.map((r, i) => (
+            <span key={r.code}>
+              {i > 0 && ', '}
+              <b className="rounded-full bg-good-soft px-2 py-0.5 font-extrabold text-good">{nameOf(r)}</b>
+            </span>
+          ))}{' '}
+          기능을 중요하게 보고 있어요
+        </p>
+      )}
+
+      <div className="mt-2 flex items-center justify-center gap-2">
+        {(
+          [
+            ['a', L.a, A_COLOR],
+            ['b', L.b, B_COLOR],
+          ] as const
+        ).map(([side, label, color]) => (
+          <button
+            key={side}
+            type="button"
+            aria-pressed={picked === side}
+            onClick={() => setPicked(picked === side ? null : side)}
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold active:scale-95 ${
+              picked === side ? 'border-oy-text bg-oy-chip text-oy-text' : 'border-oy-line bg-white text-oy-sub'
+            }`}
+          >
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+    </div>
   );
 }
 
@@ -127,7 +230,7 @@ function NameChips({
   if (names.length === 0) return null;
   const cls = {
     neutral: 'bg-oy-chip text-oy-text',
-    caution: 'bg-caution-soft text-caution',
+    caution: 'text-caution',
     good: 'bg-good-soft text-good',
     plain: 'bg-oy-chip text-oy-text',
   }[tone];
@@ -158,9 +261,50 @@ function NameChips({
   );
 }
 
+/** 펼친 줄의 성분 목록. ＋(새로 생기는 성분)와 －(빠지는 성분)를 한 목록에 두고 2열로 전부 보여 준다 */
+function ChangeList({
+  plus,
+  minus,
+  funcsOf,
+  focusFn,
+  onSelect,
+}: {
+  plus: string[];
+  minus: string[];
+  funcsOf: (name: string) => string[];
+  /** 지금 펼친 기능 — 성분의 "다른" 기능만 곁에 작게 적는다 */
+  focusFn: string;
+  onSelect?: (name: string) => void;
+}) {
+  const rows = [...plus.map((n) => ({ n, plus: true })), ...minus.map((n) => ({ n, plus: false }))];
+  return (
+    <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 pb-3">
+      {rows.map(({ n, plus: isPlus }) => {
+        const others = funcsOf(n).filter((f) => f !== focusFn);
+        return (
+          <li key={`${isPlus ? '+' : '-'}${n}`}>
+            <button
+              type="button"
+              onClick={() => onSelect?.(n)}
+              className="flex w-full items-start gap-1.5 rounded-md px-1 py-1 text-left text-[12px] font-semibold leading-snug text-oy-text active:bg-oy-chip"
+            >
+              <span className={`shrink-0 font-extrabold ${isPlus ? 'text-good' : 'text-danger'}`}>{isPlus ? '＋' : '－'}</span>
+              <span className="min-w-0 break-all">
+                {n}
+                {others.length > 0 && <span className="ml-1 text-[10px] font-normal text-oy-sub">{others.slice(0, 2).join('·')}</span>}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /**
- * 성분 변화 — "기능별로 이렇게 달라져요" 칩 한 줄에 주의 성분 칩을 함께 두고,
- * 칩을 누르면 그 기능(또는 주의 성분)에서 추가되거나 빠지는 성분을 펼친다. 같은 칩을 다시 누르면 접힌다.
+ * 성분 변화 — 기능마다 한 줄(＋추가 수 · －제거 수), 줄을 누르면 아래에 그 성분들이 ＋/－ 한 목록으로 펼쳐진다(기준 제품에서 비교 제품으로 바꿀 때의 변화).
+ * 성분은 접지 않고 전부 보여 준다. 주의 성분도 같은 목록의 마지막 줄이다.
+ * 한 번에 한 줄만 펼쳐지고, 같은 줄을 다시 누르면 접힌다.
  */
 export function IngredientChanges({
   split,
@@ -175,95 +319,64 @@ export function IngredientChanges({
   const [open, setOpen] = useState<ChangeKey | null>(null);
   const funcsOf = (n: string) => split.functionsOf[ingredientKey(n)] ?? [];
   const hasFn = (name: string) => (n: string) => funcsOf(n).includes(name);
-
-  const cautionAll = cmp.newInB.length + cmp.goneInB.length + cmp.both.length;
-  const cautionNet = cmp.newInB.length - cmp.goneInB.length;
-  // 칩 바탕은 모두 중립. 늘고 줄어드는 숫자(+N종 / −N종)만 글자색으로 말한다.
-  // 기능 칩은 +가 초록·−가 빨강이다. 주의 성분은 늘어나는 쪽이 나쁜 소식이라 +가 노랑·−가 초록이다.
-  const cautionChip: { label: string; delta: string; deltaCls: string; expandable: boolean } =
-    cautionAll === 0
-      ? { label: '주의 성분 없음', delta: '', deltaCls: '', expandable: false }
-      : cautionNet > 0
-        ? { label: '주의 성분', delta: `+${cautionNet}종`, deltaCls: 'text-caution', expandable: true }
-        : cautionNet < 0
-          ? { label: '주의 성분', delta: `−${-cautionNet}종`, deltaCls: 'text-good', expandable: true }
-          : cmp.newInB.length > 0
-            ? { label: '주의 성분 교체', delta: '', deltaCls: '', expandable: true }
-            : { label: '주의 성분 변화 없어요', delta: '', deltaCls: '', expandable: true };
-
-  const chipBase = 'rounded-full px-2.5 py-1 text-[11px] font-bold transition-transform active:scale-95';
-  const ring = (key: ChangeKey) => (open === key ? ' ring-2 ring-oy-text/30' : '');
   const toggle = (key: ChangeKey) => setOpen((cur) => (cur === key ? null : key));
 
-  const fnDetail = open && open !== CAUTION ? open : null;
+  const cautionAll = cmp.newInB.length + cmp.goneInB.length + cmp.both.length;
   const noKeyChange = split.delta.length === 0;
+
+  const rowBtn = 'flex w-full items-center gap-2 py-3 text-left active:opacity-70';
+  const chevron = (key: ChangeKey) => <span className="ml-auto text-[12px] text-oy-sub">{open === key ? '▴' : '▾'}</span>;
 
   return (
     <div className="rounded-xl bg-white px-4 py-3 shadow-sm">
       <p className="text-[13px] font-extrabold text-oy-text">기능별로 이렇게 달라져요</p>
-      {noKeyChange && <p className="mt-1.5 text-[12px] font-semibold text-primary">핵심 성분 구성이 거의 같아요.</p>}
-      <ul className="mt-2 flex flex-wrap gap-1.5">
-        {split.delta.map((d) => {
-          const net = d.plus - d.minus;
-          const text = net > 0 ? `+${net}종` : net < 0 ? `−${-net}종` : '성분만 교체';
-          const textCls = net > 0 ? 'text-good' : net < 0 ? 'text-danger' : '';
-          return (
-            <li key={d.name}>
-              <button
-                type="button"
-                aria-expanded={open === d.name}
-                onClick={() => toggle(d.name)}
-                className={`${chipBase} bg-oy-chip text-oy-text${ring(d.name)}`}
-              >
-                {d.name} <span className={textCls}>{text}</span>
-              </button>
-            </li>
-          );
-        })}
-        <li>
-          {cautionChip.expandable ? (
-            <button
-              type="button"
-              aria-expanded={open === CAUTION}
-              onClick={() => toggle(CAUTION)}
-              className={`${chipBase} bg-oy-chip text-oy-text${ring(CAUTION)}`}
-            >
-              {cautionChip.label} <span className={cautionChip.deltaCls}>{cautionChip.delta}</span>
+      {noKeyChange && <p className="mt-1.5 text-[12px] font-semibold text-primary">기능 성분 구성이 거의 같아요.</p>}
+      <ul className="mt-1 divide-y divide-oy-line">
+        {split.delta.map((d) => (
+          <li key={d.name}>
+            <button type="button" aria-expanded={open === d.name} onClick={() => toggle(d.name)} className={rowBtn}>
+              <span className="text-[13px] font-bold text-oy-text">{d.name}</span>
+              {/* 순증감이 아니라 새로 생기는 수와 빠지는 수를 따로 적는다(둘 다 있을 때 한쪽이 가려지지 않게) */}
+              {d.plus > 0 && <span className="text-[12px] font-bold text-good">＋{d.plus}종</span>}
+              {d.minus > 0 && <span className="text-[12px] font-bold text-danger">－{d.minus}종</span>}
+              {chevron(d.name)}
             </button>
+            {open === d.name && (
+              <ChangeList
+                plus={split.onlyB.filter(hasFn(d.name))}
+                minus={split.onlyA.filter(hasFn(d.name))}
+                funcsOf={funcsOf}
+                focusFn={d.name}
+                onSelect={onSelect}
+              />
+            )}
+          </li>
+        ))}
+        <li>
+          {cautionAll === 0 ? (
+            <p className="py-3 text-[13px] font-bold text-good">주의 성분 없음</p>
           ) : (
-            <span className={`inline-block ${chipBase} bg-oy-chip text-good`}>{cautionChip.label}</span>
+            <>
+              <button type="button" aria-expanded={open === CAUTION} onClick={() => toggle(CAUTION)} className={rowBtn}>
+                <span className="text-[13px] font-bold text-oy-text">주의 성분</span>
+                {/* 주의 성분은 늘어나는 쪽이 나쁜 소식이라 ＋가 노랑·－가 초록이다 */}
+                {cmp.newInB.length > 0 && <span className="text-[12px] font-bold text-caution">＋{cmp.newInB.length}종</span>}
+                {cmp.goneInB.length > 0 && <span className="text-[12px] font-bold text-good">－{cmp.goneInB.length}종</span>}
+                {cmp.newInB.length === 0 && cmp.goneInB.length === 0 && <span className="text-[12px] font-semibold text-oy-sub">변화 없어요</span>}
+                {chevron(CAUTION)}
+              </button>
+              {open === CAUTION && (
+                <div className="pb-3">
+                  <NameChips title={`${L.b}에서 늘어나는 주의 성분`} names={cmp.newInB} tone="caution" mark="+" onSelect={onSelect} />
+                  <NameChips title={`${L.b}에서 줄어드는 주의 성분`} names={cmp.goneInB} tone="caution" strike onSelect={onSelect} />
+                  <NameChips title="두 제품 모두 들어 있는 주의 성분" names={cmp.both} tone="plain" onSelect={onSelect} />
+                </div>
+              )}
+            </>
           )}
         </li>
       </ul>
-
-      {fnDetail && (
-        <div className="mt-1 border-t border-oy-line pt-0.5">
-          <NameChips
-            title={`${L.b}에만 있는 ${fnDetail} 성분`}
-            names={split.onlyB.filter(hasFn(fnDetail))}
-            tone="neutral"
-            mark="+"
-            funcsOf={funcsOf}
-            onSelect={onSelect}
-          />
-          <NameChips
-            title={`${L.a}에만 있는 ${fnDetail} 성분`}
-            names={split.onlyA.filter(hasFn(fnDetail))}
-            tone="neutral"
-            mark="−"
-            funcsOf={funcsOf}
-            onSelect={onSelect}
-          />
-        </div>
-      )}
-      {open === CAUTION && (
-        <div className="mt-1 border-t border-oy-line pt-0.5">
-          <NameChips title={`${L.b}에서 늘어나는 주의 성분`} names={cmp.newInB} tone="caution" mark="+" onSelect={onSelect} />
-          <NameChips title={`${L.b}에서 줄어드는 주의 성분`} names={cmp.goneInB} tone="caution" strike onSelect={onSelect} />
-          <NameChips title="두 제품 모두 들어 있는 주의 성분" names={cmp.both} tone="plain" onSelect={onSelect} />
-        </div>
-      )}
-      <p className="mt-2 text-[11px] text-oy-sub">칩을 누르면 추가되거나 빠지는 성분을 볼 수 있어요.</p>
+      <p className="mt-1 text-[11px] text-oy-sub">줄을 누르면 바뀌는 성분을 볼 수 있어요.</p>
     </div>
   );
 }
@@ -276,7 +389,10 @@ const PILL: Record<StateStatus, { text: string; cls: string }> = {
   na: { text: '해당 적음', cls: 'bg-oy-chip text-oy-sub' },
 };
 
-/** 항목 한 줄: 이름·점수·상태, 내 제품/대체품의 대응 */
+/** 막대 옆에 붙는 짧은 상태 말 */
+const SHORT: Record<StateStatus, string> = { good: '도와줘요', some: '부족해요', lack: '많이 부족', fine: '해당 적음', na: '해당 적음' };
+
+/** 항목 한 줄: 이름·내 피부 점수·상태, 두 제품이 돕는 정도를 막대와 점수로 */
 function StateRowItem({ r }: { r: StateCompareRow }) {
   const L = useCompareLabels();
   return (
@@ -285,16 +401,20 @@ function StateRowItem({ r }: { r: StateCompareRow }) {
         <span className="text-[13px] font-bold text-oy-text">{r.name}</span>
         <span className="text-[11px] text-oy-sub">{r.score}점</span>
         <span className="text-[11px] font-semibold text-oy-sub">{r.label}</span>
-        {r.change !== 'same' && (
-          <span className={`ml-auto text-[11px] font-bold ${r.change === 'better' ? 'text-primary' : 'text-accent'}`}>
-            {r.change === 'better' ? '▲ 더 좋아요' : '▼ 더 약해요'}
-          </span>
-        )}
       </div>
-      {([[L.a, r.a], [L.b, r.b]] as const).map(([label, st]) => (
+      {([
+        [L.a, r.a, r.aScore, A_COLOR],
+        [L.b, r.b, r.bScore, B_COLOR],
+      ] as const).map(([label, st, value, color]) => (
         <div key={label} className="mt-1.5 flex items-center gap-2">
           <span className="w-14 shrink-0 text-[11px] text-oy-sub">{label}</span>
-          <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${PILL[st].cls}`}>{PILL[st].text}</span>
+          <span className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-oy-chip">
+            <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(value, value > 0 ? 4 : 0)}%`, background: color }} />
+          </span>
+          <span className="w-7 shrink-0 text-right text-[12px] font-bold text-oy-text">{value}</span>
+          <span className={`w-[4.2rem] shrink-0 pr-2 text-right text-[11px] font-semibold ${PILL[st].cls.split(' ').filter((c) => c.startsWith('text-')).join(' ')}`}>
+            {SHORT[st]}
+          </span>
         </div>
       ))}
     </li>
