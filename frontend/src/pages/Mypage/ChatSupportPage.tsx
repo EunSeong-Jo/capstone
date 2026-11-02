@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { PageWrapper } from '../../components/layout/PageWrapper';
@@ -13,6 +14,8 @@ import { CharacterAvatar } from '../../components/character/CharacterAvatar';
 import { useMyIngredients } from '../../hooks/useMyIngredients';
 import { useSkinType } from '../../hooks/useSkinType';
 import { useLoginPrompt } from '../../hooks/useLoginPrompt';
+import { CartButton } from '../../components/ui/CartButton';
+import { flyToCart } from '../../utils/flyToCart';
 import { readJSON, writeJSON } from '../../context/storage';
 import type { SkinType } from '../../types';
 
@@ -38,6 +41,8 @@ interface Message {
   cards?: ChatProductCard[];
   /** "담을까요?" 제안(누르기 전에는 아무것도 담기지 않는다) */
   actions?: ChatAction[];
+  /** 방금 도착한 답변 — 한 글자씩 나타나게 하고 카드는 글이 끝난 뒤에 차례로 올린다. 이전 대화는 그대로 보여 준다 */
+  live?: boolean;
 }
 
 /**
@@ -83,6 +88,49 @@ function renderWithBold(text: string) {
       part
     ),
   );
+}
+
+/** 자르다 만 `**굵게**`가 별표 그대로 보이지 않게 다듬는다 */
+function safeSlice(text: string, n: number) {
+  let s = text.slice(0, n);
+  const open = (s.match(/\*\*/g) ?? []).length % 2 === 1;
+  if (open) s = s.endsWith('**') ? s.slice(0, -2) : `${s}**`;
+  return s;
+}
+
+/**
+ * 챗봇 답변 글자. `live`면 한 글자씩(길면 한 번에 여러 글자) 나타나고, 다 나타나면 `onDone`을 부른다.
+ * 길이와 상관없이 약 3.5초 안에 끝나게 속도를 맞춘다. 이전 대화나 "동작 줄이기" 설정이면 처음부터 전부 보여 준다.
+ */
+function BotText({ text, live, onTick, onDone }: { text: string; live: boolean; onTick: () => void; onDone: () => void }) {
+  const reduce = useReducedMotion();
+  const animate = live && !reduce;
+  const [n, setN] = useState(animate ? 0 : text.length);
+  const cb = useRef({ onTick, onDone });
+  useEffect(() => {
+    cb.current = { onTick, onDone };
+  });
+
+  useEffect(() => {
+    if (!animate) {
+      cb.current.onDone();
+      return;
+    }
+    const step = Math.max(1, Math.ceil(text.length / 210));
+    let count = 0;
+    const id = setInterval(() => {
+      count = Math.min(text.length, count + step);
+      setN(count);
+      cb.current.onTick();
+      if (count >= text.length) {
+        clearInterval(id);
+        cb.current.onDone();
+      }
+    }, 16);
+    return () => clearInterval(id);
+  }, [animate, text]);
+
+  return <>{renderWithBold(animate ? safeSlice(text, n) : text)}</>;
 }
 
 /** 카카오톡 식 "입력 중" 표시 — 챗봇이 응답을 준비하는 동안 보여준다 */
@@ -159,9 +207,12 @@ export default function ChatSupportPage() {
   ]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(3);
+  /** 글이 다 나타난 답변 id — 카드는 이게 된 뒤에 차례로 올라온다 */
+  const [typed, setTyped] = useState<Set<number>>(() => new Set());
+  const markTyped = (id: number) => setTyped((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
 
   const pushBot = (text: string, extra?: Pick<Message, 'closetLink' | 'scanLink' | 'cards'>) =>
-    setMessages((prev) => [...prev, { id: nextId.current++, role: 'bot', text, ...extra }]);
+    setMessages((prev) => [...prev, { id: nextId.current++, role: 'bot', text, live: true, ...extra }]);
 
   /**
    * 입력한 제품명을 카탈로그에서 찾아 화장대에 담는다.
@@ -296,7 +347,7 @@ export default function ChatSupportPage() {
         history,
         my_ingredients: myIngredients.map((i) => i.name).slice(0, 20),
       });
-      const botReply: Message = { id: nextId.current++, role: 'bot', text: reply, cards, actions };
+      const botReply: Message = { id: nextId.current++, role: 'bot', text: reply, cards, actions, live: true };
       setMessages((prev) => [...prev, botReply]);
     } catch (err) {
       // 비회원 한도는 서버도 센다(IP 기준). 기기 카운터를 지웠어도 서버가 막으면
@@ -309,7 +360,7 @@ export default function ChatSupportPage() {
       // (내부 예외 텍스트는 서버 로그에만 남고 여기까지 오지 않는다).
       const text =
         err instanceof ApiError ? err.message : '죄송해요, 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.';
-      const botReply: Message = { id: nextId.current++, role: 'bot', text };
+      const botReply: Message = { id: nextId.current++, role: 'bot', text, live: true };
       setMessages((prev) => [...prev, botReply]);
     } finally {
       setIsSending(false);
@@ -317,9 +368,10 @@ export default function ChatSupportPage() {
   };
 
   /** AI가 제안한 담기를 사용자가 눌렀을 때만 실행한다. 카드에 제품 정보가 있으니 서버를 다시 부르지 않는다. */
-  const runAction = (action: ChatAction, card?: ChatProductCard) => {
+  const runAction = (action: ChatAction, card?: ChatProductCard, from?: HTMLElement) => {
     if (!card) return;
     if (action.type === 'add_to_cart') {
+      if (from) flyToCart(from, card.imageUrl);
       addToCart({ id: card.id, name: card.name, brand: card.brand, price: card.price, imageUrl: card.imageUrl ?? undefined });
       showToast('장바구니에 담았어요');
     } else {
@@ -368,7 +420,7 @@ export default function ChatSupportPage() {
 
   return (
     <PageWrapper>
-      <Header showBack title="채팅 상담" />
+      <Header showBack title="채팅 상담" rightSlot={<CartButton />} />
 
       <div className="flex-1 overflow-y-auto px-3 py-4">
         <div className="flex justify-center mb-5">
@@ -440,17 +492,28 @@ export default function ChatSupportPage() {
 
                   {msg.text && (
                     <div className="bg-white rounded-tl-[4px] rounded-tr-2xl rounded-b-2xl px-3.5 py-3 shadow-sm text-[13px] text-gray-100 leading-relaxed whitespace-pre-line">
-                      {renderWithBold(msg.text)}
+                      <BotText
+                        text={msg.text}
+                        live={!!msg.live}
+                        onTick={() => bottomRef.current?.scrollIntoView({ behavior: 'auto' })}
+                        onDone={() => markTyped(msg.id)}
+                      />
                     </div>
                   )}
 
-                  {msg.cards && msg.cards.length > 0 && (
+                  {msg.cards && msg.cards.length > 0 && (!msg.live || !msg.text || typed.has(msg.id)) && (
                     <div className="mt-2 flex flex-col gap-2">
-                      {msg.cards.map((c) => {
+                      {msg.cards.map((c, ci) => {
                         const action = msg.actions?.find((a) => a.productId === c.id);
                         const done = action ? (action.type === 'add_to_cart' ? inCart(c.id) : hasItem(c.id)) : false;
                         return (
-                          <div key={c.id} className="flex items-center gap-2.5 rounded-xl bg-white p-2.5 shadow-sm">
+                          <motion.div
+                            key={c.id}
+                            initial={msg.live ? { opacity: 0, y: 14 } : false}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: ci * 0.14, duration: 0.36, ease: 'easeOut' }}
+                            className="flex items-center gap-2.5 rounded-xl bg-white p-2.5 shadow-sm"
+                          >
                             <button
                               type="button"
                               onClick={() => navigate(`/detail/${c.id}`)}
@@ -472,13 +535,13 @@ export default function ChatSupportPage() {
                               <button
                                 type="button"
                                 disabled={done}
-                                onClick={() => runAction(action, c)}
+                                onClick={(e) => runAction(action, c, e.currentTarget)}
                                 className="shrink-0 rounded-full bg-primary px-3 py-2 text-[11px] font-bold text-white active:scale-95 disabled:bg-gray-20 disabled:text-gray-50"
                               >
                                 {done ? '담았어요' : '담기'}
                               </button>
                             )}
-                          </div>
+                          </motion.div>
                         );
                       })}
                     </div>

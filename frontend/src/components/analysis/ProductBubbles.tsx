@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useReducedMotion } from 'framer-motion';
+import { useInView, useReducedMotion } from 'framer-motion';
 import type { StateRow } from './StateGroups';
 import { bubbleRows } from './bubbleRows';
 
@@ -133,9 +133,12 @@ export function ProductBubbles({ rows, action }: { rows: StateRow[]; /** 제목 
   const h = innerHeight(items);
   const [pos, setPos] = useState<{ x: number; y: number; on: boolean }[]>([]);
   const raf = useRef(0);
+  const cardRef = useRef<HTMLDivElement>(null);
+  // 병이 화면에 보이기 시작할 때 원이 떨어진다(스크롤로 내려오기 전에 다 쌓여 있지 않게)
+  const inView = useInView(cardRef, { once: true, amount: 0.4 });
 
   useEffect(() => {
-    if (items.length === 0) return;
+    if (items.length === 0 || !inView) return;
     const bodies = createBodies(items);
     const snapshot = () => setPos(bodies.map((b) => ({ x: b.x, y: b.y, on: b.released })));
     let frame = 0;
@@ -154,7 +157,7 @@ export function ProductBubbles({ rows, action }: { rows: StateRow[]; /** 제목 
     raf.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sig, reduce]);
+  }, [sig, reduce, inView]);
 
 
   const neckH = 18;
@@ -168,7 +171,7 @@ export function ProductBubbles({ rows, action }: { rows: StateRow[]; /** 제목 
   const clipId = 'bottle-clip';
 
   return (
-    <div className="rounded-xl bg-white px-3.5 pt-3 pb-3 shadow-sm">
+    <div ref={cardRef} className="rounded-xl bg-white px-3.5 pt-3 pb-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[13px] font-extrabold text-oy-text">이 제품은 이런 걸 잘 도와요</p>

@@ -1,8 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { animate, motion, useInView, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
 import { useCompareLabels } from './compareMode';
 import { ingredientKey, type FunctionRow, type IngredientSplit, type CautionCompare, type StateCompareRow, type StateStatus } from '../../utils/compare';
 import { FUNC_INFO } from '../analysis/constants';
+import { GrowBar } from '../common/GrowBar';
+import { CountUp } from '../common/CountUp';
+import { Collapse } from '../common/Collapse';
 
 const A_COLOR = '#BFC4BA';
 
@@ -90,9 +93,12 @@ function radarPoints(axes: FunctionRow[], side: 'a' | 'b', scale: number) {
 function RadarPolygons({
   axes,
   picked,
+  active,
 }: {
   axes: FunctionRow[];
   picked: 'a' | 'b' | null;
+  /** 화면에 보이기 시작하면 true — 그때 자라기 시작한다 */
+  active: boolean;
 }) {
   const reduce = useReducedMotion();
   // 제품마다 자라는 정도를 따로 둔다: 처음에는 둘 다 자라고, 범례로 제품을 고르면 고른 쪽만 다시 자란다
@@ -100,7 +106,7 @@ function RadarPolygons({
   const tB = useMotionValue(reduce ? 1 : 0);
   const grow = { duration: 1.1, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] };
   useEffect(() => {
-    if (reduce) return;
+    if (reduce || !active) return;
     const ca = animate(tA, 1, grow);
     const cb = animate(tB, 1, { ...grow, delay: 0.15 });
     return () => {
@@ -108,7 +114,7 @@ function RadarPolygons({
       cb.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reduce, tA, tB]);
+  }, [reduce, tA, tB, active]);
   useEffect(() => {
     if (reduce || picked === null) return;
     const t = picked === 'a' ? tA : tB;
@@ -164,6 +170,9 @@ export function FunctionCompare({
 }) {
   const L = useCompareLabels();
   const [picked, setPicked] = useState<'a' | 'b' | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  // 도형이 화면에 보이기 시작할 때 자라게 한다(스크롤로 내려오기 전에 끝나 버리지 않게)
+  const inView = useInView(svgRef, { once: true, amount: 0.5 });
   if (rows.length === 0) return <p className="text-sm text-oy-sub">비교할 기능 성분이 아직 충분하지 않아요.</p>;
 
   const axes = rows;
@@ -186,7 +195,7 @@ export function FunctionCompare({
   return (
     <div>
       {n >= 3 && (
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="기능 강도 방사형 비교" className="mx-auto block w-full max-w-[340px]">
+        <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="기능 강도 방사형 비교" className="mx-auto block w-full max-w-[340px]">
           {[0.25, 0.5, 0.75, 1].map((g) => (
             <polygon key={g} points={poly(() => g)} fill="none" stroke="#E4E8E1" strokeWidth={g === 1 ? 1.2 : 1} />
           ))}
@@ -194,7 +203,7 @@ export function FunctionCompare({
             const [x, y] = point(i, 1);
             return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#E4E8E1" strokeWidth={1} />;
           })}
-          <RadarPolygons key={sig} axes={axes} picked={picked} />
+          <RadarPolygons key={sig} axes={axes} picked={picked} active={inView} />
           {/* 고른 제품의 꼭짓점 점 */}
           {picked &&
             axes.map((r, i) => {
@@ -404,7 +413,7 @@ export function IngredientChanges({
               {d.minus > 0 && <span className="text-[12px] font-bold text-danger">－{d.minus}종</span>}
               {chevron(d.name)}
             </button>
-            {open === d.name && (
+            <Collapse open={open === d.name}>
               <ChangeList
                 plus={split.onlyB.filter(hasFn(d.name))}
                 minus={split.onlyA.filter(hasFn(d.name))}
@@ -412,7 +421,7 @@ export function IngredientChanges({
                 focusFn={d.name}
                 onSelect={onSelect}
               />
-            )}
+            </Collapse>
           </li>
         ))}
         <li>
@@ -428,13 +437,13 @@ export function IngredientChanges({
                 {cmp.newInB.length === 0 && cmp.goneInB.length === 0 && <span className="text-[12px] font-semibold text-oy-sub">변화 없어요</span>}
                 {chevron(CAUTION)}
               </button>
-              {open === CAUTION && (
+              <Collapse open={open === CAUTION}>
                 <div className="pb-3">
                   <NameChips title={`${L.b}에서 늘어나는 주의 성분`} names={cmp.newInB} tone="caution" mark="+" onSelect={onSelect} />
                   <NameChips title={`${L.b}에서 줄어드는 주의 성분`} names={cmp.goneInB} tone="caution" strike onSelect={onSelect} />
                   <NameChips title="두 제품 모두 들어 있는 주의 성분" names={cmp.both} tone="plain" onSelect={onSelect} />
                 </div>
-              )}
+              </Collapse>
             </>
           )}
         </li>
@@ -472,9 +481,11 @@ function StateRowItem({ r }: { r: StateCompareRow }) {
         <div key={label} className="mt-1.5 flex items-center gap-2">
           <span className="w-14 shrink-0 text-[11px] text-oy-sub">{label}</span>
           <span className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-oy-chip">
-            <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(value, value > 0 ? 4 : 0)}%`, background: color }} />
+            <GrowBar percent={Math.max(value, value > 0 ? 4 : 0)} color={color} />
           </span>
-          <span className="w-7 shrink-0 text-right text-[12px] font-bold text-oy-text">{value}</span>
+          <span className="w-7 shrink-0 text-right text-[12px] font-bold text-oy-text">
+            <CountUp value={value} />
+          </span>
           <span className={`w-[4.2rem] shrink-0 pr-2 text-right text-[11px] font-semibold ${PILL[st].cls.split(' ').filter((c) => c.startsWith('text-')).join(' ')}`}>
             {SHORT[st]}
           </span>

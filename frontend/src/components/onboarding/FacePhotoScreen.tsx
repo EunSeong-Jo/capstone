@@ -568,7 +568,7 @@ export default function FacePhotoScreen({
             {standalone?.note ?? '이 결과를 문답 결과와 함께 반영해 피부타입을 정할게요.'}
             {analysis.remaining !== null && ` 이번 달 남은 횟수 ${analysis.remaining}회`}
           </p>
-          <SkinAnalysisDetail analysis={analysis} showUpsell />
+          <SkinAnalysisDetail analysis={analysis} showUpsell animated />
         </div>
         <div
           className="flex flex-col gap-2 px-5 pt-2"
