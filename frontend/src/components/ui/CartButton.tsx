@@ -18,6 +18,7 @@ export function CartButton() {
       type="button"
       aria-label={count > 0 ? `장바구니 ${count}개` : '장바구니'}
       onClick={() => navigate('/cart')}
+      data-cart-target
       className="relative transition-transform active:scale-90"
     >
       <CartShape size={24} color="#17171C" />
