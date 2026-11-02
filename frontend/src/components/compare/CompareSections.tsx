@@ -361,9 +361,10 @@ function ChangeList({
               className="flex w-full items-start gap-1.5 rounded-md px-1 py-1 text-left text-[12px] font-semibold leading-snug text-oy-text active:bg-oy-chip"
             >
               <span className={`shrink-0 font-extrabold ${isPlus ? 'text-good' : 'text-danger'}`}>{isPlus ? '＋' : '－'}</span>
-              <span className="min-w-0 break-all">
-                {n}
-                {others.length > 0 && <span className="ml-1 text-[10px] font-normal text-oy-sub">{others.slice(0, 2).join('·')}</span>}
+              <span className="min-w-0">
+                <span className="break-all">{n}</span>
+                {/* 그 성분의 다른 기능은 이름 아래 줄에 둔다(옆에 붙이면 긴 이름이 줄바꿈될 때 잘려 보인다) */}
+                {others.length > 0 && <span className="mt-0.5 block text-[10px] font-normal text-oy-sub">{others.slice(0, 2).join('·')}</span>}
               </span>
             </button>
           </li>
