@@ -239,13 +239,21 @@ async def search_products(
         # 궁합 순으로 다시 줄 세우려면 후보를 넉넉히 받아야 한다(평점 상위 top_k개만 보면 궁합이 높은 제품이 잘린다).
         .limit(top_k * _FIT_POOL if (prefer_fit and rule) or kinds else top_k)
     )
-    products = [row[0] for row in (await db.execute(apply_exclusions(stmt, rule))).all()]
+    rows = (await db.execute(apply_exclusions(stmt, rule))).all()
+    products = [row[0] for row in rows]
+    rels = {row[0].id: int(row[1] or 0) for row in rows}
     if kinds:
         # 종류를 말했으면 그 종류의 제품만(없으면 후보 그대로). 평점순을 유지한다.
         of_kind = [p for p in products if any(k in (p.name or "") for k in kinds)]
         products = of_kind or products
     if prefer_fit and rule and products:
-        products = await _by_fit(db, products, rule, top_k)
+        # 이름을 여러 토큰으로 정확히 부른 제품("아토베리어365 크림")은 궁합이 낮아도 먼저 낸다 — 궁합순으로만 자르면 불러 놓고도 빠진다.
+        top_rel = max(rels.values(), default=0)
+        exact = [p for p in products if top_rel >= 2 and rels.get(p.id, 0) >= top_rel]
+        rest = [p for p in products if p not in exact]
+        products = (await _by_fit(db, exact, rule, top_k) if exact else [])
+        products += await _by_fit(db, rest, rule, top_k - len(products)) if rest and len(products) < top_k else []
+        products = products[:top_k]
     else:
         products = products[:top_k]
 
