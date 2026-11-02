@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { ProductBubbles } from './ProductBubbles';
 
 /** 화면용으로 정규화한 한 항목. 사진 분석 항목과 문답 5축이 같은 모양으로 그려진다. */
 export interface StateRow {
@@ -14,14 +15,19 @@ export interface StateRow {
   label: string;
   /** 이 제품의 대응: good 도와요 · some 조금 · lack 부족 · fine 해당 적음 · na 성분으로 바뀌기 어려움 */
   status: 'good' | 'some' | 'lack' | 'fine' | 'na';
+  /** 이 제품이 이 항목을 돕는 정도 0~100 (서버 coverage). 성분으로 바뀌기 어려운 항목은 의미가 없다 */
+  coverage: number;
   message: string;
   risk: string | null;
 }
 
-const TONE = {
-  focus: { bar: 'bg-caution-solid', text: 'text-caution' },
-  mild: { bar: 'bg-caution-solid', text: 'text-oy-text' },
-  fine: { bar: 'bg-primary', text: 'text-primary' },
+/** 도움 정도(막대·문장) 색: 좋으면 초록, 부족하면 노랑, 많이 부족하면 빨강. 노랑·빨강은 "부족한 항목"에만 쓴다 */
+const HELP = {
+  good: { bar: 'bg-good', text: 'text-good' },
+  some: { bar: 'bg-caution-solid', text: 'text-caution' },
+  lack: { bar: 'bg-danger', text: 'text-danger' },
+  fine: { bar: 'bg-oy-chip', text: 'text-oy-sub' },
+  na: { bar: 'bg-oy-chip', text: 'text-oy-sub' },
 } as const;
 
 const PILL = {
@@ -34,32 +40,44 @@ const PILL = {
 /** 정도 3단계: 도와줘요 · 도움이 부족해요(일부만 있음) · 도움이 많이 부족해요(거의 없음) */
 const PILL_TEXT = { good: '도와줘요', some: '도움이 부족해요', lack: '도움이 많이 부족해요', fine: '', na: '' } as const;
 
+/**
+ * 한 항목. 내 피부 상태(회색)와 이 제품의 도움(색)을 따로 보여 준다.
+ *   이름 · 내 피부 상태(회색) ........ 도움 단계
+ *   [제품의 도움 정도 막대]  점수(0~100, 제품 성분 기준)
+ *   이 제품이 어떻게 돕는지(도움 단계 색)
+ * 예전에는 막대가 "내 피부 상태"라 신경 쓸 항목이 모두 노랑이어서 좋은 점에서도 노랗게 보였다.
+ */
 function Row({ r }: { r: StateRow }) {
-  const tone = TONE[r.concern];
+  const help = HELP[r.status];
   const showLabel = r.concern !== 'fine';
+  const showHelp = r.status !== 'na' && r.status !== 'fine';
   return (
     <li className="py-3">
-      {/* 이름 · 점수 ........ 이 제품의 대응 */}
       <div className="flex items-center gap-2">
         <span className="text-[13px] font-bold text-oy-text">{r.name}</span>
-        <span className="text-[11px] text-oy-sub">{r.scoreText}</span>
+        {/* 제품의 도움 막대가 있는 항목은 내 피부 점수를 적지 않는다 — 두 숫자가 나란하면 "74 → 98"로 읽힌다 */}
+        {!showHelp && <span className="text-[11px] text-oy-sub">{r.scoreText}</span>}
+        {showLabel && <span className="min-w-0 truncate text-[11px] font-semibold text-oy-sub">{r.label}</span>}
         {PILL_TEXT[r.status] && (
           <span className={`ml-auto shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${PILL[r.status]}`}>
             {PILL_TEXT[r.status]}
           </span>
         )}
       </div>
-      {/* 내 피부 상태 막대(길수록 건강) */}
-      <span className="relative mt-1.5 block h-1.5 overflow-hidden rounded-full bg-oy-chip">
-        <span className={`absolute inset-y-0 left-0 rounded-full ${tone.bar}`} style={{ width: `${Math.max(r.health, 3)}%` }} />
-      </span>
-      {/* 무엇이 문제이고(색) 제품이 어떻게 대응하는지(회색) 한 줄로 */}
-      {(showLabel || r.message) && (
-        <p className="mt-1.5 text-xs leading-snug">
-          {showLabel && <span className={`font-semibold ${tone.text}`}>{r.label}</span>}
-          {showLabel && r.message && <span className="text-oy-sub"> · </span>}
-          {r.message && <span className={r.status === 'na' ? 'text-oy-sub' : 'text-oy-text'}>{r.message}</span>}
-        </p>
+      {showHelp ? (
+        <div className="mt-1.5 flex items-center gap-2">
+          <span className="relative block h-1.5 flex-1 overflow-hidden rounded-full bg-oy-chip">
+            <span className={`absolute inset-y-0 left-0 rounded-full ${help.bar}`} style={{ width: `${Math.max(r.coverage, 3)}%` }} />
+          </span>
+          <span className={`w-7 shrink-0 text-right text-[11px] font-bold ${help.text}`}>{Math.round(r.coverage)}</span>
+        </div>
+      ) : (
+        <span className="relative mt-1.5 block h-1.5 overflow-hidden rounded-full bg-oy-chip">
+          <span className="absolute inset-y-0 left-0 rounded-full bg-oy-sub/40" style={{ width: `${Math.max(r.health, 3)}%` }} />
+        </span>
+      )}
+      {r.message && (
+        <p className={`mt-1.5 text-xs font-semibold leading-snug ${r.status === 'na' ? 'text-oy-sub' : help.text}`}>{r.message}</p>
       )}
       {r.risk && <p className="mt-1 text-xs leading-snug text-caution">－ {r.risk}</p>}
     </li>
@@ -91,9 +109,27 @@ export function StateGroups({ rows }: { rows: StateRow[] }) {
   const helped = rows.filter((r) => r.concern !== 'fine' && r.status === 'good');
   const na = rows.filter((r) => r.concern !== 'fine' && r.status === 'na');
   const fine = rows.filter((r) => r.concern === 'fine');
+  // 병 그림은 항상 보이고, 항목별 막대 목록은 "자세히 보기"로 접어 둔다.
+  const [open, setOpen] = useState(false);
+  const showDetail = open;
 
   return (
     <div className="space-y-3">
+      <ProductBubbles
+        rows={rows}
+        action={
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className="shrink-0 text-[12px] font-bold text-primary underline-offset-2 active:opacity-60"
+          >
+            {open ? '접기 ▴' : '자세히 보기 ▾'}
+          </button>
+        }
+      />
+      {showDetail && (
+        <>
       {helped.length > 0 && (
         <Group title="좋은 점" hint="내가 신경 쓰는 부분을 성분이 돕고 있어요" tone="primary">
           {helped.map((r) => <Row key={r.key} r={r} />)}
@@ -123,6 +159,8 @@ export function StateGroups({ rows }: { rows: StateRow[] }) {
             ))}
           </ul>
         </div>
+      )}
+        </>
       )}
     </div>
   );

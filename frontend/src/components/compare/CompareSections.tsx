@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
 import { useCompareLabels } from './compareMode';
 import { ingredientKey, type FunctionRow, type IngredientSplit, type CautionCompare, type StateCompareRow, type StateStatus } from '../../utils/compare';
 import { FUNC_INFO } from '../analysis/constants';
@@ -66,6 +67,87 @@ export const Divider = () => <div className="h-2 bg-oy-line" />;
 
 const B_COLOR = '#3D8F6F';
 
+const RADAR = { cx: 150, cy: 122, R: 82 } as const;
+
+/** 방사형 도형의 꼭짓점 목록. scale(0~1)은 가운데에서 바깥으로 자라는 정도다 */
+function radarPoints(axes: FunctionRow[], side: 'a' | 'b', scale: number) {
+  const n = axes.length;
+  return axes
+    .map((r, i) => {
+      const v = r[side];
+      const ratio = (Math.max(v, v > 0 ? 4 : 0) / 100) * scale;
+      const ang = -Math.PI / 2 + (2 * Math.PI * i) / n;
+      return `${RADAR.cx + RADAR.R * ratio * Math.cos(ang)},${RADAR.cy + RADAR.R * ratio * Math.sin(ang)}`;
+    })
+    .join(' ');
+}
+
+/**
+ * 두 제품의 도형. 처음 그려질 때(또는 값이 바뀔 때) 가운데에서 바깥으로 자라며, 비교 제품이 살짝 늦게 따라 자란다.
+ * 범례로 기준/비교 제품을 고르면 고른 쪽 도형이 다시 한 번 자란다.
+ * 부모가 값이 바뀔 때마다 key를 바꿔 새로 마운트하므로, 여기서는 마운트 시점의 axes로 한 번만 움직인다.
+ */
+function RadarPolygons({
+  axes,
+  picked,
+}: {
+  axes: FunctionRow[];
+  picked: 'a' | 'b' | null;
+}) {
+  const reduce = useReducedMotion();
+  // 제품마다 자라는 정도를 따로 둔다: 처음에는 둘 다 자라고, 범례로 제품을 고르면 고른 쪽만 다시 자란다
+  const tA = useMotionValue(reduce ? 1 : 0);
+  const tB = useMotionValue(reduce ? 1 : 0);
+  const grow = { duration: 1.1, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] };
+  useEffect(() => {
+    if (reduce) return;
+    const ca = animate(tA, 1, grow);
+    const cb = animate(tB, 1, { ...grow, delay: 0.15 });
+    return () => {
+      ca.stop();
+      cb.stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reduce, tA, tB]);
+  useEffect(() => {
+    if (reduce || picked === null) return;
+    const t = picked === 'a' ? tA : tB;
+    t.set(0);
+    const c = animate(t, 1, grow);
+    return () => c.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picked, reduce]);
+  const pointsA = useTransform(tA, (v) => radarPoints(axes, 'a', v));
+  const pointsB = useTransform(tB, (v) => radarPoints(axes, 'b', v));
+  // 고른 제품이 맨 위에 그려져야 자라는 동안에도 아래(뒤)에 깔린 상대 제품이 그대로 보인다
+  const base = [
+    ['a', pointsA, A_COLOR],
+    ['b', pointsB, B_COLOR],
+  ] as const;
+  const sides = picked === 'a' ? [base[1], base[0]] : base;
+  return (
+    <>
+      {/* 고른 제품은 진하게, 다른 쪽은 흐리게. 고르지 않았으면 둘 다 보통 */}
+      {sides.map(([side, points, color]) => {
+        const on = picked === side;
+        const off = picked !== null && !on;
+        return (
+          <g key={side} opacity={off ? 0.55 : 1}>
+            <motion.polygon
+              points={points}
+              fill={color}
+              fillOpacity={on ? 0.55 : 0.28}
+              stroke={color}
+              strokeWidth={on ? 3 : 1.8}
+              strokeLinejoin="round"
+            />
+          </g>
+        );
+      })}
+    </>
+  );
+}
+
 /**
  * 기능 강도를 방사형(레이더) 도형으로 견준다. 기능이 꼭짓점이고, 꼭짓점에 가까울수록 그 기능이 강하다.
  * 기준 제품은 회색, 비교 제품은 초록 도형이다. 두 도형이 겹치면 비슷하고 어긋나면 그 기능에서 차이가 난다.
@@ -85,6 +167,7 @@ export function FunctionCompare({
   if (rows.length === 0) return <p className="text-sm text-oy-sub">비교할 기능 성분이 아직 충분하지 않아요.</p>;
 
   const axes = rows;
+  const sig = rows.map((r) => `${r.code}:${r.a}:${r.b}`).join('|');
   const focusRows = rows.filter((r) => focus.includes(r.code));
   const nameOf = (r: FunctionRow) => FUNC_INFO[r.code]?.name ?? r.name;
 
@@ -111,33 +194,13 @@ export function FunctionCompare({
             const [x, y] = point(i, 1);
             return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#E4E8E1" strokeWidth={1} />;
           })}
-          {/* 고른 제품은 진하게, 다른 쪽은 흐리게. 고르지 않았으면 둘 다 보통 */}
-          {(
-            [
-              ['a', ratioA, A_COLOR],
-              ['b', ratioB, B_COLOR],
-            ] as const
-          ).map(([side, ratio, color]) => {
-            const on = picked === side;
-            const off = picked !== null && !on;
-            return (
-              <g key={side} opacity={off ? 0.3 : 1}>
-                <polygon
-                  points={poly(ratio)}
-                  fill={color}
-                  fillOpacity={on ? 0.55 : 0.28}
-                  stroke={color}
-                  strokeWidth={on ? 3 : 1.8}
-                  strokeLinejoin="round"
-                />
-                {on &&
-                  axes.map((r, i) => {
-                    const [x, y] = point(i, ratio(i));
-                    return <circle key={r.code} cx={x} cy={y} r={3.2} fill={color} />;
-                  })}
-              </g>
-            );
-          })}
+          <RadarPolygons key={sig} axes={axes} picked={picked} />
+          {/* 고른 제품의 꼭짓점 점 */}
+          {picked &&
+            axes.map((r, i) => {
+              const [x, y] = point(i, (picked === 'a' ? ratioA : ratioB)(i));
+              return <circle key={r.code} cx={x} cy={y} r={3.2} fill={picked === 'a' ? A_COLOR : B_COLOR} />;
+            })}
           {axes.map((r, i) => {
             const [x, y] = point(i, 1.2);
             const anchor = Math.abs(x - cx) < 6 ? 'middle' : x > cx ? 'start' : 'end';
