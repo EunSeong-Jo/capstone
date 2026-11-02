@@ -172,13 +172,12 @@ export function ProductBubbles({ rows, action }: { rows: StateRow[]; /** 제목 
 
   return (
     <div ref={cardRef} className="rounded-xl bg-white px-3.5 pt-3 pb-3 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[13px] font-extrabold text-oy-text">이 제품은 이런 걸 잘 도와요</p>
-          <p className="mt-0.5 text-[11px] text-oy-sub">원이 클수록 내가 신경 쓰는 부분을 더 잘 도와요</p>
-        </div>
+      <div className="flex items-center justify-between gap-2">
+        <p className="min-w-0 text-[13px] font-extrabold text-oy-text">이 제품은 이런 걸 잘 도와요</p>
         {action}
       </div>
+      {/* 설명은 링크 옆 좁은 칸이 아니라 한 줄 전체 폭을 쓴다(링크가 있어도 두 줄로 내려가지 않게) */}
+      <p className="mt-0.5 text-[11px] text-oy-sub">원이 클수록 내가 신경 쓰는 부분을 더 잘 도와요</p>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="신경 쓰는 항목별 제품의 도움 정도" className="mx-auto mt-2 block w-full max-w-[300px]">
         <defs>
           <clipPath id={clipId}>
