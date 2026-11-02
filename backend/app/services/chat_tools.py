@@ -488,6 +488,20 @@ def pick_recent_for_cart(message: str, recent: list) -> list | None:
     return list(recent)
 
 
+# 직전 추천을 의심하거나 반박하는 말("틀렸어", "가격이 이상한데 정확한 거 맞아?", "진짜 있는 제품이야?"). 모델은 이런 말에 맞는 답까지
+# "임의로 적은 값이었어요"라며 뒤집는다. 반면 "이거 내 화장대 제품 아니야?"처럼 출처를 묻는 말은 정당한 질문이라 모델이 답하게 둔다.
+_DISPUTE = re.compile(
+    r"(틀렸|틀린|잘못|거짓|지어냈|지어낸|임의로|없는\s*제품|다른\s*제품이\s*(나왔|담겼|떴)|추천\s*안\s*한|추천하지\s*않은"
+    r"|정확한\s*(거|값|가격)?\s*맞|가격[^.?!]{0,8}(이상|정확|맞아|맞나|확인)|(진짜|실제)\s*(있는\s*)?(제품|가격)|확인한\s*(거|값|제품))"
+)
+_ASKS_SOURCE = re.compile(r"(화장대|출처|어디서|어떻게\s*알|왜\s*그)")
+
+
+def is_dispute_of_recent(message: str, recent: list) -> bool:
+    """방금 보여 준 제품 추천을 의심·반박하는 말인가(직전 카드가 있을 때만)."""
+    return bool(recent) and bool(_DISPUTE.search(message)) and not _ASKS_SOURCE.search(message)
+
+
 async def cards_for_ids(ctx: ToolContext, ids: list[int]) -> list[dict]:
     """제품 id 순서대로 카드. 판매 중인 제품만(없어졌으면 빠진다)."""
     if not ids:
