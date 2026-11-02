@@ -35,6 +35,7 @@ export function ConcernStateSection({
     concern: c.concern,
     label: CONCERN_META[c.key]?.low ?? c.level,
     status: c.status,
+    coverage: c.coverage,
     message: c.message,
     risk: c.risk,
   }));

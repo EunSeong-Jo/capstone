@@ -36,6 +36,7 @@ export function SkinStateSection({
     concern: s.concern,
     label: s.level,
     status: s.status,
+    coverage: s.coverage,
     message: s.message,
     risk: s.risk,
   }));
