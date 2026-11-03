@@ -117,7 +117,10 @@ function step(bodies: Body[], h: number, frame: number, innerW: number): boolean
     }
   }
   for (const b of bodies) if (b.released) moved = Math.max(moved, Math.abs(b.x - b.px) + Math.abs(b.y - b.py - GRAVITY));
-  return bodies.every((b) => b.released) && moved < 0.03;
+  // 마지막 원이 떨어지기 시작한 뒤 잠시는 멈춤으로 보지 않는다. 원이 하나뿐이면 첫 프레임의 가속(=중력)과 비교가 같아져
+  // 아직 떨어지지도 않았는데 멈춘 것으로 판정돼 병이 끝없이 길어지고 원이 위에 걸려 있었다.
+  const settleAfter = (bodies.length - 1) * RELEASE_EVERY + 60;
+  return frame >= settleAfter && bodies.every((b) => b.released) && moved < 0.03;
 }
 
 /** 높이 `h`인 병에서 끝까지 쌓았을 때 가장 높은 원의 윗면 위치(병 천장 기준 y). 작을수록 병이 꽉 찼다 */
