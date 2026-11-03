@@ -453,7 +453,7 @@ def wants_routine(text: str) -> bool:
 
 
 def wants_cart(text: str) -> bool:
-    return "장바구니" in text and any(w in text for w in ("담아", "넣어", "담기"))
+    return "장바구니" in text and any(w in text for w in ("담아", "넣어", "담기", "담을", "담게", "담도록", "넣을", "넣게"))
 
 
 # 직전 답변을 가리키는 말. "그 루틴 장바구니에 담아줘"처럼 새 제품을 말하지 않고 앞서 추천한 것을 담으라는 뜻일 때 쓴다.

@@ -521,6 +521,12 @@ async def chat(
             reply,
             fallback=False,
         )
+    # 담아 달라는 요청이면 화면에 보이는 카드는 전부 [담기]가 붙어야 한다(모델이 일부만 제안하면 4개 중 2개만 담을 수 있게 된다)
+    if use_tools and chat_tools.wants_cart(req.message) and cards:
+        have = {a["productId"] for a in ctx.actions}
+        for c in cards[:4]:
+            if c["id"] not in have:
+                ctx.add_action({"type": "add_to_cart", "productId": c["id"], "label": f"{c['name']}을(를) 장바구니에 담을까요?"})
     # 자동 기억 추출은 응답이 나간 뒤에 한다(실패해도 응답에 영향 없음). 명시 저장이 이미 된 말은 건너뛴다.
     if user is not None and memory_on and not remembered:
         user_turns = sum(1 for m in req.history if m.role == "user") + 1
