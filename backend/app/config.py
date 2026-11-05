@@ -144,7 +144,8 @@ class Settings(BaseSettings):
     SKIN_SAMPLE_EMAIL: str = "eunseong@swappy.app"
     # 구독 중이어도 무료와 같은 기본 항목(8개)만 분석하는 계정(쉼표로 구분한 이메일). 시연 계정이 구독 상태여도
     # 무료 분석 화면을 보여 줘야 할 때 쓴다. 월 이용 횟수는 구독 그대로다(services/skin_quota.py).
-    SKIN_BASIC_ITEMS_EMAILS: str = "eunseong@swappy.app"
+    # 기본값은 비어 있다(시연 계정도 구독이면 16항목). 필요한 계정만 환경변수로 켠다.
+    SKIN_BASIC_ITEMS_EMAILS: str = ""
 
     # 사진 분석 이용 한도 (services/skin_quota.py). 월 경계는 Asia/Seoul.
     # 무료는 얼굴 사진 수집에 동의한 사용자만, 구독자는 동의 + 활성 구독이 필요하다.
