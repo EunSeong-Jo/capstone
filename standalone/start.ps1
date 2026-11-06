@@ -76,8 +76,9 @@ $Edge = @(
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 function Open-Window {
   if ($Edge) {
+    # Windows 디스플레이 배율(125%·150% 등)을 무시하고 100% 크기로 그린다 — 배율 때문에 화면이 전부 커 보이는 것을 막고, PC마다 같은 크기로 보이게 한다
     $edgeProfile = Join-Path $RT 'browser'
-    $proc = Start-Process $Edge -ArgumentList "--app=$Base", "--user-data-dir=$edgeProfile", '--no-first-run' -PassThru
+    $proc = Start-Process $Edge -ArgumentList "--app=$Base", "--user-data-dir=$edgeProfile", '--no-first-run', '--force-device-scale-factor=1' -PassThru
     return $proc
   }
   Start-Process $Base
@@ -249,7 +250,7 @@ if (-not (Test-Path (Join-Path $RT '.seeded'))) {
 }
 
 # ── 7. 창 ───────────────────────────────────────────────────────────
-Say "준비 완료: $Base  (데모 계정 eunseong@swappy.app / swappy1234, 창을 닫으면 종료됩니다)"
+Say "준비 완료: $Base  (창을 닫으면 종료됩니다)"
 if ($env:SWAPPY_NO_WINDOW) {
   # 시험용: 창 없이 서버만 띄워 두고 .runtime\stop 파일이 생기면 종료한다
   while (-not (Test-Path (Join-Path $RT 'stop'))) { Start-Sleep -Seconds 2 }
