@@ -77,7 +77,7 @@ $Edge = @(
 function Open-Window {
   if ($Edge) {
     $edgeProfile = Join-Path $RT 'browser'
-    $proc = Start-Process $Edge -ArgumentList "--app=$Base", '--window-size=430,900', "--user-data-dir=$edgeProfile", '--no-first-run' -PassThru
+    $proc = Start-Process $Edge -ArgumentList "--app=$Base", "--user-data-dir=$edgeProfile", '--no-first-run' -PassThru
     return $proc
   }
   Start-Process $Base
