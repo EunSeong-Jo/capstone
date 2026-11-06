@@ -243,7 +243,7 @@ if (-not $ok) { Stop-All; Fail '서버가 시작되지 않았습니다. .runtime
 # ── 6. 시연 데이터 ──────────────────────────────────────────────────
 if (-not (Test-Path (Join-Path $RT '.seeded'))) {
   Say '시연 계정과 데이터를 만드는 중 (1분 안팎)'
-  & $Py (Join-Path $Root 'standalone\seed_demo.py') --base $Base --dsn $Dsn --pg-bin $PgBin 2>&1 | Tee-Object (Join-Path $Logs 'seed.log')
+  & $Py (Join-Path $Root 'standalone\seed_demo.py') --base $Base --dsn $Dsn --pg-bin $PgBin 2>&1 | Out-File (Join-Path $Logs 'seed.log') -Encoding UTF8   # 가져온 항목 목록은 화면에 내지 않고 로그에만 남긴다
   if ($LASTEXITCODE -ne 0) { Stop-All; Fail '시연 데이터 준비에 실패했습니다. .runtime\logs\seed.log 를 확인해 주세요.' }
   New-Item (Join-Path $RT '.seeded') -ItemType File | Out-Null
 }
