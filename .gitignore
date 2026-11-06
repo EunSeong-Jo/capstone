@@ -167,3 +167,7 @@ skin_images/
 frontend/public/mediapipe/wasm/
 # 얼굴 가림 검사용 분할 모델(약 16MB, 서버가 쓴다) — 이미지를 빌드할 때·처음 쓸 때 내려받는다(services/occlusion.py)
 backend/app/assets/models/selfie_multiclass_256x256.tflite
+
+# 로컬 단독 실행(Swappy.bat)이 내려받는 런타임·DB·로그
+.runtime/
+.env.local
