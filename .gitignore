@@ -171,3 +171,4 @@ backend/app/assets/models/selfie_multiclass_256x256.tflite
 # 로컬 단독 실행(Swappy.bat)이 내려받는 런타임·DB·로그
 .runtime/
 .env.local
+!standalone/*.dump
