@@ -69,11 +69,15 @@ if ($Root -match '[^\x00-\x7F]' -or $Root -match '\s') {
 }
 
 # ── 이미 실행 중이면 창만 다시 연다 ─────────────────────────────────
-$Edge = @("$env:ProgramFiles (x86)\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+# 앱 창(주소창 없는 휴대폰 크기 창)은 Chrome 과 Edge 가 같은 방식으로 지원한다. Chrome 을 우선 쓰고, 없으면 Windows 10/11 에 기본으로 들어 있는 Edge 를 쓴다.
+$Edge = @(
+  "$env:ProgramFiles\Google\Chrome\Application\chrome.exe", "$env:ProgramFiles (x86)\Google\Chrome\Application\chrome.exe", "$env:LocalAppData\Google\Chrome\Application\chrome.exe",
+  "$env:ProgramFiles (x86)\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
 function Open-Window {
   if ($Edge) {
-    $edgeProfile = Join-Path $RT 'edge'
-    $proc = Start-Process $Edge -ArgumentList "--app=$Base", '--window-size=430,900', "--user-data-dir=$edgeProfile", '--no-first-run', '--disable-features=msEdgeSidebar' -PassThru
+    $edgeProfile = Join-Path $RT 'browser'
+    $proc = Start-Process $Edge -ArgumentList "--app=$Base", '--window-size=430,900', "--user-data-dir=$edgeProfile", '--no-first-run' -PassThru
     return $proc
   }
   Start-Process $Base
