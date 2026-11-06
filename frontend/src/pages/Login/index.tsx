@@ -139,22 +139,29 @@ export default function LoginPage() {
       {/* 데모 계정 빠른 로그인 — 시연·테스트용. 실제 로그인 UI가 아니다. 로고를 7번 연달아 누르면 켜고 끈다 */}
       {demo.visible && (
         <div className="mt-6 rounded-2xl border border-dashed border-[#C9CFC5] bg-white/60 p-3">
-          <p className="mb-2 text-center text-[11px] font-bold text-gray-50">데모 계정으로 바로 로그인 (팀원 6종 — 게스트 포함)</p>
+          <p className="mb-2 text-center text-[11px] font-bold text-gray-50">데모 계정으로 바로 로그인 (팀원 5명)</p>
           <div className="grid grid-cols-3 gap-2">
             {PERSONAS.map((p) => (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => quickLogin(p.id)}
-                className="rounded-lg border border-[#DCE8E1] bg-white px-2 py-2 text-left active:scale-95 transition-transform"
+                className="flex min-h-[68px] items-center justify-center rounded-lg border border-[#DCE8E1] bg-white px-2 py-2 text-center active:scale-95 transition-transform"
               >
-                <span className="block text-[11px] font-semibold text-primary-dark">{p.nickname}</span>
-                <span className="block text-[11px] text-gray-50">{p.role}</span>
+                {/* 설명 없이 이름만. 시연 기준 계정(조은성)만 직책(역할의 첫 항목)을 붙인다. 폭이 좁으면 이름과 괄호 사이에서만 줄이 바뀐다 */}
+                <span className="block text-[12px] font-semibold text-primary-dark">
+                  {p.nickname}
+                  {p.id === 'eunseong' && (
+                    <>
+                      <wbr />({p.role.split('·')[0].trim()})
+                    </>
+                  )}
+                </span>
               </button>
             ))}
           </div>
           <p className="mt-2 text-center text-[11px] text-gray-50">
-            비밀번호는 전부 swappy1234 (예: donggyun@swappy.app)
+            계정을 누르면 바로 접속할 수 있어요
           </p>
         </div>
       )}
