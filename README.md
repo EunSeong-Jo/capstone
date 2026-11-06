@@ -49,6 +49,8 @@
 
 ## 빠른 시작
 
+> **Windows에서 설치 없이 바로 보려면**: `git clone` 후 `Swappy.bat`만 실행하면 서버와 휴대폰 크기 창이 뜹니다 → [docs/로컬실행.md](docs/로컬실행.md)
+
 ```bash
 git clone https://github.com/EunSeong-Jo/capstone.git
 cd capstone

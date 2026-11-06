@@ -36,3 +36,9 @@
 *.eot binary
 *.zip binary
 *.pdf binary
+
+# 로컬 단독 실행(Windows): 배치·PowerShell은 CRLF, 덤프·압축은 바이너리
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+standalone/*.dump* binary
+standalone/*.zip binary
