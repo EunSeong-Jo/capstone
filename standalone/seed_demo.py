@@ -5,7 +5,7 @@
   1. 시연 계정 5개 가입(frontend/src/data/personas.json — 로그인 화면의 데모 패널과 같다). 조은성만 얼굴 사진 동의 + 구독.
   2. 조은성에게 "배송 완료된" 주문을 하나 만든다(주문 시각을 DB에서 며칠 앞당긴다 — 후기·반품은 배송 완료 주문에서만 된다).
   3. scripts/seed_demo_account.py 를 그대로 써서 화장대·찜·장바구니·주문(취소·반품)·선물·AI 기억·후기를 채운다.
-  4. 얼굴 분석 기록(standalone/demo_analysis.dump)을 조은성 계정으로 가져온다. 날짜는 지난달 말로 옮겨 이번 달 이용 횟수를 모두 남긴다.
+  4. 얼굴 분석 기록과 진단 이력(standalone/demo_analysis.dump)을 조은성 계정으로 가져온다. 날짜는 지난달 말로 옮겨 이번 달 이용 횟수를 모두 남긴다.
 
 사용(start.ps1 이 부른다):
     python standalone/seed_demo.py --base http://127.0.0.1:8800 --dsn postgresql://postgres@127.0.0.1:55432/swappy --pg-bin <pgsql\\bin>
@@ -138,6 +138,9 @@ def main() -> int:
         )
         cur.execute("update skin_analyses set user_id=%s where user_id <> %s", (uid, uid))
         cur.execute("update skin_analysis_images set user_id=%s where user_id <> %s", (uid, uid))
+        # 진단 이력(피부타입 진단): 화면은 이력이 있으면 그 피부타입을 쓴다 — 없으면 데모 페르소나 값(옹달샘)으로 보인다
+        cur.execute("update diagnoses set user_id=%s where user_id <> %s", (uid, uid))
+        cur.execute("select setval(pg_get_serial_sequence('diagnoses','id'), (select max(id) from diagnoses))")
         # 가장 최근 기록이 지난달 말(3일 전)이 되도록 전체를 같은 만큼 옮긴다 — 이번 달 이용 횟수(구독 4회)를 모두 남긴다.
         cur.execute("select max(created_at) from skin_analyses where user_id=%s", (uid,))
         latest = cur.fetchone()[0]

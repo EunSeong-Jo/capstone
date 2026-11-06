@@ -5,7 +5,7 @@
 #
 # 만드는 것
 #   standalone/catalog.dump.part*   제품·성분·유사도·궁합·퀴즈 등 기준 데이터 + 샘플 후기(실제 사용자 후기·계정은 제외)
-#   standalone/demo_analysis.dump   조은성 데모 계정의 얼굴 분석 기록·이미지(가져올 때 새 계정 ID로 바뀐다)
+#   standalone/demo_analysis.dump   조은성 데모 계정의 얼굴 분석 기록·이미지와 진단 이력(가져올 때 새 계정 ID로 바뀐다)
 # 접속 정보는 .env.aws 의 AWS_DATABASE_DSN 에서만 읽고 출력하지 않는다(scripts/aws_db.sh 와 같은 규칙).
 # 파일이 커서 GitHub 한 파일 제한·push 안정성을 위해 40MB 단위로 나눈다(start.ps1 이 이어 붙인다).
 set -euo pipefail
@@ -60,6 +60,13 @@ UID_DEMO=$(aws_psql -c "select id from users where email='$DEMO_EMAIL'")
   echo "\\copy skin_analysis_images from stdin"
   aws_psql -c "\copy (select * from skin_analysis_images where user_id='$UID_DEMO') to stdout"
   echo '\.'
+  # 진단 이력: 화면은 진단 이력이 있으면 그 피부타입을, 없으면 데모 페르소나 값(옹달샘)을 쓴다 — 이력이 없으면 운영과 다르게 보인다
+  echo "\\copy diagnoses from stdin"
+  aws_psql -c "\copy (select * from diagnoses where user_id='$UID_DEMO') to stdout"
+  echo '\.'
+  echo "\\copy diagnosis_ranks from stdin"
+  aws_psql -c "\copy (select r.* from diagnosis_ranks r join diagnoses d on d.id=r.diagnosis_id where d.user_id='$UID_DEMO') to stdout"
+  echo '\.'
 } | tmp_psql >/dev/null
 
 echo "▶ 결과 덤프를 만들고 나눈다"
@@ -67,7 +74,7 @@ mkdir -p "$OUT"; rm -f "$OUT"/catalog.dump.part* "$OUT"/reviews.dump "$OUT"/demo
 tmp_dump() { docker exec "$TMP_NAME" pg_dump -U postgres -p $TMP_PORT -d swappy -Fc --no-owner --no-privileges "$@"; }
 tmp_dump $EX > "$WORK/catalog.dump"                                          # 구조 + 기준 데이터(사용자 테이블 행 없음)
 tmp_dump --data-only -t reviews > "$OUT/reviews.dump"                         # 샘플 후기
-tmp_dump --data-only -t skin_analyses -t skin_analysis_images > "$OUT/demo_analysis.dump"   # 데모 분석 기록
+tmp_dump --data-only -t skin_analyses -t skin_analysis_images -t diagnoses -t diagnosis_ranks > "$OUT/demo_analysis.dump"   # 데모 분석 기록
 split -b "$PART_SIZE" -d -a 2 "$WORK/catalog.dump" "$OUT/catalog.dump.part"
 rm -rf "$WORK"
 
