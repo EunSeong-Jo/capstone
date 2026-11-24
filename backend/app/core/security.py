@@ -20,7 +20,7 @@ requirements에 passlib 1.7.4가 있지만 bcrypt 5.x와 맞지 않는다. passl
 백엔드를 탐지할 때 72바이트를 넘는 프로브 문자열을 넣는데, 새 bcrypt가
 그걸 ValueError로 거부해 **해싱 자체가 실패한다.** passlib은 2020년 이후
 릴리스가 없어 고쳐지길 기다릴 수 없으므로 bcrypt를 직접 쓴다.
-해시 형식은 표준 bcrypt라 `scripts/seed_test_users.py`가 만든 것과 호환된다.
+해시 형식은 표준 bcrypt라 `tools/demo/seed_test_users.py`가 만든 것과 호환된다.
 """
 from __future__ import annotations
 

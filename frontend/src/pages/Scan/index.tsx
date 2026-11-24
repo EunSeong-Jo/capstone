@@ -25,7 +25,7 @@ import { pickCompareTarget, type PickableProduct } from '../../utils/comparePick
  * **사진으로 찾기**: 셔터(카메라 화면) 또는 갤러리 사진 → `POST /products/scan`
  * (CLOVA OCR → 제품명 대조) → 후보 목록. 자동으로 하나를 고르지 않는다 — 실사진에서
  * 정답과 '카탈로그에 없는 제품'의 점수가 겹쳐 임계값이 서지 않았다
- * (scripts/IMAGE_MATCH_SUMMARY.md ③). 그래서 후보를 보여 주고 "찾는 제품이 없어요"를
+ * (research/image-match/IMAGE_MATCH_SUMMARY.md ③). 그래서 후보를 보여 주고 "찾는 제품이 없어요"를
  * 함께 둔다. 앞면 사진은 텍스트 1위가 6/6이라 첫 후보가 대개 맞다.
  *
  * 인식 키가 없거나(503), 하루 호출 한도를 넘었거나(429), 후보가 없으면 **제품명 검색**으로 이어진다. 카메라를 쓸 수
@@ -269,7 +269,7 @@ export default function ScanPage() {
 
       {/* 촬영 가이드 — 신분증 촬영처럼 제품 앞면을 가운데 틀에 맞추게 한다.
           실사진 평가에서 앞면은 텍스트 매칭 top-1 6/6, 뒷면(전성분 면)은 0건이었다
-          (scripts/IMAGE_MATCH_SUMMARY.md). 틀 바깥은 box-shadow로 어둡게 덮는다. */}
+          (research/image-match/IMAGE_MATCH_SUMMARY.md). 틀 바깥은 box-shadow로 어둡게 덮는다. */}
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5">
         <p className="mb-4 text-center text-[13px] font-bold text-white">
           {phase === 'scanning'

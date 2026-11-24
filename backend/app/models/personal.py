@@ -161,7 +161,7 @@ class Order(Base):
     # 가격이 바뀔 때마다 과거 주문 금액이 따라 움직인다.
     total: Mapped[int] = mapped_column(Integer, nullable=False)
     # placed / cancelled / returned. 배송 단계(결제완료~배송완료)는 저장하지 않고
-    # placed_at에서 계산한다 — services/order_stage.py.
+    # placed_at에서 계산한다 — services/commerce/order_stage.py.
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="placed")
     placed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False

@@ -39,7 +39,7 @@ import { invalidate } from '../api/queryCache';
  *
  * personas.json이 남아 있는 이유
  * ------------------------------
- * 같은 파일을 `scripts/seed_test_users.py`가 읽어 DB에 같은 사람을 심으므로,
+ * 같은 파일을 `tools/demo/seed_test_users.py`가 읽어 DB에 같은 사람을 심으므로,
  * 서버 계정과 1:1로 대응한다. 아직 서버에 없는 값(보유 화장품 시드,
  * 가입월 표기)을 이메일로 찾아 쓴다 — 화장대가 서버로 옮겨가면(4단계)
  * 이 다리는 사라진다.

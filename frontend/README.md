@@ -3,7 +3,7 @@
 화장품 **성분 기반 대체품 추천 + 개인 맞춤(피부타입)** 모바일 웹앱의 프론트엔드입니다.
 이 문서는 **팀 공통 개발 기준**입니다. 작업 전 반드시 한 번 읽어주세요.
 
-> 상세 디자인 시스템·컴포넌트 카탈로그는 [`docs/frontend-component-guide.md`](../docs/frontend-component-guide.md), 화면별 체크리스트는 [`docs/dev_guidelines.md`](../docs/dev_guidelines.md) 참고.
+> 상세 디자인 시스템·컴포넌트 카탈로그는 [`docs/guides/frontend-component-guide.md`](../docs/guides/frontend-component-guide.md), 화면별 체크리스트는 [`docs/guides/dev_guidelines.md`](../docs/guides/dev_guidelines.md) 참고.
 
 ---
 
@@ -263,9 +263,9 @@ frontend/
 
 ## 9. 참고 문서
 
-- [`docs/frontend-component-guide.md`](../docs/frontend-component-guide.md) — 컴포넌트 카탈로그·디자인 토큰 상세
-- [`docs/dev_guidelines.md`](../docs/dev_guidelines.md) — 화면별 구현 체크리스트·역할 분담
-- [`docs/PRD_swappy_v1.8.md`](../docs/PRD_swappy_v1.8.md) — 제품 요구사항
+- [`docs/guides/frontend-component-guide.md`](../docs/guides/frontend-component-guide.md) — 컴포넌트 카탈로그·디자인 토큰 상세
+- [`docs/guides/dev_guidelines.md`](../docs/guides/dev_guidelines.md) — 화면별 구현 체크리스트·역할 분담
+- [`docs/product/PRD_swappy_v1.8.md`](../docs/product/PRD_swappy_v1.8.md) — 제품 요구사항
 - [`ANALYSIS.md`](./ANALYSIS.md) — 팀원 제출물 병합 분석(무엇을 병합했고 원본과 실제 구현이 어떻게 달랐는지)
 
 ---

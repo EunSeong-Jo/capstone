@@ -16,9 +16,10 @@ from app.core.rate_limit import allow_daily, client_ip
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.weather import WeatherOut
-from app.services import chat_fallback, chat_tools, llm, personal_context, rag
-from app.services import memory as memory_service
-from app.services.llm import LLMUnavailable
+from app.services.chat import chat_fallback, chat_tools, llm, rag
+from app.services.personal_ai import personal_context
+from app.services.personal_ai import memory as memory_service
+from app.services.chat.llm import LLMUnavailable
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
 log = structlog.get_logger()
@@ -298,7 +299,7 @@ class ChatResponse(BaseModel):
     reply: str
     cards: list[ProductCard] = []
     actions: list[ChatAction] = []
-    # "fallback"이면 LLM 키·장애로 DB 기반 답변(services/chat_fallback.py)을 준 것.
+    # "fallback"이면 LLM 키·장애로 DB 기반 답변(services/chat/chat_fallback.py)을 준 것.
     mode: str = "ai"
 
 

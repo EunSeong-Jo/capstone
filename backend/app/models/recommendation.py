@@ -95,7 +95,7 @@ class ProductSkinFit(Base):
     """제품 × 피부타입 궁합 (사전 계산) — 피부 궁합의 **단일 계산 결과**.
 
     `services/skin_fit.evaluate`가 성분 기능 라벨(`ingredient_functions`)로 계산한 값을
-    `scripts/compute_skin_fit.py`가 8타입 × 단일제품 전체에 대해 적재한다. 목록 정렬(`sort=skinFit`)·
+    `backend/pipeline/batch/compute_skin_fit.py`가 8타입 × 단일제품 전체에 대해 적재한다. 목록 정렬(`sort=skinFit`)·
     피부타입 필터(`excluded`)·홈 추천 점수·예산 가이드가 모두 이 테이블을 읽는다. 라벨이나 규칙(`PREFER`/`AVOID`)을
     바꾸면 배치를 다시 돌린다 — 안 돌리면 화면의 값과 이 테이블이 어긋난다.
 

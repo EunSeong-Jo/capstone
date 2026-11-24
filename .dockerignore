@@ -8,10 +8,11 @@
 **/dist
 **/__pycache__
 **/.pytest_cache
+# 이미지에 들어가지 않는 것 — 백엔드는 backend/, 프론트는 frontend/만 복사한다
 data
-crawling
 scripts
+research
+tools
 docs
-frontend_flash_demo
 .taskmaster
 .claude

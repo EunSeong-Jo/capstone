@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageWrapper } from '../../components/layout/PageWrapper';
-import { BottomNav } from '../../components/layout/BottomNav';
+import { OyBottomNav } from '../../components/home/oy/OyBottomNav';
 import { ProductCard } from '../../components/product/ProductCard';
 import { HistoryListCard } from '../../components/history/HistoryListCard';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -331,7 +331,7 @@ export default function HistoryPage() {
       {tab === 'liked' && <LikedTab />}
       {tab === 'frequent' && <FrequentTab />}
 
-      <BottomNav />
+      <OyBottomNav />
     </PageWrapper>
   );
 }

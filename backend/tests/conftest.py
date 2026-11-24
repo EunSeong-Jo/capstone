@@ -1,5 +1,13 @@
 """테스트 공용 설정.
 
+테스트는 두 폴더로 나뉜다.
+
+    tests/unit/         DB·Redis 없이 돈다. CI(GitHub Actions)가 푸시마다 돌린다
+    tests/integration/  DB·Redis가 있어야 한다. 로컬 Postgres(docker compose)에서 돌린다
+
+나눈 기준은 짐작이 아니라 실측이다 — DB·Redis 접속을 끊고 전체를 돌려서 통과한 테스트가 unit이다.
+새 테스트를 쓸 때도 DB 세션·`client`로 실제 조회를 하면 integration, 아니면 unit에 둔다.
+
 **공용 Neon DB에 읽기 전용으로 붙는다.** 별도 테스트 DB를 세우는 비용이
 이 프로젝트 규모에 맞지 않고, 이미 4,150건의 실데이터가 있어 그대로 쓰는
 편이 낫다. 대신 행 수처럼 변하는 값에 의존하지 않고 **불변식만 검증한다**
@@ -21,6 +29,7 @@ import sys
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
@@ -39,3 +48,13 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
         yield c
     # 풀을 정리하지 않으면 루프가 닫힐 때 미완 코루틴 경고가 남는다
     await engine.dispose()
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """폴더(tests/unit · tests/integration)에 따라 마커를 붙인다 — `pytest -m unit`으로도 고를 수 있게."""
+    for item in items:
+        parts = Path(str(item.fspath)).parts
+        if "integration" in parts:
+            item.add_marker(pytest.mark.integration)
+        elif "unit" in parts:
+            item.add_marker(pytest.mark.unit)

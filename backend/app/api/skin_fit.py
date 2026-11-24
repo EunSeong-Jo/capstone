@@ -24,7 +24,7 @@ from app.schemas.skin_fit import (
     SkinFitBatchOut,
     SkinFitOut,
 )
-from app.services.skin_fit import PREFER, evaluate
+from app.services.skin.skin_fit import PREFER, evaluate
 
 router = APIRouter(prefix="/api/v1/products", tags=["skin-fit"])
 

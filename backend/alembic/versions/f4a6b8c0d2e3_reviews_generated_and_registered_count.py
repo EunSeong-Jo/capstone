@@ -1,6 +1,6 @@
 """reviews: 생성 후기 지원 + products.registered_review_count
 
-시연용으로 제품당 10개 안팎의 후기를 미리 채워 둔다(scripts/seed_sample_reviews.py).
+시연용으로 제품당 10개 안팎의 후기를 미리 채워 둔다(tools/demo/seed_sample_reviews.py).
 실제 후기는 "산 제품에만" 쓸 수 있어 user_id·order_item_id가 필수였는데, 생성 후기에는 둘 다 없다.
 
 - reviews.user_id·order_item_id를 NULL 허용으로 풀고, `is_sample`로 생성분을 구분한다.

@@ -23,8 +23,8 @@ from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.insights import BriefingOut, SkinReportOut
-from app.services import briefing as briefing_service
-from app.services import personal_context, skin_report
+from app.services.personal_ai import briefing as briefing_service
+from app.services.personal_ai import personal_context, skin_report
 
 router = APIRouter(prefix="/api/v1/me", tags=["insights"])
 log = structlog.get_logger()

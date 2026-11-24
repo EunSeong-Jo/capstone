@@ -100,7 +100,7 @@ class Settings(BaseSettings):
 
     # LLM (챗봇·케어 문구)
     # 공급자는 LLM_CHAIN 순서로 시도하고, 하나가 실패(키 만료·한도·타임아웃)하면 다음으로 넘어간다.
-    # 전부 실패하면 챗봇은 DB 기반 답변(services/chat_fallback.py)으로 대신한다.
+    # 전부 실패하면 챗봇은 DB 기반 답변(services/chat/chat_fallback.py)으로 대신한다.
     # LLM_PROVIDER는 하위 호환: 체인에 없으면 맨 앞에 붙는다.
     LLM_PROVIDER: str = "openai"          # "openai" | "claude"
     LLM_CHAIN: str = "openai,claude"      # 쉼표 구분. "ollama"는 OLLAMA_BASE_URL이 있을 때만 유효
@@ -117,19 +117,19 @@ class Settings(BaseSettings):
     OPENWEATHER_API_KEY: str = ""
 
     # 사진으로 화장품 찾기 (POST /products/scan) — 네이버 CLOVA OCR(General).
-    # 측정 스크립트는 scripts/CLOVA_OCR/.env를 읽지만 백엔드는 이 설정(.env)을 읽는다.
+    # 측정 스크립트는 research/ocr/CLOVA_OCR/.env를 읽지만 백엔드는 이 설정(.env)을 읽는다.
     # 비어 있으면 스캔 API가 503을 낸다(화면은 제품명 검색으로 안내한다).
     CLOVA_OCR_SECRET: str = ""
     CLOVA_OCR_INVOKE_URL: str = ""
 
-    # 스캔 호출 한도 — CLOVA 무료 한도를 지키려는 장치(services/ocr_quota.py).
+    # 스캔 호출 한도 — CLOVA 무료 한도를 지키려는 장치(services/scan/ocr_quota.py).
     # 허용 계정(쉼표로 구분한 이메일)은 한도에서 면제, 나머지는 하루(서울 날짜)
     # 계정당·전체 한도를 둔다. 초과하면 429, 화면이 제품명 검색을 안내한다.
     OCR_ALLOWED_EMAILS: str = ""
     OCR_USER_DAILY_LIMIT: int = 3
     OCR_GLOBAL_DAILY_LIMIT: int = 15
 
-    # 얼굴 사진 AI 피부 분석 — Perfect Corp YouCam Skin Analysis (services/skin_photo.py).
+    # 얼굴 사진 AI 피부 분석 — Perfect Corp YouCam Skin Analysis (services/photo/skin_photo.py).
     # 호출은 유닛을 쓴다(SD 5~8개 유형 12유닛, 9~12개 14유닛). 개발·테스트는 MOCK으로 돌린다.
     # 키가 없고 MOCK도 아니면 분석 API가 503을 낸다(화면은 QnA만으로 진단을 이어 간다).
     PERFECT_CORP_API_KEY: str = ""
@@ -139,15 +139,15 @@ class Settings(BaseSettings):
 
     # 얼굴 사진 분석 실호출 허용 계정(쉼표로 구분한 이메일). Perfect Corp 유닛이 호출마다 나가서, 허용 계정만
     # 실제로 부르고 나머지는 외부 호출 없이 SKIN_SAMPLE_EMAIL 계정에 저장된 분석 결과를 보여 준다
-    # (services/skin_sample.py). 비우면 아무도 실호출하지 않는다.
+    # (services/photo/skin_sample.py). 비우면 아무도 실호출하지 않는다.
     SKIN_ANALYSIS_ALLOWED_EMAILS: str = "capstone@gmail.com"
     SKIN_SAMPLE_EMAIL: str = "eunseong@swappy.app"
     # 구독 중이어도 무료와 같은 기본 항목(8개)만 분석하는 계정(쉼표로 구분한 이메일). 시연 계정이 구독 상태여도
-    # 무료 분석 화면을 보여 줘야 할 때 쓴다. 월 이용 횟수는 구독 그대로다(services/skin_quota.py).
+    # 무료 분석 화면을 보여 줘야 할 때 쓴다. 월 이용 횟수는 구독 그대로다(services/photo/skin_quota.py).
     # 기본값은 비어 있다(시연 계정도 구독이면 16항목). 필요한 계정만 환경변수로 켠다.
     SKIN_BASIC_ITEMS_EMAILS: str = ""
 
-    # 사진 분석 이용 한도 (services/skin_quota.py). 월 경계는 Asia/Seoul.
+    # 사진 분석 이용 한도 (services/photo/skin_quota.py). 월 경계는 Asia/Seoul.
     # 무료는 얼굴 사진 수집에 동의한 사용자만, 구독자는 동의 + 활성 구독이 필요하다.
     SKIN_FREE_MONTHLY: int = 1
     SKIN_SUBSCRIBER_MONTHLY: int = 4
@@ -163,11 +163,11 @@ class Settings(BaseSettings):
     # 건드리지 않은 축은 사진 100%다(services/diagnosis.blend_partial).
     PHOTO_PARTIAL_WEIGHT: float = 0.5
 
-    # 얼굴 사전 필터 임계값 (services/face_gate.py). 거절 로그와 실제 사진으로 조정한다.
+    # 얼굴 사전 필터 임계값 (services/photo/face_gate.py). 거절 로그와 실제 사진으로 조정한다.
     # 폭 비율은 Perfect Corp 요구(60%)보다 느슨하게 시작한다 — 검출기 상자가 얼굴보다
     # 조금 좁게 잡혀서 같은 기준을 쓰면 정상 사진이 걸러진다.
     FACE_MIN_SCORE: float = 0.8
-    # 업체(Perfect Corp)의 촬영 요구를 서버에서 같은 기준으로 먼저 본다(services/face_gate.py).
+    # 업체(Perfect Corp)의 촬영 요구를 서버에서 같은 기준으로 먼저 본다(services/photo/face_gate.py).
     # 얼굴 폭 = 두 눈 사이 거리 ÷ 0.45(귀~귀 폭에 대한 비율)로 어림한 값이 사진 폭의 60% 이상이어야 한다.
     # 검출 상자 폭은 얼굴보다 좁게 잡혀서 쓰지 않는다 — 업체가 정상 처리한 시험 사진이 상자로는 58.8%,
     # 어림값으로는 64%였다. 눈 위치를 못 얻을 때만 상자 폭(FACE_MIN_BOX_RATIO)으로 대신한다.
@@ -181,7 +181,7 @@ class Settings(BaseSettings):
     FACE_MAX_LIGHT_IMBALANCE: float = 0.4
     # 초점: 얼굴을 128×128 회색으로 줄여 잰 라플라시안 분산. 시험 사진 2240, 가우시안 σ=3 흐림 68, σ=4 37.
     FACE_MIN_SHARPNESS: float = 60.0
-    # 가림: 얼굴 상자 안 영역별 '얼굴 피부' 비율이 이 값 이상이어야 한다(services/occlusion.py).
+    # 가림: 얼굴 상자 안 영역별 '얼굴 피부' 비율이 이 값 이상이어야 한다(services/photo/occlusion.py).
     # 시험 사진은 볼 95·96%·코와 입 100%·턱 76~79%(목과 맞닿아 80%를 넘기 어렵다), 흰 마스크는 17~32·25~36·6%,
     # 피부색 손 모양은 코와 입 34~49%·턱 22~48%. 일부만 가린 경우까지 잡도록 올렸고, 정상 사진과의 여유를 남겼다.
     FACE_SKIN_MIN_CHEEK: float = 0.70

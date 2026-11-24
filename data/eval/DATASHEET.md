@@ -9,7 +9,7 @@ PROTOCOL.md 의 평가에 쓴 데이터가 어디서 왔고 어떻게 만들었�
 - **재현성·격리·독립성 점검(2026-11-01)**
   - 재현성: 채점 명령(`similarity/skin_fit/diagnosis/ocr/chat score`)을 다시 돌려 결과 JSON을 비교했다. `env.git_commit`(코드 커밋)만 다르고 지표는 전부 같았다.
   - 격리: 외부 키(CLOVA·Anthropic·OpenAI 등)를 비우고 `localhost` 밖으로 나가는 소켓 연결·DNS 조회를 막은 상태에서 같은 채점 명령을 돌렸다. 모두 종료코드 0이었고 결과 JSON이 위와 같았다(`budget.json`은 이번에 다시 만들지 않은 기존 결과). 즉 녹화·캐시만으로 재계산된다.
-  - 독립성(`scripts/eval/independence.py`): 유사도 test 시드 40개와 dev 시드 140개의 교집합은 0이다. **OCR은 교집합이 있다** — dev item7과 test item16이 같은 제품(스킨푸드 캐롯 카로틴 카밍 워터 패드, id 3665·3862)이다. item16은 test에서 1위로 적중했고, 제외하면 test top-1 68%(21/31)·top-3 77%(24/31)·top-5 81%(25/31)로 결론이 바뀌지 않는다. 임계값은 dev에서 고정했으므로 이 중복은 test 지표를 소폭 낙관적으로 만들 수 있다.
+  - 독립성(`research/eval/independence.py`): 유사도 test 시드 40개와 dev 시드 140개의 교집합은 0이다. **OCR은 교집합이 있다** — dev item7과 test item16이 같은 제품(스킨푸드 캐롯 카로틴 카밍 워터 패드, id 3665·3862)이다. item16은 test에서 1위로 적중했고, 제외하면 test top-1 68%(21/31)·top-3 77%(24/31)·top-5 81%(25/31)로 결론이 바뀌지 않는다. 임계값은 dev에서 고정했으므로 이 중복은 test 지표를 소폭 낙관적으로 만들 수 있다.
   - 유사도 판정 재점검(코드 제거): 판정 풀에 hybrid가 쓰는 성분 기능 코드가 보였다는 지적에 따라, 등급별 15쌍씩 45쌍(seed 20261101)을 코드를 지운 입력으로 새 AI 판정자(Opus, 저장소 접근 없음 — 도구 호출 기록 Read 1·Write 1)에게 다시 판정시켰다. 일치 34/45(76%, Wilson 61~86%), 가중 kappa(제곱) 0.78. 불일치 11쌍은 모두 처음 0 → 재판정 1이고 등급 1·2는 전부 일치했다. 입력·열쇠·결과는 `data/eval/recordings/sim_rejudge_*.csv`. 원본 판정은 바꾸지 않았다.
   - 페르소나 작성 원본: `data/eval/recordings/personas_authored.csv`(에이전트 A), `personas_answers.csv`(에이전트 B).
 
@@ -51,12 +51,12 @@ PROTOCOL.md 의 평가에 쓴 데이터가 어디서 왔고 어떻게 만들었�
 - 사진 원본 37장(item12~48, 약 85MB)은 저장소에 올릴 예정이다. 얼굴이나 개인정보가 찍히지 않았는지 올리기 전에 확인한다.
 - **정답 라벨 작성 방법(test 37장)**: 앱 스캔 후보 3개를 `labels_test.csv`에 미리 넣어 두고, 라벨러(사용자)가 사진과 상품 링크를 보고 항목별로 판정했다. 후보에 정답이 없으면 제품명·영문명으로 DB를 직접 검색해 넣었고 `source=manual`로 구분했다(`list` 25건, `manual` 12건). `list`가 비어 있던 item16·18·20·21은 후보 열과 정답을 대조해 `list`로 채웠다.
 - **카탈로그 정의**: 스캔 `match_text`가 검색하는 활성 제품 전부(`composition='optgroup'` 제외). 앱 목록에는 `single`만 보이지만 스캔은 `bonus`·`bundle`·`goods`도 돌려주므로 정답에 포함했다. 같은 상품의 용량·기획 변종은 앱이 한 후보(드롭다운)로 묶으므로(`group_key`), 후보 안 어느 변종이 나와도 적중이다. 묶음이 다르면 정답 id를 모두 적었다.
-- **채점 기준**: 정답 id 중 하나라도 후보(대표+드롭다운)에 있으면 적중. 사전 등록 지표는 top-1/top-5이고, 앱이 후보 3개만 보여 주므로 **top-3을 사후에 추가**했다(`scripts/eval/ocr.py add_top3`).
+- **채점 기준**: 정답 id 중 하나라도 후보(대표+드롭다운)에 있으면 적중. 사전 등록 지표는 top-1/top-5이고, 앱이 후보 3개만 보여 주므로 **top-3을 사후에 추가**했다(`research/eval/ocr.py add_top3`).
 - **한계**: (1) 라벨러가 후보를 보고 판정해 앵커링 편향이 있다. (2) 음성 5건(item14·22·34·36·37)뿐이라 목표 10건 미달, 거절 성능 신뢰구간이 넓다. (3) 로컬 Postgres 스냅샷으로 평가했다(평가 대상 테이블은 운영 DB와 같음을 공통절대로 확인). (4) 일부 판정에서 사진의 용량·패키지 일치 여부는 라벨러의 시각 판단이다.
 - OCR 응답 캐시: `recordings/ocr_service_cache.json` (서비스 경로 `recognize_text` 로 호출, 사진 해시 포함).
 
 ## F. 챗봇·AI 기억
-- 질문 80개와 기대(도구·인자·금지 행동)는 `scripts/eval/chat_cases.py`에 응답을 보기 전에 적었다. 작성자는 개발자 본인(AI 지원)이다.
+- 질문 80개와 기대(도구·인자·금지 행동)는 `research/eval/chat_cases.py`에 응답을 보기 전에 적었다. 작성자는 개발자 본인(AI 지원)이다.
 - 제품 자리표는 DB 에서 고정 규칙(카테고리별 리뷰 수 1위)으로 채운다.
 - 모델: `LLM_CHAIN=claude`, 모델명은 `CLAUDE_MODEL`(기본값). OpenAI 키가 없어 Claude 로만 평가했다.
 - 녹화: `recordings/chat_claude.jsonl`, `recordings/memory_claude.jsonl` — 응답 원문·도구 호출 기록. 채점은 녹화만 읽는다.

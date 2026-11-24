@@ -24,7 +24,7 @@
 | `multi_type.csv` | 중복 매칭 성분 (479건).csv | 479 | 2개 이상 타입에 걸친 성분 |
 | `excluded.csv` | 제외 권장 데이터 (2592건).csv | 2,592 | 개별 성분으로 쓰기 어려운 행 목록 |
 
-타입별 파일은 캐릭터 ID로 이름을 붙였다 (`docs/dev_guidelines.md` §2.4 기준).
+타입별 파일은 캐릭터 ID로 이름을 붙였다 (`docs/guides/dev_guidelines.md` §2.4 기준).
 
 | 파일 | 원본 이름 | 성분 수 | 핵심 키워드 |
 |---|---|---|---|
@@ -45,7 +45,7 @@
 
 **`injeolmi`의 임상명 '탄력저하'가 캐릭터 정의 '건성·탄력 양호'와 반대였다.**
 남은 슬롯이 하나뿐이라 여기 넣은 것인데, 캐릭터 쪽을 '건성·탄력 저하, 주름'으로
-맞춰 정리했다(`docs/dev_guidelines.md` §2.4 · `frontend/src/data/skinTypes.ts`).
+맞춰 정리했다(`docs/guides/dev_guidelines.md` §2.4 · `frontend/src/data/skinTypes.ts`).
 나머지 7개는 처음부터 일치했다.
 
 **`injeolmi`만 1,815건으로 다른 타입(225~485)의 4배다.** 키워드 중 `펩타이드`·
@@ -62,11 +62,11 @@
 ## 적재
 
 ```bash
-python scripts/seed_skin_type_tags.py --dry-run   # 집계만
-python scripts/seed_skin_type_tags.py            # tags · ingredient_tags · skin_type_rules
+python backend/pipeline/load/seed_skin_type_tags.py --dry-run   # 집계만
+python backend/pipeline/load/seed_skin_type_tags.py            # tags · ingredient_tags · skin_type_rules
 ```
 
-멱등하다. 적재 경로와 결과 건수는 [docs/db-schema.md](../../../docs/db-schema.md)의
+멱등하다. 적재 경로와 결과 건수는 [docs/architecture/db-schema.md](../../../docs/architecture/db-schema.md)의
 `tags` · `skin_type_rules` 절에 있다.
 
 ### 타입별 CSV를 읽지 않는다
