@@ -4,9 +4,7 @@
 
 > **AI 기반 피부타입 맞춤 제품 추천 · 성분 유사도 대체품 매칭 서비스**
 
-피부타입 진단(6문항 QnA 또는 얼굴 사진)으로 **8가지 피부 캐릭터** 중 하나를 정하고, 그 피부에 맞는 화장품을 추천합니다.
-내가 쓰는 제품을 **화장대**에 올리면 **전성분만 보고** 더 싸거나 더 잘 맞는 대체품을 찾아 주고,
-예산을 입력하면 루틴 조합을 제안합니다. 챗봇은 내 피부·화장대·취향을 알고, 우리 계산 엔진을 도구로 불러 답합니다.
+피부타입 진단(6문항 QnA 또는 얼굴 사진)으로 **8가지 피부 캐릭터** 중 하나를 정하고, 그 피부에 맞는 화장품을 추천합니다. 내가 쓰는 제품을 **화장대**에 올리면 **전성분만 보고** 더 싸거나 더 잘 맞는 대체품을 찾아 주고, 예산을 입력하면 루틴 조합을 제안합니다. 챗봇은 내 피부·화장대·취향을 알고, 우리 계산 엔진을 도구로 불러 답합니다.
 
 | 제품 | 성분 | 제품–성분 연결 | 유사도 | API | 화면 | 테스트 |
 |---:|---:|---:|---:|---:|---:|---:|
@@ -24,9 +22,9 @@
 |---|---|
 | [**피부타입 진단**](docs/algorithms/ai-and-scoring-logic.md#3-피부타입-진단-qna) | 5축(수분·유분·민감·색소·트러블) 점수 → 8타입과의 거리로 1~3순위, 경계 타입 안내 |
 | [**얼굴 사진 AI 분석**](docs/algorithms/ai-and-scoring-logic.md#4-얼굴-사진-ai-분석) | 서버 사전 검증(YuNet·MediaPipe) → Perfect Corp 분석 → 5축 변환 → QnA와 혼합 |
-| [**성분 유사도 · 대체품**](docs/algorithms/similarity.md) | 역할 가중 TF-IDF + 기능 프로필 + 제형 일치(`hybrid`), 같은 카테고리 안에서만 비교 |
+| [**유사도 · 대체품**](docs/algorithms/similarity.md) | 역할 가중 TF-IDF + 기능 프로필 + 제형 일치(`hybrid`), 같은 카테고리 안에서만 비교 |
 | [**피부 궁합**](docs/algorithms/ai-and-scoring-logic.md#6-피부-궁합--성분-분석-servicesskinskin_fitpy--점수-로직의-핵심) | 성분 기능 라벨 × 타입별 선호·기피 → 0~100점 |
-| [**홈 추천 · 예산 가이드**](docs/algorithms/ai-and-scoring-logic.md#7-추천--예산-가이드) | 궁합·별점·리뷰수 가중합, 예산 안의 루틴 조합을 전부 탐색해 3안 제시 |
+| [**추천 · 예산**](docs/algorithms/ai-and-scoring-logic.md#7-추천--예산-가이드) | 궁합·별점·리뷰수 가중합, 예산 안의 루틴 조합을 전부 탐색해 3안 제시 |
 | [**챗봇 · 퍼스널 AI**](docs/algorithms/ai-and-scoring-logic.md#8-1-챗봇-apichatpy-serviceschatragpy) | RAG + 도구 호출(계산 엔진 10종) · AI 기억 · 성분 취향 · 피부 변화 리포트 · 오늘의 브리핑 |
 | [**사진으로 제품 찾기**](research/ocr/OCR_SUMMARY.md) | CLOVA OCR → `pg_trgm` 제품명 대조 → 후보 3개 + "찾는 제품이 없어요" |
 | [**쇼핑 · 기록**](docs/architecture/PROJECT_OVERVIEW.md#5-기능-카탈로그-화면별) | 화장대·장바구니·찜·주문·취소·반품·후기·포인트·선물·알림 |
@@ -41,39 +39,24 @@
 
 ```mermaid
 flowchart LR
-    subgraph Client["사용자"]
+    subgraph USER["사용자"]
         APK["Android 앱<br/>(Capacitor)"]
         WEB["웹 브라우저"]
     end
 
-    subgraph AWS["AWS Lightsail · 서울"]
-        API["swappy 컨테이너<br/>FastAPI + 프론트 정적 파일"]
-        REDIS[("Redis 7<br/>캐시 · 호출 한도")]
-    end
-
-    DB[("PostgreSQL 16<br/>+ pg_trgm")]
-
-    subgraph EXT["외부 API"]
-        LLM["LLM<br/>gpt-4o-mini → Claude"]
-        PC["Perfect Corp<br/>피부 분석"]
-        OCR["CLOVA OCR"]
-        WX["OpenWeather"]
-    end
-
-    APK -- HTTPS --> API
-    WEB -- HTTPS --> API
-    API <--> REDIS
-    API <--> DB
-    API --> LLM & PC & OCR & WX
+    USER -- HTTPS --> API["<b>FastAPI 컨테이너</b><br/>API + 화면(React 빌드)<br/>AWS Lightsail · 서울"]
+    API <--> REDIS[("Redis 7<br/>캐시 · 호출 한도")]
+    API <--> DB[("PostgreSQL 16<br/>+ pg_trgm")]
+    API --> EXT["<b>외부 API</b><br/>LLM (OpenAI → Claude)<br/>Perfect Corp<br/>CLOVA OCR<br/>OpenWeather"]
 ```
 
 외부 키가 없어도 서버는 뜹니다 — LLM이 없으면 챗봇은 DB 규칙으로, OCR이 없으면 제품명 검색으로 안내합니다.
 
-**더 자세한 그림** → [구성도 모음](docs/architecture/diagrams.md)
+**더 자세한 그림** — [구성도 모음](docs/architecture/diagrams.md)
 
-| 프로세스 흐름도 | 사용자 시나리오 | 상세 구성도 |
-|---|---|---|
-| [데이터 수집·적재](docs/architecture/diagrams.md#11-데이터-수집적재) · [대체품 추천](docs/architecture/diagrams.md#12-대체품-추천-요청) · [얼굴 사진 분석](docs/architecture/diagrams.md#13-얼굴-사진-ai-분석) · [챗봇 도구 호출](docs/architecture/diagrams.md#14-챗봇-도구-호출) | [가입부터 주문까지](docs/architecture/diagrams.md#2-사용자-시나리오-구성도) | [백엔드 계층](docs/architecture/diagrams.md#31-백엔드-계층) · [프론트 화면](docs/architecture/diagrams.md#32-프론트엔드-화면) · [데이터 모델](docs/architecture/diagrams.md#33-데이터-모델) |
+- **흐름도** · [데이터 수집·적재](docs/architecture/diagrams.md#11-데이터-수집적재) · [대체품 추천](docs/architecture/diagrams.md#12-대체품-추천-요청) · [얼굴 사진 분석](docs/architecture/diagrams.md#13-얼굴-사진-ai-분석) · [챗봇 도구 호출](docs/architecture/diagrams.md#14-챗봇-도구-호출)
+- **시나리오** · [가입부터 주문까지](docs/architecture/diagrams.md#2-사용자-시나리오-구성도)
+- **상세 구성도** · [백엔드 계층](docs/architecture/diagrams.md#31-백엔드-계층) · [프론트 화면](docs/architecture/diagrams.md#32-프론트엔드-화면) · [데이터 모델](docs/architecture/diagrams.md#33-데이터-모델)
 
 ---
 
@@ -110,7 +93,7 @@ docker compose up --build
 ```
 capstone/
 ├── backend/
-│   ├── app/          # 서버 런타임 — api(라우터) · services(계산 엔진) · models(DB 스키마) · schemas
+│   ├── app/          # 서버 런타임 — api · services(계산 엔진) · models(DB 스키마)
 │   ├── pipeline/     # DB를 만드는 스크립트 — collect · load · batch · maintenance
 │   ├── alembic/      # 마이그레이션
 │   └── tests/        # unit(DB 불필요 · CI) · integration(DB 필요)
@@ -159,6 +142,6 @@ capstone/
 
 | 조은성 | 최동균 | 박주원 | 심유빈 | 김미송 |
 |:---:|:---:|:---:|:---:|:---:|
-| 팀장 · 프론트 통합 | 부팀장 · 상품 데이터 · DB | 편집 · 백엔드 · RAG 챗봇 | 학술 · OCR · UI | 총무 · UI/UX · 피부진단 |
+| 팀장<br>프론트 통합 | 부팀장<br>상품 데이터 · DB | 편집<br>백엔드 · RAG 챗봇 | 학술<br>OCR · UI | 총무<br>UI/UX · 피부진단 |
 
 저작권자 5인의 공동 저작물이며 **All Rights Reserved**입니다. 사전 서면 허락 없이 복제 · 수정 · 배포 · 이용할 수 없습니다 → [LICENSE](LICENSE)

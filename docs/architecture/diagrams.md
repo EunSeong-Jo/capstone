@@ -100,18 +100,14 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    CAM["앱 촬영<br/>MediaPipe 얼굴 확인"] --> GATE{"서버 사전 검증<br/>YuNet 얼굴 검출<br/>크기 · 기울기 · 밝기 · 초점<br/>가림 검사"}
+    CAM["앱 촬영<br/>MediaPipe 얼굴 확인"] --> GATE{"서버<br/>사전 검증"}
     GATE -- 실패 --> RETRY["다시 찍기 안내<br/>한도 차감 없음"]
-    GATE -- 통과 --> CLEAN["EXIF 제거 · JPEG 재생성"]
-    CLEAN --> PC["Perfect Corp<br/>업로드 → 작업 → 폴링"]
-    PC --> AXES["항목별 점수 → 5축 변환"]
-    AXES --> MIX{"QnA 응답이 있나?"}
-    MIX -- 전부 --> M1["0.6 × QnA + 0.4 × 사진"]
+    GATE -- 통과 --> PC["EXIF 제거<br/>→ Perfect Corp 분석<br/>→ 5축 변환"]
+    PC --> MIX{"QnA<br/>응답?"}
+    MIX -- 전부 --> M1["QnA 0.6 + 사진 0.4"]
     MIX -- 일부 --> M2["답한 축만 0.5 혼합"]
     MIX -- 없음 --> M3["사진 5축 그대로"]
-    M1 --> RANK["8타입 순위 · 결과 화면"]
-    M2 --> RANK
-    M3 --> RANK
+    M1 & M2 & M3 --> RANK["8타입 순위<br/>결과 화면"]
 ```
 
 무료는 월 1회·8항목, 구독은 월 4회·16항목입니다. 자세히: [점수 로직 §4](../algorithms/ai-and-scoring-logic.md#4-얼굴-사진-ai-분석) · [백엔드 README](../../backend/README.md#얼굴-사진-ai-분석-perfect-corp)
@@ -191,45 +187,42 @@ flowchart TD
 
 ### 3.1 백엔드 계층
 
-라우터는 요청 검증과 응답만 맡고, 계산은 모두 `services/`에 있습니다. 같은 서비스를 화면 API와 챗봇 도구가 함께 씁니다.
+라우터는 요청 검증과 응답만 맡고, 계산은 모두 `services/`에 있습니다. 같은 서비스를 화면 API와 챗봇 도구가 함께 씁니다. 챗봇(`chat`)은 `matching` · `skin` · `recommend`를 도구로 불러 답합니다.
 
 ```mermaid
 flowchart LR
-    subgraph API["api/ · 라우터 (엔드포인트 87개)"]
-        direction TB
-        a1["auth · me<br/>인증 · 프로필"]
-        a2["products · ingredients<br/>목록 · 검색 · 상세 · 스캔"]
-        a3["recommendations · recommendations_main<br/>대체품 · 홈 추천 · 예산 가이드"]
-        a4["diagnosis · skin_photo<br/>QnA 진단 · 사진 분석"]
-        a5["personal/<br/>closet · cart · orders · reviews · gifts …"]
-        a6["chat · memory · insights · preferences<br/>챗봇 · 퍼스널 AI"]
-        a7["skin_fit · analysis<br/>피부 궁합 · 성분 분석"]
+    subgraph API["api/ · 라우터 (87개)"]
+        direction LR
+        a1["auth · me"]
+        a2["products · ingredients"]
+        a3["recommendations"]
+        a4["diagnosis · skin_photo"]
+        a5["personal/"]
+        a6["chat · memory · insights"]
+        a7["skin_fit · analysis"]
         a8["weather · care_tip"]
     end
 
-    subgraph SVC["services/ · 도메인별 계산 엔진"]
-        direction TB
-        s1["matching/<br/>similarity · option_scope · product_variants"]
-        s2["skin/<br/>diagnosis · skin_type · skin_fit · product_analysis"]
-        s3["recommend/<br/>product_score · budget_guide · routine_steps"]
-        s6["chat/<br/>llm · rag · chat_tools · chat_fallback"]
-        s7["personal_ai/<br/>personal_context · memory · preference<br/>skin_report · briefing"]
-        s5["photo/<br/>skin_photo · face_gate · occlusion · skin_quota"]
-        s8["scan/<br/>ocr · ocr_quota"]
-        s9["commerce/<br/>notifications · experience · order_stage"]
+    subgraph SVC["services/ · 계산 엔진"]
+        direction LR
+        s1["matching/ 유사도"]
+        s2["skin/ 진단 · 궁합"]
+        s3["recommend/ 추천 · 예산"]
+        s4["chat/ LLM · RAG · 도구"]
+        s5["personal_ai/ 기억 · 취향"]
+        s6["photo/ 사진 검증 · 분석"]
+        s7["scan/ OCR"]
+        s8["commerce/ 알림 · 주문"]
     end
 
     subgraph DATA["models/ · SQLAlchemy"]
-        direction TB
+        direction LR
         m1["product · recommendation"]
         m2["user · personal"]
         m3["diagnosis · skin_photo"]
     end
 
     API --> SVC --> DATA
-    a6 -. 도구 호출 .-> s1
-    a6 -. 도구 호출 .-> s2
-    a6 -. 도구 호출 .-> s3
 ```
 
 | 계층 | 위치 | 문서 |
@@ -243,51 +236,34 @@ flowchart LR
 화면 라우트 46개를 영역별로 묶은 지도입니다. 하단 내비게이션은 홈 · 카테고리 · 검색 · 화장대 · 마이입니다.
 
 ```mermaid
-flowchart LR
+flowchart TD
     ROOT["/ 스플래시"] --> ONB["/onboarding"]
     ONB --> LOGIN["/login · /signup"]
     ONB --> QNA["/qna → /result"]
+    LOGIN & QNA --> HOME
 
     subgraph HOMEG["홈 · 탐색"]
         HOME["/home"]
         CAT["/category/:code"]
         SEARCH["/search"]
-        SCAN["/scan · /scan/history"]
-        DETAIL["/detail/:id"]
-        ALT["/alternatives · /compare"]
+        SCAN["/scan"]
     end
+
+    HOME & CAT & SEARCH & SCAN --> DETAIL["/detail/:id"]
+    DETAIL --> ALT["/alternatives · /compare"]
+    DETAIL --> CART["/cart"] --> ORDER["/mypage/order-history"]
+    DETAIL --> GIFT["/gift/:productId"]
 
     subgraph CLOSETG["화장대 · 기록"]
-        CLOSET["/closet"]
-        ANAL["/analysis/:id"]
+        CLOSET["/closet"] --> ANAL["/analysis/:id"]
         HIST["/history · /likes"]
     end
-
-    subgraph SHOP["구매 · 소셜"]
-        CART["/cart"]
-        ORDER["/mypage/order-history"]
-        GIFT["/gift/:productId"]
-    end
+    CLOSET --> ALT
 
     subgraph MY["마이페이지"]
-        MYP["/mypage"]
-        AIME["/mypage/ai-me<br/>AI 피부관리"]
-        SET["/mypage/settings/*<br/>프로필 · AI 기억 · 사진 동의"]
+        MYP["/mypage"] --> AIME["/mypage/ai-me"]
+        MYP --> SET["/mypage/settings/*"]
     end
-
-    QNA --> HOME
-    LOGIN --> HOME
-    HOME --> DETAIL
-    CAT --> DETAIL
-    SEARCH --> DETAIL
-    SCAN --> DETAIL
-    DETAIL --> ALT
-    DETAIL --> CART
-    CLOSET --> ANAL
-    CLOSET --> ALT
-    CART --> ORDER
-    MYP --> AIME
-    MYP --> SET
 ```
 
 - 화면 규격 · 컨벤션 · 목업 금지 규칙: [frontend/README.md](../../frontend/README.md#7-1-화면-규격-표준--2026-07-ui-통일에서-확정)
@@ -298,23 +274,31 @@ flowchart LR
 
 테이블 38개를 도메인으로 묶으면 다음과 같습니다. 컬럼 · 인덱스 · 행수는 정본 문서에 있습니다.
 
+**제품 · 성분 · 추천**
+
 ```mermaid
 erDiagram
     BRANDS ||--o{ PRODUCTS : "만든다"
     CATEGORIES ||--o{ PRODUCTS : "분류"
     PRODUCTS ||--o{ PRODUCT_INGREDIENTS : "전성분"
     INGREDIENTS ||--o{ PRODUCT_INGREDIENTS : "포함"
-    INGREDIENTS ||--o| INGREDIENT_FUNCTIONS : "기능 라벨(norm_name)"
+    INGREDIENTS ||--o| INGREDIENT_FUNCTIONS : "기능 라벨"
     PRODUCTS ||--o{ SIMILARITIES : "대체품 후보"
     PRODUCTS ||--o{ PRODUCT_SKIN_FIT : "8타입 궁합"
+```
+
+**사용자 활동**
+
+```mermaid
+erDiagram
     USERS ||--o{ DIAGNOSES : "진단"
     USERS ||--o{ SKIN_ANALYSES : "사진 분석"
     USERS ||--o{ CLOSET_ITEMS : "화장대"
     USERS ||--o{ ORDERS : "주문"
-    USERS ||--o{ REVIEWS : "후기"
-    USERS ||--o{ USER_MEMORIES : "AI 기억"
-    PRODUCTS ||--o{ CLOSET_ITEMS : "담김"
-    PRODUCTS ||--o{ REVIEWS : "후기 대상"
+    ORDERS ||--|{ ORDER_ITEMS : "품목"
+    ORDER_ITEMS ||--o| REVIEWS : "후기"
+    PRODUCTS ||--o{ CLOSET_ITEMS : ""
+    PRODUCTS ||--o{ ORDER_ITEMS : ""
 ```
 
 > 위 그림은 38개 중 대표 테이블만 고른 것입니다. 실제 테이블 이름과 전체 관계도는 [docs/architecture/db-schema.md](db-schema.md#관계도)를 보세요.
