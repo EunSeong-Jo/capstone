@@ -8,6 +8,7 @@
 | 주제 | 정본 | 요약·안내만 하는 곳 |
 |---|---|---|
 | 프로젝트 전체 · 기능 카탈로그 · 결정 기록 | [architecture/PROJECT_OVERVIEW.md](architecture/PROJECT_OVERVIEW.md) | [루트 README](../README.md) |
+| 구성도 · 흐름도 · 시나리오 그림 | [architecture/diagrams.md](architecture/diagrams.md) | 루트 README(시스템 구성도만) |
 | DB 스키마 · 적재 파이프라인 | [architecture/db-schema.md](architecture/db-schema.md) | backend/README, PROJECT_OVERVIEW §7 |
 | AI · 점수 로직(가중치 · 임계값) | [algorithms/ai-and-scoring-logic.md](algorithms/ai-and-scoring-logic.md) | 루트 README, PROJECT_OVERVIEW §4 |
 | 성분 유사도 엔진 · 평가 | [algorithms/similarity.md](algorithms/similarity.md) | ai-and-scoring-logic §5 |
@@ -20,7 +21,7 @@
 
 | 폴더 | 무엇이 있나 |
 |---|---|
-| [`architecture/`](architecture/) | 시스템 전체 그림 — 프로젝트 총정리, DB 스키마 |
+| [`architecture/`](architecture/) | 시스템 전체 그림 — 프로젝트 총정리, 구성도 모음, DB 스키마 |
 | [`algorithms/`](algorithms/) | 점수·추천·유사도 로직과 그 평가 |
 | [`guides/`](guides/) | 따라 하는 문서 — [데모 시나리오](guides/demo-scenario.md), [Windows 단독 실행](guides/로컬실행.md), [운영 DB(AWS) 이전](guides/aws-db-migration.md), [프론트 컴포넌트 가이드](guides/frontend-component-guide.md), [디자인·화면 체크리스트](guides/dev_guidelines.md) |
 | [`product/`](product/) | 요구사항(PRD). 지난 판은 `archive/` |
