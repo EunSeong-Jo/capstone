@@ -73,6 +73,13 @@ python pipeline/load/load_products.py
 대체품 화면은 **미리 계산한 유사도를 읽기만** 해서 빠르고, 한 번 본 제품은 Redis 캐시에서 바로 나갑니다.
 
 ```mermaid
+---
+config:
+  sequence:
+    mirrorActors: false
+    diagramMarginX: 150
+    width: 120
+---
 sequenceDiagram
     autonumber
     participant U as 사용자
@@ -112,6 +119,9 @@ flowchart LR
     MIX -- 일부 --> M2["답한 축만<br/>0.5 혼합"]
     MIX -- 없음 --> M3["사진 5축<br/>그대로"]
     M1 & M2 & M3 --> RANK["8타입 순위<br/>결과 화면"]
+    RANK ~~~ PAD[" "]:::ghost
+    PAD ~~~ PAD2[" "]:::ghost
+    classDef ghost fill:none,stroke:none,color:transparent
 ```
 
 무료는 월 1회·8항목, 구독은 월 4회·16항목입니다. 자세히: [점수 로직 §4](../algorithms/ai-and-scoring-logic.md#4-얼굴-사진-ai-분석) · [백엔드 README](../../backend/README.md#얼굴-사진-ai-분석-perfect-corp)
@@ -121,13 +131,20 @@ flowchart LR
 로그인한 사용자의 챗봇은 **사실을 직접 만들지 않고** 우리 계산 엔진을 불러 결과를 문장으로 옮깁니다. 담기·추가는 *제안*만 하고, 실제 실행은 사용자가 버튼을 눌러야 일어납니다.
 
 ```mermaid
+---
+config:
+  sequence:
+    mirrorActors: false
+    diagramMarginX: 220
+    width: 120
+---
 sequenceDiagram
     autonumber
     participant U as 사용자
     participant A as /api/v1/chat
     participant C as 개인 컨텍스트
     participant L as LLM 체인
-    participant T as 계산 엔진(도구)
+    participant T as 계산 엔진
 
     U->>A: "건성인데 이 크림보다 싼 거 있어?"
     A->>C: 피부타입 · 화장대 · 예산 · AI 기억 요약
@@ -227,6 +244,8 @@ flowchart LR
     end
 
     API --> SVC --> DATA
+    DATA ~~~ PAD[" "]:::ghost
+    classDef ghost fill:none,stroke:none,color:transparent
 ```
 
 - **라우터** `backend/app/api/` — API 목록은 Swagger `/api/docs` · [프로젝트 총정리 §6](PROJECT_OVERVIEW.md#6-백엔드-api) · [점수 로직 §2](../algorithms/ai-and-scoring-logic.md#2-기능-목록-백엔드-api-기준)
@@ -280,27 +299,25 @@ flowchart TD
 
 ```mermaid
 erDiagram
-    BRANDS ||--o{ PRODUCTS : "만든다"
-    CATEGORIES ||--o{ PRODUCTS : "분류"
-    PRODUCTS ||--o{ SIMILARITIES : "대체품 후보"
-    PRODUCTS ||--o{ PRODUCT_SKIN_FIT : "8타입 궁합"
-    PRODUCTS ||--o{ PRODUCT_INGREDIENTS : "전성분"
-    INGREDIENTS ||--o{ PRODUCT_INGREDIENTS : "포함"
-    INGREDIENTS ||--o| INGREDIENT_FUNCTIONS : "기능 라벨"
+    similarities }o--|| products : "대체품 후보"
+    product_skin_fit }o--|| products : "8타입 궁합"
+    ingredient_functions |o--|| ingredients : "기능 라벨"
+    products ||--o{ product_ingredients : "전성분"
+    ingredients ||--o{ product_ingredients : "포함"
 ```
 
 **사용자 활동**
 
 ```mermaid
 erDiagram
-    USERS ||--o{ DIAGNOSES : "진단"
-    USERS ||--o{ SKIN_ANALYSES : "사진 분석"
-    USERS ||--o{ CLOSET_ITEMS : "화장대"
-    USERS ||--o{ ORDERS : "주문"
-    ORDERS ||--|{ ORDER_ITEMS : "품목"
-    ORDER_ITEMS ||--o| REVIEWS : "후기"
-    PRODUCTS ||--o{ CLOSET_ITEMS : ""
-    PRODUCTS ||--o{ ORDER_ITEMS : ""
+    users ||--o{ diagnoses : "진단"
+    users ||--o{ skin_analyses : "사진 분석"
+    users ||--o{ closet_items : "화장대"
+    users ||--o{ orders : "주문"
+    orders ||--|{ order_items : "품목"
+    order_items ||--o| reviews : "후기"
+    products ||--o{ closet_items : ""
+    products ||--o{ order_items : ""
 ```
 
-> 위 그림은 38개 중 대표 테이블만 고른 것입니다. 전체 관계도는 [DB 스키마 · 관계도](db-schema.md#관계도)에 있습니다.
+> 38개 중 대표 테이블만 그렸습니다(`brands` · `categories` 생략). 전체 관계도: [DB 스키마](db-schema.md#관계도)
