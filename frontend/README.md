@@ -216,7 +216,7 @@ frontend/
 
 - 제품은 **항상** `src/api/`를 거쳐 받습니다 (`useProducts`, `useProduct`, `useSearchProducts`, `useSimilarProducts`)
 - 화면이 빌 것 같으면 목업으로 채우지 말고 **빈 상태 UI**를 그립니다
-- 이미지는 `products.image_url`을 씁니다. DB의 4,013건 전부 실제 올리브영 CDN 주소이므로 난수 이미지(picsum 등)가 필요 없습니다
+- 이미지는 `products.image_url`을 씁니다. DB의 4,402건 전부 실제 올리브영 CDN 주소이므로 난수 이미지(picsum 등)가 필요 없습니다
 - 오프라인 폴백이 꼭 필요하면 손으로 적지 말고 실제 응답을 캡처합니다 — `npm run fixture:products`
 
 `npm run check:dummy`가 이 규칙을 검사합니다. 허용 목록은 `scripts/check-no-dummy.mjs` 상단에 있고,
