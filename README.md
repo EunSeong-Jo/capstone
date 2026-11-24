@@ -25,8 +25,8 @@
 | [**유사도 · 대체품**](docs/algorithms/similarity.md) | 역할 가중 TF-IDF + 기능 프로필 + 제형 일치(`hybrid`), 같은 카테고리 안에서만 비교 |
 | [**피부 궁합**](docs/algorithms/ai-and-scoring-logic.md#6-피부-궁합--성분-분석-servicesskinskin_fitpy--점수-로직의-핵심) | 성분 기능 라벨 × 타입별 선호·기피 → 0~100점 |
 | [**추천 · 예산**](docs/algorithms/ai-and-scoring-logic.md#7-추천--예산-가이드) | 궁합·별점·리뷰수 가중합, 예산 안의 루틴 조합을 전부 탐색해 3안 제시 |
-| [**챗봇 · 퍼스널 AI**](docs/algorithms/ai-and-scoring-logic.md#8-1-챗봇-apichatpy-serviceschatragpy) | RAG + 도구 호출(계산 엔진 10종) · AI 기억 · 성분 취향 · 피부 변화 리포트 · 오늘의 브리핑 |
-| [**사진으로 제품 찾기**](research/ocr/OCR_SUMMARY.md) | CLOVA OCR → `pg_trgm` 제품명 대조 → 후보 3개 + "찾는 제품이 없어요" |
+| [**챗봇 · 퍼스널 AI**](docs/algorithms/ai-and-scoring-logic.md#8-1-챗봇-apichatpy-serviceschatragpy) | RAG + 도구 호출(계산 엔진 10종) · AI 기억 · 성분 취향 · 오늘의 브리핑 |
+| [**사진으로 제품 찾기**](research/ocr/OCR_SUMMARY.md) | CLOVA OCR로 읽은 글자 → 제품명 대조 → 후보 3개 제시 |
 | [**쇼핑 · 기록**](docs/architecture/PROJECT_OVERVIEW.md#5-기능-카탈로그-화면별) | 화장대·장바구니·찜·주문·취소·반품·후기·포인트·선물·알림 |
 
 > 대체품·궁합·추천은 학습한 ML 모델이 아니라 **규칙·통계식**이라, 모든 점수를 **성분 이름으로 설명**할 수 있습니다.
@@ -44,10 +44,10 @@ flowchart LR
         WEB["웹 브라우저"]
     end
 
-    USER -- HTTPS --> API["<b>FastAPI 컨테이너</b><br/>API + 화면(React 빌드)<br/>AWS Lightsail · 서울"]
+    USER -- HTTPS --> API["<b>FastAPI</b><br/>API + 화면<br/>Lightsail 서울"]
     API <--> REDIS[("Redis 7<br/>캐시 · 호출 한도")]
     API <--> DB[("PostgreSQL 16<br/>+ pg_trgm")]
-    API --> EXT["<b>외부 API</b><br/>LLM (OpenAI → Claude)<br/>Perfect Corp<br/>CLOVA OCR<br/>OpenWeather"]
+    API --> EXT["<b>외부 API</b><br/>GPT · Claude<br/>Perfect Corp<br/>CLOVA OCR<br/>OpenWeather"]
 ```
 
 외부 키가 없어도 서버는 뜹니다 — LLM이 없으면 챗봇은 DB 규칙으로, OCR이 없으면 제품명 검색으로 안내합니다.
@@ -67,7 +67,7 @@ flowchart LR
 | **Frontend** | React 18 · TypeScript · Vite · Tailwind CSS · Capacitor(Android) · MediaPipe |
 | **Backend** | Python 3.11 · FastAPI · SQLAlchemy 2.0 · Alembic |
 | **Data** | PostgreSQL 16 + `pg_trgm` · Redis 7 · numpy/scipy(TF-IDF 직접 구현) |
-| **AI · 외부** | OpenAI `gpt-4o-mini` → Anthropic Claude · CLOVA OCR · Perfect Corp · OpenWeather · OpenCV YuNet |
+| **AI · 외부** | OpenAI → Claude · CLOVA OCR · Perfect Corp · OpenWeather · YuNet |
 | **Infra** | Docker Compose · AWS Lightsail · Neon · GitHub Actions |
 
 ---
@@ -84,7 +84,7 @@ docker compose up --build
 
 - **Windows에서 설치 없이** → `Swappy.bat` 실행 ([로컬실행 가이드](docs/guides/로컬실행.md))
 - **Docker 없이 · 로컬 DB로** → [백엔드 README](backend/README.md) · [프론트 README](frontend/README.md)
-- **테스트** → `cd backend && pytest tests/unit` (DB 없이 약 3초, CI가 푸시·PR마다 실행) · DB가 필요한 `tests/integration`은 [백엔드 README · 테스트](backend/README.md#테스트)
+- **테스트** → `cd backend && pytest tests/unit` (DB 없이 약 3초, CI가 푸시·PR마다 실행) · DB가 필요한 테스트는 [백엔드 README](backend/README.md#테스트)
 
 ---
 
