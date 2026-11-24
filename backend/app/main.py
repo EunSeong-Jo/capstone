@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import mimetypes
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -17,7 +16,7 @@ import structlog
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import text
 
 from app.api.care_tip import router as care_tip_router
@@ -189,15 +188,20 @@ async def health_check():
     return {"status": "ok", "version": "0.1.0", "env": settings.APP_ENV}
 
 
+# ── 안드로이드 앱 내려받기 ───────────────────────────────
+# 예전에는 frontend/public/swappy.apk를 정적 파일로 서빙했다. APK가 저장소에 28번 커밋되며 기록이 600MB 넘게
+# 불어나 GitHub Releases로 옮기고, 이미 나간 링크·QR(/swappy.apk)은 이 리다이렉트로 계속 살린다.
+@app.get("/swappy.apk", include_in_schema=False)
+async def download_apk():
+    return RedirectResponse(settings.APK_DOWNLOAD_URL, status_code=302)
+
+
 # ── 프론트엔드 정적 서빙 (운영 이미지 전용) ──────────────────
 # STATIC_DIR이 설정된 배포(Dockerfile.prod)에서만 켜진다. 개발 환경은 Vite가 프론트를
 # 맡으므로 비어 있고, 아래 코드는 아무 일도 하지 않는다.
 # 모든 API 라우트보다 뒤에 등록해야 한다 — 이 캐치올이 먼저면 /api가 가려진다.
 if settings.STATIC_DIR and Path(settings.STATIC_DIR).is_dir():
     _static_root = Path(settings.STATIC_DIR).resolve()
-    # 운영 이미지(python:slim)의 mimetypes에는 .apk가 없어 text/plain으로 내려갔다. 그러면 일부 안드로이드
-    # 브라우저가 설치 파일로 인식하지 못한다(로그인 화면의 '앱 설치하기').
-    mimetypes.add_type("application/vnd.android.package-archive", ".apk")
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_frontend(full_path: str):

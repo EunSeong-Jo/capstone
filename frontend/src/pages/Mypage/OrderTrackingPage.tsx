@@ -9,7 +9,7 @@ import { STAGE_LABEL, fmtDateTime, isClosed } from '../../utils/orderStage';
  * 배송조회.
  *
  * 택배 연동이 없어 단계는 서버가 주문 시각에서 계산한다
- * (`services/order_stage.py`). 각 단계가 된 시각도 서버가 준다.
+ * (`services/commerce/order_stage.py`). 각 단계가 된 시각도 서버가 준다.
  * 취소·반품된 주문은 그 시점까지 지나간 단계만 표시한다.
  */
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();

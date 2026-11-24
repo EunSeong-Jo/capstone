@@ -19,7 +19,7 @@ from sqlalchemy.orm import joinedload
 
 from app.api.recommendations import load_labeled_docs
 from app.db.session import get_db
-from app.services.option_scope import family_root, options_of
+from app.services.matching.option_scope import family_root, options_of
 from app.models.recommendation import Similarity
 from app.models.product import (
     Ingredient,
@@ -45,7 +45,7 @@ from app.schemas.analysis import (
 )
 from app.schemas.product import ProductOptionOut
 from app.schemas.skin_fit import FitIngredientOut, FitReasonOut
-from app.services.product_analysis import (
+from app.services.skin.product_analysis import (
     cautions,
     caution_kind,
     concern_state,
@@ -57,8 +57,8 @@ from app.services.product_analysis import (
     function_strengths,
     key_ingredients,
 )
-from app.services.similarity import FUNC_NAMES
-from app.services.skin_fit import PREFER, build_flags, classify_ingredient, evaluate
+from app.services.matching.similarity import FUNC_NAMES
+from app.services.skin.skin_fit import PREFER, build_flags, classify_ingredient, evaluate
 
 router = APIRouter(prefix="/api/v1/products", tags=["analysis"])
 

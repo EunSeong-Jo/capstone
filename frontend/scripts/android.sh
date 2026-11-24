@@ -20,7 +20,7 @@ need_url() {
 build_web() {
   echo "▶ 웹 빌드 (서버: $1)"
   VITE_API_BASE_URL="$1" npm run build
-  # public/swappy.apk(웹 로그인 화면의 내려받기용)가 번들에 섞이면 앱 안에 APK가 한 번 더 들어가 크기가 두 배가 된다.
+  # 예전 public/swappy.apk(지금은 GitHub Releases)가 로컬에 남아 있으면 번들에 섞여 앱 안에 APK가 한 번 더 들어간다.
   rm -f dist/swappy.apk
   npx cap sync android
 }

@@ -10,7 +10,7 @@ import { CartButton } from '../../components/ui/CartButton';
  *
  * 예전에는 메이크업·바디케어·헤어케어를 포함한 7개 그룹과 그 아래
  * 소분류를 그렸는데, 전부 하드코딩이었고 수집기가 얼굴용 4종만 적재하므로
- * (`scripts/load_products.py`의 ALLOWED_CATEGORIES) 눌러도 빈 목록이었다.
+ * (`backend/pipeline/load/load_products.py`의 ALLOWED_CATEGORIES) 눌러도 빈 목록이었다.
  * 아이콘도 전부 같은 /placeholder.png였다.
  *
  * 지금은 카테고리마다 실제 제품 수와 대표 이미지를 API에서 가져온다.

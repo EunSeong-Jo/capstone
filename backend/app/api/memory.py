@@ -9,7 +9,7 @@
     DELETE /api/v1/me/memories         전부 지우기
 
 챗봇이 대화에서 알게 된 내용을 사용자가 **보고·고치고·지울 수 있어야** 한다는 원칙의 화면 쪽 통로다.
-동의하지 않았으면 챗봇은 기억을 읽지도 쓰지도 않는다(`services/memory.py`). 철회해도 목록은 남으므로 지우려면 따로 지운다.
+동의하지 않았으면 챗봇은 기억을 읽지도 쓰지도 않는다(`services/personal_ai/memory.py`). 철회해도 목록은 남으므로 지우려면 따로 지운다.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from app.db.session import get_db
 from app.models.personal import UserMemory
 from app.models.user import User
 from app.schemas.memory import AiMemoryStateIn, AiMemoryStateOut, MemoryIn, MemoryOut, MemoryPatch
-from app.services import memory as mem
+from app.services.personal_ai import memory as mem
 
 router = APIRouter(prefix="/api/v1/me", tags=["ai-memory"])
 

@@ -35,13 +35,13 @@ from app.models.product import (
     Product,
     ProductIngredient,
 )
-from app.services.ocr import recognize_text
-from app.services.option_scope import family_ids, family_root, listable, options_of
-from app.services.product_variants import group_key, sort_group, variant_label
-from app.services.ocr_quota import check_scan_quota
-from app.services.review_photos import decode_photo, photo_urls_of
-from app.services.skin_fit import build_flags, classify_ingredient
-from app.services.skin_type import SkinRule, apply_exclusions, fit_score, load_rule
+from app.services.scan.ocr import recognize_text
+from app.services.matching.option_scope import family_ids, family_root, listable, options_of
+from app.services.matching.product_variants import group_key, sort_group, variant_label
+from app.services.scan.ocr_quota import check_scan_quota
+from app.services.commerce.review_photos import decode_photo, photo_urls_of
+from app.services.skin.skin_fit import build_flags, classify_ingredient
+from app.services.skin.skin_type import SkinRule, apply_exclusions, fit_score, load_rule
 from app.models.personal import Review
 from app.models.user import Profile, User
 from app.schemas.product import (
@@ -127,7 +127,7 @@ class CompositionFilter(str, Enum):
 
 
 def _apply_composition(stmt: Select, composition: CompositionFilter) -> Select:
-    # 옵션형 묶음은 그룹당 대표 1개만 올리고 원본은 올리지 않는다(services/option_scope.py)
+    # 옵션형 묶음은 그룹당 대표 1개만 올리고 원본은 올리지 않는다(services/matching/option_scope.py)
     stmt = stmt.where(listable())
     if composition is CompositionFilter.all:
         return stmt
@@ -389,7 +389,7 @@ async def search_products(
 MATCH_THRESHOLD = 0.15
 
 # 후보 수는 기본 3개, 점수 하한은 위 MATCH_THRESHOLD(0.15)뿐이다. 실사진 11장에서 정답은 6장 모두 1위였고
-# 정답 1위 점수의 최저가 0.290이라, 하한을 올리면 맞는 제품이 사라진다(scripts/IMAGE_MATCH_SUMMARY.md ③).
+# 정답 1위 점수의 최저가 0.290이라, 하한을 올리면 맞는 제품이 사라진다(research/image-match/IMAGE_MATCH_SUMMARY.md ③).
 
 # 분석 여부(성분 유사도 계산 대상인지)와 상관없이 찾는다 — 카탈로그에 기획 상품만 있는 제품도 있어서
 # (실사진 11장 중 2장), 분석된 제품으로 제한하면 맞는 제품을 못 찾는다.
@@ -438,7 +438,7 @@ async def match_text(db: AsyncSession, q: str, limit: int) -> list[ProductMatchO
     """글자(OCR 결과)와 제품명(한글·영문)의 trgm 유사도로 후보를 낸다.
 
     `/match`(텍스트)와 `/scan`(사진 → OCR)이 같이 쓴다. 같은 제품의 용량·기획 변형은 한 후보로 접는다
-    (`services/product_variants.py`).
+    (`services/matching/product_variants.py`).
     """
     rows = (
         await db.execute(
@@ -535,7 +535,7 @@ async def scan_product(
     **로그인한 사용자만** 쓴다. CLOVA OCR은 호출 수로 과금·무료 한도가 정해지는데,
     열어 두면 누구나 반복 호출할 수 있다. 비회원은 제품명 검색을 쓴다(화면이 안내).
     가입은 열려 있어 로그인만으로는 부족하므로, 허용 계정 외에는 하루 한도(계정당·전체)를
-    두고 넘으면 429를 낸다(`services/ocr_quota.py`). 사진은 저장하지 않는다.
+    두고 넘으면 429를 낸다(`services/scan/ocr_quota.py`). 사진은 저장하지 않는다.
     글자를 못 읽었으면 빈 후보를 낸다 — 화면이 제품명 검색으로 안내한다.
     """
     content_type, data = decode_photo(body.image)
@@ -561,7 +561,7 @@ async def match_products(
     `/search`는 `ILIKE '%q%'`다. **OCR이 한 글자만 틀려도 0건**이 된다 —
     `T0RRIDEN`은 아무것도 반환하지 않는다. 여기서는 trgm 유사도로 대조하고
     점수를 함께 내므로, 호출 측이 "자동 선택할까 목록을 보여줄까"를 정할 수
-    있다. 지금 OCR은 완전 실패가 44.4%여서(scripts/OCR_SUMMARY.md) 그
+    있다. 지금 OCR은 완전 실패가 44.4%여서(research/ocr/OCR_SUMMARY.md) 그
     판단이 호출 측에 있어야 한다.
 
     영문명을 함께 보는 이유
@@ -778,7 +778,7 @@ async def list_product_reviews(
 
     실제 후기는 산 제품에만 쓸 수 있다(`reviews.order_item_id`). 시연용으로
     제품마다 10개 안팎을 미리 채워 두었고(`reviews.is_sample`,
-    scripts/seed_sample_reviews.py) 작성자 표시는 그 행의 `author_*`를 쓴다.
+    tools/demo/seed_sample_reviews.py) 작성자 표시는 그 행의 `author_*`를 쓴다.
 
     `products.review_count`(크롤링으로 받아 온 올리브영 리뷰 수)는 인기순 정렬용이고,
     화면의 리뷰 수는 `products.registered_review_count`(= 이 목록의 total)다.

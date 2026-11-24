@@ -1,5 +1,5 @@
 /**
- * 주문 단계 표시. 단계 자체는 서버가 계산한다(`services/order_stage.py`) —
+ * 주문 단계 표시. 단계 자체는 서버가 계산한다(`services/commerce/order_stage.py`) —
  * 화면은 이름과 색만 정한다.
  */
 export const STAGE_LABEL: Record<string, string> = {

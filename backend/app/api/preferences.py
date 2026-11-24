@@ -3,7 +3,7 @@
     GET /api/v1/me/preferences   내가 좋아하는·피하는 성분과 그 근거 제품
 
 화면이 "왜 이 제품이 나에게 맞아 보이는지"를 설명하는 데 쓴다. 취향이 아직 켜지지 않았으면(신호 부족) `active=false`와
-"후기를 쓰거나 찜하면 취향이 쌓여요" 안내만 준다 — 적은 데이터로 취향이 있는 척하지 않는다(`services/preference.py`).
+"후기를 쓰거나 찜하면 취향이 쌓여요" 안내만 준다 — 적은 데이터로 취향이 있는 척하지 않는다(`services/personal_ai/preference.py`).
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from app.db.session import get_db
 from app.models.product import Product
 from app.models.user import User
 from app.schemas.preference import EvidenceProduct, PreferenceIngredientOut, PreferenceOut
-from app.services import preference
+from app.services.personal_ai import preference
 
 router = APIRouter(prefix="/api/v1/me", tags=["preferences"])
 

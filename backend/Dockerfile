@@ -24,7 +24,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 COPY . .
 # 얼굴 가림 검사 모델(약 16MB)을 미리 받아 둔다. 못 받아도 빌드는 깨지 않는다 — 처음 쓸 때 다시 시도한다.
-RUN python -m app.services.occlusion || echo "가림 검사 모델을 받지 못했어요(처음 쓸 때 다시 시도합니다)"
+RUN python -m app.services.photo.occlusion || echo "가림 검사 모델을 받지 못했어요(처음 쓸 때 다시 시도합니다)"
 
 EXPOSE 8000
 

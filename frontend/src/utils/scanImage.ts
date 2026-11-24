@@ -2,7 +2,7 @@
  * 사진으로 찾기용 이미지 — 장변 1024px JPEG data URL.
  *
  * 실사진 평가에서 1024px로 줄여도 결론이 같았고, OCR은 3~5배 빨라졌다
- * (장당 17초 → 2초, scripts/IMAGE_MATCH_SUMMARY.md ③). 폰 카메라 원본(수 MB)을
+ * (장당 17초 → 2초, research/image-match/IMAGE_MATCH_SUMMARY.md ③). 폰 카메라 원본(수 MB)을
  * 그대로 올리면 서버 크기 제한(2MB)에도 걸린다.
  */
 const MAX_SIDE = 1024;

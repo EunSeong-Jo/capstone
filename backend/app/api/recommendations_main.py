@@ -10,9 +10,9 @@
   2. 근거가 제품명 문자열이었다. 성분을 보지 않았다.
 
 여기서는 `product_skin_fit`(제품 × 피부타입 궁합, 성분 기능 라벨로 사전 계산)을 쓴다.
-처음에는 `ingredient_tags`(성분 태그)로 매겼으나 궁합 계산(services/skin_fit.py)으로 바뀌었다.
+처음에는 `ingredient_tags`(성분 태그)로 매겼으나 궁합 계산(services/skin/skin_fit.py)으로 바뀌었다.
 
-점수 (services/product_score.py — 홈과 예산 가이드가 공유)
+점수 (services/recommend/product_score.py — 홈과 예산 가이드가 공유)
 ------------------------------------------------------------
     궁합 0.4 + 별점 0.3 + log(리뷰수) 0.2 + 브랜드 다양성 0.1
 
@@ -38,12 +38,12 @@ from app.models.product import Product
 from app.models.user import User
 from app.schemas.budget_guide import BudgetGuideIn, BudgetGuideOut
 from app.schemas.product import ProductListOut, ProductOut
-from app.services.analysis_scope import analyzed
-from app.services.option_scope import listable
-from app.services import preference
-from app.services.budget_guide import build_guide
-from app.services.product_score import W_BRAND, product_score
-from app.services.skin_type import apply_exclusions, load_rule
+from app.services.matching.analysis_scope import analyzed
+from app.services.matching.option_scope import listable
+from app.services.personal_ai import preference
+from app.services.recommend.budget_guide import build_guide
+from app.services.recommend.product_score import W_BRAND, product_score
+from app.services.skin.skin_type import apply_exclusions, load_rule
 
 router = APIRouter(prefix="/api/v1/recommendations", tags=["recommendations"])
 
@@ -133,7 +133,7 @@ async def personalized_pick(
     limit: int,
     category: str | None = None,
 ) -> list[tuple[Product, str | None]] | None:
-    """내 취향(`services/preference.py`)을 반영한 추천 [(제품, 이유)]. 취향이 아직 켜지지 않았으면 None(기존 추천을 쓴다).
+    """내 취향(`services/personal_ai/preference.py`)을 반영한 추천 [(제품, 이유)]. 취향이 아직 켜지지 않았으면 None(기존 추천을 쓴다).
 
     기본 점수와 취향 점수를 `BLEND` 비율로 섞은 뒤 브랜드 다양성 후처리를 한다. 피부타입에 맞지 않아 걸러진 제품은
     후보 풀(`_pool`)에 애초에 없으므로 취향이 끌어올릴 수 없다.
@@ -261,7 +261,7 @@ async def budget_guide(
 
     피부타입은 `/set`과 같다 — 요청에 없으면 로그인 사용자의 프로필.
     조합이 하나도 없으면(예산 부족) `combinations`가 비고 `minPossibleTotal`이
-    이 루틴의 최저 합계를 알려 준다. 엔진은 `services/budget_guide.py`.
+    이 루틴의 최저 합계를 알려 준다. 엔진은 `services/recommend/budget_guide.py`.
 
     POST인 이유: 명세의 경로·메서드를 따랐고, 보유품 id 목록이 쿼리스트링에
     담기기엔 길다. 그래도 결과는 요청 내용으로만 정해지므로 캐시한다.

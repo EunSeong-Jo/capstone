@@ -1,0 +1,42 @@
+# 백엔드 unit 테스트 — DB·Redis 없이 도는 테스트만 돌린다(backend/tests/unit).
+# integration 테스트는 데이터가 적재된 Postgres가 필요해서 로컬에서 돌린다(backend/README.md "테스트").
+name: backend-tests
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "backend/**"
+      - "data/seed/**"
+      - ".github/workflows/backend-tests.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "data/seed/**"
+      - ".github/workflows/backend-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: unit 테스트
+        run: python -m pytest tests/unit

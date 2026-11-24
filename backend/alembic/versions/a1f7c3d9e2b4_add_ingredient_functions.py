@@ -1,7 +1,7 @@
 """add ingredient_functions
 
 성분 기능 분류(보습·장벽·진정·미백·주름·항산화·피지·각질·자외선 + 역할 + 자극 플래그).
-원본은 data/seed/ingredient_functions/labels.csv, 적재는 scripts/seed_ingredient_functions.py.
+원본은 data/seed/ingredient_functions/labels.csv, 적재는 backend/pipeline/load/seed_ingredient_functions.py.
 유사도(`hybrid`)와 피부 궁합이 같이 쓴다.
 
 **기존 데이터에 영향이 없다** — 새 테이블 1개뿐이다. 기존 `tags`·`ingredient_tags`는 건드리지 않는다.

@@ -1,7 +1,7 @@
 """add product_names_en
 
 올리브영 글로벌의 같은 상품 영문명. 원본은 data/raw/oliveyoung_kr_en_paired.csv
-(PR #60)이고 scripts/seed_product_names_en.py가 적재한다.
+(PR #60)이고 backend/pipeline/load/seed_product_names_en.py가 적재한다.
 
 products에 컬럼을 더하지 않고 별도 테이블로 둔 이유는 모델 주석에 있다 —
 한 제품이 여러 영문 리스팅에 매칭되고(goodsNo 중복 194건), OCR 대조에는

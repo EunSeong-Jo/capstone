@@ -38,7 +38,7 @@ export const SIMILARITY_HIGH = 55;
 /**
  * 같은 제품으로 볼 점수, 백분율.
  *
- * 적재 배치(scripts/compute_similarities.py)의 DUPLICATE_THRESHOLD와 같은
+ * 적재 배치(backend/pipeline/batch/compute_similarities.py)의 DUPLICATE_THRESHOLD와 같은
  * 개념이다. 성분 구성이 이 정도로 같으면 같은 제품이거나 용량만 다른 변형이다.
  */
 const SAME_PRODUCT_MIN = 99;

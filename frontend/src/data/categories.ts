@@ -1,7 +1,7 @@
 /**
  * 카탈로그 카테고리 — DB에 실제로 있는 4종.
  *
- * `categories` 테이블에 4행뿐이고, 수집기(scripts/load_products.py)가
+ * `categories` 테이블에 4행뿐이고, 수집기(backend/pipeline/load/load_products.py)가
  * `ALLOWED_CATEGORIES = {스킨케어, 마스크팩, 클렌징, 선케어}`로 얼굴용만
  * 남기기 때문이다. 메이크업·바디케어·헤어케어는 **데이터가 없다** —
  * 화면에 그리면 눌렀을 때 빈 목록이 나온다.

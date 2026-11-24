@@ -8,7 +8,7 @@
     priceDelta · savingRate · reasonTags
         Alternative 타입에는 있지만 파생값이다. 가격차는 프론트가 기준제품 가격을
         이미 갖고 있어 굳이 서버가 낼 이유가 없다. 없는 값을 지어내지 않는다.
-        (skinMatch는 skinType을 주면 `skin_match`로 낸다 — services/skin_fit.py)
+        (skinMatch는 skinType을 주면 `skin_match`로 낸다 — services/skin/skin_fit.py)
 """
 from __future__ import annotations
 

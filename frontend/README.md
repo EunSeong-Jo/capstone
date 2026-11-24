@@ -3,7 +3,7 @@
 화장품 **성분 기반 대체품 추천 + 개인 맞춤(피부타입)** 모바일 웹앱의 프론트엔드입니다.
 이 문서는 **팀 공통 개발 기준**입니다. 작업 전 반드시 한 번 읽어주세요.
 
-> 상세 디자인 시스템·컴포넌트 카탈로그는 [`docs/frontend-component-guide.md`](../docs/frontend-component-guide.md), 화면별 체크리스트는 [`docs/dev_guidelines.md`](../docs/dev_guidelines.md) 참고.
+> 상세 디자인 시스템·컴포넌트 카탈로그는 [`docs/guides/frontend-component-guide.md`](../docs/guides/frontend-component-guide.md), 화면별 체크리스트는 [`docs/guides/dev_guidelines.md`](../docs/guides/dev_guidelines.md) 참고.
 
 ---
 
@@ -263,9 +263,9 @@ frontend/
 
 ## 9. 참고 문서
 
-- [`docs/frontend-component-guide.md`](../docs/frontend-component-guide.md) — 컴포넌트 카탈로그·디자인 토큰 상세
-- [`docs/dev_guidelines.md`](../docs/dev_guidelines.md) — 화면별 구현 체크리스트·역할 분담
-- [`docs/PRD_swappy_v1.8.md`](../docs/PRD_swappy_v1.8.md) — 제품 요구사항
+- [`docs/guides/frontend-component-guide.md`](../docs/guides/frontend-component-guide.md) — 컴포넌트 카탈로그·디자인 토큰 상세
+- [`docs/guides/dev_guidelines.md`](../docs/guides/dev_guidelines.md) — 화면별 구현 체크리스트·역할 분담
+- [`docs/product/PRD_swappy_v1.8.md`](../docs/product/PRD_swappy_v1.8.md) — 제품 요구사항
 - [`ANALYSIS.md`](./ANALYSIS.md) — 팀원 제출물 병합 분석(무엇을 병합했고 원본과 실제 구현이 어떻게 달랐는지)
 
 ---
@@ -300,6 +300,12 @@ bash scripts/android.sh debug https://서버주소   # ② 운영 서버(HTTPS)�
 npm run android:install                     # ②로 만든 APK를 폰에 설치·실행
 ```
 APK는 `android/app/build/outputs/apk/debug/app-debug.apk`에 생깁니다(저장소에 올리지 않음). 첫 Gradle 빌드는 의존성을 받느라 10~20분 걸립니다.
+
+**로그인 화면 '앱 설치하기'로 내려받는 APK 갱신** — ②(운영 서버 주소)로 빌드한 뒤 GitHub Releases에 올립니다. 서버의 `/swappy.apk`는 그 파일로 넘겨 줄 뿐이라 **재배포가 필요 없습니다.**
+```bash
+tools/ops/upload_release_assets.sh frontend/android/app/build/outputs/apk/debug/app-debug.apk=swappy.apk   # 저장소 루트에서
+```
+예전에는 `frontend/public/swappy.apk`로 커밋했는데, 28번 갱신되며 git 기록에 600MB 넘게 쌓여 Releases로 옮겼습니다(`.gitignore`에 있어 다시 들어가지 않습니다).
 
 - **①(`android:local`)**: `adb reverse tcp:8000 tcp:8000`으로 폰의 `localhost:8000`을 PC 서버에 이어 줍니다. 앱 화면이 HTTPS라 HTTP 호출은 혼합 콘텐츠로 막히므로,
   이때만 `CAP_LOCAL=1`(`capacitor.config.ts`의 `allowMixedContent`)과 디버그 전용 `android/app/src/debug/AndroidManifest.xml`(평문 통신 허용)이 쓰입니다.

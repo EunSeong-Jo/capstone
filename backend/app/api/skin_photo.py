@@ -35,7 +35,7 @@ from app.core.rate_limit import allow_daily
 from app.db.session import get_db
 from app.models.skin_photo import FACE_PHOTO, SkinAnalysis, Subscription, UserConsent
 from app.models.user import User
-from app.services import skin_images
+from app.services.photo import skin_images
 from app.schemas.skin_photo import (
     AnalysisIn,
     AnalysisOut,
@@ -49,17 +49,17 @@ from app.schemas.skin_photo import (
     SkinTypesOut,
     SubscriptionOut,
 )
-from app.services.face_gate import check_face, inspect_photo, prepare_photo
-from app.services.review_photos import decode_photo
-from app.services.skin_photo import analyze_face, fetch_masks, parse_output, to_axes
-from app.services.skin_sample import (
+from app.services.photo.face_gate import check_face, inspect_photo, prepare_photo
+from app.services.commerce.review_photos import decode_photo
+from app.services.photo.skin_photo import analyze_face, fetch_masks, parse_output, to_axes
+from app.services.photo.skin_sample import (
     SAMPLE_MODE,
     find_sample,
     image_source_id,
     live_analysis_allowed,
     sample_metrics,
 )
-from app.services.skin_quota import (
+from app.services.photo.skin_quota import (
     SUBSCRIPTION_PERIOD_DAYS,
     Quota,
     active_subscription,
@@ -335,7 +335,7 @@ async def analyze(
 
     if not live_analysis_allowed(user):
         # 허용 계정이 아니면 Perfect Corp을 부르지 않는다. 표본 계정에 저장된 분석 결과를 이 계정의 분석으로 남긴다
-        # (services/skin_sample.py). 사진은 여기서 버려진다 — 외부로 나가지도, 저장되지도 않는다.
+        # (services/photo/skin_sample.py). 사진은 여기서 버려진다 — 외부로 나가지도, 저장되지도 않는다.
         sampled = await _sample_analysis(db, user, quota)
         if sampled is None:
             raise HTTPException(status_code=503, detail="사진 분석을 지금은 쓸 수 없어요")
@@ -410,7 +410,7 @@ async def analysis_image(
             SkinAnalysis.id == analysis_id, SkinAnalysis.user_id == user.id
         )
     )
-    # 표본으로 만든 분석은 이미지를 복사하지 않고 원본 분석의 것을 읽는다(services/skin_sample.py)
+    # 표본으로 만든 분석은 이미지를 복사하지 않고 원본 분석의 것을 읽는다(services/photo/skin_sample.py)
     png = None
     if owned:
         # 가짜로 채운 항목은 자기 행에, 실제 항목은 원본 분석에 있다

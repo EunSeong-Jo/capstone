@@ -33,15 +33,15 @@ structlog==24.4.0
 # HTTP Client
 httpx==0.28.1
 
-# 데이터 수집 (app/data_collection/)
+# 데이터 수집 (pipeline/collect/legacy/)
 # API 서버 구동에는 필요 없고, 수집기를 직접 실행할 때만 쓰인다.
-#   python -m app.data_collection.run_collection
+#   python -m pipeline.collect.legacy.run_collection
 # selenium은 Chrome/Chromedriver가 별도로 설치돼 있어야 동작한다.
 requests==2.34.2
 beautifulsoup4==4.15.0
 selenium==4.47.0
 
-# 유사도 엔진 (app/services/similarity.py · scripts/compute_similarities.py)
+# 유사도 엔진 (app/services/matching/similarity.py · backend/pipeline/batch/compute_similarities.py)
 # scikit-learn을 쓰지 않는 이유: 필요한 건 IDF 가중 코사인 하나뿐이고
 # 직접 계산하는 편이 짧다. 조회 API(app/api/recommendations.py)는 미리
 # 계산된 similarities만 읽으므로 이 둘을 import하지 않는다 — 배치와
@@ -52,13 +52,13 @@ selenium==4.47.0
 numpy==2.4.6
 scipy==1.17.1
 
-# 얼굴 사진 분석 (app/services/face_gate.py · skin_photo.py)
+# 얼굴 사진 분석 (app/services/photo/face_gate.py · skin_photo.py)
 # Pillow: 사진 회전 적용·EXIF(GPS 포함) 제거·재인코딩. opencv-python-headless: 얼굴이
 # 아닌 사진을 Perfect Corp에 보내기 전에 거르는 YuNet 얼굴 검출기(MIT 라이선스 모델,
 # app/assets/models/). 4.x에 고정한 이유: 5.0은 새 메이저라 FaceDetectorYN을 검증하지 않았다.
 Pillow==12.2.0
 opencv-python-headless==4.13.0.92
-# ai-edge-litert: 얼굴 가림 검사의 이미지 분할 모델(TFLite)을 돌리는 런타임(app/services/occlusion.py). 약 22MB.
+# ai-edge-litert: 얼굴 가림 검사의 이미지 분할 모델(TFLite)을 돌리는 런타임(app/services/photo/occlusion.py). 약 22MB.
 ai-edge-litert==2.3.0
 
 # LLM (챗봇)
