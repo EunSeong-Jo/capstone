@@ -23,10 +23,10 @@ import structlog
 from fastapi import APIRouter, HTTPException, Query, Response
 
 from app.api.weather import SEOUL_TZ, get_day_outlook, get_weather_snapshot
-from app.services.skin_type import SKIN_TYPE_LABELS
+from app.services.skin.skin_type import SKIN_TYPE_LABELS
 from app.core.cache import cache_get, cache_set
 from app.schemas.care_tip import CareTipOut
-from app.services.llm import chat_completion
+from app.services.chat.llm import chat_completion
 
 router = APIRouter(prefix="/api/v1/care-tip", tags=["care-tip"])
 log = structlog.get_logger()

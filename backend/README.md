@@ -23,16 +23,16 @@ cp .env.example .env
 # 2. 스키마 생성 (테이블 38개 + pg_trgm 확장)
 cd backend && alembic upgrade head
 
-# 3. 성분 사전 → DB (협회 표준명 21,910 + 별칭)
-python scripts/seed_ingredients.py
+# 3. 성분 사전 → DB (협회 표준명 21,910 + 별칭) — 계속 backend/ 안에서
+python pipeline/load/seed_ingredients.py
 
 # 4. 제품 적재 (올리브영 v5 정제본 → 얼굴용 4종 약 4,013 제품)
-python scripts/load_products.py
+python pipeline/load/load_products.py
 ```
 
 **적재 스크립트는 모두 멱등합니다.** 몇 번을 돌려도 행수가 변하지 않으니 안심하고 재실행하세요.
 DB에는 이미 적재돼 있어서 3·4번을 건너뛰어도 바로 쓸 수 있습니다.
-그 밖의 시드(진단 문항·성분 기능 라벨·궁합·유사도 배치)와 실행 순서는 [docs/db-schema.md](../docs/db-schema.md)의 "적재 파이프라인"을 보세요.
+그 밖의 시드(진단 문항·성분 기능 라벨·궁합·유사도 배치)와 실행 순서는 [docs/architecture/db-schema.md](../docs/architecture/db-schema.md)의 "적재 파이프라인"을 보세요.
 
 > ⚠️ **2026-09-20 이후 처음 받는다면 컨테이너를 다시 빌드하세요.**
 > ```bash
@@ -52,8 +52,8 @@ DSN은 커밋하지 않습니다. Neon 조직 `dmu` 초대를 수락하면 각�
 backend/
 ├── alembic/
 │   ├── env.py                  # 동기(psycopg2) 마이그레이션 러너
-│   └── versions/               # 마이그레이션 26개
-├── app/
+│   └── versions/               # 마이그레이션
+├── app/                        # ── 런타임: 서버가 import하는 것만 ──
 │   ├── main.py                 # 앱 진입점 · Sentry · CORS · 라우터 등록 · /health
 │   ├── config.py               # 환경변수 (pydantic-settings)
 │   ├── logging_config.py       # structlog
@@ -68,29 +68,38 @@ backend/
 │   │   └── skin_photo.py       #   얼굴 사진 분석 4
 │   ├── schemas/                # Pydantic 입출력
 │   ├── api/                    # 라우터: products · recommendations(_main) · skin_fit · analysis · auth · me · diagnosis
-│   │                           #   personal(화장대·주문·후기 등) · skin_photo · chat · care_tip · weather
-│   │                           #   ingredients · memory · preferences · insights
-│   ├── services/               # 계산·외부 연동 (아래 표)
-│   ├── data_collection/        # 식약처 API · 초기 크롤러(운영 크롤러는 /crawling의 Playwright)
+│   │   │                       #   skin_photo · chat · care_tip · weather · ingredients · memory · preferences · insights
+│   │   └── personal/           #   개인 데이터 — closet · cart · activity(찜·최근 본·스캔) · orders
+│   │                           #   reviews(후기·포인트) · stats · gifts · notifications
+│   ├── services/               # 계산·외부 연동 — 도메인별 하위 패키지 (아래 표)
+│   ├── assets/                 # 얼굴 검출·가림 검사 모델, Perfect Corp 목업 응답
 │   └── utils/                  # ingredients(전성분 파싱) · composition · product_options
-├── tests/                      # pytest (test_*.py 36개)
+├── pipeline/                   # ── 오프라인: DB를 만드는 스크립트 (서버는 import하지 않음) ──
+│   ├── collect/                # 수집·사전 추출 (올리브영 글로벌 · 성분 PDF · 한영 제품명 매칭)
+│   │   └── legacy/             #   식약처 API · 초기 Selenium 크롤러 (python -m pipeline.collect.legacy.run_collection)
+│   ├── load/                   # 적재·시드 (load_products · seed_ingredients · seed_quiz · seed_ingredient_functions …)
+│   ├── batch/                  # 사전 계산 (compute_similarities · compute_skin_fit)
+│   └── maintenance/            # 정비·진단 (오타 별칭 · 리필 유사도 보정 · 파싱 잔해 리포트)
+├── tests/                      # pytest
 └── requirements.txt
 ```
 
-| 서비스 | 하는 일 |
-|---|---|
-| `similarity.py` | 성분 유사도(tfidf/hybrid) — 순수 계산, DB를 모른다 |
-| `skin_fit.py` · `product_analysis.py` · `skin_type.py` | 피부 궁합 · 내 제품 성분 분석 · 피부타입 규칙 |
-| `diagnosis.py` | QnA 5축 점수 · 8타입 순위 · 사진 혼합 |
-| `product_score.py` · `budget_guide.py` · `routine_steps.py` | 홈 추천 점수 · 예산 구매 가이드 |
-| `llm.py` · `rag.py` · `chat_tools.py` · `chat_fallback.py` · `personal_context.py` | 챗봇(공급자 체인 · 검색 · 도구 호출 · 규칙 폴백 · 개인 요약) |
-| `memory.py` · `preference.py` · `skin_report.py` · `briefing.py` | 퍼스널 AI(AI 기억 · 성분 취향 · 피부 변화 리포트 · 오늘의 브리핑) |
-| `skin_photo.py` · `face_gate.py` · `occlusion.py` · `skin_quota.py` · `skin_images.py` · `skin_sample.py` | 얼굴 사진 분석(Perfect Corp · 사전 검증 · 한도 · 이미지 보관) |
-| `ocr.py` · `ocr_quota.py` | 사진으로 제품 찾기(CLOVA OCR · 일일 한도) |
-| `notifications.py` · `experience.py` · `order_stage.py` · `review_photos.py` | 알림 · 경험치 · 배송 단계 계산 · 후기 사진 |
-| `rag_seed.py` | ⚠️ 옛 SQLite 시드(현재 `rag.py`는 PostgreSQL을 읽는다) |
+`pipeline/`의 스크립트는 `backend/` 안에서 `python pipeline/<단계>/<스크립트>.py`로 실행합니다.
+저장소 루트의 `data/`를 읽기 때문에 **호스트에서** 돌립니다. 컨테이너에는 `backend/`만 마운트돼 있어 `data/`가 없습니다.
+시연용 시드는 [`tools/demo/`](../tools/demo/), 평가·실험은 [`research/`](../research/)에 있습니다.
 
-스키마 전체는 **[docs/db-schema.md](../docs/db-schema.md)** 를 보세요.
+| 패키지 `app/services/…` | 모듈 | 하는 일 |
+|---|---|---|
+| `matching/` | `similarity` · `product_variants` · `option_scope` · `analysis_scope` | 성분 유사도(tfidf/hybrid, 순수 계산) · 옵션 묶음·변형·분석 대상 범위 |
+| `skin/` | `diagnosis` · `skin_type` · `skin_fit` · `product_analysis` | QnA 5축·8타입 순위·사진 혼합 · 타입 규칙 · 피부 궁합 · 내 제품 성분 분석 |
+| `recommend/` | `product_score` · `budget_guide` · `routine_steps` | 홈 추천 점수 · 예산 구매 가이드 |
+| `chat/` | `llm` · `rag` · `chat_tools` · `chat_fallback` · `rag_seed` | 챗봇(공급자 체인 · 검색 · 도구 호출 · 규칙 폴백). `rag_seed`는 ⚠️ 옛 SQLite 시드 |
+| `personal_ai/` | `personal_context` · `memory` · `preference` · `skin_report` · `briefing` | 개인 요약 · AI 기억 · 성분 취향 · 피부 변화 리포트 · 오늘의 브리핑 |
+| `photo/` | `skin_photo` · `face_gate` · `occlusion` · `skin_quota` · `skin_images` · `skin_sample` | 얼굴 사진 분석(Perfect Corp · 사전 검증 · 가림 검사 · 한도 · 이미지 보관) |
+| `scan/` | `ocr` · `ocr_quota` | 사진으로 제품 찾기(CLOVA OCR · 일일 한도) |
+| `commerce/` | `notifications` · `experience` · `order_stage` · `review_photos` | 알림 · 경험치 · 배송 단계 계산 · 후기 사진 |
+
+스키마 전체는 **[docs/architecture/db-schema.md](../docs/architecture/db-schema.md)** 를 보세요.
 
 ---
 
@@ -108,7 +117,7 @@ cd backend && alembic revision --autogenerate -m "설명"
 alembic upgrade head
 alembic check          # "No new upgrade operations detected" 여야 한다
 
-# 5) docs/db-schema.md 를 함께 갱신한다
+# 5) docs/architecture/db-schema.md 를 함께 갱신한다
 ```
 
 ### ⚠️ 마이그레이션이 든 PR을 revert하기 전에 DB를 되돌립니다
@@ -231,7 +240,7 @@ a3f5c7d9e1b2  user_memories                    AI 기억  ← head
 
 asyncpg에 libpq 파라미터를 그대로 넘기면 연결이 실패하고, psycopg2는 반대로 그걸 요구합니다. `config.py`의 `DATABASE_URL` / `DATABASE_URL_SYNC` 두 프로퍼티가 이걸 나눠 처리합니다.
 
-**`CREATE EXTENSION`은 마이그레이션이 책임집니다.** Neon에는 `docker-entrypoint-initdb.d` 훅이 없어 `scripts/init_db.sh`가 실행되지 않습니다. `pg_trgm` 설치가 첫 마이그레이션에 들어 있는 이유입니다.
+**`CREATE EXTENSION`은 마이그레이션이 책임집니다.** Neon에는 `docker-entrypoint-initdb.d` 훅이 없어 `tools/ops/init_db.sh`가 실행되지 않습니다. `pg_trgm` 설치가 첫 마이그레이션에 들어 있는 이유입니다.
 
 **`alembic.ini`의 `sqlalchemy.url`은 비워 둡니다.** DSN이 커밋되지 않도록 `env.py`가 `settings.DATABASE_URL_SYNC`를 주입합니다.
 
@@ -290,7 +299,7 @@ cd backend && uvicorn app.main:app --reload
 
 ## 알아둘 것
 
-**챗봇 폴백.** `LLM_CHAIN`의 공급자가 모두 실패하면(키 만료·한도·타임아웃) `POST /chat`은 503 대신 200과 `mode:"fallback"`으로, `services/chat_fallback.py`가 DB(성분 설명·기능 라벨·제품 RAG·유사도·피부 궁합)로 만든 답을 준다. 모델을 쓰지 않아 서버 부담이 작고, 서버 로그에 `chat_llm_fallback`이 남으면 키를 점검한다. 챗봇 RAG(`rag.py`)는 이미 PostgreSQL을 읽는다.
+**챗봇 폴백.** `LLM_CHAIN`의 공급자가 모두 실패하면(키 만료·한도·타임아웃) `POST /chat`은 503 대신 200과 `mode:"fallback"`으로, `services/chat/chat_fallback.py`가 DB(성분 설명·기능 라벨·제품 RAG·유사도·피부 궁합)로 만든 답을 준다. 모델을 쓰지 않아 서버 부담이 작고, 서버 로그에 `chat_llm_fallback`이 남으면 키를 점검한다. 챗봇 RAG(`rag.py`)는 이미 PostgreSQL을 읽는다.
 
 **Redis는 캐시와 일일 한도에 씁니다.** `core/cache.py`(제품 상세·홈 추천·케어 문구·날씨 등 캐시)와 `core/rate_limit.py`(비회원 챗봇·OCR 일일 한도)가 쓰고, 죽어 있어도 API는 500 대신 DB 경로로 폴백합니다(돈이 걸린 사진 분석 월 한도만은 Redis가 아니라 DB 행 수로 셉니다).
 
@@ -298,7 +307,7 @@ cd backend && uvicorn app.main:app --reload
 
 **퍼스널 AI.** 챗봇은 계산 엔진을 도구로 불러 쓰고(`chat_tools.py`), 동의한 사용자에게는 대화에서 알게 된 선호를 한 줄씩 기억합니다(`memory.py`). 원칙과 알고리즘은 [루트 README](../README.md)의 "퍼스널 AI"를 보세요.
 
-**`data_collection/db_storage.py`의 `init_tables()`는 무력화돼 있습니다.** 스키마 정의를 Alembic으로 일원화하면서 경고만 출력하는 스텁으로 남겼습니다(`run_collection.py`가 아직 import합니다).
+**`pipeline/collect/legacy/db_storage.py`의 `init_tables()`는 무력화돼 있습니다.** 스키마 정의를 Alembic으로 일원화하면서 경고만 출력하는 스텁으로 남겼습니다(`run_collection.py`가 아직 import합니다).
 
 ---
 
@@ -317,7 +326,7 @@ cd backend && uvicorn app.main:app --reload
 사진만으로 8타입을 가르려면 5축(`oiliness·moisture·redness·age_spot·acne`)이 모두 필요하다 —
 한 축이라도 빠지면 타입 한 쌍이 겹친다. 무료 8개 항목에 5축이 모두 들어 있다.
 분석 이력은 `GET /api/v1/skin-analysis?limit=`(최신순)이다. 스키마와 한도 규칙은
-[docs/db-schema.md](../docs/db-schema.md)의 "얼굴 사진 AI 분석"을 보세요.
+[docs/architecture/db-schema.md](../docs/architecture/db-schema.md)의 "얼굴 사진 AI 분석"을 보세요.
 
 ```bash
 # .env — 키는 https://yce.makeupar.com/api-console 에서 발급
@@ -333,29 +342,29 @@ PERFECT_CORP_MOCK=true     # 개발·테스트: 저장해 둔 응답(app/assets/
 
 **허용 계정만 실호출합니다.** `SKIN_ANALYSIS_ALLOWED_EMAILS`(기본 `capstone@gmail.com`)에 든 계정만 Perfect Corp을 부릅니다.
 그 밖의 계정은 사진을 받아 정리·얼굴 검증까지 하지만 **외부로 보내지 않고**, `SKIN_SAMPLE_EMAIL`(기본 `eunseong@swappy.app`) 계정의
-가장 최근 분석을 자기 분석으로 복사합니다(`app/services/skin_sample.py`). 동의·월 이용 한도는 실호출과 같고, 분석 이미지는 복사하지 않고
+가장 최근 분석을 자기 분석으로 복사합니다(`app/services/photo/skin_sample.py`). 동의·월 이용 한도는 실호출과 같고, 분석 이미지는 복사하지 않고
 원본을 가리킵니다(`metrics.sample_of`, `provider_mode='sample'`). 표본 계정에 분석이 없으면 503이고 화면은 QnA로 이어 갑니다.
 
 **요청 순서**(`app/api/skin_photo.py`): 동의(403) → 한도(402) → 사진 정리·EXIF 제거 → **얼굴 사전 필터**(422) →
 Perfect Corp. 앞 단계의 거절과 외부 오류는 분석 행을 만들지 않아 **한도를 쓰지 않습니다.**
 
-**얼굴 사전 필터**(`app/services/face_gate.py`): 얼굴이 아닌 사진을 외부로 보내기 전에 거릅니다.
+**얼굴 사전 필터**(`app/services/photo/face_gate.py`): 얼굴이 아닌 사진을 외부로 보내기 전에 거릅니다.
 OpenCV `FaceDetectorYN` + YuNet 모델(`app/assets/models/`, MIT, 230KB)을 쓰고, 규칙은 검출기와 분리돼 있어
 단위 테스트됩니다. 임계값은 `FACE_MIN_*`(config.py)이며 거절 사유는 로그로 남습니다(사진은 남기지 않음).
 YOLO(ultralytics)를 쓰지 않는 이유는 AGPL-3.0 라이선스와 PyTorch 용량 때문입니다.
 화면(MediaPipe)도 같은 규칙으로 안내하지만 **최종 판정은 서버**입니다.
 
-**분석 전에 AI가 사진을 먼저 검증합니다**(`services/face_gate.py`, OpenCV YuNet). 업체의 촬영 요구를 같은 기준으로 먼저
+**분석 전에 AI가 사진을 먼저 검증합니다**(`services/photo/face_gate.py`, OpenCV YuNet). 업체의 촬영 요구를 같은 기준으로 먼저
 확인해, 부적합한 사진은 외부로 보내지 않고 이유를 알려 주며 **횟수도 쓰지 않습니다**: 얼굴 있음·한 명·잘림 없음·
 얼굴 폭 60% 이상(두 눈 사이 거리 ÷ 0.45로 어림 — 검출 상자 폭은 얼굴보다 좁아 쓰지 않음, 업체가 정상 처리한 시험
 사진이 상자 58.8%·어림 64%)·정면(눈 기울기 15°·코 치우침)·**가림 없음**(손·마스크·머리카락)·조명(너무 어둡거나 밝거나 한쪽만
 밝음)·초점. 임계값은 `config.py`의 `FACE_*`. 위·아래 고개 숙임과 표정은 근거가 불안정해서 보지 않습니다.
 
-**가림 검사**(`services/occlusion.py`)는 MediaPipe 이미지 분할 모델 `selfie_multiclass_256x256`(약 16MB, Apache-2.0)을
+**가림 검사**(`services/photo/occlusion.py`)는 MediaPipe 이미지 분할 모델 `selfie_multiclass_256x256`(약 16MB, Apache-2.0)을
 `ai-edge-litert`로 돌립니다. 픽셀을 배경·머리카락·몸 피부·얼굴 피부·옷·기타로 나눠, 얼굴 영역(볼·코와 입·턱)의 **얼굴 피부
 비율**이 기준(`FACE_SKIN_MIN_*`: 볼 70%·코와 입 80%·턱 60%)에 못 미치면 그 부위가 가려졌다고 안내합니다(손은 몸 피부로
 분류됨). 모델 파일은 저장소에 커밋하지 않습니다(`backend/app/assets/models/`, `.gitignore`) — 이미지를 빌드할 때
-(`python -m app.services.occlusion`)나 처음 쓸 때 내려받고 SHA256을 확인합니다. **받지 못하거나 라이브러리를 못 읽으면 이
+(`python -m app.services.photo.occlusion`)나 처음 쓸 때 내려받고 SHA256을 확인합니다. **받지 못하거나 라이브러리를 못 읽으면 이
 항목만 건너뜁니다**(체크리스트에서 "확인 못 함"). 로컬 개발은 `./backend`를 마운트하므로 처음 쓸 때 내려받아 호스트 폴더에
 저장됩니다. 서버 한 번 검증은 약 0.3초(얼굴 검출 + 분할 + 밝기·선명도).
 
@@ -364,13 +373,13 @@ YOLO(ultralytics)를 쓰지 않는 이유는 AGPL-3.0 라이선스와 PyTorch �
 
 **원본 사진은 저장하지 않습니다.** `prepare_photo`가 회전을 픽셀에 반영한 뒤 EXIF(GPS 포함)를 지운 JPEG를 새로
 만듭니다. 업체가 돌려주는 항목별 분석 이미지(`mask_urls`, 2시간 만료 서명 URL)는 URL을 저장하지 않고, 분석 직후 서버가 받아
-**DB**(`skin_analysis_images`, bytea)에 둡니다(`services/skin_images.py`). 받아 보면 마스크는 **얼굴 사진이 없는 투명 PNG**(표시할 부위에만 색,
+**DB**(`skin_analysis_images`, bytea)에 둡니다(`services/photo/skin_images.py`). 받아 보면 마스크는 **얼굴 사진이 없는 투명 PNG**(표시할 부위에만 색,
 1920×2560)이고, **원본 사진과 합성하지 않고 그대로** 저장하므로 얼굴 사진은 남지 않습니다. 화면이 중립 배경 위에 그립니다.
 `resize_image`(원본을 줄인 것)는 받지 않습니다.
 
 - 위치: `skin_analysis_images`(분석·항목당 1행, 분석 1회 2~3MB). 컨테이너 디스크는 재배포 때 사라지므로(Lightsail은 영구 볼륨이 없다) DB에 둡니다.
   분석 행과 **같은 트랜잭션**으로 저장하고, 공용 DB를 어느 PC에서 봐도 이미지가 같이 보입니다.
-  예전 디스크 파일(`/data/skin_images/…`)은 `scripts/import_skin_images.py`로 올립니다.
+  예전 디스크 파일(`/data/skin_images/…`)은 `tools/demo/import_skin_images.py`로 올립니다.
 - 받는 법: `GET /api/v1/skin-analysis/{id}/images/{항목}` — 본인 것만(남의 id는 404). 응답의 `images`가 받을 수 있는 키입니다.
 - 삭제: 분석이 지워지면(계정 삭제 포함) FK CASCADE로 함께(**동의를 철회해도 이미 만든 결과·이미지는 지우지 않습니다**). 내려받기가 실패한 항목은 건너뛰고 점수만 저장합니다.
 
@@ -386,7 +395,7 @@ YOLO(ultralytics)를 쓰지 않는 이유는 AGPL-3.0 라이선스와 PyTorch �
 ```bash
 docker run -d --rm --name pg_test -e POSTGRES_PASSWORD=testpw -e POSTGRES_DB=swappy_test -p 55432:5432 postgres:16-alpine
 export DATABASE_DSN=postgresql://postgres:testpw@localhost:55432/swappy_test
-alembic upgrade head && python scripts/seed_quiz.py && python scripts/seed_test_users.py
+alembic upgrade head && python pipeline/load/seed_quiz.py && python ../tools/demo/seed_test_users.py   # backend/ 안에서
 pytest tests/test_skin_photo_unit.py tests/test_skin_photo_api.py tests/test_auth.py tests/test_diagnosis.py
 ```
 
@@ -403,13 +412,13 @@ SHA-256 해시만 남습니다.
 **passlib을 쓰지 않습니다.** `requirements.txt`에 있던 passlib 1.7.4가 bcrypt 5.x와
 맞지 않아 해싱 자체가 `ValueError`로 죽습니다(백엔드 탐지 프로브가 72바이트를 넘습니다).
 2020년 이후 릴리스가 없어 bcrypt를 직접 씁니다. 해시 형식은 표준 bcrypt라
-`scripts/seed_test_users.py`가 만든 것과 서로 검증됩니다.
+`tools/demo/seed_test_users.py`가 만든 것과 서로 검증됩니다.
 
 ### 데모 계정
 
 ```bash
-python scripts/seed_test_users.py     # personas.json의 5명 → users/profiles/diagnoses
-python scripts/seed_quiz.py           # 진단 문항 6개 → quiz_versions/questions/options
+python tools/demo/seed_test_users.py     # personas.json의 5명 → users/profiles/diagnoses
+python backend/pipeline/load/seed_quiz.py           # 진단 문항 6개 → quiz_versions/questions/options
 ```
 
 비밀번호는 전원 `swappy1234`입니다. 프론트 로그인 화면의 퀵 로그인 버튼이
@@ -420,12 +429,27 @@ python scripts/seed_quiz.py           # 진단 문항 6개 → quiz_versions/que
 
 ## 테스트
 
+| 폴더 | 무엇 | 필요한 것 | 건수(2026-11-24) |
+|---|---|---|---|
+| `tests/unit/` | 순수 계산 — 유사도·궁합·진단·파싱·예산 조합, 외부 호출은 가짜로 바꿈 | Python만 | 474 (약 3초) |
+| `tests/integration/` | API 호출 · DB 조회·쓰기 · Redis 한도 | 데이터가 적재된 Postgres + Redis | 313 (약 2분) |
+
 ```bash
-docker exec swappy_backend python -m pytest --ignore=tests/test_volume_parsing.py -q
+# 컨테이너 (로컬 Postgres)
+docker exec swappy_backend python -m pytest tests/unit          # DB 없이도 된다
+docker exec swappy_backend python -m pytest tests/integration
+docker exec swappy_backend python -m pytest                     # 전부
+
+# 마커로도 고를 수 있다 (conftest.py가 폴더에 따라 붙인다)
+pytest -m unit
+pytest -m "not integration"
 ```
 
-`test_volume_parsing.py`는 `scripts/load_products.py`를 import하는데 컨테이너에
-`scripts/`가 마운트되지 않아 수집 단계에서 실패합니다. 호스트에서는 그냥 `pytest`로 돕니다.
+- **unit은 GitHub Actions가 푸시·PR마다 돌립니다** ([`.github/workflows/backend-tests.yml`](../.github/workflows/backend-tests.yml)).
+- 나눈 기준은 실측입니다. DB·Redis 접속을 끊고 전체를 돌려 통과한 테스트가 unit입니다. 새 테스트도 DB 세션이나 `client`로 실제 조회를 하면 `integration/`에, 아니면 `unit/`에 둡니다.
+- 한 주제가 양쪽에 있으면 같은 파일명을 씁니다(`unit/test_skin_fit.py` · `integration/test_skin_fit.py`).
+- `unit/test_ingredient_functions_seed.py`는 저장소 루트의 `data/`를 읽습니다. 컨테이너에는 `backend/`만 마운트돼 있어 건너뛰고, 호스트와 CI에서는 실행됩니다.
+- async 테스트는 모두 session 이벤트 루프에서 돌아야 합니다(`conftest.py` 상단 설명). 한 파일이라도 빠지면 뒤 파일들이 `attached to a different loop`로 깨집니다(2026-11 `test_skin_photo_unit.py`에서 실제로 겪었습니다).
 
 **쓰기 테스트가 생겼습니다** (`test_auth.py`·`test_personal.py`·`test_diagnosis.py`).
 `conftest.py`가 적어 둔 "공용 Neon에 읽기 전용" 전제를 깨는 것이라, 이 파일들은

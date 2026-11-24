@@ -1,5 +1,5 @@
 {
-  "_comment": "데모/테스트용 사용자 페르소나 단일 원본. 프론트(personas.ts)와 백엔드(scripts/seed_test_users.py)가 함께 읽는다. 값을 바꾸면 양쪽에 동시 반영된다. 팀원 실명 기반 계정(게스트 포함 6종) — PPT '팀 구성 및 역할' 슬라이드와 동일 인물·역할.",
+  "_comment": "데모/테스트용 사용자 페르소나 단일 원본. 프론트(personas.ts)와 백엔드(tools/demo/seed_test_users.py)가 함께 읽는다. 값을 바꾸면 양쪽에 동시 반영된다. 팀원 실명 기반 계정(게스트 포함 6종) — PPT '팀 구성 및 역할' 슬라이드와 동일 인물·역할.",
   "quizVersion": "v1.8",
   "personas": [
     {

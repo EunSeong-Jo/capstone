@@ -92,7 +92,7 @@ class IngredientOut(_CamelModel):
     flags: list[str] = []          # I F L
     confidence: int | None = None  # 1~3
 
-    # 성분 설명. `scripts/seed_ingredient_descriptions.py`가
+    # 성분 설명. `backend/pipeline/load/seed_ingredient_descriptions.py`가
     # ingredient_descriptions에 적재한다. 설명이 없는 성분은 셋 다 비어 있다.
     #
     #   description         한 줄 설명

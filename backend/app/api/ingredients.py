@@ -11,7 +11,7 @@
     라벨도 설명도 없는 성분은 "준비 중"만 보여 줄 수 있어 목록에는 올리지 않는다.
     다만 이름으로 직접 찾으면(`q`) 라벨 없는 성분도 나온다 — 찾는 사람이 있으니 답은 줘야 한다.
 
-분류는 `ingredient_functions`의 값 그대로다(`docs/db-schema.md`). 새로 지은 기준이 아니라서
+분류는 `ingredient_functions`의 값 그대로다(`docs/architecture/db-schema.md`). 새로 지은 기준이 아니라서
 전성분 칩·궁합 카드와 어긋나지 않는다. 확신도 1(검수 대상)인 라벨은 분류 근거에서 뺀다.
 """
 from __future__ import annotations
@@ -39,7 +39,7 @@ from app.schemas.ingredient_dict import (
     IngredientDictItemOut,
     IngredientDictListOut,
 )
-from app.services.skin_fit import build_flags, classify_ingredient
+from app.services.skin.skin_fit import build_flags, classify_ingredient
 
 router = APIRouter(prefix="/api/v1/ingredients", tags=["ingredients"])
 

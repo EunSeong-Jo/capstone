@@ -4,7 +4,7 @@
 원본 행은 composition='optgroup'으로 표시되고, 옵션 행이 option_parent_id로 원본을 가리킨다.
 
 **기존 데이터에 영향이 없다** — nullable 컬럼 추가뿐이고 기존 행은 전부 NULL이다.
-분해된 행은 `scripts/load_products.py --options-only`가 만든다.
+분해된 행은 `backend/pipeline/load/load_products.py --options-only`가 만든다.
 
 Revision ID: d2e4f6a8b0c1
 Revises: b7c2d9e1f3a5

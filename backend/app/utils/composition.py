@@ -25,7 +25,7 @@
 이런 건이 1,537건 중 39건(2.5%)이다. 이름으로는 판별할 수 없고 성분 반복을
 봐야 하는데, 판매자가 본품 전성분만 적어둔 경우가 많아 신호가 일정하지 않다.
 그래서 여기서는 **이름과 메타 컬럼으로 판정할 수 있는 것까지만** 다루고,
-성분 기반 판정은 유사도 배치의 `is_bundle`(app/services/similarity.py)에
+성분 기반 판정은 유사도 배치의 `is_bundle`(app/services/matching/similarity.py)에
 맡긴다. 두 층이 함께 걸러낸다.
 """
 from __future__ import annotations
@@ -35,7 +35,7 @@ import re
 # 오염이 심한 쪽부터. 한 제품이 여러 조건에 걸리면 앞쪽이 이긴다.
 BUNDLE, GOODS, BONUS, SINGLE = "bundle", "goods", "bonus", "single"
 
-# 옵션형 묶음("A/B/C 택1")의 **원본 행**. classify()가 내지 않고 적재기(scripts/load_products.py)가 직접 지정한다.
+# 옵션형 묶음("A/B/C 택1")의 **원본 행**. classify()가 내지 않고 적재기(backend/pipeline/load/load_products.py)가 직접 지정한다.
 # 이 행의 전성분은 모든 옵션의 합집합이라 유사도·궁합·추천·사진 인식에서 빼고, 옵션별로 분해한 행(composition='single',
 # products.option_parent_id가 이 행을 가리킴)이 그 자리를 대신한다. 규칙은 app/utils/product_options.py.
 OPTION_GROUP = "optgroup"

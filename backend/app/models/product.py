@@ -1,13 +1,13 @@
 """제품 · 성분 도메인.
 
 데이터 출처
-  - products / brands / categories : 올리브영 크롤러 (scripts/load_products.py)
+  - products / brands / categories : 올리브영 크롤러 (backend/pipeline/load/load_products.py)
   - ingredients / ingredient_aliases : 대한화장품협회 표준화명칭목록
-                                       (scripts/seed_ingredients.py)
+                                       (backend/pipeline/load/seed_ingredients.py)
   - ingredient_descriptions : data/seed/ingredient_descriptions.csv
-                              (scripts/seed_ingredient_descriptions.py)
+                              (backend/pipeline/load/seed_ingredient_descriptions.py)
   - ingredient_functions : data/seed/ingredient_functions/labels.csv
-                           (scripts/seed_ingredient_functions.py)
+                           (backend/pipeline/load/seed_ingredient_functions.py)
   - tags / ingredient_tags / grade / ewg : 수동 큐레이션 (아직 미착수)
 """
 from __future__ import annotations
@@ -185,7 +185,7 @@ class Product(Base, TimestampMixin):
     )  # single / bonus / goods / bundle / optgroup
     # 옵션형 묶음("A/B/C 택1")의 분해 결과. 원본 행은 composition='optgroup'으로 표시해 인식·추천·유사도에서
     # 빼고, 라벨별 전성분을 가진 옵션 행이 option_parent_id로 원본을 가리킨다. 원본이 아닌 일반 제품은 전부 NULL.
-    # 분해 규칙은 app/utils/product_options.py, 적재는 scripts/load_products.py(expand_options).
+    # 분해 규칙은 app/utils/product_options.py, 적재는 backend/pipeline/load/load_products.py(expand_options).
     option_parent_id: Mapped[int | None] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE")
     )
@@ -264,7 +264,7 @@ class IngredientDescription(Base, TimestampMixin):
     """성분 설명 — 한 줄 설명 + 효능·역할 키워드.
 
     원본은 data/seed/ingredient_descriptions.csv이고
-    scripts/seed_ingredient_descriptions.py가 적재한다. ingredients와 따로 두는
+    backend/pipeline/load/seed_ingredient_descriptions.py가 적재한다. ingredients와 따로 두는
     이유는 성분 마스터(협회 사전)와 출처·갱신 주기가 다르기 때문이다.
 
     keywords: 고정 어휘에서만 고른다(적재 스크립트가 검사).
@@ -287,7 +287,7 @@ class IngredientFunction(Base, TimestampMixin):
     """성분 기능 분류 — 이 성분이 무슨 일을 하는가.
 
     원본은 data/seed/ingredient_functions/labels.csv(분류표·지침은 같은 폴더 README)이고
-    scripts/seed_ingredient_functions.py가 적재한다. 유사도(`hybrid`)와 피부 궁합이 쓴다.
+    backend/pipeline/load/seed_ingredient_functions.py가 적재한다. 유사도(`hybrid`)와 피부 궁합이 쓴다.
 
     `tags`(피부타입 규칙이 이름으로 참조)와 **별개의 어휘**다 — 기존 태그는 키워드 매칭이라
     과대·과소 포함이 있고, 바꾸면 규칙이 어긋난다.
@@ -366,7 +366,7 @@ class ProductNameEn(Base, TimestampMixin):
     """제품의 영문명 — 올리브영 글로벌에 올라간 같은 상품의 이름.
 
     원본은 `data/raw/oliveyoung_kr_en_paired.csv`(PR #60)이고
-    `scripts/seed_product_names_en.py`가 적재한다. 한글 쪽 상품URL의
+    `backend/pipeline/load/seed_product_names_en.py`가 적재한다. 한글 쪽 상품URL의
     `goodsNo`로 `products.product_url`을 역조회해 붙인다.
 
     왜 products에 컬럼을 더하지 않았나

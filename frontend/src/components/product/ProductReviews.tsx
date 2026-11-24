@@ -12,7 +12,7 @@ import { SKIN_TYPE_META, SkinType } from '../../types';
  * 제품 상세의 후기 섹션.
  *
  * 실제 후기는 **산 제품에만** 쓸 수 있다(`reviews.order_item_id`). 시연용으로 제품마다
- * 10개 안팎이 미리 채워져 있고(`reviews.is_sample`, scripts/seed_sample_reviews.py) 화면에서는
+ * 10개 안팎이 미리 채워져 있고(`reviews.is_sample`, tools/demo/seed_sample_reviews.py) 화면에서는
  * 구분하지 않는다. 카드의 "리뷰 N"은 이 목록의 총수(`products.registered_review_count`)다 —
  * 올리브영에서 받아 온 `products.review_count`는 인기순 정렬에만 쓴다.
  */

@@ -1,7 +1,7 @@
 """add product_skin_fit
 
 제품 × 피부타입 궁합 사전 계산 결과. 목록 정렬·피부타입 필터·홈 추천 점수·예산 가이드·궁합 카드가
-같은 값을 읽게 하는 단일 계산 결과다(services/skin_fit.evaluate → scripts/compute_skin_fit.py).
+같은 값을 읽게 하는 단일 계산 결과다(services/skin_fit.evaluate → backend/pipeline/batch/compute_skin_fit.py).
 
 **기존 데이터에 영향이 없다** — 새 테이블 1개뿐이다. 기존 `tags`·`ingredient_tags`·`skin_type_rules`·
 `ingredients.grade/is_allergen`은 이 마이그레이션에서 건드리지 않는다(삭제는 다음 릴리스).

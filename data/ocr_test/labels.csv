@@ -1,6 +1,6 @@
-# data/ocr_test/ 실사진 정답 — scripts/eval_real_photos.py 가 읽는다.
+# data/ocr_test/ 실사진 정답 — research/image-match/eval_real_photos.py 가 읽는다.
 # product_ids는 '|' 구분. 기획/용량 변종이 여럿이면 전부 정답으로 친다
-# (display_name이 같은 206그룹 참고 — scripts/IMAGE_MATCH_SUMMARY.md).
+# (display_name이 같은 206그룹 참고 — research/image-match/IMAGE_MATCH_SUMMARY.md).
 # 비어 있으면 '카탈로그에 없는 제품' = 거절해야 맞는 사진.
 item,product_ids,label
 item1,,프랜다르 울트라 알로에 쿨링 선크림 (카탈로그 없음)

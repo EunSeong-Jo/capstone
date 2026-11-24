@@ -50,7 +50,7 @@ export interface ProductIngredient {
   /** 라벨 확신도 1~3. 낮으면 화면에 '참고용'으로 표기한다 */
   confidence?: number | null;
   /**
-   * 성분 설명. `scripts/seed_ingredient_descriptions.py`가 적재합니다.
+   * 성분 설명. `backend/pipeline/load/seed_ingredient_descriptions.py`가 적재합니다.
    * 설명이 없는 성분(파싱 잔해 등)은 셋 다 비어 있습니다.
    *
    *   description        한 줄 설명

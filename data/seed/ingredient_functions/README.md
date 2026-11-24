@@ -63,4 +63,4 @@
 | `review_sample.csv` | 사용자 검수용 — 확신도 1 전부 + 무작위 100종 + 오염 판정 20종 |
 | `agreement_with_tags.md` | 기존 태그(420종)와의 일치도 점검 기록 |
 
-적재: `scripts/seed_ingredient_functions.py` (멱등, `--dry-run`).
+적재: `backend/pipeline/load/seed_ingredient_functions.py` (멱등, `--dry-run`).

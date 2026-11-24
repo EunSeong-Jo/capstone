@@ -11,16 +11,16 @@
 > 이 절은 실제 상태와 어긋나면 그때그때 고칩니다. 정기 갱신이 아니라 **틀렸을 때 고치는** 문서입니다.
 > 태스크 상태의 원본은 `.taskmaster/tasks/tasks.json`이고, 아래 표는 그 값과 일치해야 합니다.
 >
-> 최종 대조: 2026-10-31 (코드·마이그레이션 기준. DB 접속이 막혀 행수는 2026-10-03 실측값 그대로)
+> 최종 대조: 2026-11-24 (폴더 구조 재편 반영. 행수는 2026-10-03 실측값 그대로)
 
 ### 한눈에
 
 | 영역 | 상태 |
 |---|---|
-| **DB** | Neon PostgreSQL 16 · 테이블 38개(alembic head `a3f5c7d9e1b2` — 사진 분석 4개·성분 기능 분류·제품 궁합·AI 기억 포함) · **제품 4,013 / 성분 23,147 / 연결 163,103 / 유사도 146,940 / 성분 설명 3,687 / 영문 제품명 3,175 / 계정 5** → [docs/db-schema.md](docs/db-schema.md) |
+| **DB** | Neon PostgreSQL 16 · 테이블 38개(alembic head `a3f5c7d9e1b2` — 사진 분석 4개·성분 기능 분류·제품 궁합·AI 기억 포함) · **제품 4,013 / 성분 23,147 / 연결 163,103 / 유사도 146,940 / 성분 설명 3,687 / 영문 제품명 3,175 / 계정 5** → [docs/architecture/db-schema.md](docs/architecture/db-schema.md) |
 | **백엔드 API** | **엔드포인트 83개**(`/health` 포함, 라우터 데코레이터 기준) — 제품(목록·검색·성분 검색·상세·후기·사진으로 찾기)·대체품·추천·예산 구매 가이드·인증(가입·로그인·갱신·로그아웃·비밀번호 변경)·프로필(닉네임·이메일)·진단·개인 데이터(화장대·장바구니·찜·최근본·주문·취소·반품·후기·후기 사진·포인트·스캔·보낸/받은 선물)·알림·성분 설명·OCR 제품 매칭·챗봇·날씨·케어문구·`GET /health` · **퍼스널 AI**(챗봇 도구 호출·AI 기억 7개·내 성분 취향·피부 변화 리포트·오늘의 브리핑) · **얼굴 사진 AI 분석**(동의·구독·이용 한도·분석·최근 분석·분석 이력·분석 이미지·사전 검증, Perfect Corp · 무료 8항목/구독 16항목 · 사진만 또는 일부 문항+사진으로도 진단) |
 | **프론트엔드** | 화면 라우트 46개(+리다이렉트 10) · 페이지 파일 45개. **제품 데이터는 전 화면이 실 API**를 봅니다. 개인 데이터는 로그인 시 서버, 비회원은 localStorage. 계정 화면은 `RequireAuth`가 게스트를 막습니다 |
-| **테스트** | 백엔드 pytest 함수 **618개** (`backend/tests/test_*.py` 36개, `test_volume_parsing.py`는 컨테이너에 `scripts/`가 없어 수집 제외). 마지막 전체 실행은 2026-10-21(Neon 덤프를 복원한 로컬 Postgres에서 479건 통과)이라 **그 뒤 추가분은 이 표에서 재실행하지 못했습니다**. `test_skin_type.py`(2~4건)는 전체 실행 때만 간헐 실패(Redis 연결이 앞선 테스트와 부딪힘, 단독 실행은 통과). 프론트는 여전히 0건 |
+| **테스트** | 백엔드 **787건** = `backend/tests/unit` **474**(DB·Redis 불필요, **GitHub Actions가 푸시·PR마다 실행**) + `backend/tests/integration` **313**(로컬 Postgres). 2026-11-24 전체 실행 **779 통과 · 8 건너뜀 · 실패 0**(건너뜀은 컨테이너에 `data/`가 없는 시드 검사). 전체 실행에서만 나던 `test_skin_report`·`test_skin_type` 실패는 이벤트 루프 지정이 빠진 `test_skin_photo_unit.py` 때문이었고 고쳤습니다. 프론트는 여전히 0건 |
 
 **제품 더미 데이터는 전부 걷어냈습니다.** 이전에는 `src/mocks/alternatives.ts` 등의 가짜 제품에 붙은 id(102~109 등)가 실재 카탈로그 id와 겹쳐, 카드에 적힌 것과 **전혀 다른 제품의 상세가 조용히 열렸습니다**. `npm run check:dummy`가 재발을 막습니다 — 배경은 [frontend/README.md](frontend/README.md) 7-2절.
 
@@ -46,7 +46,7 @@
 | 14 | 프로필 기반 메인 화면 추천 엔진 | ✅ 14.2~14.5 완료 | 14.6·14.7(관리자 큐레이션 세트)만 남음 | high |
 | 15 | 예산 기반 구매 가이드 개발 | ✅ 15.2~15.7 완료 | 15.1(이력 테이블)은 만들지 않기로 함 | high |
 
-> ⚠️ **`.taskmaster/tasks/tasks.json`은 진척 판단에 쓸 수 없습니다.** 세 방향 모두로 틀립니다 — Task 3은 `pending`인데 완료됐고, Task 14.1은 `done`인데 해당 테이블(`admin_curated_sets` 등)이 존재한 적이 없으며(설계가 태그 기반으로 바뀌었습니다), Task 6.1·6.3은 `pending`인데 API가 돌고 있습니다. **`docs/db-schema.md`와 실제 DB가 정본입니다.**
+> ⚠️ **`.taskmaster/tasks/tasks.json`은 진척 판단에 쓸 수 없습니다.** 세 방향 모두로 틀립니다 — Task 3은 `pending`인데 완료됐고, Task 14.1은 `done`인데 해당 테이블(`admin_curated_sets` 등)이 존재한 적이 없으며(설계가 태그 기반으로 바뀌었습니다), Task 6.1·6.3은 `pending`인데 API가 돌고 있습니다. **`docs/architecture/db-schema.md`와 실제 DB가 정본입니다.**
 
 ### 다음 순서
 
@@ -54,7 +54,7 @@
    (CLOVA OCR → 제품명 대조) → **후보 목록 + "찾는 제품이 없어요"**. 앞면 촬영 가이드(신분증 촬영식 틀)를 둡니다.
    - 근거: 실사진 22장 — 카탈로그 6개 기준 **텍스트 top-1 6/6 · 이미지 1/6**, 뒷면은 정답 1위 0건.
      두 신호 모두 "카탈로그에 없는 제품"을 자동 거절하지 못해 자동 선택하지 않습니다
-     ([scripts/IMAGE_MATCH_SUMMARY.md](scripts/IMAGE_MATCH_SUMMARY.md) ③절)
+     ([research/image-match/IMAGE_MATCH_SUMMARY.md](research/image-match/IMAGE_MATCH_SUMMARY.md) ③절)
    - ⚠️ 루트 `.env`에 `CLOVA_OCR_SECRET`·`CLOVA_OCR_INVOKE_URL`이 있어야 합니다(`.env.example` 참고). 없으면 503 → 제품명 검색으로 안내
    - 남은 것: 이미지 유사도 재정렬(re-rank), 실기기에서의 인식률 측정
    - 참고: `display_name`이 겹치는 그룹이 206개 있는데 **중복 행이 아닙니다** — 기획/증정 구성만 다른 별도 상품입니다(`goods_no`·가격이 다름)
@@ -66,6 +66,10 @@
 
 - 브랜치는 `dev`에서 분기하고 PR의 base도 항상 `dev`입니다 (`main` 아님).
   이름은 `기능_작업자이니셜` (`unitprice_es`, `category_yb`) — 자세한 내용은 [frontend/README.md](frontend/README.md) 8절
+- **폴더마다 넣는 것이 정해져 있습니다** (2026-11 구조 재편):
+  `backend/app`은 서버가 import하는 코드만 · `backend/pipeline/{collect,load,batch,maintenance}`는 DB를 만드는 스크립트(서버는 import하지 않음) ·
+  `research/`는 끝난 실험·평가 · `tools/{demo,ops,standalone}`은 사람이 돌리는 도구 · 문서는 `docs/README.md`의 주제별 정본을 먼저 고칩니다.
+  서비스는 `app/services/<도메인>/`(matching · skin · recommend · chat · personal_ai · photo · scan · commerce)에 둡니다
 - DB 스키마 원본은 `backend/app/models/`이고, 변경은 **Alembic 마이그레이션으로만** 합니다.
   `alembic revision --autogenerate`는 **rename을 감지하지 못해 DROP + CREATE를 만듭니다.** 테이블·컬럼 이름을 바꿀 때는 마이그레이션을 직접 작성하세요 — 자세한 내용은 [backend/README.md](backend/README.md)
 - **마이그레이션이 포함된 PR을 revert할 때는 DB를 먼저 되돌립니다.** PR을 revert해도 DB는 따라오지 않습니다 —
@@ -84,13 +88,14 @@
 
 | 문서 | 내용 |
 |---|---|
-| [README.md](README.md) | 프로젝트 소개, 사용한 AI·알고리즘(유사도·궁합·추천·챗봇·퍼스널 AI) 요약 |
-| [docs/db-schema.md](docs/db-schema.md) | **DB 스키마 정본** — 테이블 38개, 인덱스, 적재 파이프라인 |
-| [docs/similarity.md](docs/similarity.md) | 성분 유사도 엔진(tfidf/hybrid)과 평가 |
-| [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | 프로젝트 총정리(사용 항목 · 고민과 결정 기록) |
-| [docs/PRD_swappy_v1.8.md](docs/PRD_swappy_v1.8.md) | 요구사항. §7.9 스키마는 설계 시점 안이라 실제와 다름 |
-| [docs/dev_guidelines.md](docs/dev_guidelines.md) | 디자인 토큰, 화면별 체크리스트 |
-| [docs/aws-db-migration.md](docs/aws-db-migration.md) | 운영 DB(AWS) 생성·덤프·복원·서버 연결 절차 (`scripts/aws_db.sh`) |
+| [README.md](README.md) | 프로젝트 소개 · 구성도 · 흐름도 · 시나리오 · 상세 구성도 |
+| [docs/README.md](docs/README.md) | 문서 색인 · **주제별 정본 목록** |
+| [docs/architecture/db-schema.md](docs/architecture/db-schema.md) | **DB 스키마 정본** — 테이블 38개, 인덱스, 적재 파이프라인 |
+| [docs/algorithms/similarity.md](docs/algorithms/similarity.md) | 성분 유사도 엔진(tfidf/hybrid)과 평가 |
+| [docs/architecture/PROJECT_OVERVIEW.md](docs/architecture/PROJECT_OVERVIEW.md) | 프로젝트 총정리(사용 항목 · 고민과 결정 기록) |
+| [docs/product/PRD_swappy_v1.8.md](docs/product/PRD_swappy_v1.8.md) | 요구사항. §7.9 스키마는 설계 시점 안이라 실제와 다름 |
+| [docs/guides/dev_guidelines.md](docs/guides/dev_guidelines.md) | 디자인 토큰, 화면별 체크리스트 |
+| [docs/guides/aws-db-migration.md](docs/guides/aws-db-migration.md) | 운영 DB(AWS) 생성·덤프·복원·서버 연결 절차 (`tools/ops/aws_db.sh`) |
 | [backend/README.md](backend/README.md) | 로컬 세팅, Alembic, Neon 주의사항 |
 | [frontend/README.md](frontend/README.md) | 프론트 개발 기준, 화면 규격 |
 
@@ -128,5 +133,4 @@
 - [x] 카테고리 탭 추가 — `frontend/src/components/home/oy/OyBottomNav.tsx`
 - [x] 히스토리 탭 추가 — 동일 파일. 화장대 화면 내부 탭으로 통합됨
 
-> 하단 네비의 현행 표준은 `components/home/oy/OyBottomNav.tsx`입니다.
-> `components/layout/BottomNav.tsx`는 UI 통일 이전 컴포넌트입니다.
+> 하단 네비는 `components/home/oy/OyBottomNav.tsx` 하나입니다. UI 통일 이전의 `components/layout/BottomNav.tsx`는 2026-11 구조 재편에서 지웠습니다.

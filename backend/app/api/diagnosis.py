@@ -37,7 +37,7 @@ from app.schemas.diagnosis import (
     QuizQuestionOut,
     RankOut,
 )
-from app.services.diagnosis import (
+from app.services.skin.diagnosis import (
     blend_partial,
     blend_scores,
     is_borderline,

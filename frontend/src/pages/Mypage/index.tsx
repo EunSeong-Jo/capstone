@@ -64,7 +64,7 @@ function GroupCard({ title, items }: { title: string; items: MenuItem[] }) {
 }
 
 /**
- * 경험치 규칙 안내. 값은 서버(`backend/app/services/experience.py`)와 같아야 한다 —
+ * 경험치 규칙 안내. 값은 서버(`backend/app/services/commerce/experience.py`)와 같아야 한다 —
  * 레벨 계산은 서버가 하고, 여기는 무엇으로 오르는지 보여 줄 뿐이다.
  */
 const EXP_RULES: { key: 'scanCount' | 'reviewCount' | 'orderCount' | 'giftCount'; label: string; exp: number; hint: string }[] = [

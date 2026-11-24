@@ -175,7 +175,7 @@ class StatsOut(_CamelModel):
     # 실제로 결제한 총액. 주문 기록의 합이다.
     total_spent: int
     point_balance: int
-    # 누적 경험치와 그로부터 나온 레벨. 계산식은 services/experience.py에 있다.
+    # 누적 경험치와 그로부터 나온 레벨. 계산식은 services/commerce/experience.py에 있다.
     exp: int
     level: int
     # 이번 레벨 안에서의 진행. 진행바가 exp_in_level / level_span을 그린다.

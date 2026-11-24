@@ -22,7 +22,7 @@ def upgrade() -> None:
     # pg_trgm: 제품명 퍼지 검색용. idx_products_name_trgm(GIN)이 이 확장을
     # 요구하므로 테이블 생성보다 먼저 설치해야 한다.
     #
-    # scripts/init_db.sh가 아니라 여기서 설치하는 이유: 그 스크립트는 Docker의
+    # tools/ops/init_db.sh가 아니라 여기서 설치하는 이유: 그 스크립트는 Docker의
     # /docker-entrypoint-initdb.d 훅으로만 실행되는데, 팀 공용 DB인 Neon에는
     # 그 훅이 없다. 마이그레이션이 책임져야 누구나 `alembic upgrade head`
     # 한 번으로 동일한 상태에 도달한다.

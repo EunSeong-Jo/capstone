@@ -7,7 +7,7 @@
 경로는 겹치지 않는다 — `/{id}/similar`는 세그먼트가 하나 더 많아 기존
 `/{product_id}`가 가로채지 않는다.
 
-similarities는 배치(scripts/compute_similarities.py)가 채운다. 아직 일부
+similarities는 배치(backend/pipeline/batch/compute_similarities.py)가 채운다. 아직 일부
 카테고리만 적재돼 있어 **비어 있으면 빈 배열에 200**을 낸다. 404가 아니다 —
 제품은 존재하고 계산이 아직 안 됐을 뿐이며, 프론트는 그 경우 '준비 중'
 자리표시자를 그대로 두면 된다.
@@ -26,9 +26,9 @@ from app.db.session import get_db
 from app.models.product import Ingredient, IngredientFunction, Product, ProductIngredient
 from app.models.recommendation import ProductSkinFit, Similarity
 from app.schemas.similarity import SimilarListOut, SimilarProductOut
-from app.services.similarity import form_compatible, shared_functions
-from app.services.skin_fit import PREFER, build_flags
-from app.services.skin_type import apply_exclusions, load_rule
+from app.services.matching.similarity import form_compatible, shared_functions
+from app.services.skin.skin_fit import PREFER, build_flags
+from app.services.skin.skin_type import apply_exclusions, load_rule
 
 router = APIRouter(prefix="/api/v1/products", tags=["recommendations"])
 
@@ -81,7 +81,7 @@ async def list_similar(
     계정과 무관해서, 한 번 계산하면 모든 사용자가 같이 쓴다. 홈의 교체
     제안이 화장대 제품마다 이 API를 부르는데 한 번에 1~2초씩 걸렸다(Neon
     왕복 여러 번). 무효화는 `products:cache_version` — 유사도 배치
-    (`scripts/compute_similarities.py`)와 제품 적재가 올린다.
+    (`backend/pipeline/batch/compute_similarities.py`)와 제품 적재가 올린다.
     """
     version = await get_cache_version()
     key = f"similar:v{version}:form4:{product_id}:{method.value}:{limit}:{skin_type or 'any'}:{fit_for or '-'}"

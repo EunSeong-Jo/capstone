@@ -1,7 +1,7 @@
 """얼굴 사진 AI 피부 분석 도메인.
 
 **원본 사진을 담지 않는다.** 사진은 분석 요청 중 메모리에만 있고
-(`docs/dev_guidelines.md` 11.2), 여기에는 동의 기록·구독 상태·분석에서 뽑은
+(`docs/guides/dev_guidelines.md` 11.2), 여기에는 동의 기록·구독 상태·분석에서 뽑은
 점수, 그리고 업체가 돌려준 **얼굴 없는 투명 마스크 PNG**(`SkinAnalysisImage`)만 남는다.
 마스크 이미지 URL(2시간 만료)은 저장하지 않는다.
 """
@@ -23,7 +23,7 @@ class UserConsent(Base):
     """동의 기록. (사용자, 종류)당 1행이고 재동의·철회는 같은 행을 갱신한다.
 
     `version`은 동의받을 당시 문구의 버전이다. 문구가 바뀌어 버전이 달라지면
-    이전 동의는 현재 문구에 대한 동의로 보지 않는다(services/skin_quota.py).
+    이전 동의는 현재 문구에 대한 동의로 보지 않는다(services/photo/skin_quota.py).
     """
 
     __tablename__ = "user_consents"

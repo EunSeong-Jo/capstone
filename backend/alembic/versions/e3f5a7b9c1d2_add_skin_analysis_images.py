@@ -4,7 +4,7 @@
 Lightsail 컨테이너는 영구 볼륨이 없어 재배포하면 디스크의 이미지가 사라진다.
 
 **기존 데이터에 영향이 없다** — 새 테이블 하나뿐이다. 기존 디스크 파일은 옮겨지지 않으므로
-필요하면 `scripts/import_skin_images.py`로 올린다(없으면 그 분석은 점수만 보인다).
+필요하면 `tools/demo/import_skin_images.py`로 올린다(없으면 그 분석은 점수만 보인다).
 
 Revision ID: e3f5a7b9c1d2
 Revises: d2e4f6a8b0c1
