@@ -45,9 +45,9 @@ flowchart LR
     end
 
     USER -- HTTPS --> API["<b>FastAPI</b><br/>API + 화면<br/>Lightsail 서울"]
+    API --> EXT["<b>외부 API</b><br/>GPT · Claude<br/>Perfect Corp<br/>CLOVA OCR<br/>OpenWeather"]
     API <--> REDIS[("Redis 7<br/>캐시 · 호출 한도")]
     API <--> DB[("PostgreSQL 16<br/>+ pg_trgm")]
-    API --> EXT["<b>외부 API</b><br/>GPT · Claude<br/>Perfect Corp<br/>CLOVA OCR<br/>OpenWeather"]
 ```
 
 외부 키가 없어도 서버는 뜹니다 — LLM이 없으면 챗봇은 DB 규칙으로, OCR이 없으면 제품명 검색으로 안내합니다.
