@@ -88,6 +88,9 @@ class Settings(BaseSettings):
 
     # 프론트엔드 빌드 결과(dist) 위치. 비어 있으면 정적 서빙을 끈다(개발 환경).
     STATIC_DIR: str = ""
+    # 로그인 화면 '앱 설치하기'(/swappy.apk)가 넘겨 주는 곳. APK는 빌드 결과물이라 저장소·이미지에 넣지 않고
+    # GitHub Releases(태그 assets)에 올린다 — 갱신 절차는 frontend/README.md "안드로이드 디버그 APK".
+    APK_DOWNLOAD_URL: str = "https://github.com/EunSeong-Jo/capstone/releases/download/assets/swappy.apk"
 
     # CORS
     FRONTEND_URL: str = "http://localhost:3000"

@@ -170,4 +170,11 @@ backend/app/assets/models/selfie_multiclass_256x256.tflite
 # 로컬 단독 실행(Swappy.bat)이 내려받는 런타임·DB·로그
 .runtime/
 .env.local
-!tools/standalone/*.dump
+
+# 빌드 결과물 — 저장소가 아니라 GitHub Releases(태그 assets)에 둔다: tools/ops/upload_release_assets.sh
+# APK는 28번 커밋되며 기록에 600MB 넘게 쌓였다. 단독 실행 묶음은 Swappy.bat이 처음 실행할 때 Release에서 받는다.
+frontend/public/swappy.apk
+tools/standalone/*.zip
+tools/standalone/*.dump
+tools/standalone/*.dump.part*
+tools/standalone/*.part
