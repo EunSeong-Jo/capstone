@@ -312,7 +312,7 @@
 모든 인증 필요 요청: `Authorization: Bearer {access_token}` 헤더 포함  
 Base URL: 같은 주소에서 화면과 API를 함께 서빙합니다(`/api/v1`). 로컬은 `http://localhost:8000`.
 
-**엔드포인트는 83개**(`/health` 포함)이고, 목록·스키마·시험 호출은 실행한 서버의 Swagger(`/api/docs`)가 정본입니다. 아래는 프론트가 가장 많이 쓰는 묶음입니다.
+**엔드포인트는 87개**(`/health` 포함)이고, 목록·스키마·시험 호출은 실행한 서버의 Swagger(`/api/docs`)가 정본입니다. 아래는 프론트가 가장 많이 쓰는 묶음입니다.
 도메인별 전체 표는 [PROJECT_OVERVIEW.md](../architecture/PROJECT_OVERVIEW.md) 6장에 있습니다.
 
 | 묶음 | 대표 엔드포인트 |

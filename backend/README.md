@@ -2,7 +2,7 @@
 
 FastAPI + SQLAlchemy 2.0 + Alembic. DB는 **Neon PostgreSQL 16**(팀 공용)을 씁니다.
 
-> **엔드포인트 83개**(`/health` 포함, 라우터 데코레이터 기준) — 제품·검색·사진으로 찾기, 대체품·추천·예산 가이드, 인증, 진단,
+> **엔드포인트 87개**(`/health` 포함, 라우터 데코레이터 기준) — 제품·검색·사진으로 찾기, 대체품·추천·예산 가이드, 인증, 진단,
 > 개인 데이터(화장대·장바구니·주문·후기 등), 챗봇, 얼굴 사진 분석, 퍼스널 AI(AI 기억·취향·피부 변화 리포트·브리핑).
 > 전체 목록은 실행 후 Swagger(`/api/docs`)에서 봅니다. 모델은 38개 테이블입니다.
 
@@ -26,7 +26,7 @@ cd backend && alembic upgrade head
 # 3. 성분 사전 → DB (협회 표준명 21,910 + 별칭) — 계속 backend/ 안에서
 python pipeline/load/seed_ingredients.py
 
-# 4. 제품 적재 (올리브영 v5 정제본 → 얼굴용 4종 약 4,013 제품)
+# 4. 제품 적재 (올리브영 v5 정제본 → 얼굴용 4종 약 4,400 제품)
 python pipeline/load/load_products.py
 ```
 
