@@ -9,12 +9,14 @@
 
 ## 결과 비교 (동일 36장, 동일 채점 기준)
 
-| 엔진 | mean_cer | trigram_similarity | identification_score | full_score_rate% | zero_score_rate% | 평균 레이턴시 |
-|---|---|---|---|---|---|---|
-| paddleocr + cubic 업스케일 | 0.615 | 0.243 | 1.111 | 36.1 | 61.1 | 62.7s |
-| paddleocr + FSRCNN 업스케일 | 0.611 | 0.247 | 1.111 | 36.1 | 61.1 | 62.3s |
-| CLOVA OCR (단독, region-detection 없음) | 0.671 | 0.240 | 1.361 | 44.4 | 52.8 | 4.0s |
-| **CLOVA OCR + region-detection** | **0.642** | **0.280** | **1.611** | **52.8** | **44.4** | 6.0s |
+| 지표 | Paddle + cubic | Paddle + FSRCNN | CLOVA 단독 | **CLOVA + 영역 검출** |
+|---|---:|---:|---:|---:|
+| mean_cer | 0.615 | 0.611 | 0.671 | **0.642** |
+| trigram_similarity | 0.243 | 0.247 | 0.240 | **0.280** |
+| identification_score | 1.111 | 1.111 | 1.361 | **1.611** |
+| full_score_rate% | 36.1 | 36.1 | 44.4 | **52.8** |
+| zero_score_rate% | 61.1 | 61.1 | 52.8 | **44.4** |
+| 평균 레이턴시 | 62.7s | 62.3s | 4.0s | 6.0s |
 
 ## 결론
 

@@ -5,14 +5,12 @@
 > 스키마 원본은 `backend/app/models/`의 SQLAlchemy 모델이고, 변경은 Alembic 마이그레이션으로만 합니다.
 > 이 문서는 그 결과를 사람이 읽기 좋게 옮긴 것이므로, 모델을 고치면 여기도 함께 고쳐야 합니다.
 
-| | |
-|---|---|
-| DBMS | PostgreSQL 16.15 |
-| 호스팅 | Neon (serverless) · branch `production` · db `neondb` |
-| 확장 | `pg_trgm` 1.6 |
-| alembic head | `a3f5c7d9e1b2` (마이그레이션 26개) |
-| 테이블 | 38 (제품·성분 11 + 추천 3 + 진단 5 + 사용자 3 + 개인 데이터 11 + 얼굴 사진 분석 4 + AI 기억 1) |
-| 기준일 | 스키마 2026-10-31 · **행수는 2026-11-24 실측** (로컬 Postgres — 운영 서버와 제품 목록 2,579건 일치 확인. Neon은 아직 이전 상태라 마지막 마이그레이션이 빠져 있습니다) |
+- **DBMS** — PostgreSQL 16.15
+- **호스팅** — Neon (serverless) · branch `production` · db `neondb`
+- **확장** — `pg_trgm` 1.6
+- **alembic head** — `a3f5c7d9e1b2` (마이그레이션 26개)
+- **테이블** — 38 (제품·성분 11 + 추천 3 + 진단 5 + 사용자 3 + 개인 데이터 11 + 얼굴 사진 분석 4 + AI 기억 1)
+- **기준일** — 스키마 2026-10-31 · **행수는 2026-11-24 실측** (로컬 Postgres — 운영 서버와 제품 목록 2,579건 일치 확인. Neon은 아직 이전 상태라 마지막 마이그레이션이 빠져 있습니다)
 
 ---
 
@@ -41,15 +39,13 @@
 
 ## 테이블 38개 — 도메인별
 
-| 도메인 | 테이블 |
-|---|---|
-| 제품·성분 (11) | `products` `brands` `categories` `ingredients` `ingredient_aliases` `ingredient_descriptions` `ingredient_functions` `product_ingredients` `product_names_en` `tags` `ingredient_tags` |
-| 추천 (3) | `similarities` `product_skin_fit` `skin_type_rules` |
-| 진단 (5) | `quiz_versions` `quiz_questions` `quiz_options` `diagnoses` `diagnosis_ranks` |
-| 사용자·인증 (3) | `users` `profiles` `refresh_tokens` |
-| 개인 데이터 (11) | `closet_items` `cart_items` `likes` `recently_viewed` `orders` `order_items` `reviews` `review_photos` `point_transactions` `scan_results` `gifts` |
-| 얼굴 사진 분석 (4) | `user_consents` `subscriptions` `skin_analyses` `skin_analysis_images` |
-| AI 기억 (1) | `user_memories` |
+- **제품·성분 (11)** — `products` `brands` `categories` `ingredients` `ingredient_aliases` `ingredient_descriptions` `ingredient_functions` `product_ingredients` `product_names_en` `tags` `ingredient_tags`
+- **추천 (3)** — `similarities` `product_skin_fit` `skin_type_rules`
+- **진단 (5)** — `quiz_versions` `quiz_questions` `quiz_options` `diagnoses` `diagnosis_ranks`
+- **사용자·인증 (3)** — `users` `profiles` `refresh_tokens`
+- **개인 데이터 (11)** — `closet_items` `cart_items` `likes` `recently_viewed` `orders` `order_items` `reviews` `review_photos` `point_transactions` `scan_results` `gifts`
+- **얼굴 사진 분석 (4)** — `user_consents` `subscriptions` `skin_analyses` `skin_analysis_images`
+- **AI 기억 (1)** — `user_memories`
 
 `tags` · `ingredient_tags` · `skin_type_rules`는 **더 이상 읽지 않는** 옛 규칙입니다(현행은 `ingredient_functions` + `product_skin_fit`).
 
@@ -103,8 +99,8 @@ erDiagram
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
 | PK | `id` | serial | | |
-| UQ | `goods_no` | varchar(50) | NOT NULL | 올리브영 제품 식별자 |
-| | `name` | text | NOT NULL | **정제 전 원본** (아래 설명) |
+| UQ | `goods_no` | varchar(50) | NOT&nbsp;NULL | 올리브영 제품 식별자 |
+| | `name` | text | NOT&nbsp;NULL | **정제 전 원본** (아래 설명) |
 | | `display_name` | text | NULL | 화면 표시용 정제명 |
 | FK | `brand_id` | int | NULL | → `brands` [SET NULL] |
 | FK | `category_id` | int | NULL | → `categories` [SET NULL] |
@@ -113,12 +109,12 @@ erDiagram
 | | `discount_rate` | smallint | NULL | |
 | | `rating` | numeric(2,1) | NULL | |
 | | `review_count` | int | NULL | 올리브영 크롤링값. **인기순 정렬·점수의 입력** — 화면의 리뷰 수가 아니다 |
-| | `registered_review_count` | int | NOT NULL, 기본 0 | 화면에 보이는 리뷰 수 = 이 앱에 등록된 후기 개수(`reviews` 집계). 옵션 묶음은 그룹이 같은 값을 쓴다 (`f4a6b8c0d2e3`) |
+| | `registered_review_count` | int | NOT&nbsp;NULL | 기본 0. 화면에 보이는 리뷰 수 = 이 앱에 등록된 후기 개수(`reviews` 집계). 옵션 묶음은 그룹이 같은 값을 쓴다 (`f4a6b8c0d2e3`) |
 | | `image_url` | text | NULL | |
 | | `product_url` | text | NULL | |
 | | `volume` | text | NULL | 상품정보제공고시 원문 |
 | | `volume_ml` | numeric(10,2) | NULL | 총 내용량(부피) · 3,148건 |
-| | `volume_uncertain` | bool | NOT NULL | `= false` · 총량을 믿을 수 없는 제품 · 113건 |
+| | `volume_uncertain` | bool | NOT&nbsp;NULL | `= false` · 총량을 믿을 수 없는 제품 · 113건 |
 | | `unit_count` | int | NULL | 매수·개수 · 247건 |
 | | `unit_kind` | text | NULL | sheet(매·장) / piece(개) |
 | | `unit_price` | numeric(12,2) | NULL | **생성 컬럼** · 단가 |
@@ -129,12 +125,12 @@ erDiagram
 | | `expiry` | text | NULL | 상품정보제공고시 |
 | | `report_no` | text | NULL | 식약처 보고번호 |
 | | `ingredient_count_raw` | int | NULL | 원본 성분 개수 (아래 설명) |
-| | `status` | text | NOT NULL | `= 'active'` · active/soldout/discontinued |
-| | `source` | text | NOT NULL | `= 'oliveyoung'` |
-| | `composition` | text | NOT NULL | `= 'single'` · single/bonus/goods/bundle/optgroup (아래 설명) |
+| | `status` | text | NOT&nbsp;NULL | `= 'active'` · active/soldout/discontinued |
+| | `source` | text | NOT&nbsp;NULL | `= 'oliveyoung'` |
+| | `composition` | text | NOT&nbsp;NULL | `= 'single'` · single/bonus/goods/bundle/optgroup (아래 설명) |
 | | `option_parent_id` | int | FK `products.id` CASCADE | 옵션형 묶음의 옵션 행이 원본 행을 가리킨다. 그 밖의 제품은 NULL |
 | | `option_label` `option_order` | text · smallint | | 옵션 이름('화장발')과 순서(1부터, 1이 그룹 대표). 옵션 행만 값이 있다 |
-| | `created_at` `updated_at` | timestamptz | NOT NULL | `= now()` |
+| | `created_at` `updated_at` | timestamptz | NOT&nbsp;NULL | `= now()` |
 
 **`name`과 `display_name`**은 역할이 다릅니다. `name`은 정제 전 원본이라 `기획`·`N종 택1`·`+50ml` 같은 문구가 살아 있고, 그게 `composition` 판정의 입력이라 지우면 분류가 깨집니다. 화면에는 `display_name`(v5 정제명)을 쓰고, NULL이면 `name`으로 떨어집니다. 검색은 양쪽을 모두 봅니다 — 정제 과정에서 지워진 단어로 검색한 사용자가 아무것도 못 찾으면 안 되기 때문입니다.
 
@@ -187,14 +183,14 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
 | PK | `id` | serial | | |
-| UQ | `norm_name` | text | NOT NULL | 조회 키. 표기 흔들림 흡수 |
-| | `name_ko` | text | NOT NULL | |
+| UQ | `norm_name` | text | NOT&nbsp;NULL | 조회 키. 표기 흔들림 흡수 |
+| | `name_ko` | text | NOT&nbsp;NULL | |
 | | `name_en` | text | NULL | INCI |
 | | `code` | varchar(20) | NULL | 협회 성분코드. NULL이면 사전에 없는 성분 |
 | | `ewg_grade` | smallint | NULL | **미큐레이션** |
 | | `grade` | text | NULL | **미큐레이션** · key/normal/warn |
-| | `is_allergen` | bool | NOT NULL | `= false` |
-| | `created_at` `updated_at` | timestamptz | NOT NULL | `= now()` |
+| | `is_allergen` | bool | NOT&nbsp;NULL | `= false` |
+| | `created_at` `updated_at` | timestamptz | NOT&nbsp;NULL | `= now()` |
 
 `norm_name`이 `살리실릭애씨드(0.5%)`와 `살리실릭애씨드`를 같은 행으로 모읍니다.
 
@@ -204,9 +200,9 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
-| PK FK | `product_id` | int | NOT NULL | → `products` [CASCADE] |
-| PK FK | `ingredient_id` | int | NOT NULL | → `ingredients` [CASCADE] |
-| | `position` | smallint | NOT NULL | 전성분 표기 순서 (1부터) |
+| PK&nbsp;FK | `product_id` | int | NOT&nbsp;NULL | → `products` [CASCADE] |
+| PK&nbsp;FK | `ingredient_id` | int | NOT&nbsp;NULL | → `ingredients` [CASCADE] |
+| | `position` | smallint | NOT&nbsp;NULL | 전성분 표기 순서 (1부터) |
 | | `raw_name` | text | NULL | 크롤링 원문 보존 |
 
 **`position`이 정보입니다.** 화장품 전성분은 함량 내림차순 표기가 원칙이라, RBO 유사도가 이 순서를 씁니다.
@@ -224,9 +220,9 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
 | PK | `id` | serial | | |
-| UQ | `alias` | text | NOT NULL | |
-| FK | `ingredient_id` | int | NOT NULL | → `ingredients` [CASCADE] |
-| | `is_ambiguous` | bool | NOT NULL | `= false` · 52건 |
+| UQ | `alias` | text | NOT&nbsp;NULL | |
+| FK | `ingredient_id` | int | NOT&nbsp;NULL | → `ingredients` [CASCADE] |
+| | `is_ambiguous` | bool | NOT&nbsp;NULL | `= false` · 52건 |
 | | `changed_at` | date | NULL | 명칭 변경 고시일 |
 
 `is_ambiguous`는 한 구명칭이 서로 다른 표준명 둘 이상으로 갈리는 경우입니다(`승마추출물` → 촛대승마추출물 / 라케모사승마뿌리추출물). 기계적으로 결정할 수 없어 자동 변환에서 제외합니다.
@@ -237,11 +233,11 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
-| PK FK | `ingredient_id` | int | NOT NULL | → `ingredients` [CASCADE] |
-| | `description` | text | NOT NULL | 한 줄 설명 |
-| | `keywords` | text[] | NOT NULL | `= '{}'` · 최대 2개 |
-| | `source` | varchar(20) | NOT NULL | `llm`(생성 초안) / `reviewed`(검수 완료) |
-| | `created_at` `updated_at` | timestamptz | NOT NULL | `= now()` |
+| PK&nbsp;FK | `ingredient_id` | int | NOT&nbsp;NULL | → `ingredients` [CASCADE] |
+| | `description` | text | NOT&nbsp;NULL | 한 줄 설명 |
+| | `keywords` | text[] | NOT&nbsp;NULL | `= '{}'` · 최대 2개 |
+| | `source` | varchar(20) | NOT&nbsp;NULL | `llm`(생성 초안) / `reviewed`(검수 완료) |
+| | `created_at` `updated_at` | timestamptz | NOT&nbsp;NULL | `= now()` |
 
 **`ingredients`에 컬럼을 더하지 않고 테이블을 나눈 이유**: 출처가 다릅니다. `ingredients`는 협회 사전이 원본이고, 설명은 `data/seed/ingredient_descriptions.csv`가 원본입니다. 설명을 고칠 때는 CSV를 고치고 `backend/pipeline/load/seed_ingredient_descriptions.py`를 다시 돌립니다. 이 스크립트는 몇 번을 돌려도 결과가 같습니다. 설명은 제품 상세 응답(`GET /api/v1/products/{id}`의 `ingredients[]`)에 실리므로, 적재가 끝나면 스크립트가 `products:cache_version`을 올려 상세 캐시를 비웁니다. 호스트에서 돌릴 때는 `REDIS_HOST=localhost`를 앞에 붙이세요. 기본값 `redis`는 도커 네트워크 안에서만 풀리는 이름이라, 붙이지 않으면 캐시 갱신이 실패하고(스크립트는 무시하고 성공 처리) 옛 설명이 캐시 TTL 동안 나갑니다.
 
@@ -254,7 +250,7 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 | | 컬럼 | 타입 | |
 |---|---|---|---|
 | PK | `id` | serial | |
-| UQ | `name` | text | NOT NULL |
+| UQ | `name` | text | NOT&nbsp;NULL |
 | | `created_at` `updated_at` | timestamptz | `= now()` |
 
 추천 시 '동일 브랜드 최대 N개' 다양성 보정에 씁니다.
@@ -264,10 +260,10 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
 | PK | `id` | serial | | |
-| UQ | `code` | text | NOT NULL | 스킨케어/마스크팩/클렌징/선케어 |
+| UQ | `code` | text | NOT&nbsp;NULL | 스킨케어/마스크팩/클렌징/선케어 |
 | | `label` | text | NULL | |
 | FK | `parent_id` | int | NULL | → `categories` [SET NULL] · **현재 전부 NULL** |
-| | `created_at` `updated_at` | timestamptz | NOT NULL | `= now()` |
+| | `created_at` `updated_at` | timestamptz | NOT&nbsp;NULL | `= now()` |
 
 `parent_id` 자기참조로 2단계를 담을 수 있지만 지금은 1단계만 씁니다. 스킨케어 소분류(토너·세럼·크림)가 붙을 자리입니다.
 
@@ -278,13 +274,13 @@ display_name  에스트라 아토베리어365 세라-히알 속수분 앰플 30m
 
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
-| PK FK | `ingredient_id` | int | NOT NULL | → `ingredients` [CASCADE] |
-| | `functions` | text[] | NOT NULL | H보습 B장벽 S진정 W미백 A주름·탄력 O항산화 P피지·모공 E각질 U자외선 |
-| | `role` | char(1) | NOT NULL | a활성 e에몰리언트 s용매 f계면활성 t점증 p방부 x기타 j오염 |
-| | `flags` | text[] | NOT NULL | I자극 소지 F향료 L건조 알코올 |
-| | `confidence` | smallint | NOT NULL | 1낮음(근거에서 제외) · 2보통 · 3확실 |
-| | `source` | varchar(20) | NOT NULL | ai_expert · reviewed · mfds · cosing |
-| | `allergen_listed` | bool | NOT NULL | 식약처 알레르기 유발 착향제 고시 목록의 성분 |
+| PK&nbsp;FK | `ingredient_id` | int | NOT&nbsp;NULL | → `ingredients` [CASCADE] |
+| | `functions` | text[] | NOT&nbsp;NULL | H보습 B장벽 S진정 W미백 A주름·탄력 O항산화 P피지·모공 E각질 U자외선 |
+| | `role` | char(1) | NOT&nbsp;NULL | a활성 e에몰리언트 s용매 f계면활성 t점증 p방부 x기타 j오염 |
+| | `flags` | text[] | NOT&nbsp;NULL | I자극 소지 F향료 L건조 알코올 |
+| | `confidence` | smallint | NOT&nbsp;NULL | 1낮음(근거에서 제외) · 2보통 · 3확실 |
+| | `source` | varchar(20) | NOT&nbsp;NULL | ai_expert · reviewed · mfds · cosing |
+| | `allergen_listed` | bool | NOT&nbsp;NULL | 식약처 알레르기 유발 착향제 고시 목록의 성분 |
 | | `note` · `created_at` · `updated_at` | | | |
 
 ### `tags` — 11행 · `ingredient_tags` — 489행 ⚠️ 더 이상 읽지 않음
@@ -312,11 +308,12 @@ ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 
 **기피 태그 3종**은 성격이 다릅니다. 추천 태그가 `criteria.csv`의 키워드를 **부분 일치**로 찾는 것과 달리, 이쪽은 **이름이 정확히 일치할 때만** 붙입니다 — `'알코올'`을 부분 일치로 찾으면 세틸알코올·세테아릴알코올 같은 고급지방알코올까지 걸리는데 그건 오히려 보습제입니다. 정의와 출처는 [`exclusion_criteria.csv`](../../data/seed/skin_type_ingredients/exclusion_criteria.csv)에 있습니다.
 
-| `code` | `label` | 성분 | 해당 단일제품 | 출처 |
-|---|---|---:|---:|---|
-| `allergen_fragrance` | 알레르기 유발 착향제 | 23 | 542 | 식약처 고시 착향제 26종 (그중 사전에 있고 제품에 쓰이는 23종) |
-| `fragrance` | 향료 | 2 | 777 | `향료`·`조합향료` — 성분을 특정할 수 없는 혼합 착향제 |
-| `drying_alcohol` | 건조 유발 알코올 | 3 | 265 | `변성알코올`·`에탄올`·`알코올` |
+- `allergen_fragrance` **알레르기 유발 착향제** — 성분 23종 · 해당 단일제품 542개
+  - 출처: 식약처 고시 착향제 26종 (그중 사전에 있고 제품에 쓰이는 23종)
+- `fragrance` **향료** — 성분 2종 · 해당 단일제품 777개
+  - 출처: `향료`·`조합향료` — 성분을 특정할 수 없는 혼합 착향제
+- `drying_alcohol` **건조 유발 알코올** — 성분 3종 · 해당 단일제품 265개
+  - 출처: `변성알코올`·`에탄올`·`알코올`
 
 `allergen_fragrance`에 해당하는 성분은 `ingredients.is_allergen`에도 `true`로 표시합니다. 성분 단위 질의(상세 화면의 알레르기 주의 표시 등)가 태그 조인 없이 쓰도록 하기 위해서입니다.
 
@@ -348,12 +345,12 @@ ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
-| PK FK | `product_id` | int | NOT NULL | → `products` [CASCADE] · **기준 제품** |
-| PK FK | `similar_id` | int | NOT NULL | → `products` [CASCADE] · **대체품** |
-| PK | `method` | text | NOT NULL | tfidf / hybrid |
-| | `score` | float8 | NOT NULL | 0~1 |
+| PK&nbsp;FK | `product_id` | int | NOT&nbsp;NULL | → `products` [CASCADE] · **기준 제품** |
+| PK&nbsp;FK | `similar_id` | int | NOT&nbsp;NULL | → `products` [CASCADE] · **대체품** |
+| PK | `method` | text | NOT&nbsp;NULL | tfidf / hybrid |
+| | `score` | float8 | NOT&nbsp;NULL | 0~1 |
 | | `shared_ingredients` | jsonb | NULL | 근거 표시용 |
-| | `computed_at` | timestamptz | NOT NULL | `= now()` |
+| | `computed_at` | timestamptz | NOT&nbsp;NULL | `= now()` |
 
 **방향이 있는 관계입니다.** 제품별 상위 20개만 저장하므로 A의 상위권에 B가 있어도 B의 상위권에 A가 있다는 보장이 없습니다. 양방향 조회가 필요하면 배치가 두 행을 모두 넣어야 합니다.
 
@@ -367,14 +364,14 @@ ingredient_tags   : ingredient_id(PK,FK) · tag_id(PK,FK)
 
 | | 컬럼 | 타입 | | 비고 |
 |---|---|---|---|---|
-| PK FK | `product_id` | int | NOT NULL | → `products` [CASCADE] |
-| PK | `skin_type` | text | NOT NULL | 8타입 코드 |
+| PK&nbsp;FK | `product_id` | int | NOT&nbsp;NULL | → `products` [CASCADE] |
+| PK | `skin_type` | text | NOT&nbsp;NULL | 8타입 코드 |
 | | `score` | smallint | NULL | 0~100. 근거 부족이면 NULL |
-| | `verdict` | text | NOT NULL | good / ok / caution / unknown |
-| | `matched` | smallint | NOT NULL | 그 타입의 선호 기능을 가진 성분 수 |
-| | `excluded` | bool | NOT NULL | 이 타입의 필터가 목록에서 빼는 제품(고시 목록·일반 향료 / 건조 알코올) |
-| | `has_fragrance` · `has_drying_alcohol` | bool | NOT NULL | 타입과 무관한 사실(예산 가이드의 무향·무알코올) |
-| | `computed_at` | timestamptz | NOT NULL | |
+| | `verdict` | text | NOT&nbsp;NULL | good / ok / caution / unknown |
+| | `matched` | smallint | NOT&nbsp;NULL | 그 타입의 선호 기능을 가진 성분 수 |
+| | `excluded` | bool | NOT&nbsp;NULL | 이 타입의 필터가 목록에서 빼는 제품(고시 목록·일반 향료 / 건조 알코올) |
+| | `has_fragrance` · `has_drying_alcohol` | bool | NOT&nbsp;NULL | 타입과 무관한 사실(예산 가이드의 무향·무알코올) |
+| | `computed_at` | timestamptz | NOT&nbsp;NULL | |
 
 ### `skin_type_rules` — 8행 ⚠️ 더 이상 읽지 않음
 
@@ -444,11 +441,11 @@ is_active(bool = true) · updated_at
 | PK | `id` | bigserial | | |
 | FK | `user_id` | uuid | NULL | → `users` [CASCADE] |
 | | `guest_token` | text | NULL | Soft-gate 시절의 흔적 — 더 채워지지 않음 |
-| FK | `version_id` | int | NOT NULL | → `quiz_versions` [RESTRICT] |
-| | `answers` | jsonb | NOT NULL | |
-| | `scores` | jsonb | NOT NULL | 5개 축. 얼굴 사진 분석을 섞었으면 **섞인 뒤의 값** |
+| FK | `version_id` | int | NOT&nbsp;NULL | → `quiz_versions` [RESTRICT] |
+| | `answers` | jsonb | NOT&nbsp;NULL | |
+| | `scores` | jsonb | NOT&nbsp;NULL | 5개 축. 얼굴 사진 분석을 섞었으면 **섞인 뒤의 값** |
 | FK | `analysis_id` | uuid | NULL | → `skin_analyses` [SET NULL]. 사진 분석을 섞은 진단이면 그 분석, NULL이면 QnA 100% |
-| | `created_at` | timestamptz | NOT NULL | `= now()` |
+| | `created_at` | timestamptz | NOT&nbsp;NULL | `= now()` |
 
 문항이 바뀌어도 과거 결과를 해석할 수 있도록 `version_id`를 남깁니다. FK가 RESTRICT라 진단 기록이 있는 버전은 삭제되지 않습니다.
 
@@ -541,25 +538,40 @@ refresh_tokens : id(PK, uuid = gen_random_uuid()) · user_id(FK) · token_hash
 
 유일키가 자동 생성하는 인덱스는 제외한 목록입니다.
 
-| 인덱스 | 테이블 | 정의 | 용도 |
-|---|---|---|---|
-| `idx_products_name_trgm` | products | `gin (name gin_trgm_ops)` | 제품명 부분일치 검색 |
-| `idx_products_brand` | products | `btree (brand_id)` | 브랜드 필터 |
-| `idx_products_category` | products | `btree (category_id)` | 카테고리 필터 |
-| `idx_products_price` | products | `btree (price)` | 가격 정렬·범위 |
-| `idx_products_unit_price` | products | `btree (unit_price)` | 단가 정렬 |
-| `idx_products_status` | products | `btree (status)` | 품절 제외 |
-| `idx_product_ingredients_ingredient` | product_ingredients | `btree (ingredient_id)` | 성분 → 제품 역방향 |
-| `idx_ingredients_code` | ingredients | `btree (code)` | 사전 갱신 대조 |
-| `idx_similarities_lookup` | similarities | `btree (product_id, method, score DESC)` | 상위 N개 추천 조회 |
-| `idx_diagnoses_user` | diagnoses | `btree (user_id, created_at)` | 최근 진단 조회 |
-| `idx_diagnoses_guest` | diagnoses | `btree (guest_token)` | Soft-gate 시절의 흔적 |
-| `idx_quiz_questions_version` | quiz_questions | `btree (version_id, order_no)` | 문항 순서 조회 |
-| `idx_refresh_tokens_hash` | refresh_tokens | `btree (token_hash)` | 토큰 검증 |
-| `idx_refresh_tokens_user` | refresh_tokens | `btree (user_id)` | 전체 로그아웃 |
-| `idx_user_memories_user` | user_memories | `btree (user_id, updated_at)` | 최근 기억 조회 |
-| `idx_skin_analyses_user` | skin_analyses | `btree (user_id, created_at)` | 분석 이력·월 이용 횟수 |
-| `idx_subscriptions_user` | subscriptions | `btree (user_id, current_period_end)` | 활성 구독 조회 |
+- `idx_products_name_trgm` — 제품명 부분일치 검색
+  - `products` · `gin (name gin_trgm_ops)`
+- `idx_products_brand` — 브랜드 필터
+  - `products` · `btree (brand_id)`
+- `idx_products_category` — 카테고리 필터
+  - `products` · `btree (category_id)`
+- `idx_products_price` — 가격 정렬·범위
+  - `products` · `btree (price)`
+- `idx_products_unit_price` — 단가 정렬
+  - `products` · `btree (unit_price)`
+- `idx_products_status` — 품절 제외
+  - `products` · `btree (status)`
+- `idx_product_ingredients_ingredient` — 성분 → 제품 역방향
+  - `product_ingredients` · `btree (ingredient_id)`
+- `idx_ingredients_code` — 사전 갱신 대조
+  - `ingredients` · `btree (code)`
+- `idx_similarities_lookup` — 상위 N개 추천 조회
+  - `similarities` · `btree (product_id, method, score DESC)`
+- `idx_diagnoses_user` — 최근 진단 조회
+  - `diagnoses` · `btree (user_id, created_at)`
+- `idx_diagnoses_guest` — Soft-gate 시절의 흔적
+  - `diagnoses` · `btree (guest_token)`
+- `idx_quiz_questions_version` — 문항 순서 조회
+  - `quiz_questions` · `btree (version_id, order_no)`
+- `idx_refresh_tokens_hash` — 토큰 검증
+  - `refresh_tokens` · `btree (token_hash)`
+- `idx_refresh_tokens_user` — 전체 로그아웃
+  - `refresh_tokens` · `btree (user_id)`
+- `idx_user_memories_user` — 최근 기억 조회
+  - `user_memories` · `btree (user_id, updated_at)`
+- `idx_skin_analyses_user` — 분석 이력·월 이용 횟수
+  - `skin_analyses` · `btree (user_id, created_at)`
+- `idx_subscriptions_user` — 활성 구독 조회
+  - `subscriptions` · `btree (user_id, current_period_end)`
 
 **명명 규칙** — 인덱스는 `idx_<테이블>_<용도>`, 제약 44개는 모두 `<테이블>_<컬럼>_<종류>`를 따릅니다.
 

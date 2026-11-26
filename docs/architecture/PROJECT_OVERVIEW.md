@@ -13,22 +13,20 @@
 
 ## 0. 목차별 한눈에 보기
 
-| 장 | 제목 | 한 줄 요약 |
-|---|---|---|
-| [1](#1-프로젝트-개요) | 프로젝트 개요 | 6문항 진단으로 8가지 피부타입 캐릭터를 주고, **전성분 기준**으로 맞춤 추천·더 싼/더 잘 맞는 대체품·예산 루틴을 제안하는 앱. 커밋 479·머지 131, 백엔드 약 1.7만 줄·프론트 약 2.8만 줄 |
-| [2](#2-시스템-구조와-기술-스택) | 시스템 구조와 기술 스택 | React+Capacitor(웹·Android APK) → AWS Lightsail 컨테이너(FastAPI + Redis) → AWS PostgreSQL. 외부 API: LLM(OpenAI→Claude), Perfect Corp, CLOVA OCR, OpenWeather |
-| [3](#3-데이터) | 데이터 | 올리브영 제품 4,402·성분 23,150·연결 178,758. 협회 표준명으로 정규화(97.8%), 제품 구성(single/bundle…)·옵션을 분해해 적재 |
-| [4](#4-ai알고리즘) | AI·알고리즘 | 유사도(hybrid nDCG 0.799), AI 성분 기능 분류 1,686종 + 피부 궁합, 피부타입 진단, 얼굴 사진 분석, OCR 제품 찾기, 챗봇(+도구 호출·폴백), **퍼스널 AI(AI 기억·성분 취향·피부 변화 리포트·오늘의 브리핑)**, 케어 문구, 추천·예산 가이드, 교체 제안 |
-| [5](#5-기능-카탈로그-화면별) | 기능 카탈로그 | 시작·진단 / 홈 / 탐색·상세·분석·대체품 / 화장대 / 구매·선물·후기 / 마이페이지·AI 피부관리 / 알림 — 라우트 46개(+AI가 기억하는 나·AI 기억 설정) |
-| [6](#6-백엔드-api) | 백엔드 API | `/api/v1` 아래 87개 엔드포인트(인증·제품·추천·진단·개인 데이터·얼굴 분석·AI·퍼스널 AI) |
-| [7](#7-db-스키마) | DB 스키마 | 테이블 38개, 마이그레이션 26개. 제품·추천·진단·사용자·개인 데이터·얼굴 분석·AI 기억 7영역 |
-| [8](#8-프론트엔드) | 프론트엔드 | 훅 29개·컨텍스트 8개·`queryCache`·계정별 저장소·Capacitor APK |
-| [9](#9-보안개인정보비용한도) | 보안·개인정보·비용·한도 | bcrypt+JWT(회전 리프레시), 얼굴 사진 동의·검증, 호출 한도(챗봇·OCR·얼굴 분석) |
-| [10](#10-테스트와-품질-관리) | 테스트·품질 | pytest 600+ 함수, 평가 스크립트(nDCG 등), 프론트는 타입·lint·빌드·`check:dummy` + 실기기 확인 |
-| [11](#11-배포운영데모) | 배포·운영·데모 | Lightsail 컨테이너 `:swappy.web.N`, AWS DB, 시드 스크립트, 조은성 데모 계정·테스터 계정 |
-| [12](#12-알려진-한계와-다음-과제) | 알려진 한계·다음 과제 | 이미지 재정렬·OAuth·비밀번호 찾기·결제 연동 등 미구현 목록 |
-| [13](#13-개발-타임라인과-저장소-지도) | 개발 타임라인·저장소 지도 | 2026-04 ~ 10 단계별 작업, 디렉터리 지도, 용어 |
-| [14](#14-고민과-결정-기록) | **고민과 결정 기록** | 각 영역에서 무엇을 고민했고, 무엇을 측정해, 왜 그렇게 정했는지 + 채택하지 않은 것 일람 |
+1. **[프로젝트 개요](#1-프로젝트-개요)** — 6문항 진단으로 8가지 피부타입 캐릭터를 주고, **전성분 기준**으로 맞춤 추천·더 싼/더 잘 맞는 대체품·예산 루틴을 제안하는 앱. 커밋 479·머지 131, 백엔드 약 1.7만 줄·프론트 약 2.8만 줄
+2. **[시스템 구조와 기술 스택](#2-시스템-구조와-기술-스택)** — React+Capacitor(웹·Android APK) → AWS Lightsail 컨테이너(FastAPI + Redis) → AWS PostgreSQL. 외부 API: LLM(OpenAI→Claude), Perfect Corp, CLOVA OCR, OpenWeather
+3. **[데이터](#3-데이터)** — 올리브영 제품 4,402·성분 23,150·연결 178,758. 협회 표준명으로 정규화(97.8%), 제품 구성(single/bundle…)·옵션을 분해해 적재
+4. **[AI·알고리즘](#4-ai알고리즘)** — 유사도(hybrid nDCG 0.799), AI 성분 기능 분류 1,686종 + 피부 궁합, 피부타입 진단, 얼굴 사진 분석, OCR 제품 찾기, 챗봇(+도구 호출·폴백), **퍼스널 AI(AI 기억·성분 취향·피부 변화 리포트·오늘의 브리핑)**, 케어 문구, 추천·예산 가이드, 교체 제안
+5. **[기능 카탈로그](#5-기능-카탈로그-화면별)** — 시작·진단 / 홈 / 탐색·상세·분석·대체품 / 화장대 / 구매·선물·후기 / 마이페이지·AI 피부관리 / 알림 — 라우트 46개(+AI가 기억하는 나·AI 기억 설정)
+6. **[백엔드 API](#6-백엔드-api)** — `/api/v1` 아래 87개 엔드포인트(인증·제품·추천·진단·개인 데이터·얼굴 분석·AI·퍼스널 AI)
+7. **[DB 스키마](#7-db-스키마)** — 테이블 38개, 마이그레이션 26개. 제품·추천·진단·사용자·개인 데이터·얼굴 분석·AI 기억 7영역
+8. **[프론트엔드](#8-프론트엔드)** — 훅 29개·컨텍스트 8개·`queryCache`·계정별 저장소·Capacitor APK
+9. **[보안·개인정보·비용·한도](#9-보안개인정보비용한도)** — bcrypt+JWT(회전 리프레시), 얼굴 사진 동의·검증, 호출 한도(챗봇·OCR·얼굴 분석)
+10. **[테스트·품질](#10-테스트와-품질-관리)** — pytest 600+ 함수, 평가 스크립트(nDCG 등), 프론트는 타입·lint·빌드·`check:dummy` + 실기기 확인
+11. **[배포·운영·데모](#11-배포운영데모)** — Lightsail 컨테이너 `:swappy.web.N`, AWS DB, 시드 스크립트, 조은성 데모 계정·테스터 계정
+12. **[알려진 한계·다음 과제](#12-알려진-한계와-다음-과제)** — 이미지 재정렬·OAuth·비밀번호 찾기·결제 연동 등 미구현 목록
+13. **[개발 타임라인·저장소 지도](#13-개발-타임라인과-저장소-지도)** — 2026-04 ~ 10 단계별 작업, 디렉터리 지도, 용어
+14. **[**고민과 결정 기록**](#14-고민과-결정-기록)** — 각 영역에서 무엇을 고민했고, 무엇을 측정해, 왜 그렇게 정했는지 + 채택하지 않은 것 일람
 
 ---
 
@@ -42,15 +40,13 @@
 
 ### 1.2 규모 (2026-10-31 측정, 데이터 행수는 문서 기준)
 
-| 항목 | 값 |
-|---|---|
-| 커밋 / 머지(PR 포함) | 479 / 131 (첫 커밋 2026-04-14) |
-| 백엔드 Python | 약 17,000줄 (`backend/app`) · 서비스 모듈 34개 · API 라우터 파일 17개 |
-| 프론트엔드 TS/TSX | 약 27,600줄 (`frontend/src`) · 라우트 46개(+리다이렉트 10) |
-| API 엔드포인트 | 라우터 데코레이터 86개 + `/health` = 87개 |
-| 테스트 | 백엔드 788건 = unit 475(DB 불필요, CI) + integration 313 — 2026-11-25 전체 780 통과·8 건너뜀·실패 0 · 프론트 자동 테스트 0건 |
-| 제품 데이터 | 제품 4,402 · 성분 23,150 · 제품–성분 연결 178,758 · 성분 별칭 4,411 · 성분 설명 3,687 · 유사도 105,620행 · 성분 기능 라벨 1,686 · 제품×피부타입 궁합 35,216 (2026-11-24 실측) |
-| 카테고리 | 얼굴용 4종: 스킨케어 · 마스크팩 · 클렌징 · 선케어 |
+- **커밋 / 머지(PR 포함)** — 479 / 131 (첫 커밋 2026-04-14)
+- **백엔드 Python** — 약 17,000줄 (`backend/app`) · 서비스 모듈 34개 · API 라우터 파일 17개
+- **프론트엔드 TS/TSX** — 약 27,600줄 (`frontend/src`) · 라우트 46개(+리다이렉트 10)
+- **API 엔드포인트** — 라우터 데코레이터 86개 + `/health` = 87개
+- **테스트** — 백엔드 788건 = unit 475(DB 불필요, CI) + integration 313 — 2026-11-25 전체 780 통과·8 건너뜀·실패 0 · 프론트 자동 테스트 0건
+- **제품 데이터** — 제품 4,402 · 성분 23,150 · 제품–성분 연결 178,758 · 성분 별칭 4,411 · 성분 설명 3,687 · 유사도 105,620행 · 성분 기능 라벨 1,686 · 제품×피부타입 궁합 35,216 (2026-11-24 실측)
+- **카테고리** — 얼굴용 4종: 스킨케어 · 마스크팩 · 클렌징 · 선케어
 
 ### 1.3 팀과 역할
 
@@ -89,20 +85,18 @@ A 트렌드 민감형(20대 여성) · B 피부 건강 중심형(30대 직장인
 
 ### 2.2 기술 스택
 
-| 영역 | 기술 |
-|---|---|
-| 프론트 | React 18 · TypeScript · Vite · Tailwind CSS · framer-motion · 자체 `queryCache` |
-| 모바일 | **Capacitor** Android APK (`frontend/android`) |
-| 브라우저 AI | MediaPipe 얼굴 검출(촬영 안내) |
-| 백엔드 | Python 3.11 · FastAPI · SQLAlchemy(async) · Alembic · structlog · Sentry |
-| DB | PostgreSQL 16 + `pg_trgm` (운영 AWS · 개발 Neon · 로컬 docker) |
-| 캐시·한도 | Redis 7 |
-| 유사도 | TF-IDF/코사인 직접 구현(`services/matching/similarity.py`) |
-| OCR | 네이버 **CLOVA OCR General** |
-| 챗봇 LLM | OpenAI `gpt-4o-mini` → Anthropic Claude(체인) → DB 규칙 응답(폴백). 로그인 사용자는 **도구 호출**(계산 엔진을 모델이 불러 씀) |
-| 얼굴 분석 | **Perfect Corp YouCam Skin Analysis**(SD 모드) |
-| 얼굴 검증 | OpenCV YuNet(`FaceDetectorYN`) + MediaPipe selfie_multiclass(가림 검사, TFLite) |
-| 날씨 | OpenWeather (서울 고정) |
+- **프론트** — React 18 · TypeScript · Vite · Tailwind CSS · framer-motion · 자체 `queryCache`
+- **모바일** — **Capacitor** Android APK (`frontend/android`)
+- **브라우저 AI** — MediaPipe 얼굴 검출(촬영 안내)
+- **백엔드** — Python 3.11 · FastAPI · SQLAlchemy(async) · Alembic · structlog · Sentry
+- **DB** — PostgreSQL 16 + `pg_trgm` (운영 AWS · 개발 Neon · 로컬 docker)
+- **캐시·한도** — Redis 7
+- **유사도** — TF-IDF/코사인 직접 구현(`services/matching/similarity.py`)
+- **OCR** — 네이버 **CLOVA OCR General**
+- **챗봇 LLM** — OpenAI `gpt-4o-mini` → Anthropic Claude(체인) → DB 규칙 응답(폴백). 로그인 사용자는 **도구 호출**(계산 엔진을 모델이 불러 씀)
+- **얼굴 분석** — **Perfect Corp YouCam Skin Analysis**(SD 모드)
+- **얼굴 검증** — OpenCV YuNet(`FaceDetectorYN`) + MediaPipe selfie_multiclass(가림 검사, TFLite)
+- **날씨** — OpenWeather (서울 고정)
 
 ---
 
@@ -110,14 +104,18 @@ A 트렌드 민감형(20대 여성) · B 피부 건강 중심형(30대 직장인
 
 ### 3.1 출처
 
-| 데이터 | 출처 | 스크립트·위치 |
-|---|---|---|
-| 제품명·가격·이미지·전성분·리뷰 수·평점 | 올리브영(국내) → 정제본 v5 CSV | `backend/pipeline/collect/legacy/oliveyoung_crawler.py`, `backend/pipeline/load/load_products.py` |
-| 성분 표준명·명칭 변경 | 대한화장품협회 성분 목록 PDF(표준화명칭 21,910종) → CSV | `extract_ingredient_dict.py`, `seed_ingredients.py` |
-| 영문 제품명 | 올리브영 글로벌 공개 JSON API | `collect_global_oliveyoung.py`, `match_kr_en.py` |
-| 성분 설명(한 줄) | AI 작성 + 검토 | `seed_ingredient_descriptions.py` |
-| 성분 기능 라벨 | AI(성분 전문가 역할)가 분류 → `labels.csv` | `seed_ingredient_functions.py` |
-| 식약처 알레르기 유발 26종 | `allergens_mfds.csv` | `compute_skin_fit.py`가 사용 |
+- **제품명·가격·이미지·전성분·리뷰 수·평점** — 올리브영(국내) → 정제본 v5 CSV
+  - 스크립트·위치: `backend/pipeline/collect/legacy/oliveyoung_crawler.py`, `backend/pipeline/load/load_products.py`
+- **성분 표준명·명칭 변경** — 대한화장품협회 성분 목록 PDF(표준화명칭 21,910종) → CSV
+  - 스크립트·위치: `extract_ingredient_dict.py`, `seed_ingredients.py`
+- **영문 제품명** — 올리브영 글로벌 공개 JSON API
+  - 스크립트·위치: `collect_global_oliveyoung.py`, `match_kr_en.py`
+- **성분 설명(한 줄)** — AI 작성 + 검토
+  - 스크립트·위치: `seed_ingredient_descriptions.py`
+- **성분 기능 라벨** — AI(성분 전문가 역할)가 분류 → `labels.csv`
+  - 스크립트·위치: `seed_ingredient_functions.py`
+- **식약처 알레르기 유발 26종** — `allergens_mfds.csv`
+  - 스크립트·위치: `compute_skin_fit.py`가 사용
 
 ### 3.2 적재 파이프라인 (모두 멱등)
 
@@ -242,14 +240,12 @@ score = ( 0.65 × 역할 가중 TF-IDF  +  0.35 × 기능 프로필 코사인  +
 
 원칙은 하나다: **사실은 계산에서 오고, 모르면 모른다고 말하며, 원인을 단정하지 않는다.** 설정 `PERSONAL_AI_ENABLED`·`CHAT_TOOLS_ENABLED`로 끌 수 있다. 상세 점수·임계값은 [ai-and-scoring-logic.md](../algorithms/ai-and-scoring-logic.md) §8-6.
 
-| 기능 | 핵심 |
-|---|---|
-| **챗봇 도구 호출** | 모델이 `find_products`·`find_alternatives`·`analyze_product`·`check_skin_fit`·`build_routine`·`recommend_for_me`·`get_skin_report`·`get_today_briefing`·`propose_add_to_cart`·`propose_add_to_closet`을 부른다(최대 4라운드). 제품·가격·점수는 기존 서비스가 계산하고 모델은 문장으로 옮긴다. **읽기만 실행**하고 담기는 *제안*만 하며 사용자가 [담기]를 눌러야 실행된다. 답 아래에 제품 카드를 붙인다 |
-| **개인 컨텍스트** | 피부타입·최근 사진 분석의 약한 항목·예산·화장대·마이 성분을 약 600토큰 요약으로 프롬프트에 넣는다. 이메일·얼굴 사진·원본 점수는 보내지 않는다 |
-| **AI 기억** | 동의한 사용자의 대화에서 **사용자가 직접 한 말**만 한 줄로 저장(최대 20개). 마이페이지(`/mypage/settings/ai-memory`)에서 보고 고치고 끄고 지운다. 추출 실패는 답변에 영향이 없고, "○○ 기억해"는 LLM 없이도 저장된다 |
-| **내 성분 취향** | 후기·재구매·찜·화장대로 좋아한/별로였던 제품의 성분을 쌓은 벡터(유사도와 같은 IDF×역할 척도). 신호가 3개 제품 미만이면 **켜지지 않고**(콜드 스타트), 켜져도 홈 추천에 0.2만 섞는다. "내가 좋아한 ○○ 성분이 들어 있어요"로 설명 |
-| **피부 변화 리포트** | 최근 두 사진 분석을 항목별로 견주고(±3점 미만은 '비슷해요'), 그 사이 화장대에 더한 제품을 *나란히* 보여 준다. "그래서 좋아졌다"고 하지 않는다 |
-| **오늘의 브리핑** | 날씨 × 내 약한 피부 항목으로 오늘 필요한 기능을 정하고 **내 화장대에서 그 기능이 가장 강한 제품**을 먼저 쓰라고 한다. 문장은 규칙이라 LLM 없이도 같다 |
+- **챗봇 도구 호출** — 모델이 `find_products`·`find_alternatives`·`analyze_product`·`check_skin_fit`·`build_routine`·`recommend_for_me`·`get_skin_report`·`get_today_briefing`·`propose_add_to_cart`·`propose_add_to_closet`을 부른다(최대 4라운드). 제품·가격·점수는 기존 서비스가 계산하고 모델은 문장으로 옮긴다. **읽기만 실행**하고 담기는 *제안*만 하며 사용자가 [담기]를 눌러야 실행된다. 답 아래에 제품 카드를 붙인다
+- **개인 컨텍스트** — 피부타입·최근 사진 분석의 약한 항목·예산·화장대·마이 성분을 약 600토큰 요약으로 프롬프트에 넣는다. 이메일·얼굴 사진·원본 점수는 보내지 않는다
+- **AI 기억** — 동의한 사용자의 대화에서 **사용자가 직접 한 말**만 한 줄로 저장(최대 20개). 마이페이지(`/mypage/settings/ai-memory`)에서 보고 고치고 끄고 지운다. 추출 실패는 답변에 영향이 없고, "○○ 기억해"는 LLM 없이도 저장된다
+- **내 성분 취향** — 후기·재구매·찜·화장대로 좋아한/별로였던 제품의 성분을 쌓은 벡터(유사도와 같은 IDF×역할 척도). 신호가 3개 제품 미만이면 **켜지지 않고**(콜드 스타트), 켜져도 홈 추천에 0.2만 섞는다. "내가 좋아한 ○○ 성분이 들어 있어요"로 설명
+- **피부 변화 리포트** — 최근 두 사진 분석을 항목별로 견주고(±3점 미만은 '비슷해요'), 그 사이 화장대에 더한 제품을 *나란히* 보여 준다. "그래서 좋아졌다"고 하지 않는다
+- **오늘의 브리핑** — 날씨 × 내 약한 피부 항목으로 오늘 필요한 기능을 정하고 **내 화장대에서 그 기능이 가장 강한 제품**을 먼저 쓰라고 한다. 문장은 규칙이라 LLM 없이도 같다
 
 화면: 홈의 케어 문구를 누르면 브리핑 시트(`BriefingSheet`), AI 피부관리에 피부 변화 리포트(`SkinReportCard`), 마이페이지 `/mypage/ai-me`에 'AI가 기억하는 나'와 취향 카드(`TasteCard`).
 
@@ -299,19 +295,17 @@ score = ( 0.65 × 역할 가중 TF-IDF  +  0.35 × 기능 프로필 코사인  +
 
 접두사 `/api/v1`. 로그인 필수는 `get_current_user`, 선택은 `get_optional_user`.
 
-| 도메인 | 엔드포인트 |
-|---|---|
-| 인증 | `POST /auth/signup` · `/login` · `/refresh` · `/logout` · `/password` · `GET /auth/me` |
-| 계정 | `GET/PATCH /me` · `DELETE /me`(탈퇴) · `GET/PATCH /me/profile`(닉네임·피부타입·예산·꾸미기) |
-| 제품 | `GET /products` · `/products/search` · `/products/search/ingredient` · `/products/match` · `POST /products/scan` · `/products/{id}` · `/products/{id}/reviews` · `/products/{id}/similar` · `/products/{id}/skin-fit` · `/products/{id}/analysis` |
-| 성분 | `GET /ingredients` · `/ingredients/categories` |
-| 추천 | `GET /recommendations/main` · `/recommendations/set` · `POST /recommendations/budget` |
-| 진단 | `GET /profile/skin-quiz/questions` · `POST /profile/skin-quiz` · `GET/PATCH/DELETE /profile/skin-quiz/latest` |
-| 개인 데이터 | `/me/closet` · `/me/cart` · `/me/likes` · `/me/recently-viewed` · `/me/scans` · `/me/orders`(+cancel/return/frequent) · `POST /orders` · `/me/reviews` · `/me/points` · `/me/stats` · `/me/gifts/sent|received` · `POST /gifts` · `/me/notifications`(+seen) |
-| 얼굴 분석 | `GET/PUT /me/consents/face-photo` · `/me/subscription`(GET/POST/DELETE) · `/me/skin-analysis/quota` · `POST /skin-analysis/check` · `POST /skin-analysis` · `GET /skin-analysis` · `/skin-analysis/latest` · `/skin-analysis/{id}/images/{key}` |
-| AI | `POST /chat` · `GET /care-tip` · `GET /weather` |
-| 퍼스널 AI | `GET/PUT /me/ai-memory`(동의) · `GET/POST /me/memories` · `PATCH/DELETE /me/memories/{id}` · `DELETE /me/memories`(전부) · `GET /me/preferences`(성분 취향) · `GET /me/skin-report` · `GET /me/briefing` |
-| 운영 | `GET /health` |
+- **인증** — `POST /auth/signup` · `/login` · `/refresh` · `/logout` · `/password` · `GET /auth/me`
+- **계정** — `GET/PATCH /me` · `DELETE /me`(탈퇴) · `GET/PATCH /me/profile`(닉네임·피부타입·예산·꾸미기)
+- **제품** — `GET /products` · `/products/search` · `/products/search/ingredient` · `/products/match` · `POST /products/scan` · `/products/{id}` · `/products/{id}/reviews` · `/products/{id}/similar` · `/products/{id}/skin-fit` · `/products/{id}/analysis`
+- **성분** — `GET /ingredients` · `/ingredients/categories`
+- **추천** — `GET /recommendations/main` · `/recommendations/set` · `POST /recommendations/budget`
+- **진단** — `GET /profile/skin-quiz/questions` · `POST /profile/skin-quiz` · `GET/PATCH/DELETE /profile/skin-quiz/latest`
+- **개인 데이터** — `/me/closet` · `/me/cart` · `/me/likes` · `/me/recently-viewed` · `/me/scans` · `/me/orders`(+cancel/return/frequent) · `POST /orders` · `/me/reviews` · `/me/points` · `/me/stats` · `/me/gifts/sent | received` · `POST /gifts` · `/me/notifications`(+seen)
+- **얼굴 분석** — `GET/PUT /me/consents/face-photo` · `/me/subscription`(GET/POST/DELETE) · `/me/skin-analysis/quota` · `POST /skin-analysis/check` · `POST /skin-analysis` · `GET /skin-analysis` · `/skin-analysis/latest` · `/skin-analysis/{id}/images/{key}`
+- **AI** — `POST /chat` · `GET /care-tip` · `GET /weather`
+- **퍼스널 AI** — `GET/PUT /me/ai-memory`(동의) · `GET/POST /me/memories` · `PATCH/DELETE /me/memories/{id}` · `DELETE /me/memories`(전부) · `GET /me/preferences`(성분 취향) · `GET /me/skin-report` · `GET /me/briefing`
+- **운영** — `GET /health`
 
 ---
 
@@ -319,15 +313,13 @@ score = ( 0.65 × 역할 가중 TF-IDF  +  0.35 × 기능 프로필 코사인  +
 
 정본: [`db-schema.md`](db-schema.md) · 모델: `backend/app/models/` · 변경은 Alembic 마이그레이션으로만(26개). 테이블 38개.
 
-| 영역 | 테이블 |
-|---|---|
-| 제품·성분 | `products` · `ingredients` · `product_ingredients` · `ingredient_aliases` · `ingredient_descriptions` · `ingredient_functions` · `brands` · `categories` (`tags`·`ingredient_tags`는 더 이상 읽지 않음) |
-| 추천 | `similarities`(product_id, similar_id, method) · `product_skin_fit` (`skin_type_rules`는 읽지 않음) |
-| 진단 | `quiz_versions` · `quiz_questions` · `quiz_options` · `diagnoses` · `diagnosis_ranks` |
-| 사용자 | `users` · `profiles` · `refresh_tokens`(해시 저장) |
-| 개인 데이터 | `closet_items` · `cart_items` · `likes` · `recently_viewed` · `orders` · `order_items` · `reviews` · `review_photos` · `point_transactions` · `scan_results` · `gifts` |
-| 얼굴 분석 | `user_consents`(`face_photo`·`ai-memory`) · `subscriptions` · `skin_analyses`(metrics, `sample_of`) · `skin_analysis_images` |
-| AI 기억 | `user_memories`(content·kind·source·enabled, 사용자당 20개) |
+- **제품·성분** — `products` · `ingredients` · `product_ingredients` · `ingredient_aliases` · `ingredient_descriptions` · `ingredient_functions` · `brands` · `categories` (`tags`·`ingredient_tags`는 더 이상 읽지 않음)
+- **추천** — `similarities`(product_id, similar_id, method) · `product_skin_fit` (`skin_type_rules`는 읽지 않음)
+- **진단** — `quiz_versions` · `quiz_questions` · `quiz_options` · `diagnoses` · `diagnosis_ranks`
+- **사용자** — `users` · `profiles` · `refresh_tokens`(해시 저장)
+- **개인 데이터** — `closet_items` · `cart_items` · `likes` · `recently_viewed` · `orders` · `order_items` · `reviews` · `review_photos` · `point_transactions` · `scan_results` · `gifts`
+- **얼굴 분석** — `user_consents`(`face_photo`·`ai-memory`) · `subscriptions` · `skin_analyses`(metrics, `sample_of`) · `skin_analysis_images`
+- **AI 기억** — `user_memories`(content·kind·source·enabled, 사용자당 20개)
 
 ---
 
@@ -347,18 +339,16 @@ score = ( 0.65 × 역할 가중 TF-IDF  +  0.35 × 기능 프로필 코사인  +
 
 ## 9. 보안·개인정보·비용·한도
 
-| 영역 | 구현 |
-|---|---|
-| 비밀번호 | bcrypt 직접 사용 |
-| 토큰 | 액세스 30분, 리프레시는 DB 행 + `revoked_at`, SHA-256 해시로 저장, 갱신마다 회전, 비밀번호 변경 시 다른 세션 폐기 |
-| 선택 인증 | `get_optional_user`로 같은 엔드포인트가 비회원도 허용 |
-| AI 기억 | 동의한 사용자에게만 읽고 쓴다(`user_consents` `ai-memory`), 사용자가 한 말만 저장·연락처/URL/지시문 걸러냄, 보이고 고치고 끌 수 있음. 챗봇 도구는 읽기만 실행하고 담기는 사용자 클릭이 있어야 일어남 |
-| 얼굴 사진 | 가입 시 선택 동의 + 촬영 직전 재동의, 원본은 메모리에서만(EXIF·GPS 제거), 얼굴 아닌 사진은 외부 전송 전 차단, 분석 이미지는 본인만 조회, 동의 철회 가능 |
-| 후기 사진 | 서버가 형식·크기 재검증, DB 저장 |
-| 호출 한도 | 챗봇(비회원 IP 일 한도) · OCR(계정/전체 일 한도, Redis 장애 시 차단) · 얼굴 분석(월 한도는 DB 카운트, 허용 계정 외 표본) · 케어 문구(피부타입×일 1회) |
-| 캐시 장애 | Redis 장애 시 캐시 헬퍼는 예외를 삼키고 DB 폴백 |
-| `.env` | 커밋 금지, 통째로 `source` 금지 |
-| 운영 DB 쓰기 | 덤프 복원 대신 API 경유 시드(`seed_demo_account.py --allow-prod`), 운영 URL은 플래그가 있어야만 쓰기 |
+- **비밀번호** — bcrypt 직접 사용
+- **토큰** — 액세스 30분, 리프레시는 DB 행 + `revoked_at`, SHA-256 해시로 저장, 갱신마다 회전, 비밀번호 변경 시 다른 세션 폐기
+- **선택 인증** — `get_optional_user`로 같은 엔드포인트가 비회원도 허용
+- **AI 기억** — 동의한 사용자에게만 읽고 쓴다(`user_consents` `ai-memory`), 사용자가 한 말만 저장·연락처/URL/지시문 걸러냄, 보이고 고치고 끌 수 있음. 챗봇 도구는 읽기만 실행하고 담기는 사용자 클릭이 있어야 일어남
+- **얼굴 사진** — 가입 시 선택 동의 + 촬영 직전 재동의, 원본은 메모리에서만(EXIF·GPS 제거), 얼굴 아닌 사진은 외부 전송 전 차단, 분석 이미지는 본인만 조회, 동의 철회 가능
+- **후기 사진** — 서버가 형식·크기 재검증, DB 저장
+- **호출 한도** — 챗봇(비회원 IP 일 한도) · OCR(계정/전체 일 한도, Redis 장애 시 차단) · 얼굴 분석(월 한도는 DB 카운트, 허용 계정 외 표본) · 케어 문구(피부타입×일 1회)
+- **캐시 장애** — Redis 장애 시 캐시 헬퍼는 예외를 삼키고 DB 폴백
+- **`.env`** — 커밋 금지, 통째로 `source` 금지
+- **운영 DB 쓰기** — 덤프 복원 대신 API 경유 시드(`seed_demo_account.py --allow-prod`), 운영 URL은 플래그가 있어야만 쓰기
 
 ---
 
@@ -425,16 +415,14 @@ score = ( 0.65 × 역할 가중 TF-IDF  +  0.35 × 기능 프로필 코사인  +
 
 ## 13. 개발 타임라인과 저장소 지도
 
-| 시기 | 주요 작업 |
-|---|---|
-| 2026-04 ~ 06 | 기획(PRD v1.7), 올리브영 전성분 수집, OCR 엔진 벤치마크, 이슈 #8 |
-| 2026-07 | 프론트 병합(팀원 Anima/Figma 제출물), UI 통일, 목업 제거 시작 |
-| 2026-08 ~ 09 | PRD v1.8, DB 스키마·적재 파이프라인, 성분 사전, **유사도 엔진(tfidf)**, 인증·진단·개인 데이터 API, 챗봇 RAG, 이미지 매칭 측정, 예산 구매 가이드 |
-| 2026-10 초 | 영문 제품명, 선물, 스캔 연동, 옵션형 묶음 분해, 성분 설명 |
-| 2026-10-20 ~ 23 | **얼굴 사진 AI 분석** → 16항목·사진 전용 진단·AI 피부관리, **성분 기능 분류 + hybrid 유사도 + 궁합 통일**, 케어 문구, 성분 분석 화면 |
-| 2026-10-24 ~ 26 | **AWS 이전**(Lightsail 컨테이너 + DB), Android APK, 챗봇 폴백, 성분 사전 탐색, 마이 성분 |
-| 2026-10-29 ~ 31 | **퍼스널 AI** 4단계 — 챗봇 개인 컨텍스트 → 도구 호출 → AI 기억·성분 취향 → 피부 변화 리포트·오늘의 브리핑, 직접 비교, 대체품 화면 개선 |
-| 2026-10-27 ~ 29 | 데모 데이터 정비, 계정별 검색·진단 분리, 리필 유사도 수정, 교체 제안 규칙, UI 개선(QnA·날씨 줄·결과 카드), 테스트 계정, 화면 캡처 |
+- **2026-04 ~ 06** — 기획(PRD v1.7), 올리브영 전성분 수집, OCR 엔진 벤치마크, 이슈 #8
+- **2026-07** — 프론트 병합(팀원 Anima/Figma 제출물), UI 통일, 목업 제거 시작
+- **2026-08 ~ 09** — PRD v1.8, DB 스키마·적재 파이프라인, 성분 사전, **유사도 엔진(tfidf)**, 인증·진단·개인 데이터 API, 챗봇 RAG, 이미지 매칭 측정, 예산 구매 가이드
+- **2026-10 초** — 영문 제품명, 선물, 스캔 연동, 옵션형 묶음 분해, 성분 설명
+- **2026-10-20 ~ 23** — **얼굴 사진 AI 분석** → 16항목·사진 전용 진단·AI 피부관리, **성분 기능 분류 + hybrid 유사도 + 궁합 통일**, 케어 문구, 성분 분석 화면
+- **2026-10-24 ~ 26** — **AWS 이전**(Lightsail 컨테이너 + DB), Android APK, 챗봇 폴백, 성분 사전 탐색, 마이 성분
+- **2026-10-29 ~ 31** — **퍼스널 AI** 4단계 — 챗봇 개인 컨텍스트 → 도구 호출 → AI 기억·성분 취향 → 피부 변화 리포트·오늘의 브리핑, 직접 비교, 대체품 화면 개선
+- **2026-10-27 ~ 29** — 데모 데이터 정비, 계정별 검색·진단 분리, 리필 유사도 수정, 교체 제안 규칙, UI 개선(QnA·날씨 줄·결과 카드), 테스트 계정, 화면 캡처
 
 ```
 capstone/
@@ -448,17 +436,15 @@ capstone/
 └─ CLAUDE.md       작업 규칙(브랜치·마이그레이션·DB 공용 주의)
 ```
 
-| 용어 | 뜻 |
-|---|---|
-| 화장대(closet) | 사용자가 쓰는 제품 목록(무료 20개). 교체 제안·비슷한 추천의 기준 |
-| 시드(seed) | 유사도·교체 제안에서 기준이 되는 제품(쓰던 제품) |
-| 궁합(skin fit) | 제품 전성분과 내 피부타입의 적합도(0~100, 주의 판정 포함) |
-| hybrid | 역할 가중 TF-IDF + 기능 프로필 + 제형 일치 유사도 |
-| composition | 제품 구성 구분: single / bonus / bundle / goods / optgroup |
-| Soft-gate | 비회원도 진단까지, 개인 데이터부터 로그인 |
-| scope | 프론트의 계정 구분 키(계정 id 또는 `guest`) |
-| 허용 계정 / 표본 계정 | 얼굴 분석을 실제 호출할 수 있는 계정 / 대신 결과를 빌려 주는 계정(`eunseong@swappy.app`) |
-| `:swappy.web.N` | Lightsail에 푸시한 이미지 태그 |
+- **화장대(closet)** — 사용자가 쓰는 제품 목록(무료 20개). 교체 제안·비슷한 추천의 기준
+- **시드(seed)** — 유사도·교체 제안에서 기준이 되는 제품(쓰던 제품)
+- **궁합(skin fit)** — 제품 전성분과 내 피부타입의 적합도(0~100, 주의 판정 포함)
+- **hybrid** — 역할 가중 TF-IDF + 기능 프로필 + 제형 일치 유사도
+- **composition** — 제품 구성 구분: single / bonus / bundle / goods / optgroup
+- **Soft-gate** — 비회원도 진단까지, 개인 데이터부터 로그인
+- **scope** — 프론트의 계정 구분 키(계정 id 또는 `guest`)
+- **허용 계정 / 표본 계정** — 얼굴 분석을 실제 호출할 수 있는 계정 / 대신 결과를 빌려 주는 계정(`eunseong@swappy.app`)
+- **`:swappy.web.N`** — Lightsail에 푸시한 이미지 태그
 
 ---
 
@@ -476,20 +462,30 @@ capstone/
 
 ### 14.2 데이터 — 무엇이 데이터를 오염시켰나
 
-| 문제 | 증상 | 결정과 이유 |
-|---|---|---|
-| **전성분 쉼표 파싱** | 성분명에 쉼표가 있음(`1,2-헥산다이올`, `자작나무수액(10,000ppm)`). 단순 split이면 `"1"`이 5,599회로 최다 성분이 되어 유사도가 통째로 오염 | 괄호 안·숫자 사이 쉼표를 보호하는 파서 + 구분자 자동 판별. `/`는 `약모밀꽃/잎/줄기수`처럼 성분명의 일부라 구분자 아님 |
-| 성분명 표기 | 판매자 표기가 제각각 | 4단계 해석, **어떤 경우에도 성분을 버리지 않음**(미매칭도 신규 등록) |
-| **판매자 오타** | `포타슙`, `카퍼트라이펩사이드` | 정답지(협회 표준 21,910종)가 있으니 **LLM보다 pg_trgm 최근접 + 사람 검토**가 더 결정적 |
-| **기획·묶음 상품** | `N종 택1` 기획세트는 호수별 전성분을 한 셀에 이어 붙여 "모든 성분을 가진 제품"이 되어 무엇과도 비슷 | `composition` 분류, 유사도는 single만. 고유 성분 100개 초과 비율이 단일 0.9% vs 묶음 19~29%로 20배 차이 |
-| 증량·증정(`+50ml`) | 대부분 깨끗하나 39건(2.5%)은 다른 제품 성분이 이어 붙음. 이름으로 판별 불가 | 1차는 **안전한 쪽**(bonus도 제외). 성분 반복 기반 판정은 유사도 배치의 `is_bundle`에 위임 |
-| **옵션형 묶음** | `[화장발]정제수…[카밍풀]정제수…` — 그대로 적재하면 255개 → 131개로 중복 소실, 제품이 모든 옵션의 합집합 | 라벨 구간별로 옵션 행 생성. **이름에 'N종'만 있는 건 나누지 않음**(세트인지 택1인지 이름으로 구별 불가) |
-| 카테고리 오분류 | v5의 카테고리 154건 변경, 사유가 적힌 것은 38건 | 사람 판단이 들어간 컬럼은 **믿지 않고** 제외 목록으로 뺌. 규칙이 분명한 컬럼(전성분·상품명·용량)만 신뢰 |
-| `display_name` 중복 206그룹 | 중복 행처럼 보임 | **중복이 아님**(기획/증정 구성만 다른 별도 상품, `goods_no` 다름). 의도된 정규화 |
-| 단위가 다른 가격 | 10매 vs 1매 | 용량·단가 컬럼을 두고 같은 단위끼리만 비교 |
-| `ewg_grade` | 크롤링으로 얻을 수 없음 | **비워 둠** — 출처 불명 숫자로 안전 등급을 주장하지 않기 위해 |
-| 스킨케어 소분류 없음 | 토너·세럼·크림이 한 덩어리 | 예산 가이드는 제품명 키워드 + 단계별 최소 용량으로 분류 |
-| 리뷰가 비어 있음 | 후기는 "산 제품"에만 쓸 수 있어 대부분 비어 있음 | 시연용 샘플 후기(`is_sample`)를 만들고 DB에서만 구분 |
+- **전성분 쉼표 파싱** — 성분명에 쉼표가 있음(`1,2-헥산다이올`, `자작나무수액(10,000ppm)`). 단순 split이면 `"1"`이 5,599회로 최다 성분이 되어 유사도가 통째로 오염
+  - 결정과 이유: 괄호 안·숫자 사이 쉼표를 보호하는 파서 + 구분자 자동 판별. `/`는 `약모밀꽃/잎/줄기수`처럼 성분명의 일부라 구분자 아님
+- **성분명 표기** — 판매자 표기가 제각각
+  - 결정과 이유: 4단계 해석, **어떤 경우에도 성분을 버리지 않음**(미매칭도 신규 등록)
+- **판매자 오타** — `포타슙`, `카퍼트라이펩사이드`
+  - 결정과 이유: 정답지(협회 표준 21,910종)가 있으니 **LLM보다 pg_trgm 최근접 + 사람 검토**가 더 결정적
+- **기획·묶음 상품** — `N종 택1` 기획세트는 호수별 전성분을 한 셀에 이어 붙여 "모든 성분을 가진 제품"이 되어 무엇과도 비슷
+  - 결정과 이유: `composition` 분류, 유사도는 single만. 고유 성분 100개 초과 비율이 단일 0.9% vs 묶음 19~29%로 20배 차이
+- **증량·증정(`+50ml`)** — 대부분 깨끗하나 39건(2.5%)은 다른 제품 성분이 이어 붙음. 이름으로 판별 불가
+  - 결정과 이유: 1차는 **안전한 쪽**(bonus도 제외). 성분 반복 기반 판정은 유사도 배치의 `is_bundle`에 위임
+- **옵션형 묶음** — `[화장발]정제수…[카밍풀]정제수…` — 그대로 적재하면 255개 → 131개로 중복 소실, 제품이 모든 옵션의 합집합
+  - 결정과 이유: 라벨 구간별로 옵션 행 생성. **이름에 'N종'만 있는 건 나누지 않음**(세트인지 택1인지 이름으로 구별 불가)
+- **카테고리 오분류** — v5의 카테고리 154건 변경, 사유가 적힌 것은 38건
+  - 결정과 이유: 사람 판단이 들어간 컬럼은 **믿지 않고** 제외 목록으로 뺌. 규칙이 분명한 컬럼(전성분·상품명·용량)만 신뢰
+- **`display_name` 중복 206그룹** — 중복 행처럼 보임
+  - 결정과 이유: **중복이 아님**(기획/증정 구성만 다른 별도 상품, `goods_no` 다름). 의도된 정규화
+- **단위가 다른 가격** — 10매 vs 1매
+  - 결정과 이유: 용량·단가 컬럼을 두고 같은 단위끼리만 비교
+- **`ewg_grade`** — 크롤링으로 얻을 수 없음
+  - 결정과 이유: **비워 둠** — 출처 불명 숫자로 안전 등급을 주장하지 않기 위해
+- **스킨케어 소분류 없음** — 토너·세럼·크림이 한 덩어리
+  - 결정과 이유: 예산 가이드는 제품명 키워드 + 단계별 최소 용량으로 분류
+- **리뷰가 비어 있음** — 후기는 "산 제품"에만 쓸 수 있어 대부분 비어 있음
+  - 결정과 이유: 시연용 샘플 후기(`is_sample`)를 만들고 DB에서만 구분
 
 ### 14.3 유사도 — 방식 비교와 선택
 
@@ -498,15 +494,19 @@ capstone/
 
 | 방식 | nDCG@10 | 정밀도@5 | 결정 |
 |---|---|---|---|
-| tfidf | 0.635 | 0.330 | 유지(기준선, hybrid 미적재 시 대체) |
+| tfidf | 0.635 | 0.330 | 유지(기준선) |
 | hybrid v1(역할 가중 0.65 + 기능 프로필 0.35) | 0.678 | 0.343 | 이전 기본값 |
-| + 변형 접기 | 0.663 | 0.338 | **채택** — 지표는 소폭↓지만 같은 제품의 다른 용량이 모두 "대체 가능"으로 판정돼 정답에 들어 있기 때문. 목적은 후보 자리를 다양하게 쓰는 것(마스크팩 1/4/5매가 상위 5칸 중 3칸을 차지하던 문제) |
+| + 변형 접기 | 0.663 | 0.338 | **채택** ① |
 | **+ 제형 일치 0.20** | **0.799** | **0.468** | **채택, 현재 기본값** |
-| 제형 0.10 / 0.35 | 0.799 / 0.790 | 0.420 / 0.468 | 0.20이 최적 근처 |
-| 가중 0.5/0.5, 0.8/0.2 | 0.787 / 0.777 | | 0.65/0.35 유지 |
-| 자외선 유형 축 제거 | 0.797 | 0.463 | 효과는 작지만 선케어에서 +0.009라 유지 |
-| 성분 임베딩 항(e5-small) | 0.800~0.801 | 0.468 | **제거** — 이득 +0.001(오차), 점수만 부풀려 임계값을 흔듦(5위 0.49→0.60), 화학명 임베딩이 약하고 기능 라벨이 이미 같은 정보 |
-| jaccard / rbo | 0.603 / 0.344 | 0.273 / 0.153 | **제거** — jaccard는 IDF가 없어 흔한 성분에 끌려가고, rbo는 점수만 높고 순위 품질이 최저 |
+| 제형 0.10&nbsp;/&nbsp;0.35 | 0.799&nbsp;/&nbsp;0.790 | 0.420&nbsp;/&nbsp;0.468 | 0.20이 최적 근처 |
+| 가중 0.5/0.5,&nbsp;0.8/0.2 | 0.787&nbsp;/&nbsp;0.777 | | 0.65/0.35 유지 |
+| 자외선 유형 축 제거 | 0.797 | 0.463 | 유지(선케어 +0.009) |
+| 성분 임베딩 항(e5-small) | 0.800~0.801 | 0.468 | **제거** ② |
+| jaccard&nbsp;/&nbsp;rbo | 0.603&nbsp;/&nbsp;0.344 | 0.273&nbsp;/&nbsp;0.153 | **제거** ③ |
+
+① 지표는 소폭 내려가지만, 같은 제품의 다른 용량이 모두 "대체 가능"으로 판정돼 정답에 들어 있기 때문입니다. 목적은 후보 자리를 다양하게 쓰는 것입니다(마스크팩 1/4/5매가 상위 5칸 중 3칸을 차지하던 문제).  
+② 이득 +0.001(오차 수준)에, 점수만 부풀려 임계값을 흔들었습니다(5위 0.49→0.60). 화학명 임베딩이 약하고 기능 라벨이 이미 같은 정보를 줍니다.  
+③ jaccard는 IDF가 없어 흔한 성분에 끌려가고, rbo는 점수만 높고 순위 품질이 가장 낮았습니다.
 
 **해석**: 가장 큰 개선은 제형 일치(0.678→0.799, 선케어 0.651→0.858, 클렌징 0.604→0.814). 스틱↔크림, 오일↔폼이 가장 흔한 0점 원인이었다.
 
@@ -537,24 +537,22 @@ capstone/
 
 ### 14.6 얼굴 사진 AI 분석
 
-| 고민 | 결정과 이유 |
-|---|---|
-| SD vs HD | **SD** — 같은 사진에서 6개 중 5개가 소수점까지 동일(acne만 3.8 차이), SD가 더 싸고 해상도 조건도 느슨(짧은 변 480px) |
-| 비용 구조 | 유형당이 아니라 유형 수 구간 정액(SD 5~8개 12유닛, 9~12개 14, 13~16개 16). 실측: 8항목=12유닛 |
-| 항목 수 | 무료 8항목, 구독 16항목. 사진만으로 8타입을 나누려면 5축을 모두 만들 항목이 필요해 4개로 못 줄였다 |
-| 점수 방향 | 진단 축은 `raw_score`, 화면 막대는 `ui_score`. 업체 문서가 raw를 분석용, ui는 동기부여용 보정값이라 밝힘 |
-| 점수 조작 방지 | 클라이언트는 점수가 아니라 `analysisId`만 보낸다 |
-| 유닛 절약 | 문항 도중 촬영만 미리 하고 분석은 진단 마칠 때 1번 |
-| 한도 저장 위치 | **DB 행으로 센다**. 돈이 걸린 한도가 Redis 장애 때 풀리면 안 된다(캐시 헬퍼는 fail-open) |
-| 앱을 받은 누구나 호출 | 1회 12~14유닛이라 불가 → **허용 계정만 실호출, 나머지는 표본 계정 결과 복사**. 이용 한도·동의는 실호출과 똑같이 적용해 화면 동작을 동일하게 유지 |
-| 구독자 16항목 | 표본의 8항목은 실제 값, 나머지는 가짜 점수·가짜 이미지로 채움(데모 목적) |
-| 분석 이미지 | 업체의 `mask_urls`는 2시간이면 만료되고 얼굴 없는 투명 PNG → 분석 직후 DB에 저장해 지난 분석도 다시 보이게. 원본 사진은 어디에도 남지 않는다 |
-| 얼굴 아닌 사진 | 화면(MediaPipe)의 약속만 믿을 수 없다(직접 API를 부르면 문서·풍경 사진이 해외로 나감) → 서버 사전 검증, 실패는 한도 미소모 |
-| 가림 검사 | YuNet은 눈·코만 보여도 얼굴로 잡아 손·마스크로 하관을 가려도 통과 → 선택 분할 모델로 영역별 얼굴 피부 비율을 봄. 기준은 업체가 받은 시험 사진과 마스크·손을 그려 넣은 사진으로 설정(볼 70%·코입 80%·턱 60%) |
-| **YOLO 얼굴 검출** | **채택 안 함** — ultralytics가 AGPL-3.0이고 PyTorch로 이미지가 커진다 → YuNet(MIT, 230KB) |
-| 구독 | 결제 없는 데모. "주 1회"는 시스템이 강제하지 않음 |
-| 동기 | 캡스톤 어필 포인트("무료 체험 → 구독으로 매주 AI 피부관리"), 얼굴 사진은 민감정보라 선택 동의 + 촬영 직전 재동의 |
-| 남은 보정 | `PHOTO_AXIS_GAIN`·`PHOTO_PARTIAL_WEIGHT`는 사진 1장으로만 확인 — 실사진 여러 장으로 보정 필요 |
+- **SD vs HD** — **SD** — 같은 사진에서 6개 중 5개가 소수점까지 동일(acne만 3.8 차이), SD가 더 싸고 해상도 조건도 느슨(짧은 변 480px)
+- **비용 구조** — 유형당이 아니라 유형 수 구간 정액(SD 5~8개 12유닛, 9~12개 14, 13~16개 16). 실측: 8항목=12유닛
+- **항목 수** — 무료 8항목, 구독 16항목. 사진만으로 8타입을 나누려면 5축을 모두 만들 항목이 필요해 4개로 못 줄였다
+- **점수 방향** — 진단 축은 `raw_score`, 화면 막대는 `ui_score`. 업체 문서가 raw를 분석용, ui는 동기부여용 보정값이라 밝힘
+- **점수 조작 방지** — 클라이언트는 점수가 아니라 `analysisId`만 보낸다
+- **유닛 절약** — 문항 도중 촬영만 미리 하고 분석은 진단 마칠 때 1번
+- **한도 저장 위치** — **DB 행으로 센다**. 돈이 걸린 한도가 Redis 장애 때 풀리면 안 된다(캐시 헬퍼는 fail-open)
+- **앱을 받은 누구나 호출** — 1회 12~14유닛이라 불가 → **허용 계정만 실호출, 나머지는 표본 계정 결과 복사**. 이용 한도·동의는 실호출과 똑같이 적용해 화면 동작을 동일하게 유지
+- **구독자 16항목** — 표본의 8항목은 실제 값, 나머지는 가짜 점수·가짜 이미지로 채움(데모 목적)
+- **분석 이미지** — 업체의 `mask_urls`는 2시간이면 만료되고 얼굴 없는 투명 PNG → 분석 직후 DB에 저장해 지난 분석도 다시 보이게. 원본 사진은 어디에도 남지 않는다
+- **얼굴 아닌 사진** — 화면(MediaPipe)의 약속만 믿을 수 없다(직접 API를 부르면 문서·풍경 사진이 해외로 나감) → 서버 사전 검증, 실패는 한도 미소모
+- **가림 검사** — YuNet은 눈·코만 보여도 얼굴로 잡아 손·마스크로 하관을 가려도 통과 → 선택 분할 모델로 영역별 얼굴 피부 비율을 봄. 기준은 업체가 받은 시험 사진과 마스크·손을 그려 넣은 사진으로 설정(볼 70%·코입 80%·턱 60%)
+- **YOLO 얼굴 검출** — **채택 안 함** — ultralytics가 AGPL-3.0이고 PyTorch로 이미지가 커진다 → YuNet(MIT, 230KB)
+- **구독** — 결제 없는 데모. "주 1회"는 시스템이 강제하지 않음
+- **동기** — 캡스톤 어필 포인트("무료 체험 → 구독으로 매주 AI 피부관리"), 얼굴 사진은 민감정보라 선택 동의 + 촬영 직전 재동의
+- **남은 보정** — `PHOTO_AXIS_GAIN`·`PHOTO_PARTIAL_WEIGHT`는 사진 1장으로만 확인 — 실사진 여러 장으로 보정 필요
 
 ### 14.7 사진으로 제품 찾기 — OCR과 이미지 실험
 
@@ -631,12 +629,14 @@ capstone/
 
 ### 14.12 "저장하지 않고 계산한다"
 
-| 대상 | 방식 | 이유 |
-|---|---|---|
-| 알림 | 기록에서 만들고 `notifications_seen_at`만 저장 | 행동마다 생성 코드를 심지 않아도 되고(누락 불가), 과거 행동도 소급되고, 저장 알림과 실제 기록이 어긋날 수 없다 |
-| 레벨·경험치 | 기록에서 계산 | 클라이언트 누적은 기기를 바꾸면 0부터, 콘솔에서 고쳐도 서버는 모른다 |
-| 배송 단계 | 주문 시각에서 계산(간격을 짧게) | 택배 연동이 없고, 시연에서 취소(결제완료 단계)·반품(배송완료 단계)을 바로 보여 주려고 |
-| 가격 인하·재입고 알림 | **만들지 않음** | 가격 이력 테이블·재입고 신청이 없어 근거 없이 흉내 내면 목업과 다름없다 |
+- **알림** — 기록에서 만들고 `notifications_seen_at`만 저장
+  - 이유: 행동마다 생성 코드를 심지 않아도 되고(누락 불가), 과거 행동도 소급되고, 저장 알림과 실제 기록이 어긋날 수 없다
+- **레벨·경험치** — 기록에서 계산
+  - 이유: 클라이언트 누적은 기기를 바꾸면 0부터, 콘솔에서 고쳐도 서버는 모른다
+- **배송 단계** — 주문 시각에서 계산(간격을 짧게)
+  - 이유: 택배 연동이 없고, 시연에서 취소(결제완료 단계)·반품(배송완료 단계)을 바로 보여 주려고
+- **가격 인하·재입고 알림** — **만들지 않음**
+  - 이유: 가격 이력 테이블·재입고 신청이 없어 근거 없이 흉내 내면 목업과 다름없다
 
 ### 14.13 프론트엔드
 
