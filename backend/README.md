@@ -88,7 +88,7 @@ backend/
 저장소 루트의 `data/`를 읽기 때문에 **호스트에서** 돌립니다. 컨테이너에는 `backend/`만 마운트돼 있어 `data/`가 없습니다.
 시연용 시드는 [`tools/demo/`](../tools/demo/), 평가·실험은 [`research/`](../research/)에 있습니다.
 
-| 패키지 `app/services/…` | 모듈 | 하는 일 |
+| 패키지 | 모듈 | 하는 일 |
 |---|---|---|
 | `matching/` | `similarity` · `product_variants` · `option_scope` · `analysis_scope` | 성분 유사도(tfidf/hybrid, 순수 계산) · 옵션 묶음·변형·분석 대상 범위 |
 | `skin/` | `diagnosis` · `skin_type` · `skin_fit` · `product_analysis` | QnA 5축·8타입 순위·사진 혼합 · 타입 규칙 · 피부 궁합 · 내 제품 성분 분석 |
@@ -429,10 +429,10 @@ python backend/pipeline/load/seed_quiz.py           # 진단 문항 6개 → qui
 
 ## 테스트
 
-| 폴더 | 무엇 | 필요한 것 | 건수(2026-11-24) |
-|---|---|---|---|
-| `tests/unit/` | 순수 계산 — 유사도·궁합·진단·파싱·예산 조합, 외부 호출은 가짜로 바꿈 | Python만 | 474 (약 3초) |
-| `tests/integration/` | API 호출 · DB 조회·쓰기 · Redis 한도 | 데이터가 적재된 Postgres + Redis | 313 (약 2분) |
+- **`tests/unit/`** — 475건(약 3초). 순수 계산 — 유사도·궁합·진단·파싱·예산 조합, 외부 호출은 가짜로 바꿈
+  - 필요한 것: Python만
+- **`tests/integration/`** — 313건(약 2분). API 호출 · DB 조회·쓰기 · Redis 한도
+  - 필요한 것: 데이터가 적재된 Postgres + Redis
 
 ```bash
 # 컨테이너 (로컬 Postgres)

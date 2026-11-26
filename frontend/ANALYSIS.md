@@ -10,14 +10,24 @@
 
 병합 대상은 총 6건이었습니다.
 
-| 기능 | 원본 형태 | 원본 작성자(브랜치) | 최종 위치 |
-|---|---|---|---|
-| 최근본 | Anima(Figma) export React | misong (`history_misong`) | `/history` (탭) |
-| 좋아요 | Anima(Figma) export React | (`code/좋아요_React`) | `/history` (탭) |
-| 자주구매 | Anima(Figma) export React | (`code/자주구매_React`) | `/history` (탭) |
-| 마이페이지 | 손으로 짠 React (Figma Make) | 동균 (`dg_mypage`) | `/mypage/*` 12개 라우트 |
-| 카테고리 | 손으로 짠 React + 디자인 PNG/PDF/SVG | yb (`category_yb`) | `/category`, `/category/skincare` |
-| 검색 | HTML 목업(Anima 아님) | jw (`search_jw`) | `/search` |
+- **최근본** — Anima(Figma) export React
+  - 원본 작성자(브랜치): misong (`history_misong`)
+  - 최종 위치: `/history` (탭)
+- **좋아요** — Anima(Figma) export React
+  - 원본 작성자(브랜치): (`code/좋아요_React`)
+  - 최종 위치: `/history` (탭)
+- **자주구매** — Anima(Figma) export React
+  - 원본 작성자(브랜치): (`code/자주구매_React`)
+  - 최종 위치: `/history` (탭)
+- **마이페이지** — 손으로 짠 React (Figma Make)
+  - 원본 작성자(브랜치): 동균 (`dg_mypage`)
+  - 최종 위치: `/mypage/*` 12개 라우트
+- **카테고리** — 손으로 짠 React + 디자인 PNG/PDF/SVG
+  - 원본 작성자(브랜치): yb (`category_yb`)
+  - 최종 위치: `/category`, `/category/skincare`
+- **검색** — HTML 목업(Anima 아님)
+  - 원본 작성자(브랜치): jw (`search_jw`)
+  - 최종 위치: `/search`
 
 앞의 4건(최근본/좋아요/자주구매/마이페이지)은 3개 폴더씩(`_React`/`_HTML`/zip) 또는 zip 하나로 왔고,
 카테고리는 완성된 React 앱(`frontend/category-standalone/`, 이미 병합되어 삭제됨)과 디자인 이미지가

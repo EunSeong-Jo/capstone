@@ -5,17 +5,24 @@
 
 ## 주제별 정본
 
-| 주제 | 정본 | 요약·안내만 하는 곳 |
-|---|---|---|
-| 프로젝트 전체 · 기능 카탈로그 · 결정 기록 | [architecture/PROJECT_OVERVIEW.md](architecture/PROJECT_OVERVIEW.md) | [루트 README](../README.md) |
-| 구성도 · 흐름도 · 시나리오 그림 | [architecture/diagrams.md](architecture/diagrams.md) | 루트 README(시스템 구성도만) |
-| DB 스키마 · 적재 파이프라인 | [architecture/db-schema.md](architecture/db-schema.md) | backend/README, PROJECT_OVERVIEW §7 |
-| AI · 점수 로직(가중치 · 임계값) | [algorithms/ai-and-scoring-logic.md](algorithms/ai-and-scoring-logic.md) | 루트 README, PROJECT_OVERVIEW §4 |
-| 성분 유사도 엔진 · 평가 | [algorithms/similarity.md](algorithms/similarity.md) | ai-and-scoring-logic §5 |
-| 요구사항 | [product/PRD_swappy_v1.8.md](product/PRD_swappy_v1.8.md) | — (§7.9 스키마는 설계 시점 안이라 실제와 다름) |
-| 백엔드 개발 (세팅 · Alembic · 테스트) | [../backend/README.md](../backend/README.md) | — |
-| 프론트 개발 (화면 규격 · 컨벤션 · APK) | [../frontend/README.md](../frontend/README.md) | guides/frontend-component-guide, guides/dev_guidelines |
-| 작업 규칙 · 현황 | [../CLAUDE.md](../CLAUDE.md) | — |
+- **프로젝트 전체 · 기능 카탈로그 · 결정 기록** — [architecture/PROJECT_OVERVIEW.md](architecture/PROJECT_OVERVIEW.md)
+  - 요약·안내만 하는 곳: [루트 README](../README.md)
+- **구성도 · 흐름도 · 시나리오 그림** — [architecture/diagrams.md](architecture/diagrams.md)
+  - 요약·안내만 하는 곳: 루트 README(시스템 구성도만)
+- **DB 스키마 · 적재 파이프라인** — [architecture/db-schema.md](architecture/db-schema.md)
+  - 요약·안내만 하는 곳: backend/README, PROJECT_OVERVIEW §7
+- **AI · 점수 로직(가중치 · 임계값)** — [algorithms/ai-and-scoring-logic.md](algorithms/ai-and-scoring-logic.md)
+  - 요약·안내만 하는 곳: 루트 README, PROJECT_OVERVIEW §4
+- **성분 유사도 엔진 · 평가** — [algorithms/similarity.md](algorithms/similarity.md)
+  - 요약·안내만 하는 곳: ai-and-scoring-logic §5
+- **요구사항** — [product/PRD_swappy_v1.8.md](product/PRD_swappy_v1.8.md)
+  - 요약·안내만 하는 곳: — (§7.9 스키마는 설계 시점 안이라 실제와 다름)
+- **백엔드 개발 (세팅 · Alembic · 테스트)** — [../backend/README.md](../backend/README.md)
+  - 요약·안내만 하는 곳: —
+- **프론트 개발 (화면 규격 · 컨벤션 · APK)** — [../frontend/README.md](../frontend/README.md)
+  - 요약·안내만 하는 곳: guides/frontend-component-guide, guides/dev_guidelines
+- **작업 규칙 · 현황** — [../CLAUDE.md](../CLAUDE.md)
+  - 요약·안내만 하는 곳: —
 
 ## 폴더
 

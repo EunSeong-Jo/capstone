@@ -4,15 +4,13 @@
 
 OCR 엔진을 여러 개 벤치마크했다 (같은 36장 이미지 + 정답 라벨 기준).
 
-| 시도 순서 | 엔진 | 결과 |
-|---|---|---|
-| 1 | Tesseract / EasyOCR / PaddleOCR | 범용 다국어 엔진이라 한국어 성능 낮음, PaddleOCR이 그나마 나음(full_score 36.1%) |
-| 2 | Surya | Windows(GTX 1060)에서 vllm 백엔드 미지원 → llama.cpp 전환해도 모델 로딩 18분+ → 포기 |
-| 3 | FSRCNN 초해상도 업스케일 | cubic 대비 차이 없음(통제 실험으로 확인) → 폐기 |
-| 4 | CLOVA OCR (네이버, 한국어 특화) | 단독으로도 PaddleOCR보다 나음, region-detection 전처리 추가 시 더 좋아짐 |
-| 5 | Claude Vision | API 키 무효/없음 → 완전 실패, 보류 |
-| 6 | PaddleOCR-VL-1.6 (VLM) | 계정 불필요해서 시도했으나 이미지 1장에 615초(CPU 전용 추론) → 비현실적, 탈락 |
-| 7 | Upstage OCR | 가입/엔드포인트 확인 마찰 커서 포기 (엉뚱한 API 예시, 키 노출 사고까지) |
+1. **Tesseract / EasyOCR / PaddleOCR** — 범용 다국어 엔진이라 한국어 성능 낮음, PaddleOCR이 그나마 나음(full_score 36.1%)
+2. **Surya** — Windows(GTX 1060)에서 vllm 백엔드 미지원 → llama.cpp 전환해도 모델 로딩 18분+ → 포기
+3. **FSRCNN 초해상도 업스케일** — cubic 대비 차이 없음(통제 실험으로 확인) → 폐기
+4. **CLOVA OCR (네이버, 한국어 특화)** — 단독으로도 PaddleOCR보다 나음, region-detection 전처리 추가 시 더 좋아짐
+5. **Claude Vision** — API 키 무효/없음 → 완전 실패, 보류
+6. **PaddleOCR-VL-1.6 (VLM)** — 계정 불필요해서 시도했으나 이미지 1장에 615초(CPU 전용 추론) → 비현실적, 탈락
+7. **Upstage OCR** — 가입/엔드포인트 확인 마찰 커서 포기 (엉뚱한 API 예시, 키 노출 사고까지)
 
 자세한 수치와 재현 명령어는 `OCR_NEXT_STEPS.md`, `CLOVA_OCR/RESULTS.md` 참고.
 
