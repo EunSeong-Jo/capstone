@@ -80,13 +80,11 @@ npm run dev            # 개발 서버 실행 (vite --host)
 `vite --host`라 터미널에 출력되는 `Local`/`Network` 주소로 접속합니다. 같은 와이파이의 휴대폰에서 `Network` 주소로 모바일 화면을 바로 확인할 수 있습니다.
 
 ### 3-4. 설치 트러블슈팅
-| 증상 | 원인 / 해결 |
-|---|---|
-| `engine`/문법 오류, 빌드 실패 | Node 버전 불일치 → `nvm use` (또는 `nvm install 22`) 후 재시도 |
-| `npm ERR! ERESOLVE ... peer dependency` | 의존성 peer 충돌 → 먼저 버전을 맞춰 설치(예: 메이저 고정 `pkg@^9`). 임시로 `npm install --legacy-peer-deps`도 가능하나 **lock에 반영되므로 팀 공유 필수** |
-| `Port 5173 is in use` | 다른 dev 서버 실행 중 → 기존 프로세스 종료 또는 `npm run dev -- --port 5174` |
-| WSL인데 윈도우 브라우저에서 안 열림 | `--host`(이미 적용됨)로 뜬 `Network` 주소 사용. 윈도우 방화벽 허용 필요할 수 있음 |
-| 설치가 꼬였을 때 | `npm ci`로 **lock 기준 재설치**(클린 설치). `node_modules`를 임의 삭제 후 `npm install`은 버전이 갈릴 수 있어 지양 |
+- **`engine`/문법 오류, 빌드 실패** — Node 버전 불일치 → `nvm use` (또는 `nvm install 22`) 후 재시도
+- **`npm ERR! ERESOLVE ... peer dependency`** — 의존성 peer 충돌 → 먼저 버전을 맞춰 설치(예: 메이저 고정 `pkg@^9`). 임시로 `npm install --legacy-peer-deps`도 가능하나 **lock에 반영되므로 팀 공유 필수**
+- **`Port 5173 is in use`** — 다른 dev 서버 실행 중 → 기존 프로세스 종료 또는 `npm run dev -- --port 5174`
+- **WSL인데 윈도우 브라우저에서 안 열림** — `--host`(이미 적용됨)로 뜬 `Network` 주소 사용. 윈도우 방화벽 허용 필요할 수 있음
+- **설치가 꼬였을 때** — `npm ci`로 **lock 기준 재설치**(클린 설치). `node_modules`를 임의 삭제 후 `npm install`은 버전이 갈릴 수 있어 지양
 
 ---
 
@@ -184,13 +182,18 @@ frontend/
 
 탭 화면(홈·카테고리·검색·화장대·마이·히스토리)은 **아래 규격을 지켜 일관성을 맞춥니다.** 새 화면도 동일하게.
 
-| 항목 | 표준 | 비고 |
-|---|---|---|
-| 페이지 배경 | `bg-surface-warm` (`#F5F6F2`) | 그 위에 흰 카드로 콘텐츠 분리 |
-| 서브페이지 헤더 높이 | `52px` (`--header-h`) | 헤더/본문 좌우 여백은 `px-4`(16px)로 정렬 |
-| 헤더 우측 아이콘 | `24px` **선형(stroke) SVG**, 클러스터 `gap-4` | 채움형 아이콘 금지 (검색·장바구니·알림 공통 세트 재사용) |
-| 하단 네비 | `OyBottomNav` (5탭: 홈·카테고리·검색·화장대·마이) | 검색 화면 진입 시 검색 탭이 중앙 돌출 **스캔 FAB**로 변형 → `/scan` |
-| 하단 여백 | `<PageWrapper hasBottomNav>` 또는 `calc(var(--bottom-nav-h)+var(--safe-bottom))` | 탭바 높이 `56px`(`--bottom-nav-h`). **내부에서 중복으로 다시 예약하지 말 것** |
+- **페이지 배경** — `bg-surface-warm` (`#F5F6F2`)
+  - 비고: 그 위에 흰 카드로 콘텐츠 분리
+- **서브페이지 헤더 높이** — `52px` (`--header-h`)
+  - 비고: 헤더/본문 좌우 여백은 `px-4`(16px)로 정렬
+- **헤더 우측 아이콘** — `24px` **선형(stroke) SVG**, 클러스터 `gap-4`
+  - 비고: 채움형 아이콘 금지 (검색·장바구니·알림 공통 세트 재사용)
+- **하단 네비** — `OyBottomNav` (5탭: 홈·카테고리·검색·화장대·마이)
+  - 비고: 검색 화면 진입 시 검색 탭이 중앙 돌출 **스캔 FAB**로 변형 → `/scan`
+- **하단 여백** — `<PageWrapper hasBottomNav>` 또는 `calc(var(--bottom-nav-h)+var(--safe-bottom))`
+  - 비고: 탭바 높이 `56px`(`--bottom-nav-h`). **내부에서 중복으로 다시 예약하지 말 것**
+
+<!-- -->
 
 - 신규 레이아웃 토큰: `--bottom-nav-h`(56px)·`--header-h`(52px)·`--surface-warm`(#F5F6F2) — `index.css`/`tailwind.config.ts`.
 - 페이지 폭이 콘텐츠 높이에 따라 흔들리지 않도록 `html`에 `scrollbar-gutter: stable`을 적용해 뒀습니다(임의 해제 금지).
@@ -321,12 +324,10 @@ tools/ops/upload_release_assets.sh frontend/android/app/build/outputs/apk/debug/
 - **비밀 명령**: 로그인 화면의 `Swappy` 로고를 **7번 연달아**(탭 사이 1.2초 이내) 누르면 패널이 켜지고/꺼지며 토스트로 알려 줍니다. 선택은 기기에 저장돼 다음 실행에도 유지됩니다(`hooks/useDemoPanel.ts`).
 
 ### 문제 해결
-| 증상 | 원인 / 해결 |
-|---|---|
-| `adb devices`에 안 보임 / `unauthorized` | 케이블·USB 디버깅 확인, 폰에서 RSA 지문 허용. `adb.exe kill-server` 후 다시 |
-| 앱에서 모든 API가 실패 | 서버 주소가 `https`인지, 로컬이면 `npm run android:local`로 빌드했는지(`adb reverse` 포함) |
-| 헤더·하단 탭이 시스템 바에 가려짐 | `--safe-area-inset-*`가 주입되지 않는 경우 — `capacitor.config.ts`의 `SystemBars.insetsHandling`이 `css`인지 확인 |
-| Gradle 메모리 부족 | `android/gradle.properties`의 `org.gradle.jvmargs` 조정 |
+- **`adb devices`에 안 보임 / `unauthorized`** — 케이블·USB 디버깅 확인, 폰에서 RSA 지문 허용. `adb.exe kill-server` 후 다시
+- **앱에서 모든 API가 실패** — 서버 주소가 `https`인지, 로컬이면 `npm run android:local`로 빌드했는지(`adb reverse` 포함)
+- **헤더·하단 탭이 시스템 바에 가려짐** — `--safe-area-inset-*`가 주입되지 않는 경우 — `capacitor.config.ts`의 `SystemBars.insetsHandling`이 `css`인지 확인
+- **Gradle 메모리 부족** — `android/gradle.properties`의 `org.gradle.jvmargs` 조정
 
 ## 10. 팀원 화면 제출 규칙 ⭐ (2026-07 병합 작업에서 정리)
 

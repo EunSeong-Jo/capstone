@@ -25,14 +25,20 @@ swappy의 AI 기능(유사도·궁합·진단·추천·OCR·챗봇·AI 기억)�
 판정은 **모델 판정을 보지 않은 채** 한다. 파일에는 모델 판정이 들어 있지 않다.
 유사도의 `similarity_test_methods.csv`(어느 방식이 낸 후보인지)는 **판정이 끝나기 전에 열지 않는다.**
 
-| # | 파일 | 채울 곳 | 건수 | 기준 |
-|---|---|---|---|---|
-| 1 | `data/eval/similarity_test_pool.csv` | `grade` | 702 | 0 대체 불가 · 1 부분 대체(핵심 기능 일부만 같음) · 2 대체 가능 |
-| 2 | `data/eval/skin_fit_test_pool.csv` | 마지막 열 | 120 | 전성분 표기와 타입 프로필(5축 0~10)만 보고 **적합 / 보통 / 주의** |
-| 3 | `data/seed/ingredient_functions/review_sample.csv` | `verdict` | 299 | AI가 붙인 성분 기능 라벨이 맞으면 `맞음`, 틀리면 `틀림`(고친 값은 `corrected_functions`) |
-| 4 | `data/eval/diagnosis_personas.csv` | 행 추가 | 30 | 아래 설명 |
-| 5 | `data/ocr_test/labels_test.csv` | `in_catalog`, `product_ids` | 37 | 사진을 보고 카탈로그에 있으면 `Y` + id(`|` 구분, 용량·기획 변종 모두), 없으면 `N` |
-| 6 | `data/eval/chat_human_pool.csv` | `정확성_1to5`, `유용성_1to5` | 24 | 정확성=사실·함정에 속지 않았는가, 유용성=도움이 되는가 |
+1. `data/eval/similarity_test_pool.csv` — 채울 곳 `grade` · 702건
+   - 기준: 0 대체 불가 · 1 부분 대체(핵심 기능 일부만 같음) · 2 대체 가능
+2. `data/eval/skin_fit_test_pool.csv` — 채울 곳 마지막 열 · 120건
+   - 기준: 전성분 표기와 타입 프로필(5축 0~10)만 보고 **적합 / 보통 / 주의**
+3. `data/seed/ingredient_functions/review_sample.csv` — 채울 곳 `verdict` · 299건
+   - 기준: AI가 붙인 성분 기능 라벨이 맞으면 `맞음`, 틀리면 `틀림`(고친 값은 `corrected_functions`)
+4. `data/eval/diagnosis_personas.csv` — 채울 곳 행 추가 · 30건
+   - 기준: 아래 설명
+5. `data/ocr_test/labels_test.csv` — 채울 곳 `in_catalog`, `product_ids` · 37건
+   - 기준: 사진을 보고 카탈로그에 있으면 `Y` + id(`|` 구분, 용량·기획 변종 모두), 없으면 `N`
+6. `data/eval/chat_human_pool.csv` — 채울 곳 `정확성_1to5`, `유용성_1to5` · 24건
+   - 기준: 정확성=사실·함정에 속지 않았는가, 유용성=도움이 되는가
+
+<!-- -->
 
 - **페르소나(4번)**: `python3 research/eval/diagnosis.py template` 이 문항을 보여 준다. 채점 가중치를 보기 **전에** "이런 사람"을 한 줄로 쓰고(`persona_text`),
   `expected_type`(8개 코드 중 하나: ondalsam mulgae subuji hwasan samak injeolmi yuriguseul memilmuk)과, 그 사람이 고를 선택지 번호를 `q1`~`q6` 에 적는다.

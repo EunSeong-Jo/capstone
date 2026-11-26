@@ -311,18 +311,36 @@ const skinType: SkinType = 'ondalsam';
 
 라우트(46개 + 리다이렉트)의 정본은 `src/App.tsx`입니다. 계정 화면은 `mine()`으로 감싸 `RequireAuth`가 게스트를 막습니다. 대표 경로만 적습니다.
 
-| 경로 | 페이지 | 하단 탭 | 설명 |
-|------|------|--------|------|
-| `/` · `/login` · `/signup` | `pages/Splash` · `Login` · `Signup` | ❌ | 시작·계정 |
-| `/onboarding` · `/qna` | `pages/Onboarding` · `pages/Onboarding` 내 문답 | ❌ | 진단(재진단은 `/qna`) |
-| `/home` | `pages/Home` | ✅ | 프로필 대시보드·추천·교체 제안 |
-| `/category` · `/category/:code` | `pages/Category` | ✅ | 카테고리·정렬 |
-| `/search` · `/scan` | `pages/Search` · `pages/Scan` | ✅ | 검색·사진으로 찾기 |
-| `/detail/:id` | `pages/ProductDetail` | ❌ | 제품 상세·궁합·전성분 |
-| `/analysis/:id` · `/alternatives` · `/compare` | `pages/Analysis` · `Alternatives` · `Compare` | ❌ | 성분 분석·대체품·직접 비교 |
-| `/closet` | `pages/Closet` | ✅ | 내 화장대(히스토리 탭 포함) |
-| `/cart` · `/gift/:productId` · `/notifications` | `pages/Cart` · `Gift` · `Notifications` | ❌ | 구매·선물·알림 |
-| `/mypage` 와 하위 | `pages/Mypage` | ✅ | 주문·선물·후기·구독·설정·AI 기억 |
+- **`/` · `/login` · `/signup`** — `pages/Splash` · `Login` · `Signup`
+  - 하단 탭: ❌
+  - 설명: 시작·계정
+- **`/onboarding` · `/qna`** — `pages/Onboarding` · `pages/Onboarding` 내 문답
+  - 하단 탭: ❌
+  - 설명: 진단(재진단은 `/qna`)
+- **`/home`** — `pages/Home`
+  - 하단 탭: ✅
+  - 설명: 프로필 대시보드·추천·교체 제안
+- **`/category` · `/category/:code`** — `pages/Category`
+  - 하단 탭: ✅
+  - 설명: 카테고리·정렬
+- **`/search` · `/scan`** — `pages/Search` · `pages/Scan`
+  - 하단 탭: ✅
+  - 설명: 검색·사진으로 찾기
+- **`/detail/:id`** — `pages/ProductDetail`
+  - 하단 탭: ❌
+  - 설명: 제품 상세·궁합·전성분
+- **`/analysis/:id` · `/alternatives` · `/compare`** — `pages/Analysis` · `Alternatives` · `Compare`
+  - 하단 탭: ❌
+  - 설명: 성분 분석·대체품·직접 비교
+- **`/closet`** — `pages/Closet`
+  - 하단 탭: ✅
+  - 설명: 내 화장대(히스토리 탭 포함)
+- **`/cart` · `/gift/:productId` · `/notifications`** — `pages/Cart` · `Gift` · `Notifications`
+  - 하단 탭: ❌
+  - 설명: 구매·선물·알림
+- **`/mypage` 와 하위** — `pages/Mypage`
+  - 하단 탭: ✅
+  - 설명: 주문·선물·후기·구독·설정·AI 기억
 
 (옛 `/result`·`/popup`·`/detail` 폴더 구조는 사라졌습니다. 추천 세트는 홈의 시트, 진단 결과는 온보딩 안에 있습니다.)
 

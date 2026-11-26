@@ -39,13 +39,13 @@
 
 ### 서비스 우선순위 한 줄 요약
 
-| 우선순위 | 범위 | 목표 완성 |
+| 순위 | 범위 | 목표 완성 |
 |---------|------|---------|
 | **P0** | 회원가입·QnA·프로필 추천·대체품·비교·구매링크 | ✅ 구현 |
 | **P1a** | 예산 가이드·AI 챗봇·성분 필터링·서버 배포 | ✅ 예산 가이드·챗봇·궁합 필터 구현, 배포는 AWS Lightsail |
 | **P1b** | KoBERT·알고리즘 고도화 (여유 시) | KoBERT는 하지 않음 — hybrid 유사도로 대체 |
 | **P2** | 날씨 추천·도메인 확장 | 날씨(서울 고정)는 구현, 도메인 확장은 하지 않음 |
-| (추가) | 얼굴 사진 AI 분석 · 퍼스널 AI(AI 기억·취향·리포트·브리핑) · 사진으로 제품 찾기 · Android 앱 | ✅ 구현 |
+| 추가 | 얼굴 사진 AI 분석 · 퍼스널 AI(AI 기억·취향·리포트·브리핑) · 사진으로 제품 찾기 · Android 앱 | ✅ 구현 |
 
 ---
 
@@ -123,16 +123,22 @@
 
 설계 당시 화면 ID(`s-*`)는 아래 4장 체크리스트에서 쓰는 이름이고, 실제 라우트는 `frontend/src/App.tsx`가 정본입니다(46개 + 리다이렉트).
 
-| 화면 ID (설계) | 현재 라우트 | 비고 |
-|---------|---------|------|
-| `s-onboard` | `/`(스플래시) · `/login` · `/signup` · `/onboarding` | 로그인 없이 둘러보기 가능 |
-| `s-qna` · `s-result` | `/qna`(재진단) · `/onboarding` 안의 문답·결과 | 사진 분석을 선택으로 섞음 |
-| `s-popup` | 홈의 추천세트 시트 | 별도 라우트 없음 |
-| `s-home` | `/home` · `/home/cheaper-alternatives` | 오늘의 케어 문구 → 브리핑 시트 |
-| `s-detail` | `/detail/:id` · `/analysis/:id` · `/alternatives` · `/compare` | 상세·성분 분석·대체품·비교로 나뉨 |
-| `s-search` | `/search` · `/scan` · `/scan/history` | 사진으로 찾기는 스캔 화면 |
-| `s-mypage` | `/mypage` 와 하위 화면 | 주문·선물·후기·구독·AI 기억 등 |
-| (추가) | `/closet` · `/category` · `/cart` · `/history` · `/notifications` | 화장대·카테고리·장바구니·기록·알림 |
+- **`s-onboard`** — `/`(스플래시) · `/login` · `/signup` · `/onboarding`
+  - 비고: 로그인 없이 둘러보기 가능
+- **`s-qna` · `s-result`** — `/qna`(재진단) · `/onboarding` 안의 문답·결과
+  - 비고: 사진 분석을 선택으로 섞음
+- **`s-popup`** — 홈의 추천세트 시트
+  - 비고: 별도 라우트 없음
+- **`s-home`** — `/home` · `/home/cheaper-alternatives`
+  - 비고: 오늘의 케어 문구 → 브리핑 시트
+- **`s-detail`** — `/detail/:id` · `/analysis/:id` · `/alternatives` · `/compare`
+  - 비고: 상세·성분 분석·대체품·비교로 나뉨
+- **`s-search`** — `/search` · `/scan` · `/scan/history`
+  - 비고: 사진으로 찾기는 스캔 화면
+- **`s-mypage`** — `/mypage` 와 하위 화면
+  - 비고: 주문·선물·후기·구독·AI 기억 등
+- **(추가)** — `/closet` · `/category` · `/cart` · `/history` · `/notifications`
+  - 비고: 화장대·카테고리·장바구니·기록·알림
 
 ### 3.2 전체 네비게이션 플로우
 
@@ -315,16 +321,14 @@ Base URL: 같은 주소에서 화면과 API를 함께 서빙합니다(`/api/v1`)
 **엔드포인트는 87개**(`/health` 포함)이고, 목록·스키마·시험 호출은 실행한 서버의 Swagger(`/api/docs`)가 정본입니다. 아래는 프론트가 가장 많이 쓰는 묶음입니다.
 도메인별 전체 표는 [PROJECT_OVERVIEW.md](../architecture/PROJECT_OVERVIEW.md) 6장에 있습니다.
 
-| 묶음 | 대표 엔드포인트 |
-|---|---|
-| 인증 | `POST /auth/signup` · `/auth/login` · `/auth/refresh` · `/auth/logout` · `GET /auth/me` |
-| 프로필·진단 | `GET/PATCH /me/profile` · `POST /profile/skin-quiz`(QnA 제출, 사진 분석 `analysisId` 혼합) · `GET /profile/skin-quiz/questions` · `GET/PATCH/DELETE /profile/skin-quiz/latest` |
-| 제품 | `GET /products`(필터·정렬) · `/products/search` · `/products/search/ingredient` · `/products/{id}` · `/products/{id}/reviews` · `POST /products/scan`(사진으로 찾기) |
-| 유사도·궁합 | `GET /products/{id}/similar`(대체품) · `/products/{id}/skin-fit` · `/products/{id}/analysis` · `GET /skin-fit?ids=` |
-| 추천 | `GET /recommendations/main`(홈) · `/recommendations/set`(추천 세트) · `POST /recommendations/budget`(예산 가이드) |
-| 개인 데이터 | `/me/closet` · `/me/cart` · `/me/likes` · `/me/recently-viewed` · `/me/orders` · `/me/reviews` · `/me/points` · `/me/gifts/*` · `/me/notifications` |
-| 얼굴 사진 분석 | `POST /skin-analysis/check`(사전 검증) · `POST /skin-analysis` · `GET /skin-analysis` · `/me/consents/face-photo` · `/me/subscription` |
-| AI | `POST /chat` · `GET /care-tip` · `GET /weather` · 퍼스널 AI(`/me/ai-memory` · `/me/memories` · `/me/preferences` · `/me/skin-report` · `/me/briefing`) |
+- **인증** — `POST /auth/signup` · `/auth/login` · `/auth/refresh` · `/auth/logout` · `GET /auth/me`
+- **프로필·진단** — `GET/PATCH /me/profile` · `POST /profile/skin-quiz`(QnA 제출, 사진 분석 `analysisId` 혼합) · `GET /profile/skin-quiz/questions` · `GET/PATCH/DELETE /profile/skin-quiz/latest`
+- **제품** — `GET /products`(필터·정렬) · `/products/search` · `/products/search/ingredient` · `/products/{id}` · `/products/{id}/reviews` · `POST /products/scan`(사진으로 찾기)
+- **유사도·궁합** — `GET /products/{id}/similar`(대체품) · `/products/{id}/skin-fit` · `/products/{id}/analysis` · `GET /skin-fit?ids=`
+- **추천** — `GET /recommendations/main`(홈) · `/recommendations/set`(추천 세트) · `POST /recommendations/budget`(예산 가이드)
+- **개인 데이터** — `/me/closet` · `/me/cart` · `/me/likes` · `/me/recently-viewed` · `/me/orders` · `/me/reviews` · `/me/points` · `/me/gifts/*` · `/me/notifications`
+- **얼굴 사진 분석** — `POST /skin-analysis/check`(사전 검증) · `POST /skin-analysis` · `GET /skin-analysis` · `/me/consents/face-photo` · `/me/subscription`
+- **AI** — `POST /chat` · `GET /care-tip` · `GET /weather` · 퍼스널 AI(`/me/ai-memory` · `/me/memories` · `/me/preferences` · `/me/skin-report` · `/me/briefing`)
 
 **QnA 제출 응답 예시** (`POST /profile/skin-quiz`, camelCase):
 ```json
@@ -361,18 +365,16 @@ Base URL: 같은 주소에서 화면과 API를 함께 서빙합니다(`/api/v1`)
 
 ### 8.1 기술 스택
 
-| 영역 | 기술 |
-|------|------|
-| **Frontend** | React 18 + TypeScript + Vite + Tailwind CSS, framer-motion, Capacitor(Android 앱), MediaPipe(촬영 전 얼굴 확인) |
-| **Backend** | Python 3.11 + FastAPI(비동기) + SQLAlchemy 2.0 + Alembic |
-| **인증** | 자체 구현 — bcrypt 해싱 + JWT(액세스 30분 / 리프레시 14일, 회전). FastAPI-Users·passlib은 쓰지 않음 |
-| **DB** | PostgreSQL 16(+ `pg_trgm`) — 개발 Neon, 운영 AWS. Redis 7(캐시·일일 한도) |
-| **유사도** | numpy + scipy로 TF-IDF/코사인 직접 구현(scikit-learn 미사용), 성분 기능 라벨 기반 hybrid |
-| **이미지 인식** | 네이버 CLOVA OCR + `pg_trgm` (Tesseract/EasyOCR은 벤치마크 후 탈락) |
-| **얼굴 분석** | Perfect Corp YouCam(외부 API), OpenCV YuNet + MediaPipe 가림 검사 |
-| **챗봇** | OpenAI `gpt-4o-mini` → 실패 시 Anthropic `claude-haiku-5-5`, 전부 실패하면 DB 규칙 폴백 |
-| **인프라** | Docker Compose(로컬), AWS Lightsail 컨테이너 + DB(운영) |
-| **모니터링** | Sentry + structlog |
+- **Frontend** — React 18 + TypeScript + Vite + Tailwind CSS, framer-motion, Capacitor(Android 앱), MediaPipe(촬영 전 얼굴 확인)
+- **Backend** — Python 3.11 + FastAPI(비동기) + SQLAlchemy 2.0 + Alembic
+- **인증** — 자체 구현 — bcrypt 해싱 + JWT(액세스 30분 / 리프레시 14일, 회전). FastAPI-Users·passlib은 쓰지 않음
+- **DB** — PostgreSQL 16(+ `pg_trgm`) — 개발 Neon, 운영 AWS. Redis 7(캐시·일일 한도)
+- **유사도** — numpy + scipy로 TF-IDF/코사인 직접 구현(scikit-learn 미사용), 성분 기능 라벨 기반 hybrid
+- **이미지 인식** — 네이버 CLOVA OCR + `pg_trgm` (Tesseract/EasyOCR은 벤치마크 후 탈락)
+- **얼굴 분석** — Perfect Corp YouCam(외부 API), OpenCV YuNet + MediaPipe 가림 검사
+- **챗봇** — OpenAI `gpt-4o-mini` → 실패 시 Anthropic `claude-haiku-5-5`, 전부 실패하면 DB 규칙 폴백
+- **인프라** — Docker Compose(로컬), AWS Lightsail 컨테이너 + DB(운영)
+- **모니터링** — Sentry + structlog
 
 ### 8.2 로컬 개발 환경 요구사항
 

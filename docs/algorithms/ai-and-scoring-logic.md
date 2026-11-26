@@ -8,20 +8,42 @@
 
 ## 1. 한눈에 — 사용한 AI·외부 모델
 
-| 영역 | 사용 기술 | 운영 투입 | 역할 | 코드 |
-|---|---|---|---|---|
-| 챗봇 | OpenAI `gpt-4o-mini` → 실패 시 Anthropic `claude-haiku-5-5` (→ 선택적 Ollama `llama3.2:3b`) | ✅ | RAG + **도구 호출**(로그인 사용자) 화장품 상담 | `services/chat/llm.py`, `api/chat.py`, `services/chat/chat_tools.py` |
-| AI 기억 추출 | 위와 같은 LLM 체인 | ✅ | 대화에서 사용자가 말한 선호·기피를 한 줄로 저장(동의한 사용자만) | `services/personal_ai/memory.py` |
-| 챗봇 폴백 | **모델 없음** (규칙+DB 템플릿) | ✅ | LLM 전부 실패 시 DB로만 답변 | `services/chat/chat_fallback.py` |
-| 오늘의 케어 문구 | 위와 같은 LLM 체인 | ✅ | 피부타입+날씨로 한 줄 문구 생성 | `api/care_tip.py` |
-| 사진으로 제품 찾기 | 네이버 **CLOVA OCR** (General) + PostgreSQL `pg_trgm` | ✅ | 제품 앞면 사진 → 글자 → 제품명 대조 | `services/scan/ocr.py`, `api/products.py` |
-| 얼굴 사진 피부 분석 | **Perfect Corp YouCam AI Skin Analysis** (외부 API) | ✅ | 얼굴 사진 → 항목별 피부 점수 | `services/photo/skin_photo.py` |
-| 얼굴 사진 사전 검증 | OpenCV **YuNet** 얼굴 검출 + MediaPipe **selfie_multiclass** 분할 | ✅ | 부적합 사진을 외부로 보내기 전에 거름 | `services/photo/face_gate.py`, `occlusion.py` |
-| 성분 기능 분류 | **Claude가 직접 읽고 판정** (`source=ai_expert`) | ✅ (데이터) | 성분 1,686종에 기능·역할·플래그 라벨 | `data/seed/ingredient_functions/` |
-| 대체품 정답 판정 | **Claude 1명이 판정** (0/1/2) | ✅ (보정+평가) | 유사도 평가셋·보정치 | `data/eval/`, `data/seed/similarity_curated.csv` |
-| 날씨 | OpenWeather API | ✅ | 챗봇·케어 문구 입력 | `api/weather.py` |
-| 이미지 유사도 | DINOv2-small / CLIP ViT-B/32 (ONNX) | ❌ 실험만 | 제품 사진 임베딩 — **채택 안 함** | `research/image-match/embed_product_images.py` |
-| OCR 후보 엔진들 | Tesseract·EasyOCR·PaddleOCR·Surya·PaddleOCR-VL·Claude Vision·Upstage | ❌ 벤치마크만 | 엔진 선정 과정 | `research/ocr/OCR_SUMMARY.md` |
+- **챗봇** ✅ — RAG + **도구 호출**(로그인 사용자) 화장품 상담
+  - 사용 기술: OpenAI `gpt-4o-mini` → 실패 시 Anthropic `claude-haiku-5-5` (→ 선택적 Ollama `llama3.2:3b`)
+  - 코드: `services/chat/llm.py`, `api/chat.py`, `services/chat/chat_tools.py`
+- **AI 기억 추출** ✅ — 대화에서 사용자가 말한 선호·기피를 한 줄로 저장(동의한 사용자만)
+  - 사용 기술: 위와 같은 LLM 체인
+  - 코드: `services/personal_ai/memory.py`
+- **챗봇 폴백** ✅ — LLM 전부 실패 시 DB로만 답변
+  - 사용 기술: **모델 없음** (규칙+DB 템플릿)
+  - 코드: `services/chat/chat_fallback.py`
+- **오늘의 케어 문구** ✅ — 피부타입+날씨로 한 줄 문구 생성
+  - 사용 기술: 위와 같은 LLM 체인
+  - 코드: `api/care_tip.py`
+- **사진으로 제품 찾기** ✅ — 제품 앞면 사진 → 글자 → 제품명 대조
+  - 사용 기술: 네이버 **CLOVA OCR** (General) + PostgreSQL `pg_trgm`
+  - 코드: `services/scan/ocr.py`, `api/products.py`
+- **얼굴 사진 피부 분석** ✅ — 얼굴 사진 → 항목별 피부 점수
+  - 사용 기술: **Perfect Corp YouCam AI Skin Analysis** (외부 API)
+  - 코드: `services/photo/skin_photo.py`
+- **얼굴 사진 사전 검증** ✅ — 부적합 사진을 외부로 보내기 전에 거름
+  - 사용 기술: OpenCV **YuNet** 얼굴 검출 + MediaPipe **selfie_multiclass** 분할
+  - 코드: `services/photo/face_gate.py`, `occlusion.py`
+- **성분 기능 분류** ✅ (데이터) — 성분 1,686종에 기능·역할·플래그 라벨
+  - 사용 기술: **Claude가 직접 읽고 판정** (`source=ai_expert`)
+  - 코드: `data/seed/ingredient_functions/`
+- **대체품 정답 판정** ✅ (보정+평가) — 유사도 평가셋·보정치
+  - 사용 기술: **Claude 1명이 판정** (0/1/2)
+  - 코드: `data/eval/`, `data/seed/similarity_curated.csv`
+- **날씨** ✅ — 챗봇·케어 문구 입력
+  - 사용 기술: OpenWeather API
+  - 코드: `api/weather.py`
+- **이미지 유사도** ❌ 실험만 — 제품 사진 임베딩 — **채택 안 함**
+  - 사용 기술: DINOv2-small / CLIP ViT-B/32 (ONNX)
+  - 코드: `research/image-match/embed_product_images.py`
+- **OCR 후보 엔진들** ❌ 벤치마크만 — 엔진 선정 과정
+  - 사용 기술: Tesseract·EasyOCR·PaddleOCR·Surya·PaddleOCR-VL·Claude Vision·Upstage
+  - 코드: `research/ocr/OCR_SUMMARY.md`
 
 > 대체품 추천, 피부 궁합, 홈 추천, 예산 가이드, 내 성분 취향, 피부 변화 리포트, 오늘의 브리핑은 **ML이 아니라 규칙·통계식**입니다(TF-IDF 코사인, 가중합). 모델 학습은 하지 않았습니다.
 
@@ -66,14 +88,14 @@
 
 이 값이 원본이고, `backend/pipeline/load/seed_quiz.py`가 정규식으로 파싱해 DB `quiz_options.weights`로 옮깁니다(원본이 프론트인 이유: 비회원도 네트워크 없이 진단을 끝내야 해서). 문항은 6개, 선택지는 문항당 4개입니다.
 
-| 문항 | 선택지 순서별 축 증감 |
-|---|---|
-| Q1 아침 물세수 1시간 후 | ①전체 당김 수분−3·유분−2 / ②T존 번들·볼 당김 수분−2·유분+2 / ③전체 기름 유분+3 / ④당김도 기름도 없음 수분+2 |
-| Q2 자극 반응 | ①쉽게 붉어짐 민감+3 / ②컨디션 나쁘면 뾰루지 민감+2·트러블+1 / ③환절기만 각질 민감+1·수분−1 / ④늘 평온 민감−2 |
-| Q3 여드름·홍조 빈도 | ①365일 트러블+3·민감+1 / ②유분 많아 좁쌀 트러블+2·유분+2 / ③생리 전 등 트러블+1 / ④거의 없음 트러블−2 |
-| Q4 가장 큰 고민 | ①기미·잡티 색소+3 / ②잔주름·탄력 유분−1·트러블−1 / ③각질·거친 결 수분−2 / ④현상 유지 민감−1·트러블−1 |
-| Q5 메이크업 무너짐 | ①전체 번들 유분+3 / ②겉번들 속당김 유분+2·수분−2 / ③코 주변만 유분+1 / ④유분 덕에 유지 유분+2·수분+1 |
-| Q6 스킨케어 선택 포인트 | ①가벼운 에센스 유분+1 / ②튼튼한 크림 수분−2 / ③순한 화장품 민감+2 / ④고기능성 앰플 색소+1 |
+- **Q1 아침 물세수 1시간 후** — ①전체 당김 수분−3·유분−2 / ②T존 번들·볼 당김 수분−2·유분+2 / ③전체 기름 유분+3 / ④당김도 기름도 없음 수분+2
+- **Q2 자극 반응** — ①쉽게 붉어짐 민감+3 / ②컨디션 나쁘면 뾰루지 민감+2·트러블+1 / ③환절기만 각질 민감+1·수분−1 / ④늘 평온 민감−2
+- **Q3 여드름·홍조 빈도** — ①365일 트러블+3·민감+1 / ②유분 많아 좁쌀 트러블+2·유분+2 / ③생리 전 등 트러블+1 / ④거의 없음 트러블−2
+- **Q4 가장 큰 고민** — ①기미·잡티 색소+3 / ②잔주름·탄력 유분−1·트러블−1 / ③각질·거친 결 수분−2 / ④현상 유지 민감−1·트러블−1
+- **Q5 메이크업 무너짐** — ①전체 번들 유분+3 / ②겉번들 속당김 유분+2·수분−2 / ③코 주변만 유분+1 / ④유분 덕에 유지 유분+2·수분+1
+- **Q6 스킨케어 선택 포인트** — ①가벼운 에센스 유분+1 / ②튼튼한 크림 수분−2 / ③순한 화장품 민감+2 / ④고기능성 앰플 색소+1
+
+<!-- -->
 
 - 결과적으로 **색소 축은 Q4①(+3)과 Q6④(+1)만**, **트러블 축은 Q2·Q3·Q4**에서만 움직입니다. 메밀묵(색소 9)은 5+3+1=9가 되어 두 문항을 모두 특정 선택지로 답해야만 도달합니다.
 - 문항별 `quiz_questions.axis`(대표 축): Q1 수분 · Q2 민감 · Q3 트러블 · Q4 색소 · Q5 유분 · Q6 수분
@@ -101,12 +123,14 @@
 
 ### 3-4. 사진 진단과의 혼합 (`api/diagnosis.py`, `config.py`)
 
-| 상황 | 함수 | 사진 비중 |
-|---|---|---|
-| 문항 전부 + 사진 | `blend_scores` | `PHOTO_BLEND_WEIGHT = 0.4` (축별 `0.6×QnA + 0.4×사진`) |
-| 일부 문항 + 사진 | `blend_partial` | `PHOTO_PARTIAL_WEIGHT = 0.5` — **답한 문항이 건드린 축만** 섞고, 안 건드린 축은 사진 값 그대로 |
-| 사진만 | — | 사진 5축 그대로 |
-| QnA만 | — | 기존 경로 그대로(혼합 함수를 거치지 않음) |
+- **문항 전부 + 사진** — `blend_scores`
+  - 사진 비중: `PHOTO_BLEND_WEIGHT = 0.4` (축별 `0.6×QnA + 0.4×사진`)
+- **일부 문항 + 사진** — `blend_partial`
+  - 사진 비중: `PHOTO_PARTIAL_WEIGHT = 0.5` — **답한 문항이 건드린 축만** 섞고, 안 건드린 축은 사진 값 그대로
+- **사진만** — —
+  - 사진 비중: 사진 5축 그대로
+- **QnA만** — —
+  - 사진 비중: 기존 경로 그대로(혼합 함수를 거치지 않음)
 
 ---
 
@@ -135,7 +159,7 @@
 | `FACE_MIN/MAX_LUMINANCE` | 50 / 200 | 밝기 |
 | `FACE_MAX_LIGHT_IMBALANCE` | 0.4 | 좌우 조명 불균형 |
 | `FACE_MIN_SHARPNESS` | 60 | 초점 |
-| `FACE_SKIN_MIN_CHEEK / NOSE_MOUTH / CHIN` | 0.70 / 0.80 / 0.60 | 영역별 **얼굴 피부 픽셀 비율** (손·마스크 가림 감지) |
+| `FACE_SKIN_MIN_CHEEK / NOSE_MOUTH / CHIN` | 0.70&nbsp;/&nbsp;0.80&nbsp;/&nbsp;0.60 | 영역별 **얼굴 피부 픽셀 비율** (손·마스크 가림 감지) |
 
 - 가림 기준은 업체가 정상 처리한 시험 사진(볼 95%·코입 100%·턱 76~79%)과 마스크/손을 그려 넣은 합성 사진(코입 25~49%·턱 6~48%)으로 잡음 → **실제 손·마스크 사진으로는 아직 조정 안 됨**(코드 주석에 명시)
 - 애매하면 통과, 가림 모델을 못 읽으면 그 검사만 건너뜀
@@ -143,11 +167,11 @@
 
 ### 4-3. 분석 항목 · 이용 한도 (`services/photo/skin_quota.py`)
 
-| | 무료(동의) | 구독 |
-|---|---|---|
-| 월 횟수 | `SKIN_FREE_MONTHLY = 1` | `SKIN_SUBSCRIBER_MONTHLY = 4` |
-| 항목 수 | 8 (oiliness·moisture·redness·age_spot·acne·skin_type·pore·wrinkle) | 16 (+firmness·radiance·texture·dark_circle·eye_bag·눈꺼풀 2·tear_trough) |
-| 업체 유닛 | 5~8개 구간 12유닛 | 13~16개 구간 16유닛 |
+- **월 횟수** — 무료(동의) `SKIN_FREE_MONTHLY = 1` · 구독 `SKIN_SUBSCRIBER_MONTHLY = 4`
+- **항목 수** — 무료(동의) 8 (oiliness·moisture·redness·age_spot·acne·skin_type·pore·wrinkle) · 구독 16 (+firmness·radiance·texture·dark_circle·eye_bag·눈꺼풀 2·tear_trough)
+- **업체 유닛** — 무료(동의) 5~8개 구간 12유닛 · 구독 13~16개 구간 16유닛
+
+<!-- -->
 
 - 동의하지 않으면 0회, 달 경계는 Asia/Seoul 1일 0시, **성공한 분석만** 센다(DB `skin_analyses` 행 수로 계산 — Redis 장애에 한도가 풀리지 않게)
 - `SKIN_ANALYSIS_ALLOWED_EMAILS`에 있는 계정만 실제 업체 호출, 나머지는 `SKIN_SAMPLE_EMAIL` 계정의 저장된 결과를 보여줌(비용 보호)
